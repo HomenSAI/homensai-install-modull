@@ -50,4 +50,10 @@ up/stop/ps/logs и loopback HTTP health для Docker-рендера v1. По у
 через runner/fetcher. CLI показывает только dry-run. Реальный Docker и
 install/update/restore/rollback-приёмка не выполнялись; установщик не готов.
 
+K2: [шифрование полного архива](docs/ARCHIVE.md#шифрование) через необязательный
+`cryptography`, AES-256-GCM по блокам и scrypt. CLI `archive-create --encrypt`,
+verify/restore с автоопределением; FS-порты принимают внедрённый provider пароля.
+Хэши зависимостей ещё должен заполнить владелец. Без пакета шифрование явно
+отказывает, обычный ZIP работает. Готовность установщиков этим не подтверждается.
+
 © 2026 Serhii Khomenko · HomenS.AI

@@ -9,7 +9,8 @@ import os
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import sys
 
-from shared.archive import ArchiveError, build_archive, restore_archive, verify_archive
+from shared.archive import ArchiveError, build_archive
+from shared import archive_crypto
 from shared.adapters_docker import DockerAdapterError, DockerComposeAdapter
 from shared.datahome import DataHomeError, checked_path, contains, resolve_datahome
 from shared.doctor import DoctorError, evaluate_health
@@ -59,6 +60,11 @@ class UsageError(ValueError):
 
 
 class Parser(argparse.ArgumentParser):
+    def __init__(self, *args, **kwargs):
+        # Имена опций точные: --password не должен стать --password-env.
+        kwargs.setdefault("allow_abbrev", False)
+        super().__init__(*args, **kwargs)
+
     def error(self, message):
         # argparse обычно повторяет произвольные argv, в том числе секреты.
         raise UsageError("Неверные аргументы; используйте --help")
@@ -78,9 +84,9 @@ def _parser() -> Parser:
         "render-linux": "Записать тексты Linux без исполнения",
         "doctor-eval": "Оценить внедрённые факты без проверки живого продукта",
         "render-windows": "Записать PowerShell 5.1/XML без исполнения",
-        "archive-create": "Создать полный незашифрованный ZIP остановленных данных",
-        "archive-verify": "Проверить весь ZIP и идентичность продукта",
-        "archive-restore": "Восстановить ZIP в отдельный пустой каталог",
+        "archive-create": "Создать полный архив остановленных данных (шифрование: --encrypt)",
+        "archive-verify": "Проверить полный архив и идентичность продукта",
+        "archive-restore": "Восстановить архив в отдельный пустой каталог",
         "update-plan-status": "Прочитать checkpoint без исполнения обновления",
     }
     for name, description in descriptions.items():
@@ -121,7 +127,10 @@ def _parser() -> Parser:
             command.add_argument("--action", choices=("up", "stop", "ps", "logs"), required=True,
                                  help="Только план команды Compose")
         if name in ("archive-create", "archive-verify", "archive-restore"):
-            command.add_argument("--archive", required=True, help="Путь ZIP (create: новый файл)")
+            command.add_argument("--archive", required=True, help="Путь архива (create: новый файл)")
+            command.add_argument("--password-env", help="Только имя переменной пароля; иначе скрытый запрос")
+        if name == "archive-create":
+            command.add_argument("--encrypt", action="store_true", help="Полный ZIP в AES-256-GCM оболочке")
         if name == "archive-restore":
             command.add_argument("--target", required=True, help="Существующий отдельный пустой каталог")
         if name == "update-plan-status":
@@ -177,7 +186,7 @@ def _write_rendered(rendered: dict[str, str], destination: str) -> list[str]:
     return [str(path) for path in files]
 
 
-def _execute(manifest, args) -> tuple[str, dict]:
+def _execute(manifest, args, *, password_provider=None) -> tuple[str, dict]:
     name = args.command
     if name == "doctor-eval":
         def unique_object(pairs):
@@ -257,12 +266,26 @@ def _execute(manifest, args) -> tuple[str, dict]:
                           release=args.release, modes=tuple(args.mode), migration_ids=ids)
         state = plan.status()
         return ("Состояние обновления прочитано" if state else "Обновление ещё не начато"), {"state": state}
+    provider = password_provider if password_provider is not None else archive_crypto.password_provider(
+        env_var=args.password_env)
+    encrypted = False
     if name == "archive-create":
         home = _home(manifest, args)
-        receipt = build_archive(home, _path(args.archive))
-        message = "Полный незашифрованный ZIP создан и проверен"
+        encrypted = args.encrypt
+        if encrypted:
+            receipt = archive_crypto.build_encrypted_archive(home, _path(args.archive),
+                                                             password_provider=provider)
+        else:
+            if args.password_env:
+                raise UsageError("--password-env при создании требует --encrypt")
+            receipt = build_archive(home, _path(args.archive))
+        message = ("Полный шифрованный архив создан и проверен" if encrypted else
+                   "Полный незашифрованный ZIP создан и проверен")
     elif name == "archive-verify":
-        receipt = verify_archive(_file(args.archive), expected_product_id=manifest["product_id"])
+        path = _file(args.archive)
+        encrypted = archive_crypto.is_encrypted(path)
+        receipt = archive_crypto.verify_archive(path, password_provider=provider,
+                                                expected_product_id=manifest["product_id"])
         message = "Архив полностью проверен"
     else:  # archive-restore: только отдельный каталог, включая защиту пустых живых корней.
         home = _home(manifest, args)
@@ -270,11 +293,14 @@ def _execute(manifest, args) -> tuple[str, dict]:
         if any(contains(root, target) or contains(target, root)
                for root in (home.app, home.releases, *home.roots.values())):
             raise DataHomeError("Восстановление пересекается с живой установкой")
-        receipt = restore_archive(_file(args.archive), target, expected_product_id=manifest["product_id"])
+        path = _file(args.archive)
+        encrypted = archive_crypto.is_encrypted(path)
+        receipt = archive_crypto.restore_archive(path, target, password_provider=provider,
+                                                 expected_product_id=manifest["product_id"])
         message = "Архив восстановлен в отдельный каталог и проверен"
     # Имена/содержимое/хэши файлов архива не попадают в stdout.
     return message, {"product_id": receipt["product_id"], "file_count": len(receipt["files"]),
-                     "directory_count": len(receipt["directories"]), "encrypted": False}
+                     "directory_count": len(receipt["directories"]), "encrypted": encrypted}
 
 
 def _emit(code: int, message: str, data: dict, as_json: bool) -> int:
@@ -303,7 +329,8 @@ def _emit(code: int, message: str, data: dict, as_json: bool) -> int:
         if "schema_version" in data:
             print("Версия схемы: " + str(data["schema_version"]))
         if "file_count" in data:
-            print(f"Файлов: {data['file_count']}; каталогов: {data['directory_count']}; ZIP без шифрования")
+            protection = "AES-256-GCM" if data["encrypted"] else "ZIP без шифрования"
+            print(f"Файлов: {data['file_count']}; каталогов: {data['directory_count']}; {protection}")
         if data.get("state") is not None:
             state = data["state"]
             print(f"Направление: {state['direction']}; индекс следующего шага: {state['index']}; "
@@ -314,7 +341,7 @@ def _emit(code: int, message: str, data: dict, as_json: bool) -> int:
     return code
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, *, password_provider=None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     as_json = "--json" in arguments
     try:
@@ -323,7 +350,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command != "doctor-eval" and not args.manifest:
             raise UsageError("Требуется --manifest")
         manifest = load_manifest(_file(args.manifest)) if args.manifest else None
-        message, data = _execute(manifest, args)
+        message, data = _execute(manifest, args, password_provider=password_provider)
     except SystemExit as error:  # --help остаётся удобным и для main(argv).
         return int(error.code)
     except UsageError as error:
@@ -338,6 +365,8 @@ def main(argv: list[str] | None = None) -> int:
         return _emit(2, "Недопустимый план Docker Compose", {}, as_json)
     except DoctorError:
         return _emit(1, "Неверные факты диагностики", {}, as_json)
+    except archive_crypto.ArchiveCryptoError as error:
+        return _emit(1, str(error), {}, as_json)
     except ArchiveError:
         return _emit(1, "Операция ZIP не завершена: проверьте архив, место и каталоги", {}, as_json)
     except UpdateError:

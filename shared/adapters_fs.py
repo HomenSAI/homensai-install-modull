@@ -1,7 +1,8 @@
 # HomenS.AI · © 2026 Serhii Khomenko
 """Локальные файловые порты UpdatePlan; службы/миграции/health внедряются.
 
-ZIP НЕ зашифрован: требуется явный allow_unencrypted=True. Все вызовы портов
+Для шифрования нужен внедрённый password_provider; обычный ZIP требует
+явный allow_unencrypted=True. Все вызовы портов
 выполняются под operation_lock UpdatePlan при остановленных писателях.
 Рабочий каталог с архивами/receipts расположен вне всех корней установки.
 """
@@ -19,6 +20,7 @@ from typing import Mapping, Protocol
 import uuid
 
 from shared.archive import _safe_name, build_archive, restore_archive, verify_archive
+from shared import archive_crypto
 from shared.datahome import checked_path, contains, resolve_datahome
 from shared.manifest import validate_manifest
 from shared.update_plan import UpdateError, _atomic_write, _identifier, operation_lock
@@ -106,12 +108,13 @@ class FilesystemPorts:
 
     def __init__(self, manifest, install_root: Path, *, work_dir: Path,
                  payloads: Mapping[str, ReleaseSource], effects: InjectedEffects,
-                 allow_unencrypted: bool = False):
+                 allow_unencrypted: bool = False, password_provider=None):
         self.manifest = validate_manifest(manifest)
         if self.manifest["schema_version"] != 2:
             raise UpdateError("FS-порты требуют явный манифест v2")
-        if allow_unencrypted is not True:
+        if password_provider is None and allow_unencrypted is not True:
             raise UpdateError("ZIP не зашифрован; требуется явный allow_unencrypted=True")
+        self.password_provider = password_provider
         self.home = resolve_datahome(self.manifest, install_root)
         self.work = checked_path(work_dir)
         if self.work == Path(self.work.anchor) or any(
@@ -138,7 +141,15 @@ class FilesystemPorts:
         return checked_path(self.work / (hashlib.sha256(key.encode()).hexdigest() + suffix))
 
     def archive_path(self, key: str) -> Path:
-        return self._path(key, ".zip")
+        return self._path(key, ".hsac" if self.password_provider is not None else ".zip")
+
+    def _verify_archive(self, path):
+        if self.password_provider is None:
+            return verify_archive(path, expected_product_id=self.home.product_id)
+        if not archive_crypto.is_encrypted(path):
+            raise UpdateError("Ожидался шифрованный архив; обычный ZIP запрещён")
+        return archive_crypto.verify_archive(path, password_provider=self.password_provider,
+                                             expected_product_id=self.home.product_id)
 
     def release_path(self, release: str) -> Path:
         if not _identifier(release):
@@ -222,8 +233,12 @@ class FilesystemPorts:
         path = self.archive_path(key)
         checked_path(self.work).mkdir(parents=True, exist_ok=True)
         if not path.exists():
-            build_archive(self.home, path)
-        verify_archive(path, expected_product_id=self.home.product_id)
+            if self.password_provider is None:
+                build_archive(self.home, path)
+            else:
+                archive_crypto.build_encrypted_archive(self.home, path,
+                                                        password_provider=self.password_provider)
+        self._verify_archive(path)
         _sync_directory(self.work)
 
     def restore(self, key: str, archive_key: str, command: tuple[str, ...]) -> None:
@@ -231,18 +246,21 @@ class FilesystemPorts:
         if key != transaction + "/restore" or archive_key != transaction + "/archive":
             raise UpdateError("Недопустимые ключи восстановления")
         # Независимая защита: без проверенной отдельной копии нет живых записей.
-        verify_archive(self.archive_path(transaction + "/before_rollback"),
-                       expected_product_id=self.home.product_id)
+        self._verify_archive(self.archive_path(transaction + "/before_rollback"))
         value = {"archive": archive_key}
         if self._receipt(key, value):
             return
         archive = self.archive_path(archive_key)
-        receipt = verify_archive(archive, expected_product_id=self.home.product_id)
+        receipt = self._verify_archive(archive)
         if set(receipt["roots"]) != set(self.home.roots):
             raise UpdateError("Корни архива отличаются от установки")
         scratch = checked_path(self.work / ("restore-" + uuid.uuid4().hex))
         scratch.mkdir()
-        restore_archive(archive, scratch, expected_product_id=self.home.product_id)
+        if self.password_provider is None:
+            restore_archive(archive, scratch, expected_product_id=self.home.product_id)
+        else:
+            archive_crypto.restore_archive(archive, scratch, password_provider=self.password_provider,
+                                            expected_product_id=self.home.product_id)
         for name, target in sorted(self.home.roots.items()):
             preserved = set()
             if name == "services":

@@ -14,7 +14,7 @@ python -m shared.ctl --manifest FILE [--json] COMMAND [параметры]
 
 Запускать из корня репозитория на Python 3.14+. `main(argv) -> int` возвращает
 код без завершения вызывающего процесса; модуль передаёт его в `SystemExit`.
-`--manifest` обязателен перед командой. `--json` допустим перед командой или
+`--manifest` обязателен перед командой, кроме `doctor-eval`. `--json` допустим перед командой или
 после неё. `--help` и `COMMAND --help` показывают синтаксис (код 0).
 В примерах ниже пути демонстрационные; продуктовые команды и зависимости
 в примерах манифестов также не являются готовым payload.
@@ -32,7 +32,9 @@ python -m shared.ctl --manifest FILE [--json] COMMAND [параметры]
 {"ok": true, "code": 0, "message": "Манифест корректен", "data": {"product_id": "homensai-jobpilot-pro", "schema_version": 1}}
 ```
 
-На ошибке `ok: false`, `data: {}`, `code` совпадает с кодом возврата.
+На ошибке `ok: false`, `data: {}`, `code` совпадает с кодом возврата;
+у `doctor-eval` при проблемах здоровья сохраняется `data.report` с проверками,
+а код 1 также означает нездоровое состояние по переданным фактам.
 JSON сериализуется с ASCII escape для независимости от кодировки терминала;
 после JSON-декодирования сообщения остаются русскими. `--help` выводит обычную
 справку даже с `--json`. Окружение с секретами не читается. Произвольные argv,
@@ -52,6 +54,9 @@ JSON сериализуется с ASCII escape для независимост�
 | `render-docker` | `--output-dir` | Только v1: новые Dockerfile/compose.yml в указанном каталоге. Нет сборки, сети или запуска. v2 явно отвергается библиотекой. |
 | `docker-plan` | `--compose-file`, `--action up/stop/ps/logs` | Только v1: `dry_run: true`, `argv`. Ни процессов/HTTP, ни записи; `--execute` отсутствует. [Контракт шага 7](DOCKER-ADAPTER.md). |
 | `render-services` | `--install-root`, `--platform linux/windows`, `--mode`, `--output-dir` | Только v2: XML/units в указанном каталоге. Для Windows необходимы pin в манифесте и `--winsw-file` с совпадающим SHA-256. Бинарник только читается, не запускается. |
+| `render-linux` | `--install-root`, `--mode`, `--output-dir` | Только v2: тексты shell/units/override; без исполнения. [Linux](LINUX.md). |
+| `doctor-eval` | `--facts FILE`; манифест необязателен | Чистая оценка публичных фактов с внедрённым временем; report и код 0/1. [Doctor](DOCTOR.md). |
+| `render-windows` | `--install-root`, `--mode`, `--winsw-file`, `--output-dir`; необязательный `--dpapi-scope` | Только v2 с pin: тексты PS5.1/XML без исполнения; [контракт и ограничения](WINDOWS.md). |
 | `archive-create` | `--install-root`, `--archive` | Полный **незашифрованный** ZIP всех постоянных корней, включая существующие копии. Архив не перезаписывается; его родитель уже должен существовать. |
 | `archive-verify` | `--archive` | Полная проверка состава, CRC/SHA-256 и product_id манифеста, без извлечения и записи. |
 | `archive-restore` | `--install-root`, `--archive`, `--target` | Восстановление в существующий отдельный пустой каталог: `target/roots/<имя>`. После записи файлы перепроверяются. Живые пути не заменяются. |

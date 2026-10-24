@@ -12,10 +12,13 @@ import sys
 from shared.archive import ArchiveError, build_archive, restore_archive, verify_archive
 from shared.adapters_docker import DockerAdapterError, DockerComposeAdapter
 from shared.datahome import DataHomeError, checked_path, contains, resolve_datahome
+from shared.doctor import DoctorError, evaluate_health
+from shared.linux_sh import render_linux
 from shared.manifest import ManifestError, load_manifest
 from shared.render_docker import render_docker
 from shared.services import component_order, render_services
 from shared.update_plan import UpdateError, UpdatePlan
+from shared.windows_ps import render_windows
 
 
 class UnimplementedPortError(NotImplementedError):
@@ -63,7 +66,7 @@ class Parser(argparse.ArgumentParser):
 
 def _parser() -> Parser:
     parser = Parser(description="Локальный контроллер: планы, тексты и ZIP без запуска служб")
-    parser.add_argument("--manifest", required=True, help="Публичный JSON-манифест")
+    parser.add_argument("--manifest", help="Публичный JSON-манифест (кроме doctor-eval: обязателен)")
     parser.add_argument("--json", action="store_true", help="Один JSON-объект результата")
     commands = parser.add_subparsers(dest="command", required=True, title="Команды")
     descriptions = {
@@ -72,6 +75,9 @@ def _parser() -> Parser:
         "render-docker": "Записать Dockerfile/compose.yml без сборки",
         "docker-plan": "Показать argv Compose без исполнения и записи",
         "render-services": "Записать XML/units без установки служб",
+        "render-linux": "Записать тексты Linux без исполнения",
+        "doctor-eval": "Оценить внедрённые факты без проверки живого продукта",
+        "render-windows": "Записать PowerShell 5.1/XML без исполнения",
         "archive-create": "Создать полный незашифрованный ZIP остановленных данных",
         "archive-verify": "Проверить весь ZIP и идентичность продукта",
         "archive-restore": "Восстановить ZIP в отдельный пустой каталог",
@@ -92,10 +98,24 @@ def _parser() -> Parser:
             choices = ("docker", "linux", "windows") if name == "plan-install" else ("linux", "windows")
             command.add_argument("--platform", choices=choices, required=True, help="Формат результата")
             command.add_argument("--mode", action="append", default=[], help="Режим v2, можно повторять")
-        if name in ("render-docker", "render-services"):
+        if name in ("render-docker", "render-services", "render-windows"):
             command.add_argument("--output-dir", required=True, help="Каталог новых файлов")
         if name == "render-services":
             command.add_argument("--winsw-file", help="Локальный артефакт для проверки pin Windows")
+        if name == "render-linux":
+            command.add_argument("--install-root", required=True, help="Абсолютный Linux-путь как текст")
+            command.add_argument("--mode", action="append", required=True, help="Режим v2")
+            command.add_argument("--output-dir", required=True, help="Каталог новых текстов")
+            command.add_argument("--user", default="homensai", help="Отдельный непривилегированный пользователь")
+            command.add_argument("--environment-file", help="Публичный внешний путь EnvironmentFile")
+        if name == "doctor-eval":
+            command.add_argument("--facts", required=True, help="Публичный JSON с фактами и часами")
+        if name == "render-windows":
+            command.add_argument("--install-root", required=True, help="Абсолютный локальный Windows-путь")
+            command.add_argument("--mode", action="append", required=True, help="Явный режим v2")
+            command.add_argument("--winsw-file", required=True, help="Публичный WinSW-артефакт для проверки SHA-256")
+            command.add_argument("--dpapi-scope", choices=("CurrentUser", "LocalMachine"),
+                                 default="LocalMachine", help="Область DPAPI будущего исполнения")
         if name == "docker-plan":
             command.add_argument("--compose-file", required=True, help="Путь публичного compose.yml")
             command.add_argument("--action", choices=("up", "stop", "ps", "logs"), required=True,
@@ -159,6 +179,27 @@ def _write_rendered(rendered: dict[str, str], destination: str) -> list[str]:
 
 def _execute(manifest, args) -> tuple[str, dict]:
     name = args.command
+    if name == "doctor-eval":
+        def unique_object(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise DoctorError("Повтор поля фактов")
+                result[key] = value
+            return result
+
+        def constant(value):
+            raise DoctorError("Нечисловая константа фактов")
+
+        facts = json.loads(_file(args.facts).read_text(encoding="utf-8-sig"),
+                           object_pairs_hook=unique_object, parse_constant=constant)
+        report = evaluate_health(facts)
+        return "Продукт исправен" if report["ok"] else "Обнаружены проблемы продукта", {"report": report}
+    if name == "render-linux":
+        rendered = render_linux(manifest, modes=tuple(args.mode), install_root=args.install_root,
+                                user=args.user, environment_file=args.environment_file)
+        files = _write_rendered(rendered, args.output_dir)
+        return "Тексты Linux записаны; сценарии и службы не исполнялись", {"files": files}
     if name == "docker-plan":
         adapter = DockerComposeAdapter(manifest, _path(args.compose_file))
         return "План Compose; исполнение не выполнялось", {
@@ -184,6 +225,12 @@ def _execute(manifest, args) -> tuple[str, dict]:
     if name == "render-docker":
         files = _write_rendered(render_docker(manifest), args.output_dir)
         return "Docker-заготовки записаны; сборка и запуск не выполнялись", {"files": files}
+    if name == "render-windows":
+        rendered = render_windows(manifest, install_root=args.install_root, modes=tuple(args.mode),
+                                  winsw_payload=_file(args.winsw_file).read_bytes(),
+                                  dpapi_scope=args.dpapi_scope)
+        files = _write_rendered(rendered, args.output_dir)
+        return "Тексты PowerShell/XML записаны; исполнение и Windows-приёмка не выполнялись", {"files": files}
     if name == "render-services":
         component_order(manifest, tuple(args.mode))
         # Корень целевой ОС используется только как текст, запись идёт в output-dir.
@@ -244,6 +291,10 @@ def _emit(code: int, message: str, data: dict, as_json: bool) -> int:
             print("Файлы:")
             for path in data["files"]:
                 print("  " + path)
+        if "report" in data:
+            for check in data["report"]["checks"]:
+                component = " [" + check["component"] + "]" if "component" in check else ""
+                print(check["code"] + component + ": " + check["message"])
         if "product_id" in data:
             print("Продукт: " + data["product_id"])
         if "argv" in data:
@@ -269,7 +320,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         args = _parser().parse_args(arguments)
         as_json = args.json
-        manifest = load_manifest(_file(args.manifest))
+        if args.command != "doctor-eval" and not args.manifest:
+            raise UsageError("Требуется --manifest")
+        manifest = load_manifest(_file(args.manifest)) if args.manifest else None
         message, data = _execute(manifest, args)
     except SystemExit as error:  # --help остаётся удобным и для main(argv).
         return int(error.code)
@@ -283,6 +336,8 @@ def main(argv: list[str] | None = None) -> int:
         return _emit(2, "Небезопасный путь или пересечение каталогов; операция запрещена", {}, as_json)
     except DockerAdapterError:
         return _emit(2, "Недопустимый план Docker Compose", {}, as_json)
+    except DoctorError:
+        return _emit(1, "Неверные факты диагностики", {}, as_json)
     except ArchiveError:
         return _emit(1, "Операция ZIP не завершена: проверьте архив, место и каталоги", {}, as_json)
     except UpdateError:
@@ -291,7 +346,7 @@ def main(argv: list[str] | None = None) -> int:
         return _emit(1, "Реальный адаптер не реализован; выполнение запрещено", {}, as_json)
     except (OSError, UnicodeError, ValueError, RecursionError):
         return _emit(1, "Не удалось выполнить локальную операцию; проверьте входные файлы и доступ", {}, as_json)
-    return _emit(0, message, data, as_json)
+    return _emit(data.get("report", {}).get("exit_code", 0), message, data, as_json)
 
 
 if __name__ == "__main__":

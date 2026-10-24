@@ -278,3 +278,55 @@ hooks, миграций, архивов/шифрования и транзакц
 задания на внешние службы. Credentials/auth caches, .env, реальные секреты
 и личные документы не читались. Внешние MCP, deploy, push, commit, merge,
 изменения Git metadata, конфигурации агентов и безопасности не выполнялись.
+
+24.10.2026 — **шаг 8b: чистый doctor и тексты Linux**.
+Добавлены `shared/doctor.py`: проверка внедрённых фактов БД/схемы/записи/места,
+heartbeat ≤ 180 с, архив ≤ расписание + сутки, три падения за 600 с;
+структурированный report с русскими сообщениями и кодом 0/1, чистый лимитер
+сигналов раз в час на компонент с внедрённым временем. Живой продукт не опрашивается,
+stop и отправка уведомлений не выполняются. CLI: `doctor-eval --facts FILE`.
+
+`shared/linux_sh.py` выдаёт только детерминированные тексты install/uninstall/status,
+systemd units/override, создание непривилегированного пользователя и внешний
+root-owned EnvironmentFile 0600 с комментариями только имён секретов.
+CLI `render-linux` записывает тексты без исполнения; install.sh не запускает
+службы, uninstall.sh сохраняет постоянные данные/секреты/учётную запись.
+Контракты, ограничения и точный полный stdout: [DOCTOR](docs/DOCTOR.md),
+[LINUX](docs/LINUX.md). Сценарии **сгенерированы, никогда не исполнялись**.
+
+Полный локальный pytest на Windows/Python 3.14 через прежний WorkspaceTemps:
+код 0, **`1019 passed, 4 skipped in 270.03s (0:04:30)`**; включены 144 новых
+сценария, golden-тексты, hostile inputs и отсутствие синтетических значений
+секретов. Сеть запрещена, в новом Linux-наборе запрещены процессы;
+bytecode/кэш/сторонние plugins отключены, ACL не менялись.
+**Готовых установщиков нет:** Linux/systemd, Docker, настоящие службы,
+шифрование и install/update/restore/rollback не проверялись. Надзор и доставка
+сигналов к ОС не подключены. Windows-генератор не изменялся. Внешние MCP,
+commit/push/merge/deploy и изменения Git metadata/настроек не выполнялись.
+24.10.2026 — **шаг 8: генератор текстов Windows PowerShell 5.1**,
+[контракт, ограничения и проверки](docs/WINDOWS.md). Новый stdlib-модуль
+`shared/windows_ps.py` формирует install/start/stop/status/uninstall/rollback,
+отдельный secrets.ps1 и XML через существующий render_services. Добавлена
+команда `ctl render-windows`. V2 требует явных mode и pin/байтов WinSW;
+исходный Rent без pin и JobPilot v1 без native-контракта явно отклоняются.
+Тексты задают внешние каталоги, ACL data/secrets только для владельца операции,
+SYSTEM/Administrators, DPAPI CurrentUser/LocalMachine с запросом значений во
+время будущего исполнения, проверку SHA-256 до использования WinSW,
+delayed auto start и operation.lock с диапазоном Python UpdatePlan.
+
+Семь сценариев прошли **только синтаксический разбор** настоящим Windows
+PowerShell 5.1.22000.2538; сценарии не исполнялись. Rollback требует явных
+доверенных портов продукта и отдельной проверенной before-rollback; портов
+шифрованных копий/restore/activation/health в поставке нет. Доставка DPAPI
+секретов службам, payload/runtime, миграции/hooks и crash-resume этого PS
+сценария не реализованы. **Clean-Win11 install/update/restore/rollback-приёмка
+отсутствует; готового Windows-установщика нет.** ACL/DPAPI/WinSW/SCM и Docker
+не запускались. Commit/push/merge/deploy и внешние MCP не использовались;
+doctor.py и linux/ этим шагом не изменялись.
+
+Полный локальный pytest шага 8 через прежний WorkspaceTemps: код 0,
+**`970 passed, 4 skipped in 388.69s (0:06:28)`**. Все прежние тесты и 95 новых
+включены; три symlink-пропуска без прав Windows и один Windows-на-POSIX.
+Точные команда/stdout, первая неудачная проверка ADS и адресный успешный запуск
+записаны в [WINDOWS.md](docs/WINDOWS.md). Сеть/процессы в новых тестах запрещены,
+кэш/bytecode/сторонние plugins отключены. `git diff --check` — код 0.

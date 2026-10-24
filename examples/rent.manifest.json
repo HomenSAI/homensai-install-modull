@@ -1,0 +1,84 @@
+{
+  "schema_version": 2,
+  "product_name": "HomenS.AI Rent (вымышленный пример)",
+  "product_id": "homensai-rent-demo",
+  "archive_before_replace": true,
+  "runtime": {
+    "python": "3.14",
+    "lock_files": {
+      "windows": {"file": "locks/demo-windows.lock", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+      "linux": {"file": "locks/demo-linux.lock", "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
+    },
+    "vendor_wheels": [
+      {"file": "vendor/fictitious_rent_demo-0.0.0-py3-none-any.whl", "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
+    ],
+    "offline": true
+  },
+  "paths": {
+    "app": "demo-layout/app",
+    "releases": "demo-layout/releases",
+    "data": "demo-layout/data",
+    "backup": "demo-layout/backup",
+    "services": "demo-layout/services",
+    "config": "demo-layout/config",
+    "runtime": "demo-layout/runtime"
+  },
+  "components": [
+    {
+      "name": "web",
+      "cmd": ["python", "-m", "fictitious_rent_demo.web"],
+      "after": [],
+      "heartbeat": {"file": "heartbeats/web.json", "interval": 60, "timeout": 180},
+      "restart": {"delay": 60, "max": 3, "window": 600}
+    },
+    {
+      "name": "bot",
+      "cmd": ["python", "-m", "fictitious_rent_demo.bot"],
+      "after": ["web"],
+      "heartbeat": {"file": "heartbeats/bot.json", "interval": 60, "timeout": 180},
+      "restart": {"delay": 60, "max": 3, "window": 600}
+    },
+    {
+      "name": "scheduler",
+      "cmd": ["python", "-m", "fictitious_rent_demo.scheduler"],
+      "after": ["bot"],
+      "heartbeat": {"file": "heartbeats/scheduler.json", "interval": 60, "timeout": 180},
+      "restart": {"delay": 60, "max": 3, "window": 600}
+    },
+    {
+      "name": "core-server",
+      "cmd": ["python", "-m", "fictitious_rent_demo.core_server"],
+      "after": [],
+      "heartbeat": {"file": "heartbeats/core.json", "interval": 60, "timeout": 180},
+      "restart": {"delay": 60, "max": 3, "window": 600}
+    }
+  ],
+  "web": {"host": "127.0.0.1", "port": 8820, "healthz": "/healthz"},
+  "secrets": [
+    {"name": "BACKUP_PASSWORD", "required": true, "contexts": ["service", "admin"], "same_value": true},
+    {"name": "BOT_TOKEN", "required": true, "contexts": ["service"], "same_value": false},
+    {"name": "ENCRYPTION_KEY", "required": true, "contexts": ["service"], "same_value": false}
+  ],
+  "modes": [
+    {"name": "autonomous", "components": ["web", "bot", "scheduler"]},
+    {"name": "platform", "components": ["core-server"]}
+  ],
+  "mutual_exclusion": [["autonomous", "platform"]],
+  "migrations": {"cmd": ["python", "-m", "fictitious_rent_demo.migrate"], "backup_before_each": true, "new_db_no_backup": false},
+  "backup": {"cmd": ["python", "-m", "fictitious_rent_demo.backup"], "encrypted": true},
+  "restore": {"cmd": ["python", "-m", "fictitious_rent_demo.restore"]},
+  "update": {
+    "staged_releases": true,
+    "pointer_file": "active.json",
+    "state_file": "update.json",
+    "health_wait": 60,
+    "backup_before_rollback": true,
+    "retain_previous_release": true,
+    "retain_runtime": true
+  },
+  "hooks": {
+    "pre_start": [["python", "-m", "fictitious_rent_demo.check_schema"]],
+    "health_checks": [["python", "-m", "fictitious_rent_demo.health"]],
+    "post_update": []
+  }
+}

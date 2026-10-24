@@ -5,7 +5,7 @@ install.ps1/install.sh/Dockerfile JobPilot), описать манифест п�
 
 24.10.2026 — аудит Rent: [docs/AUDIT-RENT-2026-10-24.md](docs/AUDIT-RENT-2026-10-24.md). Вывод: готовых Docker/Windows-установщиков в Rent нет; основа — JobPilot (setup.ps1, DataHome, полный архив). Переносимы отдельные механизмы Rent (проверка WinSW, backup-before-migration).
 
-24.10.2026 — реализован **только шаг 1**: [манифест v1](docs/MANIFEST.md),
+24.10.2026 — на шаге 1 реализованы: [манифест v1](docs/MANIFEST.md),
 `shared/manifest.schema.json`, stdlib-валидатор `shared/manifest.py`, пример
 `examples/jobpilot.manifest.json`, шаблоны `docker/Dockerfile.template`,
 `docker/compose.template.yml` и рендер `shared/render_docker.py`.
@@ -50,3 +50,38 @@ install/update/restore/rollback, Windows/native, ACL/DPAPI и восстанов
 реализовать полный проверяемый архив и транзакцию миграции/отката, затем провести
 Docker и native-приёмку. Коммит, push, deploy и изменение внешних исходников
 в этом шаге не выполнялись.
+
+24.10.2026 — **шаг 2: контракт манифеста v2**, по
+[сообщению Rent](docs/REQUESTS-RENT-2026-10-24.md), без чтения/переноса его кода.
+`shared/manifest.schema.json` и `shared/manifest.py` принимают v1 без изменений
+и v2 с runtime (lock Windows/Linux, wheels/SHA-256, offline), внешними путями,
+компонентами/heartbeat/restart, loopback-only web, дескрипторами секретов,
+режимами и взаимным исключением, миграциями/backup/restore, staged update,
+обязательной копией before-rollback и хуками. Проверяются ссылки и циклы
+`after`, зависимости внутри режимов, запрет data/backup/services/config/runtime
+в app/releases, неизвестные и содержащие значения секретов поля.
+
+Добавлен [вымышленный пример Rent v2](examples/rent.manifest.json);
+[JobPilot v1](examples/jobpilot.manifest.json) сохранён. Ручная миграция и
+ограничения описаны в [docs/MANIFEST.md](docs/MANIFEST.md), происхождение —
+в [docs/PROVENANCE.md](docs/PROVENANCE.md). Docker-рендер явно отклоняет v2:
+шаблоны шага 1 не исполняют многокомпонентный контракт.
+
+Проверки шага 2 на Windows/Python 3.14 (pytest 9.1.1):
+
+- Обычный полный pytest с `--basetemp build/step2-pytest`: код 1,
+  `331 passed, 14 errors in 6.66s`, отсутствовал родитель `build/` (`WinError 3`).
+- После создания `build/`, полный pytest с `--basetemp build/step2-stock-pytest`:
+  код 1, `PermissionError: [WinError 5]` в tmpdir/sessionfinish. ACL не менялись.
+- Полный pytest через прежний документированный `WorkspaceTemps`/`tmp_path`:
+  промежуточно `347 passed in 3.70s`, итоговый код 0,
+  **`349 passed in 3.22s`**. Файловые тесты включены, сеть заблокирована,
+  кэш/bytecode/сторонние plugins отключены. Точный stdout и команда — в MANIFEST.
+- CLI-валидация обоих примеров: код 0 для JobPilot v1 и Rent v2.
+
+Это проверка контракта и текстовых Docker-заготовок. Фактические SHA-256,
+полнота lock/wheels, symlink/junction и цели каталогов не проверяются; данные
+примера — заглушки. Docker и службы в шаге 2 не запускались по ограничениям
+задания. **Установщики и install/update/restore/rollback по-прежнему не готовы**;
+хуки, секреты, шифрование, backup-before-rollback, выбор режимов и надзор
+сейчас только задекларированы. Commit/push/merge/deploy не выполнялись.

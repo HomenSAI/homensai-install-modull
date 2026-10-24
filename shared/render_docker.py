@@ -15,6 +15,8 @@ from shared.manifest import ManifestError, load_manifest, validate_manifest
 def render_docker(manifest: dict[str, Any]) -> dict[str, str]:
     """Вернуть Dockerfile и compose.yml; команды, Docker и сеть не запускаются."""
     manifest = validate_manifest(manifest)
+    if manifest["schema_version"] != 1:
+        raise ManifestError("Docker-рендер поддерживает только v1; исполнение контракта v2 не реализовано")
     # Без proxy из окружения и редиректов: health обязан отвечать по своему URL.
     health_code = (
         "import urllib.request as u; "

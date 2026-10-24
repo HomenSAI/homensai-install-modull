@@ -1,0 +1,29 @@
+# HomenS.AI · © 2026 Serhii Khomenko
+# Производный от контрактов JobPilot; происхождение: docs/PROVENANCE.md.
+name: ${product_id}
+services:
+  app:
+    image: ${product_id}:manifest-v1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    user: "10001:10001"
+    read_only: true
+    restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      ${data_home_env}: "/data"
+    ports:
+      - "127.0.0.1:${port}:${port}"
+    volumes:
+      - data:/data
+    healthcheck:
+      test: ${compose_healthcheck_command}
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+volumes:
+  data: {}

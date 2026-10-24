@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "product_name": "HomenS.AI JobPilot Pro",
+  "product_id": "homensai-jobpilot-pro",
+  "port": 8765,
+  "data_home_env": "JOBPILOT_DATA_HOME",
+  "migration_command": ["python", "-m", "backend.cli", "migrate"],
+  "healthcheck_url": "http://127.0.0.1:8765/health/ready",
+  "archive_before_replace": true,
+  "docker": {
+    "base_image": "python:3.14-slim-trixie@sha256:c3e521df8b2b498a7a682e7e18676771cb80c6b75b8699af886b2d554ce40151",
+    "start_command": ["python", "-m", "backend.main"]
+  }
+}

@@ -1,0 +1,20 @@
+# HomenS.AI · © 2026 Serhii Khomenko
+# Производный от JobPilot Dockerfile; происхождение: docs/PROVENANCE.md.
+# Заготовка: зависимости продукта должны быть в base_image, код — в payload/.
+FROM ${base_image}
+USER 0:0
+WORKDIR /app
+RUN mkdir -p /data && chown 10001:10001 /data && chmod 0700 /data
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    ${data_home_env}=/data
+COPY --chown=0:0 payload/ /app/
+LABEL org.homensai.product.id="${product_id}" \
+      org.homensai.archive-before-replace="true"
+USER 10001:10001
+EXPOSE ${port}
+VOLUME ["/data"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD ${healthcheck_command}
+ENTRYPOINT []
+CMD ${start_command}

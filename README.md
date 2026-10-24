@@ -25,4 +25,9 @@ native-ветки (NSIS, build2 — FAIL по откату) ещё не прин
 
 См. [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md), [STATUS.md](STATUS.md).
 
+Шаг 1: [контракт манифеста](docs/MANIFEST.md),
+[пример JobPilot](examples/jobpilot.manifest.json),
+[происхождение](docs/PROVENANCE.md). Проверка манифеста и рендер Docker-заготовок
+реализованы; готовность установки и обновления этим не подтверждается.
+
 © 2026 Serhii Khomenko · HomenS.AI

@@ -56,25 +56,26 @@ class UpdatePorts(Protocol):
 
 
 @contextmanager
-def operation_lock(path: Path) -> Iterator[None]:
+def operation_lock(path: Path) -> Iterator[bool]:
     """OS advisory lock: постоянный inode, автоматически освобождается при crash.
 
     Файл не удаляется: unlink создал бы гонку между старым и новым inode.
     Все управляющие процессы обязаны использовать тот же путь и протокол.
+    Возвращает stale=True, если после захвата OS lock осталась отметка held
+    (либо оборванные метаданные). PID и возраст не разрешают отбирать живой lock.
     """
     path = checked_path(path)
     try:
-        stream = path.open("a+b")
+        stream = os.fdopen(os.open(path, os.O_RDWR | os.O_CREAT, 0o600), "r+b")
     except OSError:
         raise LockBusy("Блокировка операции недоступна") from None
     acquired = False
     try:
         if os.name == "nt":
             import msvcrt
-            if path.stat().st_size == 0:
-                stream.write(b"\0")
-                stream.flush()
-            stream.seek(0)
+            # Байт вне содержимого: Windows запрещает читать заблокированный
+            # диапазон через другой handle, в том числе полному архиватору.
+            stream.seek(0x7FFFFFFF)
             try:
                 msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
             except OSError:
@@ -86,11 +87,30 @@ def operation_lock(path: Path) -> Iterator[None]:
             except OSError:
                 raise LockBusy("Операция занята") from None
         acquired = True
-        yield
+        stream.seek(1)
+        previous = stream.read(4096)
+        try:
+            stale = bool(previous) and json.loads(previous).get("status") != "released"
+        except (ValueError, UnicodeError, AttributeError):
+            stale = True
+
+        def mark(status):
+            stream.seek(1)
+            stream.write(json.dumps({"version": 1, "status": status,
+                                     "pid": os.getpid()}, sort_keys=True).encode("ascii"))
+            stream.truncate()
+            stream.flush()
+            os.fsync(stream.fileno())
+
+        mark("held")
+        try:
+            yield stale
+        finally:
+            mark("released")
     finally:
         if acquired:
             if os.name == "nt":
-                stream.seek(0)
+                stream.seek(0x7FFFFFFF)
                 msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
             else:
                 fcntl.flock(stream.fileno(), fcntl.LOCK_UN)

@@ -212,6 +212,16 @@ class UpdatePlan:
     def _key(self, state, phase):
         return state["transaction"] + "/" + phase
 
+    def status(self) -> dict[str, Any] | None:
+        """Прочитать проверенный checkpoint без mkdir, lock, портов и исполнения.
+
+        Атомарная замена checkpoint позволяет увидеть предыдущую или следующую
+        полную версию. Это наблюдение, не разрешение на параллельное управление.
+        """
+        checked_path(self.state_path)
+        state = self._load()
+        return dict(state) if state is not None else None
+
     def _execute(self, state, phase):
         key = self._key(state, phase)
         manifest, ports = self.manifest, self.ports

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import ntpath
 import os
 from pathlib import Path, PureWindowsPath
 import stat
@@ -25,7 +26,7 @@ def checked_path(value: str | Path) -> Path:
     text = str(value)
     portable = text.replace("\\", "/")
     tail = portable[2:] if PureWindowsPath(text).drive and not portable.startswith("//") else portable
-    if (not text or any(ord(c) < 32 or ord(c) == 127 for c in text)
+    if (not text or ntpath.isreserved(text) or any(ord(c) < 32 or ord(c) == 127 for c in text)
             or portable.startswith("//") or text.startswith("\\") or ":" in tail
             or any(part == ".." or (part not in ("", ".") and part.endswith((".", " ")))
                    for part in portable.split("/"))):

@@ -240,3 +240,41 @@ stdout, промежуточные неудачные/успешные запу�
 plugins отключены. Docker-проверка по CLAUDE.md не выполнена: задание прямо
 запрещает внешние службы. `git diff --check` и проверка новых файлов на
 trailing whitespace — код 0.
+
+24.10.2026 — **шаг 7: Compose-адаптер v1 и docker-plan**,
+[API, ограничения, команда и точный stdout pytest](docs/DOCKER-ADAPTER.md).
+Добавлены `shared/adapters_docker.py` и `tests/test_adapters_docker.py`:
+фиксированные argv `docker compose -p <product> -f <file> up -d|stop|ps|logs`,
+loopback-only HTTP health по URL манифеста, runner/fetcher как внедряемые callable.
+По умолчанию возвращается план; эффекты требуют `execute=True` отдельно на
+каждом вызове. Default runner — subprocess.run со списком argv, shell=False,
+timeout, закрытым stdin и фиксированным окружением без наследования секретов;
+COMPOSE_DISABLE_ENV_FILE=1 отключает автоматический `.env`. Ошибки и timeout
+не включают stdout/stderr/исходные исключения. Fetcher без proxy/redirect,
+успех только HTTP 200. Product ID/пути/действия валидируются; пути повторно
+проверяются перед командой. CLI `docker-plan` выводит только dry-run текст/JSON
+и не имеет `--execute`. Обновлены README.md и docs/CLI.md.
+
+Адресная проверка адаптера вместе с прежним CLI: код 0,
+`229 passed, 1 skipped in 7.98s`. Полный локальный pytest на Windows/Python 3.14
+через прежний WorkspaceTemps: код 0,
+**`875 passed, 4 skipped in 251.12s (0:04:11)`**. Включены все прежние и 132
+новых сценария: каждый argv/execute-gate, ошибки/timeout команд, инъекции,
+непередача синтетических env-секретов, health success/failure/timeout через
+fetcher и CLI без процессов/HTTP/записи. Три symlink-пропуска связаны с правами
+Windows, один Windows-на-POSIX неприменим. Общая fixture запрещает сеть,
+новый набор — реальные процессы. Кэш, bytecode и сторонние plugins отключены;
+ACL не менялись. `git diff --check` и проверка конечных пробелов — код 0.
+
+**Реальный Docker, службы и HTTP не запускались. Приёмки нет; готовых
+установщиков по-прежнему нет.** Адаптер принимает только v1, как render_docker;
+полный UpdatePorts/FilesystemPorts v2 не подключён: нет durable receipts,
+hooks, миграций, архивов/шифрования и транзакции Docker update/restore/rollback.
+Нулевой код Compose/HTTP 200 не доказывает остановку всех писателей, владение
+установкой или идентичность выпуска. YAML/образ не анализируются, несколько
+установок одного product_id не разделены; реальные executable/daemon с
+минимальным окружением и Docker/native install/update/restore/rollback не
+проверены. Приёмка в Docker по CLAUDE.md не выполнена из-за прямого запрета
+задания на внешние службы. Credentials/auth caches, .env, реальные секреты
+и личные документы не читались. Внешние MCP, deploy, push, commit, merge,
+изменения Git metadata, конфигурации агентов и безопасности не выполнялись.

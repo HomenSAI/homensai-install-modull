@@ -10,6 +10,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 import sys
 
 from shared.archive import ArchiveError, build_archive, restore_archive, verify_archive
+from shared.adapters_docker import DockerAdapterError, DockerComposeAdapter
 from shared.datahome import DataHomeError, checked_path, contains, resolve_datahome
 from shared.manifest import ManifestError, load_manifest
 from shared.render_docker import render_docker
@@ -69,6 +70,7 @@ def _parser() -> Parser:
         "validate": "Проверить манифест",
         "plan-install": "Показать каталоги и файлы будущей установки без записи",
         "render-docker": "Записать Dockerfile/compose.yml без сборки",
+        "docker-plan": "Показать argv Compose без исполнения и записи",
         "render-services": "Записать XML/units без установки служб",
         "archive-create": "Создать полный незашифрованный ZIP остановленных данных",
         "archive-verify": "Проверить весь ZIP и идентичность продукта",
@@ -94,6 +96,10 @@ def _parser() -> Parser:
             command.add_argument("--output-dir", required=True, help="Каталог новых файлов")
         if name == "render-services":
             command.add_argument("--winsw-file", help="Локальный артефакт для проверки pin Windows")
+        if name == "docker-plan":
+            command.add_argument("--compose-file", required=True, help="Путь публичного compose.yml")
+            command.add_argument("--action", choices=("up", "stop", "ps", "logs"), required=True,
+                                 help="Только план команды Compose")
         if name in ("archive-create", "archive-verify", "archive-restore"):
             command.add_argument("--archive", required=True, help="Путь ZIP (create: новый файл)")
         if name == "archive-restore":
@@ -153,6 +159,10 @@ def _write_rendered(rendered: dict[str, str], destination: str) -> list[str]:
 
 def _execute(manifest, args) -> tuple[str, dict]:
     name = args.command
+    if name == "docker-plan":
+        adapter = DockerComposeAdapter(manifest, _path(args.compose_file))
+        return "План Compose; исполнение не выполнялось", {
+            "dry_run": True, "argv": adapter.command(args.action)}
     if name == "validate":
         return "Манифест корректен", {"product_id": manifest["product_id"],
                                       "schema_version": manifest["schema_version"]}
@@ -236,6 +246,9 @@ def _emit(code: int, message: str, data: dict, as_json: bool) -> int:
                 print("  " + path)
         if "product_id" in data:
             print("Продукт: " + data["product_id"])
+        if "argv" in data:
+            # JSON-массив явно сохраняет границы аргументов; это не shell-строка.
+            print("argv: " + json.dumps(data["argv"], ensure_ascii=True))
         if "schema_version" in data:
             print("Версия схемы: " + str(data["schema_version"]))
         if "file_count" in data:
@@ -268,6 +281,8 @@ def main(argv: list[str] | None = None) -> int:
         return _emit(2, str(error), {}, as_json)
     except DataHomeError:
         return _emit(2, "Небезопасный путь или пересечение каталогов; операция запрещена", {}, as_json)
+    except DockerAdapterError:
+        return _emit(2, "Недопустимый план Docker Compose", {}, as_json)
     except ArchiveError:
         return _emit(1, "Операция ZIP не завершена: проверьте архив, место и каталоги", {}, as_json)
     except UpdateError:

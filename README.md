@@ -44,4 +44,10 @@ native-ветки (NSIS, build2 — FAIL по откату) ещё не прин
 Службы/миграции/health внедряются как фейки; ZIP не зашифрован, Docker/native
 не приняты. Готовых установщиков по-прежнему нет.
 
+Шаг 7: [Compose-адаптер и docker-plan](docs/DOCKER-ADAPTER.md) — argv
+up/stop/ps/logs и loopback HTTP health для Docker-рендера v1. По умолчанию
+только план; библиотечные эффекты требуют отдельного `execute=True` и проходят
+через runner/fetcher. CLI показывает только dry-run. Реальный Docker и
+install/update/restore/rollback-приёмка не выполнялись; установщик не готов.
+
 © 2026 Serhii Khomenko · HomenS.AI

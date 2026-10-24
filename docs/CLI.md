@@ -50,6 +50,7 @@ JSON сериализуется с ASCII escape для независимост�
 | `validate` | Только общий `--manifest` | Проверка JSON/схемы/ссылок; ID и версия. Ничего не пишет, пути продукта не обходит. |
 | `plan-install` | `--install-root`, `--platform docker/linux/windows`; для служб v2 — `--mode` | `dry_run: true`, `directories`, `files`. Только списки app/releases/постоянных корней и Dockerfile/compose.yml либо XML/units выбранных компонентов. Не создаёт каталогов и файлов, не читает бинарник WinSW. |
 | `render-docker` | `--output-dir` | Только v1: новые Dockerfile/compose.yml в указанном каталоге. Нет сборки, сети или запуска. v2 явно отвергается библиотекой. |
+| `docker-plan` | `--compose-file`, `--action up/stop/ps/logs` | Только v1: `dry_run: true`, `argv`. Ни процессов/HTTP, ни записи; `--execute` отсутствует. [Контракт шага 7](DOCKER-ADAPTER.md). |
 | `render-services` | `--install-root`, `--platform linux/windows`, `--mode`, `--output-dir` | Только v2: XML/units в указанном каталоге. Для Windows необходимы pin в манифесте и `--winsw-file` с совпадающим SHA-256. Бинарник только читается, не запускается. |
 | `archive-create` | `--install-root`, `--archive` | Полный **незашифрованный** ZIP всех постоянных корней, включая существующие копии. Архив не перезаписывается; его родитель уже должен существовать. |
 | `archive-verify` | `--archive` | Полная проверка состава, CRC/SHA-256 и product_id манифеста, без извлечения и записи. |

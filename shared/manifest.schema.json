@@ -70,6 +70,15 @@
         }
       }
     },
+    "winsw": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "sha256"],
+      "properties": {
+        "version": {"type": "string", "const": "2.12.0"},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}(?![\\s\\S])"}
+      }
+    },
     "runtime": {
       "type": "object",
       "additionalProperties": false,
@@ -540,6 +549,7 @@
           "docker"
         ],
         "properties": {
+          "winsw": false,
           "runtime": false,
           "paths": false,
           "components": false,

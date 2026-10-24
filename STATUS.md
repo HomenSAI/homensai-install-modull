@@ -123,3 +123,39 @@ Rent `backup.encrypted: true`; адаптер шифрования/ключей 
 библиотечное восстановление в пустой каталог проверено локальными тестами.
 Commit/push/merge/deploy, изменения Git metadata, конфигурации агентов,
 ACL/настроек безопасности и внешних служб не выполнялись.
+
+24.10.2026 — **шаг 4: тексты служб и транзакция update/rollback на портах**.
+Добавлены `shared/services.py`, `shared/update_plan.py`, тесты и
+[docs/UPDATE.md](docs/UPDATE.md) с API, обязанностями адаптеров и точным stdout.
+Манифест v2 поддерживает необязательный `winsw.version/sha256`: Windows-рендер
+требует pin и успешную чистую проверку байтов до выдачи XML. Генераторы выбирают
+режимы с mutual_exclusion, сортируют after, экранируют XML/argv/unit, задают
+штатные delay/max/window и loopback-настройки, используют только имена секретов.
+
+UpdatePlan выполняет stop → archive → stage → backup перед каждой миграцией →
+migrate → pointer → start → health → post_update. При ошибке: stop → отдельная
+обязательная before-rollback → restore (если исходный archive подтверждён) →
+старый pointer → start → health. Ошибка before-rollback запрещает restore.
+Состояние без env/команд/текстов исключений сохраняется атомарно в update.json
+из манифеста; OS operation.lock сериализует управление. Возобновление повторяет
+устойчивые ключи шагов; порты обязаны иметь durable идемпотентность. Старые
+выпуски/runtime не удаляются; завершённый state автоматически не очищается.
+
+Полный локальный pytest на Windows/Python 3.14 через прежний WorkspaceTemps:
+код 0, **`566 passed, 3 skipped in 105.21s (0:01:45)`**. Сеть заблокирована
+fixture, сторонние plugins/кэш/bytecode отключены; ACL не менялись. Пропуски
+те же: два symlink-теста без привилегий Windows и один тест Windows-пути на POSIX.
+Новый набор до последних 21 сценария: `126 passed in 93.05s (0:01:33)`, код 0.
+Проверены ошибки всех фаз, симуляции crash до/после эффектов и checkpoints,
+resume новым экземпляром фейка с дисковым ledger, contention, обязательная
+before-rollback, pin, escaping, retention и отсутствие синтетических секретов.
+
+**Установщики по-прежнему не готовы.** Нет реальных портов служб/БД/шифрования,
+запуска команд/миграций, фактического bind/HTTP health, реального digest WinSW
+или native/Docker-приёмки. Restart использует семантику SCM/systemd, не точный
+скользящий надзор Rent; heartbeat/alerts не реализованы. Exactly-once внешних
+эффектов зависит от durable портов; реальный kill/power-loss не тестировался.
+ZIP шага 3 не заменяет шифрованный backup-порт. Основания — сообщение Rent и
+локально записанный handoff JobPilot; внешний код в шаге 4 не читался/не копировался.
+Службы, сеть, внешние MCP, commit/push/merge/deploy, изменение Git metadata,
+конфигурации агентов и безопасности не выполнялись.

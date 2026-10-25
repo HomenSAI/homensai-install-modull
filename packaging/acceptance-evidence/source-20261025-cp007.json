@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-007",
+  "python": "3.12.14",
+  "platform": "linux-x64",
+  "source": {
+    "passed": 1659,
+    "skipped": 1,
+    "subtests_passed": 10,
+    "duration_seconds": 37.45,
+    "scope": "full tests before final CLI bootstrap error-envelope patch"
+  },
+  "final_focused": {
+    "passed": 65,
+    "duration_seconds": 1.35,
+    "scope": "backend/wizard/API/diagnostics after CLI patch"
+  },
+  "integration": {
+    "passed": 47,
+    "subtests_passed": 5,
+    "duration_seconds": 40.8,
+    "scope": "real synthetic NativeEngine/API/router/HTTP/Linux liveness; matched PID/proc namespace"
+  },
+  "limits": [
+    "No Windows execution",
+    "No Docker daemon",
+    "No live systemd/SCM",
+    "No reboot or power-loss test",
+    "No production release"
+  ],
+  "production_ready": false
+}

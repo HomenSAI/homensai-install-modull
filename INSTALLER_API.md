@@ -109,6 +109,35 @@ engine = NativeEngine(verifier=verifier)
 api = InstallerAPI("/absolute/private/installer-state", engine=engine)
 ```
 
+### Явный выбор backend
+
+По умолчанию facade использует `BackendRouter`: `native/user` направляется в
+`NativeEngine`; Docker и scope `service` без регистрации возвращают
+`CAPABILITY_UNSUPPORTED`. Отсутствующий backend не подменяется другим режимом.
+Доверенный bootstrap может зарегистрировать `BackendRouter(native=...,
+docker=..., native_service=...)`. Регистрация platform port не даёт capability,
+пока его lifecycle engine не реализован и не прошёл свои проверки.
+
+Router сохраняет mode/scope/OS/arch в reviewed плане; execute/resume выбирают
+backend по этому сохранённому target. Старые native/user планы CP-005 совместимы;
+для старого прямого Docker SDK плана нужен прежний explicit engine или новый
+просмотр плана. Идемпотентность и resource claim остаются в общем `InstallerAPI`.
+
+CLI и GUI принимают `--docker-cli-config` только при доверенном локальном
+bootstrap. JSON имеет ровно `executable`, `sha256`, `endpoint`, `config_dir`:
+абсолютный закреплённый executable, его SHA-256, явный локальный daemon endpoint
+и приватный пустой config directory. HTTP не принимает эти поля и не выбирает
+исполняемый код. CLI не ищет/не запускает daemon и не меняет Docker context.
+Неверный переданный config завершает bootstrap структурированной ошибкой.
+
+GUI дополнительно требует `--docker-payload-options`: локальный JSON с
+`payload_dir`, `inventory_file`, `signature_file`, `release`, `runtime_executable`
+и необязательным `product_version` для Docker target. Общие DataHome/secret refs
+остаются отдельными options. `/terms/{locale}?mode=docker` проверяет условия
+из этого подписанного Docker payload; переключение режима сбрасывает обзор и
+согласие UI. Без этих artifact bindings мастер не предлагает Docker install.
+Это подключение backend; live Docker/Windows acceptance описывается отдельно.
+
 `engine` и `trust` — bootstrap integration API версии разработки; продуктовый
 adapter не должен обращаться к их внутренним классам. Обычный потребитель
 получает уже настроенный экземпляр facade. Без доверенного verifier выполнение

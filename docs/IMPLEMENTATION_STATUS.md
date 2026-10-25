@@ -23,7 +23,7 @@
 ## Проверяемое покрытие
 
 Доступен Linux x64 в изолированной облачной среде. Для исходных тестов
-используется отдельный Python 3.14.3. Это не компьютер владельца и не его Docker.
+в CP-006/007 используется Python 3.12.14; исторический CP-005 — Python 3.14.3. Это не компьютер владельца и не его Docker.
 
 NativeEngine реализует Linux **user-session**: установку, запуск/остановку,
 readiness по идентичности продукта/установки/релиза, update и автоматический
@@ -151,3 +151,13 @@ package resources повторно проверены по точным bytes.
 ту же op_e4a33118c10642058bfc85447bee5581, actual v1/SQLite1 ready=true.
 Продукт остановлен, собственные тестовые controller processes завершены; failed
 fixtures сохранены. Точный executable/inventory hash — CP-005 frozen receipt.
+
+
+## Дополнение CP-007
+
+BackendRouter связывает общий API/CLI/GUI с явными native/Docker backend; отдельные
+signed payload/terms выбранного режима и симметричный ownership guard проверены.
+Full source 1659 PASS, real Linux integration 47 PASS; последний focused 65 PASS.
+Точные scopes/subtests/bytes — CP-007 receipts. Installed wheel проверен вне
+checkout: 36 Python files, 18 resources, offline CLI без сети. Docker provisioning,
+OS services и prerequisites пока разрабатываются отдельно; live gates открыты.

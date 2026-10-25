@@ -39,6 +39,8 @@ def _common(parser, *, root=False):
     parser.add_argument("--trust-config", default=default)
     parser.add_argument("--allow-development", action="store_true", default=False if root else argparse.SUPPRESS)
     parser.add_argument("--development-runtime", default=default)
+    parser.add_argument("--docker-cli-config", default=default,
+                        help="Доверенный локальный JSON с executable/SHA-256/endpoint/config_dir Docker CLI")
 
 
 def _target(parser):
@@ -143,7 +145,7 @@ def _json_file(path: str | None) -> dict | None:
 
 
 def _sdk(args) -> InstallerAPI:
-    from .engine import NativeEngine
+    from .backends import configured_backends
     from .errors import InstallerError
     if args.development_runtime and not args.allow_development:
         raise InstallerError("CONSENT_REQUIRED")
@@ -158,8 +160,13 @@ def _sdk(args) -> InstallerAPI:
             raise InstallerError("PREREQUISITE_MISSING")
         return os.environ[key]
 
-    engine = NativeEngine(verifier=verifier, secret_provider=secret_provider,
-                          development_runtime=args.development_runtime)
+    from .engine import EngineError
+    try:
+        engine = configured_backends(verifier=verifier, secret_provider=secret_provider,
+                                     development_runtime=args.development_runtime,
+                                     docker_cli_config=args.docker_cli_config)
+    except EngineError as error:
+        raise InstallerError(error.code, details=error.details) from None
     return InstallerAPI(args.state_dir or default_state_dir(), engine=engine, locale=args.locale)
 
 

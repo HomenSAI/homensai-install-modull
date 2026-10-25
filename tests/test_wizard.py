@@ -51,6 +51,71 @@ def test_terms_are_bound_to_selected_signed_file(tmp_path):
     assert caught.value.code == "INTEGRITY_FAILED"
 
 
+def test_mode_switch_uses_its_own_verified_payload_and_license(tmp_path):
+    session = make_session(tmp_path)
+    docker = tmp_path / "docker-payload"
+    (docker / "legal").mkdir(parents=True)
+    text = b"Docker-specific test terms"
+    (docker / "legal/en.txt").write_bytes(text)
+    options = {"payload_dir": str(docker), "inventory_file": str(tmp_path / "docker-inventory.json"),
+               "signature_file": str(tmp_path / "docker-signature.json"),
+               "runtime_executable": "/app/python", "release": "docker-v1"}
+    observed = []
+    def verifier(manifest, target, supplied):
+        observed.append((target["mode"], supplied["payload_dir"]))
+        raw = (Path(supplied["payload_dir"]) / "legal/en.txt").read_bytes()
+        return {"legal/en.txt": hashlib.sha256(raw).hexdigest()}
+    session = WizardSession(session.api, session.manifest, session.options, verifier=verifier,
+                            mode_options={"docker": options})
+    plans = []
+    def make_plan(action, manifest, *, target, options):
+        plans.append({"target": target, "options": options})
+        return {"plan_id": "plan_docker"}
+    session.api.plan = make_plan
+    assert session.route("GET", "/terms/en", {"mode": ["docker"]}, {})["text"] == text.decode()
+    assert session.route("GET", "/terms/en", {}, {})["text"].endswith("en")
+    session.route("POST", "/plans", {}, {"mode": "docker", "locale": "en", "action": "install"})
+    assert plans[0]["target"]["mode"] == "docker"
+    assert plans[0]["options"]["payload_dir"] == str(docker)
+    assert plans[0]["options"]["eula_digest"] == hashlib.sha256(text).hexdigest()
+    assert observed == [("docker", str(docker)), ("native", session.options["payload_dir"]),
+                        ("docker", str(docker))]
+    options["payload_dir"] = "changed-after-bootstrap"
+    assert session.options_for("docker")["payload_dir"] == str(docker)
+
+
+def test_unconfigured_docker_payload_is_not_advertised_or_replaced_with_native(tmp_path):
+    session = make_session(tmp_path)
+    caps = session.route("GET", "/capabilities", {"mode": ["docker"]}, {})
+    assert caps["payload_configured"] is False and not caps["actions"]
+    for method, path, query, body in (
+        ("GET", "/terms/en", {"mode": ["docker"]}, {}),
+        ("POST", "/discover", {}, {"mode": "docker"}),
+        ("POST", "/plans", {}, {"mode": "docker"}),
+    ):
+        with pytest.raises(InstallerError) as caught:
+            session.route(method, path, query, body)
+        assert caught.value.code == "CAPABILITY_UNSUPPORTED"
+    assert not session.api.state_dir.exists()
+
+
+@pytest.mark.parametrize("value", [False, [], {"native": {}}, {"docker": {}},
+                                    {"docker": {"executable": "sh"}}])
+def test_invalid_mode_artifacts_fail_at_bootstrap(tmp_path, value):
+    with pytest.raises(InstallerError) as caught:
+        WizardSession(SimpleNamespace(state_dir=tmp_path / "state"), {"product_id": "test"}, {}, mode_options=value)
+    assert caught.value.code == "INVALID_REQUEST"
+
+
+def test_browser_input_cannot_inject_artifact_or_bootstrap_configuration(tmp_path):
+    session = make_session(tmp_path)
+    for extra in ({"docker_cli_config": "/tmp/untrusted.json"}, {"payload_dir": "/tmp/untrusted"},
+                  {"mode": ["docker"]}):
+        with pytest.raises(InstallerError) as caught:
+            session.route("POST", "/discover", {}, {"mode": "native", **extra})
+        assert caught.value.code == "INVALID_REQUEST"
+
+
 def test_locale_persisted_and_strict_inputs(tmp_path):
     session = make_session(tmp_path)
     assert session.preferred_locale is None

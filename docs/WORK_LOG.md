@@ -200,3 +200,32 @@ manual/automatic/reboot/relogin и единый backend routing в SDK/CLI/GUI. 
 product audit проверяет актуальные GitHub sources read-only. Production ready=false.
 Git владельца в Docker по-прежнему SYNC_BLOCKED; GitHub этого checkpoint —
 SYNC_PENDING до проверки фактического remote ref.
+
+
+## CP-20261025-007 — единый backend routing и новый полный прогон
+
+Подключён BackendRouter для SDK/CLI/GUI. Docker/user выбирается только при явной
+регистрации доверенного backend; отсутствующая платформа не передаётся native.
+Сохранённый reviewed marker связывает mode/scope/OS/arch с execute/resume, общий
+journal/idempotency остаются в InstallerAPI. Старые native/user планы совместимы.
+NativeEngine отклоняет Docker ownership receipt до эффекта. Мастер проверяет
+отдельные signed artifacts/условия выбранного режима и сбрасывает согласие при
+смене режима. HTTP не принимает executable/daemon/trust configuration.
+
+Проверки на Python 3.12.14: 1659 source PASS, 1 skip, 10 subtests (37.45s);
+отдельно 47 real Linux integration PASS, 5 subtests (40.80s). Это реальные
+synthetic subprocess/loopback/SQLite lifecycle включая API→router→NativeEngine,
+backup/rollback/uninstall-preserve/restore. Внутри sandbox PID не соответствует
+mounted /proc; за её границей PID/proc проверены, integration выполнены там.
+Последняя поправка structured CLI bootstrap error envelope после полного прогона:
+65 focused PASS (1.35s), без повторного заявления полного suite на эти bytes.
+
+Wheel построен и установлен вне checkout: 36 Python files/18 resources совпадают
+побайтно, 5 CLI вызовов, 0 socket attempts, state при offline discovery не создан.
+Receipts: source-20261025-cp007.json, sdk-installed-20261025-cp007.json. Этот wheel
+не frozen installer и не production release. Docker/services/prerequisites
+остаются в независимых незавершённых worktree до отдельной интеграции.
+
+Перед созданием CP-007 проверены local/GitHub CP-006 ae70b7ae30902259e62ea6323c5f001573b96251.
+Текущая синхронизация фиксируется только после commit/ref/tree verification;
+Docker Git владельца отдельно SYNC_BLOCKED. Main и release не изменены.

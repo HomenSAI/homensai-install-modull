@@ -288,6 +288,8 @@ class NativeEngine:
                 "work": work, "modes": tuple(modes), "release": release}
 
     def _owner(self, ctx, *, required=False):
+        if (ctx["control"] / "docker-installation.json").exists():
+            raise EngineError("OPERATION_CONFLICT", "Каталог принадлежит Docker-установке")
         path = ctx["control"] / "installation.json"
         if not path.exists():
             if required:

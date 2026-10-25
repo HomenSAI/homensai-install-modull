@@ -1,0 +1,231 @@
+{
+  "checkpoint_id": "CP-20261025-007",
+  "scope": "SDK installed outside checkout; offline contracts only",
+  "python": "3.12.14",
+  "wheel_sha256": "b567e409be8f1d2a898647d867ea79c28559f03362271122e132420dc3c4dd49",
+  "checked_files": [
+    {
+      "path": "homensai_install/__init__.py",
+      "sha256": "23319568614d158aa4b9d9d38fb824f4fca7d6cf941647536d5e25dd2d86b366"
+    },
+    {
+      "path": "homensai_install/__main__.py",
+      "sha256": "935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d"
+    },
+    {
+      "path": "homensai_install/adapters.py",
+      "sha256": "92642dc09410ac92bf205dc849551c5cd4e16da66c03a31fc7090cbf6ae93092"
+    },
+    {
+      "path": "homensai_install/backends.py",
+      "sha256": "24c2cd89f48e9f64f580274c46d5d2d058bde4ea1913cf1bb6ce94cac08833f3"
+    },
+    {
+      "path": "homensai_install/cli.py",
+      "sha256": "164c49b01c011e9b16931551a8b0a54bc503d1fad6e8746a74067b4ba88b0836"
+    },
+    {
+      "path": "homensai_install/diagnostics.py",
+      "sha256": "66a62f6b6adf73d1be149b3033703d977bb2b7bf08295844ddaff4d3b014950f"
+    },
+    {
+      "path": "homensai_install/docker_cli.py",
+      "sha256": "c1b00790abb6bc7b19a80deffa7ca2ae80b515c3b00dd1133826468bf9a1f2ff"
+    },
+    {
+      "path": "homensai_install/docker_contract.py",
+      "sha256": "cccd9f9b27a7cb8a219ccc01407981d1a0d5b27a29033035b474c947caa06b90"
+    },
+    {
+      "path": "homensai_install/docker_engine.py",
+      "sha256": "c7d8b69fc0866bae0b2316a1cd057dc279ac01ac15821e3277894bc34677b4b3"
+    },
+    {
+      "path": "homensai_install/downloads.py",
+      "sha256": "d86d56c561261dcb9e73233611d3d56d1ee54f61776d2502f21b823d955fd4e3"
+    },
+    {
+      "path": "homensai_install/engine.py",
+      "sha256": "767479c545a8223ed182ec535b2964096d75045cc1f359692c5596897427baa9"
+    },
+    {
+      "path": "homensai_install/errors.py",
+      "sha256": "05f438a1ed6439cb0886248ed24251a08915353db5538307d7f2497fe5cd5cca"
+    },
+    {
+      "path": "homensai_install/gui.py",
+      "sha256": "9dcaa66a3e38779016de93dfad8127458228f039f58d03e8112f4d5d94085d2e"
+    },
+    {
+      "path": "homensai_install/i18n.py",
+      "sha256": "cc4ae69d3fc6d2473b9080c2f662a516c584736ac9564ea34eb62ba3e619fe94"
+    },
+    {
+      "path": "homensai_install/prerequisites.py",
+      "sha256": "de88356ac50dba0ff190fde1ba6022b9dfea10aef371e3d02a817d3608023f58"
+    },
+    {
+      "path": "homensai_install/scaffold.py",
+      "sha256": "bf93bd328686fe696e5bd803960d6c8873593cd576a5bda5d83e612b22b302b8"
+    },
+    {
+      "path": "homensai_install/service_contracts.py",
+      "sha256": "7082f2c08fa1fc5bcceadab37b3e5c7f830d0f38ede3ac9be5cca44dea0d16c9"
+    },
+    {
+      "path": "homensai_install/trust.py",
+      "sha256": "a6e3db84ad9f9d0380b72c89856a6d03eed2b48227f3e41d16c7a8d1270ac31a"
+    },
+    {
+      "path": "homensai_install/api/__init__.py",
+      "sha256": "d90cb75adf5f560ed2bc563961e22c71a3254dfc9fd68c8996acf51e8adf240e"
+    },
+    {
+      "path": "homensai_install/api/journal.py",
+      "sha256": "0b13dfe076907e806e12355a30654c4b9269ead29024c9899f504ea93e150567"
+    },
+    {
+      "path": "homensai_install/api/model.py",
+      "sha256": "ae38ba380cdef51a1c4955511953c6f7c9696e6996b8c3be6ee2e9e44cd56c82"
+    },
+    {
+      "path": "homensai_install/api/v1.py",
+      "sha256": "e6be0b0df3b0d5e11a0b7d1abb76e1f029fc0f42150ec3b545b9a38e55d03f7d"
+    },
+    {
+      "path": "homensai_install/api/resources/INSTALLER_API.md",
+      "sha256": "b367f18274a7aaf1577ee2939dcb35e5742b0b22c62f9b767b6548479825bc0e"
+    },
+    {
+      "path": "homensai_install/api/resources/INTEGRATION_GUIDE.md",
+      "sha256": "4a6b76e017201115886de0afb03ed709bfd79aeba7aa8d6765d5a9be9c763922"
+    },
+    {
+      "path": "homensai_install/api/resources/discovery.json",
+      "sha256": "545d4a8c51fb6c6e1d12eca9f942f59be7ea28f8938e56f6f916a5dd557f85cd"
+    },
+    {
+      "path": "homensai_install/api/resources/openapi.yaml",
+      "sha256": "f17917d37b2eac9ebaf6c66e812aea514651fb8ad18cec982eb2a98165db79b7"
+    },
+    {
+      "path": "homensai_install/api/schemas/event.schema.json",
+      "sha256": "98d27aea1422ab94df888fee3ac6d7bdc56f7a5bcec55c2139113017a5da4767"
+    },
+    {
+      "path": "homensai_install/api/schemas/normalized.schema.json",
+      "sha256": "0377695226479804b3f9e9cb7543ad1941261bcbafef92f810367cb761baaaea"
+    },
+    {
+      "path": "homensai_install/api/schemas/operation.schema.json",
+      "sha256": "f6d6a8969df040eab98b03fcc5625da8fd53107c72f989d0d379da03c70788f6"
+    },
+    {
+      "path": "homensai_install/api/schemas/plan.schema.json",
+      "sha256": "13d603c20072f31cfca9f4690748661faaa3d6c33a37439394901dc877beed11"
+    },
+    {
+      "path": "homensai_install/api/schemas/request.schema.json",
+      "sha256": "2aa3d8bf2a66a78519833468919da1504221f1bbe587dd19ebac2dab57127ca2"
+    },
+    {
+      "path": "homensai_install/catalog/errors.v1.json",
+      "sha256": "33288134e406a1907e83cf0d06682a780346ccddb1a354ab900a858e8d3e4582"
+    },
+    {
+      "path": "homensai_install/locales/de.json",
+      "sha256": "fd5d69d44e555fc5731cc6ac04a335f8dea4e545e7c9ee52b8a8b45dee998586"
+    },
+    {
+      "path": "homensai_install/locales/en.json",
+      "sha256": "4449b590485850d1c89b7208d1b106dcb5bf350d2ffe284157d7ec9bcaa5311f"
+    },
+    {
+      "path": "homensai_install/locales/ru.json",
+      "sha256": "e2b43560348c45b66f2cde81252f7fe2bcd41b968f067a6dde4f4e7cda2f3904"
+    },
+    {
+      "path": "homensai_install/wizard/app.js",
+      "sha256": "63112ec43c4196d5adbd81a617b100a504cbbe1e28626a8f6bb2eb87749c4898"
+    },
+    {
+      "path": "homensai_install/wizard/index.html",
+      "sha256": "be576d00cfea553a8d9d2c3c8791e7193b477bf4f56826623a53210ea6b39737"
+    },
+    {
+      "path": "homensai_install/wizard/locales.json",
+      "sha256": "67ed7583c0eacd690e5d37ffb8e3c1c606d59d614265f951bfeeaea98581c381"
+    },
+    {
+      "path": "homensai_install/wizard/style.css",
+      "sha256": "592045ac040b3e75a000037ad9bbed106c37e84289ac7952f4e2cba11acee68e"
+    },
+    {
+      "path": "shared/__init__.py",
+      "sha256": "a1fbf3cc018b4067361b81154240dafecbb3a8bcaaa7dc40616cf50028b8f620"
+    },
+    {
+      "path": "shared/adapters_docker.py",
+      "sha256": "49eca8dca5442a3a04cba8aaf1dbd567fb51f2080056bcc481adbd205d373475"
+    },
+    {
+      "path": "shared/adapters_fs.py",
+      "sha256": "eecd85a7e7ffc7fedb02cbd7c11efeb5d78a3831c61910b7209f1afea845cdee"
+    },
+    {
+      "path": "shared/archive.py",
+      "sha256": "8fe1608c7b32cbf4a68a3f4dea5c51754b9f3a76a1fd7f7441532e2925074ff1"
+    },
+    {
+      "path": "shared/archive_crypto.py",
+      "sha256": "373c324e8e91e3f1a913bf21df8d75bce305b090890daefebc5aa9a981ad071d"
+    },
+    {
+      "path": "shared/ctl.py",
+      "sha256": "578703a8501c179c3467ca93cbd63e140a8305a59d661465f7677aa8dc18abe7"
+    },
+    {
+      "path": "shared/datahome.py",
+      "sha256": "d098a741fad91d3f049142e562888dcec1ab81b26122177b2b03f2383c85a0f8"
+    },
+    {
+      "path": "shared/doctor.py",
+      "sha256": "4219979e3a6272035cb73136a66eb0495f89e1a5fdd074476dfadac8a052c2ec"
+    },
+    {
+      "path": "shared/linux_sh.py",
+      "sha256": "bd2879348370345d1082f23aea81f82896f4ea223c70d53c4fc0c9c315009e4d"
+    },
+    {
+      "path": "shared/manifest.py",
+      "sha256": "9de8092a5f78d27d3f49cbde8ef02fd364edf117d1673c35a364110a209976a3"
+    },
+    {
+      "path": "shared/manifest.schema.json",
+      "sha256": "a8fce321b4621836558b23d171d4861cb0434b27c25f58e285a8a098b9ef797a"
+    },
+    {
+      "path": "shared/render_docker.py",
+      "sha256": "c052cf877c70627f5a1e91b58e42c306f7f8d25317b711514a40a47fbb49fae0"
+    },
+    {
+      "path": "shared/services.py",
+      "sha256": "e2b0c76b293ea647b507f0eb99a48020b51b0a1311456559ce5123906ee294ac"
+    },
+    {
+      "path": "shared/update_plan.py",
+      "sha256": "57b76249ae4d2dd172c01b967e12c0f03946e353d501f3cd85ed603eb26a37d3"
+    },
+    {
+      "path": "shared/windows_ps.py",
+      "sha256": "23a38271ad1f760baa4e7ad425fa70fa734100f8f407345891a0e58638aa1944"
+    }
+  ],
+  "python_files": 36,
+  "resources": 18,
+  "cli_invocations": 5,
+  "network_attempts": 0,
+  "new_state_created": false,
+  "status": "PASS",
+  "production_ready": false
+}

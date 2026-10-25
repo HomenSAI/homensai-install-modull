@@ -1224,7 +1224,7 @@
     "/api/v1/terms/{locale}": {
       "get": {
         "operationId": "terms",
-        "description": "Локальный текст условий, его версия и digest",
+        "description": "Локальный текст условий и digest из подписанного payload выбранного режима; native и Docker имеют отдельные artifact bindings.",
         "responses": {
           "200": {
             "description": "JSON envelope: result или структурированная error",
@@ -1288,6 +1288,17 @@
                 "en",
                 "de"
               ]
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "native",
+                "docker"
+              ],
+              "default": "native"
             }
           }
         ]

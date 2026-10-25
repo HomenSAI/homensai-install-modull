@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-006",
+  "checkpoint_id": "CP-20261025-007",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -82,10 +82,10 @@
     "cloud_git": "SYNC_PENDING",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261025-005",
+    "last_confirmed_checkpoint": "CP-20261025-006",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
-  "next_step": "Integrate tested Docker provisioning, systemd manager and durable prerequisites through explicit backend routing; actual Windows/Docker/service acceptance requires target environments",
+  "next_step": "Integrate independent tested systemd platform port, durable prerequisites and Docker provisioning; audit current product contracts; retain unavailable platform acceptance gates",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
@@ -93,12 +93,15 @@
     "linux_native": "PARTIAL: frozen x64 user-session lifecycle/updates/rollback/repair/crash-resume PASS in scoped receipts; OS service/reboot/full matrix open",
     "linux_docker": "NOT RUN: start/stop/backup source controller tested with modeled daemon only; full provisioning/lifecycle not implemented"
   },
-  "last_confirmed_github_sha": "a04c615b8b511710cf0035a27a239cbfb129db93",
+  "last_confirmed_github_sha": "ae70b7ae30902259e62ea6323c5f001573b96251",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
     "packaging/acceptance-evidence/sdk-installed-20261025.json",
-    "packaging/acceptance-evidence/github-ci-20261025-cp004.json"
+    "packaging/acceptance-evidence/github-ci-20261025-cp004.json",
+    "packaging/acceptance-evidence/restart-20261025-cp006.json",
+    "packaging/acceptance-evidence/source-20261025-cp007.json",
+    "packaging/acceptance-evidence/sdk-installed-20261025-cp007.json"
   ],
   "environment": {
     "os": "linux",
@@ -107,6 +110,7 @@
     "docker_cli": false,
     "docker_socket": false,
     "systemd_pid1": false,
-    "windows": false
+    "windows": false,
+    "sandbox_pid_proc_identity": "MISMATCH; process acceptance ran outside sandbox with matched identity"
   }
 }

@@ -15,7 +15,7 @@ from urllib.parse import parse_qs, urlsplit
 import webbrowser
 
 from .api.v1 import InstallerAPI
-from .engine import NativeEngine
+from .backends import configured_backends
 from .errors import ErrorCatalog, InstallerError
 from .i18n import normalize_locale
 from .trust import load_trust_config
@@ -45,9 +45,20 @@ def _json(raw):
 
 class WizardSession:
     def __init__(self, api, manifest, options, *, locale=None, verifier=None,
-                 development=False):
+                 development=False, mode_options=None):
         self.api, self.manifest = api, manifest
         self.options = dict(options)
+        supplied = {} if mode_options is None else mode_options
+        artifact_keys = {"payload_dir", "inventory_file", "signature_file", "release",
+                         "runtime_executable", "product_version"}
+        required = artifact_keys - {"product_version"}
+        if (type(supplied) is not dict or set(supplied) - {"docker"}
+                or any(type(value) is not dict or set(value) - artifact_keys
+                       or not required.issubset(value)
+                       or any(type(item) is not str or not item or len(item) > 4096
+                              for item in value.values()) for value in supplied.values())):
+            raise InstallerError("INVALID_REQUEST")
+        self.mode_options = {mode: dict(value) for mode, value in supplied.items()}
         from shared.datahome import checked_path
         self.preferences_path = checked_path(Path(api.state_dir) / "wizard-preferences.json")
         self.preferred_locale = normalize_locale(locale) if locale else None
@@ -94,15 +105,23 @@ class WizardSession:
             raise InstallerError("OPERATION_NOT_FOUND")
         return status
 
-    def terms(self, locale):
+    def options_for(self, mode):
+        if type(mode) is not str or mode not in {"native", "docker"}:
+            raise InstallerError("INVALID_REQUEST")
+        if mode == "docker" and mode not in self.mode_options:
+            raise InstallerError("CAPABILITY_UNSUPPORTED")
+        return {**self.options, **self.mode_options.get(mode, {})}
+
+    def terms(self, locale, mode="native"):
         locale = normalize_locale(locale)
         if self.verifier is None:
             raise InstallerError("INTEGRITY_FAILED")
-        verified = self.verifier(self.manifest, self.target(), self.options)
+        options = self.options_for(mode)
+        verified = self.verifier(self.manifest, self.target(mode), options)
         name = "legal/" + locale + ".txt"
         if name not in verified:
             raise InstallerError("CONSENT_REQUIRED")
-        path = Path(self.options["payload_dir"]) / name
+        path = Path(options["payload_dir"]) / name
         data = path.read_bytes()
         if len(data) > 512000 or hashlib.sha256(data).hexdigest() != verified[name]:
             raise InstallerError("INTEGRITY_FAILED")
@@ -135,7 +154,7 @@ class WizardSession:
                 raise InstallerError("INVALID_REQUEST")
             return json.loads((ASSETS / "locales.json").read_text(encoding="utf-8"))[name]
         if method == "GET" and path.startswith("/terms/"):
-            return self.terms(path.removeprefix("/terms/"))
+            return self.terms(path.removeprefix("/terms/"), query.get("mode", ["native"])[0])
         if method == "POST" and path == "/preferences":
             if set(body) != {"locale"} or body.get("locale") not in LOCALES:
                 raise InstallerError("INVALID_REQUEST")
@@ -168,18 +187,24 @@ class WizardSession:
         if method == "GET" and path == "/info":
             return api.describe()
         if method == "GET" and path == "/capabilities":
-            return api.capabilities(self.target(query.get("mode", ["native"])[0]))
+            mode = query.get("mode", ["native"])[0]
+            if type(mode) is not str or mode not in {"native", "docker"}:
+                raise InstallerError("INVALID_REQUEST")
+            if mode == "docker" and mode not in self.mode_options:
+                return {"target": self.target(mode), "actions": {},
+                        "payload_configured": False, "production_ready": False}
+            return {**api.capabilities(self.target(mode)), "payload_configured": True}
         if method == "POST" and path == "/validate":
             return api.validate(self.manifest)
         if method == "POST" and path in ("/discover", "/plans"):
             if set(body) - {"install_root", "mode", "action", "locale", "archive_path", "acknowledge_data_loss", "product_modes"}:
                 raise InstallerError("INVALID_REQUEST")
-            options = dict(self.options)
+            mode = body.get("mode", "native")
+            options = self.options_for(mode)
             if "install_root" in body:
                 if type(body["install_root"]) is not str:
                     raise InstallerError("INVALID_REQUEST")
                 options["install_root"] = body["install_root"]
-            mode = body.get("mode", "native")
             if mode not in ("native", "docker"):
                 raise InstallerError("INVALID_REQUEST")
             target = self.target(mode)
@@ -203,7 +228,7 @@ class WizardSession:
                 if body.get("acknowledge_data_loss") is not True:
                     raise InstallerError("CONSENT_REQUIRED")
                 options["acknowledge_data_loss"] = True
-            terms = self.terms(locale)
+            terms = self.terms(locale, mode)
             options["eula_locale"], options["eula_digest"] = locale, terms["digest"]
             # Recovery secrets и произвольные argv не принимаются из web request.
             result = api.plan(action, self.manifest, target=target, options=options)
@@ -384,6 +409,9 @@ def main(argv=None):
     parser.add_argument("--locale")
     parser.add_argument("--allow-development", action="store_true")
     parser.add_argument("--development-runtime")
+    parser.add_argument("--docker-cli-config")
+    parser.add_argument("--docker-payload-options",
+                        help="Доверенный JSON с отдельными подписанными Docker payload bindings")
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--url-file")
     parser.add_argument("--port", type=int, default=0)
@@ -393,16 +421,32 @@ def main(argv=None):
     from shared.manifest import load_manifest
     manifest = load_manifest(args.manifest)
     verifier = load_trust_config(args.trust_config, allow_development=args.allow_development)
-    engine = NativeEngine(verifier=verifier, development_runtime=args.development_runtime)
+    session_ref = {}
+    def secret_provider(reference):
+        return session_ref["session"].secret(reference)
+    engine = configured_backends(verifier=verifier, secret_provider=secret_provider,
+                                 development_runtime=args.development_runtime,
+                                 docker_cli_config=args.docker_cli_config)
     api = InstallerAPI(args.state_dir, engine=engine, locale=normalize_locale(args.locale))
     options = {key: getattr(args, key) for key in ("payload_dir", "inventory_file", "signature_file",
                                                   "release", "runtime_executable", "install_root")}
     if args.mode:
         options["modes"] = args.mode
     options["backup_password_ref"] = "wizard_archive"
+    mode_options = None
+    if args.docker_payload_options:
+        from shared.datahome import checked_path
+        file = checked_path(Path(args.docker_payload_options).absolute())
+        if not file.is_file() or file.stat().st_size > MAX_BODY:
+            raise InstallerError("INVALID_REQUEST")
+        with file.open("rb") as stream:
+            raw = stream.read(MAX_BODY + 1)
+        if len(raw) > MAX_BODY:
+            raise InstallerError("INVALID_REQUEST")
+        mode_options = {"docker": _json(raw)}
     session = WizardSession(api, manifest, options, locale=args.locale, verifier=verifier,
-                            development=args.allow_development)
-    engine.secret_provider = session.secret
+                            development=args.allow_development, mode_options=mode_options)
+    session_ref["session"] = session
     server = create_server(session, port=args.port)
     url = f"http://127.0.0.1:{server.server_port}/#token={session.token}"
     from shared.datahome import checked_path

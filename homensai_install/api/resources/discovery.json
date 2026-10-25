@@ -68,5 +68,13 @@
     "sdk": "homensai_install.scaffold.scaffold_product",
     "cli": "hinstall init-adapter",
     "missing_inputs": "DRAFT_BLOCKED"
+  },
+  "backends": {
+    "sdk": "homensai_install.backends.BackendRouter",
+    "registration": "explicit_bootstrap",
+    "default": "native:user",
+    "selection": "reviewed_target",
+    "implicit_fallback": false,
+    "availability": "capabilities_for_exact_target"
   }
 }

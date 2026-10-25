@@ -13,6 +13,7 @@ import uuid
 import pytest
 
 from homensai_install.api.v1 import InstallerAPI
+from homensai_install.backends import BackendRouter
 
 
 @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux native integration")
@@ -24,7 +25,7 @@ def test_public_facade_reaches_real_native_lifecycle():
     fixture = module.NativeLifecycleTests(methodName="runTest")
     fixture.setUp()
     try:
-        api = InstallerAPI(fixture.base / "public-state", engine=fixture.engine)
+        api = InstallerAPI(fixture.base / "public-state", engine=BackendRouter(native=fixture.engine))
         v1 = fixture.bundle("v1")
         bad = fixture.bundle("bad", bad_health=True)
         outcomes = []

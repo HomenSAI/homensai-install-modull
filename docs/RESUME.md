@@ -1,9 +1,9 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261025-006`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261025-007`; ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый GitHub/local до создания CP-006:
-`a04c615b8b511710cf0035a27a239cbfb129db93` (CP-005).
+Последний подтверждённый GitHub/local до создания CP-007:
+`ae70b7ae30902259e62ea6323c5f001573b96251` (CP-006).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
@@ -31,6 +31,21 @@ connector сохраняет draft checkpoint ref и затем импортир
 reserved-name validator; focused 97 PASS +10 subtests. Полный повтор после интеграции.
 Активны независимые worktree Docker, services и prerequisites; их незакоммиченные
 изменения не удалять и не считать интегрированными до проверки root commit.
+
+## Проверенное дополнение CP-007
+
+BackendRouter подключён к SDK/CLI/GUI: явный target, без implicit fallback,
+reviewed backend binding и совместимость старых native/user plans. Docker CLI
+принимается только из pinned локального bootstrap config; Docker terms и payload
+в мастере отделены от native и повторно проверяются. Ownership root защищён
+симметрично от native/Docker overlap. См. docs/BACKEND_ROUTING.md.
+
+Full source: 1659 PASS, 1 skip, 10 subtests; real Linux integration: 47 PASS,
+5 subtests. Последняя поправка CLI error envelope проверена focused 65 PASS.
+SDK установлен вне checkout: 36 Python files/18 resources, 5 offline CLI calls,
+0 network attempts. PID/proc внутри sandbox не совпадает; реальные process tests
+выполнены вне этой изоляции с проверенным совпадением. Windows/Docker/service
+приёмка этим не доказана. Все точные scopes — в CP-007 receipts.
 
 ## Что не нужно выполнять заново без изменения соответствующего кода
 
@@ -63,7 +78,7 @@ reserved-name validator; focused 97 PASS +10 subtests. Полный повтор
 
 ## Следующий инженерный этап
 
-1. Проверить фактический SHA CP-006 и оба доступных Git refs; Docker Git владельца
+1. Проверить фактический SHA CP-007 и оба доступных Git refs; Docker Git владельца
    подключать отдельно по реальной схеме доступа, не считать cloud loopback его хостом.
 2. Диагностировать GitHub CI: CP-004 run40170554823 завершился failure до выделения
    runner/steps. Это не падение source tests. Доступный API не раскрывает причину.

@@ -100,8 +100,8 @@ class InstallerAPI:
 
     def _engine(self):
         if self._engine_instance is None:
-            from homensai_install.engine import NativeEngine
-            self._engine_instance = NativeEngine()
+            from homensai_install.backends import BackendRouter
+            self._engine_instance = BackendRouter()
         return self._engine_instance
 
     def _engine_call(self, method: str, *args):
@@ -135,6 +135,10 @@ class InstallerAPI:
             "scaffold": {"sdk": "homensai_install.scaffold.scaffold_product",
                          "cli": "hinstall init-adapter", "missing_inputs": "DRAFT_BLOCKED"},
             "locales": ["ru", "en", "de"],
+            "backends": {"sdk": "homensai_install.backends.BackendRouter",
+                         "registration": "explicit_bootstrap", "default": "native:user",
+                         "selection": "reviewed_target", "implicit_fallback": False,
+                         "availability": "capabilities_for_exact_target"},
             "operations": ["describe", "capabilities", "validate", "discover", "plan", "submit",
                            "operations.list", "status", "events", "cancel", "resume", "errors.describe", "errors.search",
                            "diagnostics.get", "diagnostics.export", "statistics.query"],

@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HomenSAI API request bodies v1",
+  "anyOf": [
+    {
+      "$ref": "#/$defs/validate"
+    },
+    {
+      "$ref": "#/$defs/discover"
+    },
+    {
+      "$ref": "#/$defs/plan"
+    },
+    {
+      "$ref": "#/$defs/submit"
+    },
+    {
+      "$ref": "#/$defs/resume"
+    }
+  ],
+  "$defs": {
+    "validate": {
+      "type": "object",
+      "properties": {
+        "manifest": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "manifest"
+      ],
+      "additionalProperties": false
+    },
+    "discover": {
+      "type": "object",
+      "properties": {
+        "manifest": {
+          "type": "object"
+        },
+        "target": {
+          "type": "object",
+          "properties": {
+            "os": {
+              "enum": [
+                "linux",
+                "windows"
+              ]
+            },
+            "arch": {
+              "enum": [
+                "x64",
+                "arm64"
+              ]
+            },
+            "mode": {
+              "enum": [
+                "native",
+                "docker"
+              ]
+            },
+            "scope": {
+              "enum": [
+                "user",
+                "service"
+              ]
+            }
+          },
+          "required": [
+            "os",
+            "arch",
+            "mode",
+            "scope"
+          ],
+          "additionalProperties": false
+        },
+        "options": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "manifest"
+      ],
+      "additionalProperties": false
+    },
+    "plan": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "enum": [
+            "build",
+            "install",
+            "update",
+            "modify_components",
+            "repair",
+            "reinstall",
+            "uninstall",
+            "backup",
+            "restore",
+            "rollback",
+            "start",
+            "stop"
+          ]
+        },
+        "manifest": {
+          "type": "object"
+        },
+        "target": {
+          "type": "object",
+          "properties": {
+            "os": {
+              "enum": [
+                "linux",
+                "windows"
+              ]
+            },
+            "arch": {
+              "enum": [
+                "x64",
+                "arm64"
+              ]
+            },
+            "mode": {
+              "enum": [
+                "native",
+                "docker"
+              ]
+            },
+            "scope": {
+              "enum": [
+                "user",
+                "service"
+              ]
+            }
+          },
+          "required": [
+            "os",
+            "arch",
+            "mode",
+            "scope"
+          ],
+          "additionalProperties": false
+        },
+        "inventory": {
+          "type": "object"
+        },
+        "options": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "action",
+        "manifest"
+      ],
+      "additionalProperties": false
+    },
+    "submit": {
+      "type": "object",
+      "properties": {
+        "plan_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+        },
+        "plan_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "consent_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "required": [
+        "plan_id",
+        "plan_digest",
+        "consent_refs",
+        "idempotency_key"
+      ],
+      "additionalProperties": false
+    },
+    "resume": {
+      "type": "object",
+      "properties": {
+        "decisions": {
+          "type": "object"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    }
+  }
+}

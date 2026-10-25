@@ -1,0 +1,93 @@
+{
+  "type": "object",
+  "properties": {
+    "operation_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "timestamp": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "phase": {
+      "type": "string"
+    },
+    "component_id": {
+      "type": "string"
+    },
+    "step_id": {
+      "type": "string"
+    },
+    "percent": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "current": {
+      "type": "number"
+    },
+    "total": {
+      "type": "number"
+    },
+    "bytes_done": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "bytes_total": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "progress": {
+      "type": "object"
+    },
+    "message_code": {
+      "type": "string"
+    },
+    "error": {
+      "type": "object"
+    },
+    "completed": {
+      "type": "number"
+    },
+    "unit": {
+      "type": "string"
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "bytes_delta": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "attempt_id": {
+      "type": "string"
+    },
+    "retryable": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "operation_id",
+    "event_id",
+    "sequence",
+    "timestamp",
+    "type"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ordered cursor event v1"
+}

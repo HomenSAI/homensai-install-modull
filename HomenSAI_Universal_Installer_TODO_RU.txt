@@ -15,9 +15,9 @@ HomenS.AI Install Module: Windows / Linux × native / Docker
 1. Прочитай оба документа целиком до начала изменений. PROMPT задаёт полные
    требования, ограничения и архитектуру; TODO задаёт порядок исполнения
    и критерии закрытия задач. Краткость карточки не отменяет детали PROMPT.
-2. Этот список — стартовый рабочий план, а не отчёт о выполнении. Все 106 задач
-   имеют TODO, проверки NOT RUN, сохранение NOT_CHECKED. В проекте уже есть
-   полезный код: проверь и интегрируй его, не переписывай автоматически.
+2. Этот файл — канонический рабочий план и текущий отчёт исполнения. Исходный
+   шаблон содержал 106 задач TODO; актуальные состояния указаны в карточках.
+   Полезный существующий код проверяй и интегрируй, не переписывай автоматически.
    Старый PASS из handoff не является новым доказательством на текущем artifact.
 3. Если в репозитории уже есть ToDo, перенеси туда эти задачи с их ID и укажи
    один канонический путь. Не веди два расходящихся списка. Поставляемый файл
@@ -73,20 +73,20 @@ SYNC_CONFLICT / SYNC_BLOCKED.
 НАЧАЛЬНАЯ ПАНЕЛЬ СОСТОЯНИЯ
 ========================================================================
 
-Всего задач: 106. Принято DONE: 2.
+Всего задач: 106. Принято DONE: 4. Разработка продолжается; IN_PROGRESS не означает готовый выпуск.
 HIM-001/002 проверены в текущей сессии; остальные проверки указаны в карточках.
 Все G0–G5: OPEN; доступ к локальному Docker Git владельца: BLOCKED.
-Это начальные значения шаблона, не оценка всей существующей кодовой базы.
+Состояния отражают текущую сессию; полный выпуск ещё не принят.
 
-Текущие задачи: HIM-004; параллельно публичный API, native engine, diagnostics/i18n.
-Следующая контрольная точка: CP-20261025-001.
+Текущие задачи: API/native/recovery/trust/diagnostics; GUI/reference/prerequisites/checkpoints.
+Следующая контрольная точка: CP-20261025-002.
 Рабочая ветка: codex/universal-installer-20261025; исходный SHA: a16a55d58e65ccf64ed2ba0c853a0053baea6689.
 Канонический ToDo: HomenSAI_Universal_Installer_TODO_RU.txt;
 журнал: docs/WORK_LOG.md; продолжение: docs/RESUME.md и docs/work-state.json.
-Последний checkpoint_id: отсутствует.
-Локальный Git / Docker Git / GitHub: NOT_CHECKED / NOT_CHECKED / NOT_CHECKED.
+Последний подтверждённый checkpoint_id: CP-20261025-001; GitHub SHA f99d302bbf944248ae1e3d2d5d9cc6e2d899d31c.
+Локальный Git / Docker Git / GitHub: SYNC_CONFIRMED / SYNC_BLOCKED / SYNC_CONFIRMED для CP-001. Новый CP-002: SYNC_PENDING до receipt.
 Блокировки: локальный Forgejo/Docker и Windows runner не подключены; production signing keys не предоставлены.
-Следующий безопасный шаг: подтвердить CP-20261025-001 и продолжить публичный пакет/API, native engine и три локали.
+Следующий безопасный шаг: подтвердить CP-002; принять настоящий reference GUI с bundled runtime; продолжить недостающие платформы и lifecycle.
 
 Ориентиры из предыдущего рабочего окружения владельца:
 локальный Forgejo/Gitea — http://127.0.0.1:8796/;
@@ -143,24 +143,24 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 Доказательство / ограничения / следующий шаг: GitHub чтение/запись доступны через connector. Пользовательский Docker/Forgejo не подключён к облачной Linux-сессии; /mnt/c и Docker socket отсутствуют. Локальный cloud Git не выдаётся за Docker Git владельца. Продолжать независимую работу.
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
-[ ] HIM-004. Ввести ToDo, журнал, RESUME и первый checkpoint
-Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-001
+[x] HIM-004. Ввести ToDo, журнал, RESUME и первый checkpoint
+Статус: DONE | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-003; PROMPT: § 17–19, 31.2–31.3.
 Готово, когда: Этот список принят в единственный рабочий ToDo; созданы или согласованы журнал и
 RESUME/state. Первый checkpoint сохранён локально и подтверждён во всех доступных обязательных remotes;
 недоступное место имеет отдельный SYNC_BLOCKED. Недоступный remote не блокирует создание документов и
 локальное сохранение; его sync отмечен отдельно.
-Доказательство / ограничения / следующий шаг: Канонический ToDo — этот файл. Подготовлены docs/WORK_LOG.md, docs/RESUME.md, docs/work-state.json; первый checkpoint публикуется. Sync факт подтверждается после commit вне его содержимого.
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: Первый checkpoint f99d302bbf944248ae1e3d2d5d9cc6e2d899d31c подтверждён локально и через GitHub ref. Docker Git отдельно SYNC_BLOCKED. Канонические ToDo/RESUME/state сохранены.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
-[ ] HIM-005. Разобрать существующий установочный модуль
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+[x] HIM-005. Разобрать существующий установочный модуль
+Статус: DONE | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-002; PROMPT: § 1.1, 3–5.
 Готово, когда: Составлена таблица «сохранить / интегрировать / исправить / отсутствует» для
 существующего Python-ядра, manifest v1/v2, journal, adapters, launcher, doctor и packaging. Полезная
 реализация сохранена; генератор и fake-test не выданы за реальную установку.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: docs/IMPLEMENTATION_STATUS.md: таблица сохранить/интегрировать/исправить/добавить. Сохранены shared manifest, update/archive/crypto/datahome и существующие adapters; новые реальные проверки отделены от generators.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-006. Сверить исходники и ограничения JobPilot и Rent
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -221,39 +221,39 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 ========================================================================
 
 [ ] HIM-011. Объединить manifest v1/v2 в нормализованную модель
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-005, HIM-008; PROMPT: § 4.
 Готово, когда: Существующие форматы преобразуются явно; значения полей не изменены молча. Неизвестная
 несовместимая схема отклоняется с понятным кодом; миграция и совместимость проверены.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: SDK валидирует и нормализует v1/v2; tests/test_public_api.py. Полное покрытие всех публичных схем и compatibility продолжает проверяться.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-012. Определить схемы, идентификаторы и строгую валидацию
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-011; PROMPT: § 4, 28.1, 28.4.
 Готово, когда: Разделены api/module/manifest/adapter/catalog/product/DB versions и
 installation/data/host identities. Проверяются дубли ключей, неизвестные поля, циклы, размеры входов и
 опасные пути; канонические schemas входят в пакет.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: Строгие JSON/schema/identity boundaries, package schemas; tests/test_public_api.py. Остались executable adapter protocol и межплатформенные контракты.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-013. Собрать подключаемый пакет SDK и CLI
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-011; PROMPT: § 5, 28.2.
 Готово, когда: Пакет собирается и устанавливается как закреплённая зависимость вне checkout ядра.
 Публичный namespace и CLI работают; production не использует случайную editable-зависимость; --help и
 документация согласованы.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: Wheel собран и установлен вне checkout; offline schemas/ru/en/de доступны, CLI работает. Финальная повторная проверка общего artifact после GUI/engine изменений ещё нужна.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-014. Создать INSTALLER_API.md и discovery
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-012, HIM-013; PROMPT: § 28.1.
 Готово, когда: README ведёт к единой точке входа API; discovery и api describe возвращают версии,
 schemas, capabilities и target restrictions офлайн. Планируемая возможность отделена от реализованной и
 проверенной.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: INSTALLER_API.md, api/discovery.json, OpenAPI и describe/capabilities добавлены. HTTP routes синхронизируются с мастером.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-015. Опубликовать минимальный ProductAdapter protocol
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -265,31 +265,31 @@ executable protocol. Запуск через argv без shell, с таймау�
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-016. Реализовать безопасное discover и EnvironmentInventory
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-012, HIM-015; PROMPT: § 21, 24, 28.3.
 Готово, когда: Находятся ОС/архитектура, установки, зависимости, ресурсы, порты, пути и значимые
 machine/user/process/service variables. Значения секретов не выгружаются; probes ограничены;
 validate/discover не исполняют произвольные hooks.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: Native discover проверяет ownership/пути/активный релиз и ресурсы; отдельный prerequisite inventory реализуется. Полное machine/user/service окружение ещё не принято.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-017. Реализовать планирование и привязку согласий
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-012, HIM-016; PROMPT: § 21, 24, 28.3–28.4.
 Готово, когда: План перечисляет действия, владельцев, место, права и reboot steps; имеет digest и
 существенный environment fingerprint. plan не меняет систему; изменившиеся условия дают PLAN_STALE;
 consent не подменяется одним hash.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: SQLite plans с digest/environment fingerprint, consent refs и PLAN_STALE; source API tests. Reboot/platform execution ещё не принято.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-018. Ввести общий каркас операций и recovery journal
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-017; PROMPT: § 3, 12, 28.3–28.4.
 Готово, когда: Есть operation/step IDs, lock, состояния, durable journal и receipts; предусмотрены
 безопасные границы cancel/resume. Fresh не требует фиктивного previous release. Ошибка обязательной
 записи журнала не допускает опасный переход.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: Durable SQLite API journal и engine journal, resource claim/idempotency, crash/cancel/resume. Реальные Linux tests; Windows/Docker ещё не приняты.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-019. Реализовать DataHome, владельца и хранение секретов
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -301,32 +301,32 @@ boundaries заданы; секретов нет в argv/logs.
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-020. Связать launcher с release/runtime и владением процессами
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-015, HIM-018, HIM-019; PROMPT: § 7–11.
 Готово, когда: Launcher запускает согласованную активную пару release/runtime; изменение указателя
 влияет на реальный процесс. Start/stop проверяют product/instance/version ownership, не убивают чужой
 PID и не запускают второй scheduler.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: Linux PID birth token + pidfd, согласованный release/runtime, signed manifest, start/stop/health. Windows/OS service отдельный BLOCKED runner gate.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-021. Реализовать минимальную проверку происхождения и payload
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-008, HIM-012, HIM-017; PROMPT: § 6, 14, 26.
 Готово, когда: До исполнения проверяются доверенный источник, подписанный inventory, hash и
 target/version. Trust root не берётся из непроверенного скачивания. Для разработки допустим
 изолированный тестовый ключ; production-ready статус при этом запрещён. На тестовом ключе проверены
 отказ при повреждении payload, неверной подписи/ключе и несовпадении target.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: trust.py: Ed25519, полный SHA-256 inventory и binding manifest/target/runtime/release; 11 negative/positive tests. Production bootstrap/root и сертификаты ещё отсутствуют.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-022. Ввести начальные ошибки, события и раннюю диагностику
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-012, HIM-018; PROMPT: § 22, 28.4, 30.
 Готово, когда: Есть общий error envelope, исходные внешние exit codes, минимальный офлайн-каталог и
 ранний журнал до установки БД продукта. Events имеют operation_id/sequence; секреты очищаются; unknown
 error сохраняется без выдуманной причины.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: Общий envelope, 40 codes, unknown fallback, redaction, sequences и ранняя SQLite/fallback диагностика. Интеграция нового пакета проверена на source уровне.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-023. Подготовить reference application и тестовые версии
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -338,13 +338,13 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-101. Ввести обязательные локали ru, en и de
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-012, HIM-014, HIM-022; PROMPT: § 20, 22, 28, 30, 32.
 Готово, когда: Есть единый locale contract, стабильные message keys и полные каталоги
 русского/английского/немецкого. Определение языка, явный выбор, сохранение и fallback en проверены; API
 codes/JSON numbers от языка не зависят.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: Общий контракт locale ru/en/de, parity/placeholders, en fallback; 40 translated errors. Язык GUI/сохранение и полный visual acceptance ещё проверяются.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-024. Закрыть G1: проверить установленный пакет через публичный API
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -479,13 +479,13 @@ Maintenance дополняется при HIM-059.
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-036. Связать fresh-транзакцию с реальными adapters
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-018, HIM-019, HIM-020, HIM-021, HIM-028, HIM-030; PROMPT: § 3, 12, 21, 28.
 Готово, когда: Работают реальные prepare/apply/verify и допустимые компенсации. Fresh создаёт только
 собственные ресурсы; lock и журнал используются при изменениях; cancel/failure не удаляют shared
 dependencies или чужие данные.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: Настоящий Linux user-session fresh/start/readiness выполнен на synthetic test product. Frozen reference GUI и остальные targets ещё не приняты.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-037. Собрать платформенный Windows Setup с выбором native/Docker
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -625,14 +625,14 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 ========================================================================
 
 [ ] HIM-050. Реализовать согласованный зашифрованный полный backup
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-015, HIM-018, HIM-019, HIM-020, HIM-040, HIM-041; PROMPT: § 11–13.
 Готово, когда: Backup включает согласованную БД, документы, конфигурацию, историю, нужные секреты/ключи
 и сведения о совместимом payload/runtime. Продуктовые writers корректно остановлены/quiesced. Проверены
 целостность и расшифровка синтетической копии. Начинать можно на проверенном fresh-пути доступного
 target, не ожидая недоступного runner другой ОС.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: AES-GCM archive/provider интегрирован; реальные backup/uninstall/restore tests на Linux. Cross-host и все платформы ещё не приняты.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-051. Проверить безопасность форматов архива и распаковки
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -734,24 +734,24 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-062. Завершить общий API всех lifecycle actions
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-013, HIM-014, HIM-015, HIM-054, HIM-055, HIM-056, HIM-058, HIM-059, HIM-060, HIM-061;
 PROMPT: § 5, 28.
 Готово, когда: Заявленные
 build/install/update/modify/repair/uninstall/backup/restore/rollback/start/stop и status/doctor доступны
 через единый фасад. SDK, CLI JSON/NDJSON и локальный HTTP согласованы; OpenAPI соответствует handlers;
 нет arbitrary elevated shell/signing endpoint.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: SDK/CLI facade и HTTP contract созданы; поддержанные Linux действия проверены. Build/modify/doctor/platform backends требуют завершения.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-063. Проверить идемпотентность, события и совместимость API
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-017, HIM-018, HIM-022, HIM-035, HIM-062; PROMPT: § 28.3–28.4.
 Готово, когда: Проверены same-key/same-request, конфликт содержимого, PLAN_STALE, consent refs,
 cancel_pending, cursor replay/dedup и snapshot. Reboot/awaiting-user не SUCCESS; поддержанные старые
 клиенты сохраняют контракт, breaking change версионирован.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: Idempotency/conflict/consent/stale plan/replay и API→Native lifecycle tests; installed/platform compatibility ещё не принята.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-064. Сделать scaffold и инструменты подключения продукта
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -763,31 +763,31 @@ generic/prebuilt либо JSON executable adapter. Примеры исполня
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-065. Завершить подробный офлайн-каталог ошибок
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-022, HIM-062; PROMPT: § 30.1.
 Готово, когда: Есть schema/version, стабильные codes и product namespaces, описание
 симптомов/причин/проверок/исправления. Различаются confirmed/suspected/unknown; unknown error получает
 безопасный fallback, а не выдуманный диагноз.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: 40 codes на ru/en/de: symptoms/causes/checks/remediation, unknown fallback; tests/test_i18n.py. Полный gate зависит от завершения API.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-066. Реализовать DiagnosticStore и историю операций
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-018, HIM-022, HIM-065; PROMPT: § 30.2.
 Готово, когда: Локальная SQLite хранит operations/attempts/events/errors и очищенные технические
 сведения с retention/migrations. Primary error отделён от последующего rollback error; диагностическая
 БД не является авторитетным recovery journal.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: SQLite operations/attempts/events/errors + retention, primary/rollback separation; tests/test_diagnostics.py и test_diagnostics_api.py. Обязательный recovery journal отделён.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-067. Обеспечить устойчивость самой диагностики
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-018, HIM-066; PROMPT: § 30.2, 30.5.
 Готово, когда: При отказе/повреждении SQLite действует ограниченный fallback journal, безопасный
 повторный импорт и dedup. Повреждённая БД сохранена для исследования; logger не вызывает рекурсивный
 сбой; отсутствие обязательного recovery journal блокирует опасный переход.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: Bounded fallback, corruption preservation, idempotent import, concurrent writers и degraded marker проверены. Полный lifecycle gate ещё открыт.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-068. Сделать экран ошибки, поиск и безопасный support export
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -799,13 +799,13 @@ scripts. Экспорт показывает состав и исключает 
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-069. Реализовать локальную статистику и её проверку
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-062, HIM-066, HIM-067; PROMPT: § 30.4–30.5.
 Готово, когда: statistics.query и GUI считают уникальные operations отдельно от attempts, показывают
 период/фильтры/знаменатель. Reboot, retries и дубли событий не увеличивают установки; FAILED_ROLLED_BACK
 не успех update. Счётчики сверены с исходными событиями.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: SDK statistics считает operations отдельно от attempts, корректно учитывает FAILED_ROLLED_BACK. Экран GUI статистики ещё требуется.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-070. Обеспечить офлайн-доступ и доверенное обновление справочника
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -817,13 +817,13 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-103. Локализовать каталог ошибок, диагностику и справку
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
 Зависимости: HIM-065, HIM-068, HIM-069, HIM-070, HIM-101; PROMPT: § 30, 32.
 Готово, когда: Описания, причины, инструкции, предупреждения, статистика и support export имеют
 ru/en/de. Неизвестная внешняя ошибка получает локализованное объяснение плюс безопасный исходный
 код/текст; диагноз не выдумывается.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: Трёхъязычный каталог ошибок и техническая справка созданы; UI statistics/export пока не принят.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-002); CP-001 SYNC_CONFIRMED.
 
 [ ] HIM-072. Принять полный lifecycle reference app
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —

@@ -1,0 +1,1552 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "HomenSAI local installation API",
+    "version": "1.0",
+    "description": "Development contract. Loopback only. SDK/CLI use the same InstallerAPI facade. No build/sign/arbitrary elevated command in HTTP. Wizard session binds product manifest and trust at startup; HTTP accepts only mode/path/action/consents, not arbitrary manifests or trust roots. Generic SDK request schema is separate."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:{port}",
+      "variables": {
+        "port": {
+          "default": "8760",
+          "description": "Фактически выбранный локальным controller порт; не фиксированная служба"
+        }
+      }
+    }
+  ],
+  "security": [
+    {
+      "InstallerSession": []
+    }
+  ],
+  "paths": {
+    "/api/v1/info": {
+      "get": {
+        "operationId": "describe",
+        "description": "Офлайн-описание публичного контракта",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/capabilities": {
+      "get": {
+        "operationId": "capabilities",
+        "description": "Фактические возможности engine. Непроверенные targets не ready.",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "native",
+                "docker"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/validate": {
+      "post": {
+        "operationId": "validate",
+        "description": "Проверить manifest без effects",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discover": {
+      "post": {
+        "operationId": "discover",
+        "description": "Ограниченный read-only preflight",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscoverRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plans": {
+      "post": {
+        "operationId": "plan",
+        "description": "Сохранить immutable plan; не устанавливать ПО",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operations": {
+      "post": {
+        "operationId": "submit",
+        "description": "Запустить план после explicit review/EULA consent; idempotency обязателен",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operations/{operation_id}": {
+      "get": {
+        "operationId": "status",
+        "description": "Состояние операции; прерванный owner приводит к RECOVERY_REQUIRED",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^op_[a-f0-9]{32}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/operations/{operation_id}/events": {
+      "get": {
+        "operationId": "events",
+        "description": "Упорядоченная страница событий и snapshot; poll/cursor без повторного submit",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^op_[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "after_sequence",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/operations/{operation_id}/cancel": {
+      "post": {
+        "operationId": "cancel",
+        "description": "Запрос остановки на безопасной границе; не произвольный kill",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^op_[a-f0-9]{32}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/operations/{operation_id}/resume": {
+      "post": {
+        "operationId": "resume",
+        "description": "Явное продолжение engine recovery с проверкой фактического checkpoint",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^op_[a-f0-9]{32}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/errors/{code}": {
+      "get": {
+        "operationId": "errorsDescribe",
+        "description": "Офлайн-статья ошибки",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "ru",
+                "en",
+                "de"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/errors": {
+      "get": {
+        "operationId": "errorsSearch",
+        "description": "Поиск по офлайн-каталогу",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "ru",
+                "en",
+                "de"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/diagnostics/{operation_id}": {
+      "get": {
+        "operationId": "diagnosticsGet",
+        "description": "Очищенные локальные сведения, не authoritative recovery journal",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^op_[a-f0-9]{32}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/statistics": {
+      "get": {
+        "operationId": "statisticsQuery",
+        "description": "Локальные агрегаты уникальных операций/попыток",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/session": {
+      "get": {
+        "operationId": "session",
+        "description": "Фиксированные сведения product/session и язык. Не раскрывает session token.",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/locales/{locale}": {
+      "get": {
+        "operationId": "localeResources",
+        "description": "Ресурсы языка UI",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "ru",
+                "en",
+                "de"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/terms/{locale}": {
+      "get": {
+        "operationId": "terms",
+        "description": "Локальный текст условий, его версия и digest",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "ru",
+                "en",
+                "de"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/secrets": {
+      "post": {
+        "operationId": "setSessionArchiveSecret",
+        "description": "Архивный пароль только в защищённой памяти startup-сессии. Значение не передаётся в SDK options/journal/logs и не возвращается. После restart пользователь вводит его заново. Публичный ответ содержит лишь reference=wizard_archive и stored=session_memory.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchiveSecretRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/preferences": {
+      "post": {
+        "operationId": "setWizardPreferences",
+        "description": "Сохранить выбранный язык мастера в приватном состоянии владельца; ранее принятый digest/язык соглашения не меняется задним числом.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WizardPreferencesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "InstallerSession": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-HInstall-Token",
+        "description": "Непредсказуемый token только startup-сессии, не query. Требуются также exact Host и same-origin проверки."
+      }
+    },
+    "schemas": {
+      "ValidateRequest": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "enum": [
+              "ru",
+              "en",
+              "de"
+            ]
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "DiscoverRequest": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "enum": [
+              "native",
+              "docker"
+            ]
+          },
+          "install_root": {
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "ru",
+              "en",
+              "de"
+            ]
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "PlanRequest": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "enum": [
+              "native",
+              "docker"
+            ]
+          },
+          "install_root": {
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "ru",
+              "en",
+              "de"
+            ]
+          },
+          "action": {
+            "enum": [
+              "install",
+              "update",
+              "repair",
+              "uninstall",
+              "backup",
+              "restore",
+              "rollback",
+              "start",
+              "stop",
+              "modify_components"
+            ]
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      },
+      "SubmitRequest": {
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "consent_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 64
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "accepted_terms": {
+            "const": true
+          },
+          "accepted_plan": {
+            "const": true
+          },
+          "terms_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "locale": {
+            "enum": [
+              "ru",
+              "en",
+              "de"
+            ]
+          }
+        },
+        "required": [
+          "plan_id",
+          "plan_digest",
+          "consent_refs",
+          "idempotency_key",
+          "accepted_terms",
+          "accepted_plan",
+          "terms_digest"
+        ],
+        "additionalProperties": false
+      },
+      "ResumeRequest": {
+        "type": "object",
+        "properties": {
+          "decisions": {
+            "type": "object"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "Envelope": {
+        "type": "object",
+        "required": [
+          "api_version",
+          "request_id"
+        ],
+        "properties": {
+          "api_version": {
+            "const": "1.0"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "result": {},
+          "error": {
+            "type": "object"
+          }
+        }
+      },
+      "Operation": {
+        "$ref": "schemas/operation.schema.json"
+      },
+      "Plan": {
+        "$ref": "schemas/plan.schema.json"
+      },
+      "Event": {
+        "$ref": "schemas/event.schema.json"
+      },
+      "ArchiveSecretRequest": {
+        "type": "object",
+        "properties": {
+          "archive_password": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 4096,
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "archive_password"
+        ],
+        "additionalProperties": false
+      },
+      "WizardPreferencesRequest": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "enum": [
+              "ru",
+              "en",
+              "de"
+            ]
+          }
+        },
+        "required": [
+          "locale"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

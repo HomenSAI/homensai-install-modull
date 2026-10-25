@@ -17,3 +17,27 @@ HIM-001/002: PASS. HIM-003: BLOCKED для локального Docker Git вл�
 HIM-004: документы подготовлены, синхронизация первого checkpoint выполняется.
 Дальнейшая независимая разработка продолжается; готовность install/update/
 restore/rollback не заявляется без реальных проверок.
+
+## CP-20261025-002 — общий API, Linux lifecycle, доверие и диагностика
+
+CP-001 подтверждён: f99d302bbf944248ae1e3d2d5d9cc6e2d899d31c локально
+и в GitHub. Новый checkpoint содержит SDK/CLI, schemas/discovery/OpenAPI,
+SQLite plans/operations/events/idempotency, NativeEngine и Ed25519 verifier,
+40 кодов ошибок на ru/en/de и устойчивую диагностику. GUI и prerequisites
+продолжаются отдельно; не входят в принятие этого checkpoint.
+
+Новая общая проверка исходников: Python 3.14.3, `pytest -q tests` —
+1233 passed, 1 skipped, 10 subtests passed, 24.03 s.
+Реальные loopback/process проверки перенесены в integration_tests, чтобы
+unit tests сохраняли полный запрет сети. Первоначальный FAIL был вызван
+неверным размещением этих тестов; после переноса весь unit suite PASS.
+
+Отдельно NativeEngine: 15 PASS на synthetic Linux user-session; публичный
+API→NativeEngine: 1 PASS, включающий 7 lifecycle действий. Это не доказательство
+Windows/Docker/service/frozen GUI acceptance. Wheel установлен вне checkout,
+его offline schemas/locales проверены; финальная сборка будет повторена.
+
+HIM-004/005 закрыты. Остальные частично реализованные задачи сохраняют
+IN_PROGRESS с областью фактического PASS. G0–G5 открыты. Блокировки: реальный
+Docker/Forgejo владельца, Windows/Docker runners, production signing и юридическое
+утверждение. Продолжать независимые GUI/reference, prerequisites и checkpoint tooling.

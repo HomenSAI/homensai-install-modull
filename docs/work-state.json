@@ -1,34 +1,53 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-001",
+  "checkpoint_id": "CP-20261025-002",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "active_tasks": [
-    "HIM-004",
+    "HIM-011",
+    "HIM-012",
     "HIM-013",
+    "HIM-014",
+    "HIM-016",
+    "HIM-017",
+    "HIM-018",
+    "HIM-020",
+    "HIM-021",
     "HIM-022",
     "HIM-036",
-    "HIM-101"
+    "HIM-050",
+    "HIM-062",
+    "HIM-063",
+    "HIM-065",
+    "HIM-066",
+    "HIM-067",
+    "HIM-069",
+    "HIM-101",
+    "HIM-103"
   ],
   "completed_tasks": [
     "HIM-001",
-    "HIM-002"
+    "HIM-002",
+    "HIM-004",
+    "HIM-005"
   ],
   "blocked_tasks": {
     "HIM-003": "User Docker/Forgejo host is not connected to this cloud workspace"
   },
   "sync": {
-    "cloud_git": "PENDING",
+    "cloud_git": "SYNC_PENDING",
     "docker_git": "SYNC_BLOCKED",
-    "github": "SYNC_PENDING"
+    "github": "SYNC_PENDING",
+    "last_confirmed_checkpoint": "CP-20261025-001"
   },
-  "next_step": "Подтвердить первый checkpoint; продолжить API, native engine, diagnostics/i18n, trust и GUI.",
+  "next_step": "Принять GUI/reference bundle; безопасные prerequisites/downloads, checkpoint tooling, недостающие platform adapters и product integrations.",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
     "windows_docker": "BLOCKED",
-    "linux_native": "NOT RUN",
+    "linux_native": "PARTIAL: real synthetic user-session lifecycle, GUI/frozen reference pending",
     "linux_docker": "BLOCKED"
-  }
+  },
+  "last_confirmed_github_sha": "f99d302bbf944248ae1e3d2d5d9cc6e2d899d31c"
 }

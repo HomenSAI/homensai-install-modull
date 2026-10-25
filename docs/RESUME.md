@@ -1,31 +1,46 @@
 # Продолжение разработки
 
-Контрольная точка: `CP-20261025-001`. Ветка: `codex/universal-installer-20261025`.
-Исходный main: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
+Checkpoint: `CP-20261025-002`; ветка `codex/universal-installer-20261025`.
+Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
+Последний подтверждённый remote до создания CP-002: `f99d302bbf944248ae1e3d2d5d9cc6e2d899d31c`.
+Фактический SHA текущего checkpoint определять по Git history/ref и внешней receipt.
 
-Сначала прочитать CLAUDE.md, полный PROMPT, канонический ToDo и docs/work-state.json.
-Код получен через авторизованный GitHub connector: 71 исходный blob и Git tree
-проверены, точный исходный commit восстановлен в shallow checkout.
+## Восстановление контекста
 
-## Где выполняется работа
+Прочитать CLAUDE.md, полный PROMPT, канонический ToDo, work-state.json и
+IMPLEMENTATION_STATUS.md. Не превращать частичный PASS в готовность выпуска.
+Проверить branch/dirty files/staged files/активные процессы до новых действий.
+Не сбрасывать чужие изменения и не завершать произвольный PID.
 
-Доступна облачная Linux-среда Python 3.12. Это не Windows-компьютер владельца.
-Docker CLI/socket и пользовательский Forgejo здесь не подключены. Локальный
-cloud Git не подменяет требуемую синхронизацию с Git владельца в Docker.
-GitHub-ветка создана; новый checkpoint подтверждать по реальному ref.
+## Доступная среда
 
-## Что выполняется
+Облачный Linux x64; host Python 3.12, изолированный build/test Python 3.14.3.
+Windows пользователя и Docker/Forgejo не подключены. Cloud Git не заменяет
+Git владельца в Docker. GitHub доступен через connector; HTTPS Git credentials
+в shell отсутствуют. Точный source snapshot импортирован с проверкой Git hashes.
 
-Параллельные непересекающиеся области: публичный пакет/API/CLI; native engine;
-diagnostics/ErrorCatalog/i18n; trust/GUI/packaging и управление checkpoint.
-Корневой исполнитель координирует Git index и отправку.
+## Что уже работает
 
-Историческое сообщение о 1178 passed/1 skipped на baseline не является новой
-проверкой этой ветки. Windows/Docker installed acceptance пока не выполнена.
+Публичный пакет/CLI/API, strict manifest normalization, планы/согласия/журнал,
+Ed25519 inventory с manifest/target/runtime binding, Linux user-session lifecycle,
+ошибки/диагностика/локальная статистика и общие строки на ru/en/de.
+Новые source tests: 1233 passed, 1 skipped; отдельные real loopback native/API tests.
+Нативные службы ОС, Windows/Docker и frozen GUI acceptance пока не приняты.
 
-## Следующий шаг
+## Следующая очередь
 
-Подтвердить CP-20261025-001; собрать минимальный API, native engine, signed
-payload verifier и GUI на ru/en/de; проверить reference на доступной среде.
-Перед повтором любой операции проверить рабочую ветку, dirty files, процессы
-и receipts. Не уничтожать локальные изменения или пользовательские данные.
+1. Завершить и проверить loopback GUI: три языка, consent, progress, resume, error help.
+2. Собрать reference package с реальным Python runtime, wheel, ru/en/de legal и подписью.
+3. Пройти реальную установку через GUI и frozen bootstrap на доступном Linux.
+4. Закрыть crash-window process receipt, encrypted-only restore и candidate recheck.
+5. Добавить безопасные prerequisite/download и portable Git checkpoint/resume tooling.
+6. Продолжить platform service/Docker adapters и JobPilot/Rent integration с явными runner gates.
+7. После каждой логической задачи обновлять ToDo/журнал, commit и каждый доступный remote.
+
+## Постоянные ограничения
+
+Не хранить publisher private keys, архивные пароли и product secrets в repo/URL/logs.
+Тестовые ключи допускаются только с development marker; production_ready остаётся false.
+Не открывать HTTP installer на внешнем интерфейсе. Не публиковать main/release без
+разрешения. Каждый недоступный runner/remote фиксировать отдельно и продолжать
+независимую работу; никаких фиктивных PASS.

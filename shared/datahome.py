@@ -21,12 +21,33 @@ class DataHomeError(ValueError):
     """Небезопасная или недостаточно определённая схема размещения."""
 
 
+def _windows_reserved(value: str) -> bool:
+    """Совместимость Python 3.12 без ослабления Windows-проверки имён.
+
+    ntpath.isreserved появился позднее. Проверяем каждый сегмент, включая
+    DOS-устройства с расширением, Unicode цифры устройств и недопустимые знаки.
+    """
+    if hasattr(ntpath, "isreserved"):
+        return ntpath.isreserved(value)
+    _, tail = ntpath.splitdrive(value)
+    devices = {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
+    devices |= {prefix + digit for prefix in ("COM", "LPT")
+                for digit in "123456789\u00b9\u00b2\u00b3"}
+    for part in tail.replace("\\", "/").split("/"):
+        if not part or part in (".", ".."):
+            continue
+        if (part.endswith((" ", ".")) or any(c in '*?"<>|:' or ord(c) < 32 for c in part)
+                or part.split(".", 1)[0].rstrip(" ").upper() in devices):
+            return True
+    return False
+
+
 def checked_path(value: str | Path) -> Path:
     """Абсолютный путь текущей ОС, без ссылок/reparse points в существующей части."""
     text = str(value)
     portable = text.replace("\\", "/")
     tail = portable[2:] if PureWindowsPath(text).drive and not portable.startswith("//") else portable
-    if (not text or ntpath.isreserved(text) or any(ord(c) < 32 or ord(c) == 127 for c in text)
+    if (not text or _windows_reserved(text) or any(ord(c) < 32 or ord(c) == 127 for c in text)
             or portable.startswith("//") or text.startswith("\\") or ":" in tail
             or any(part == ".." or (part not in ("", ".") and part.endswith((".", " ")))
                    for part in portable.split("/"))):

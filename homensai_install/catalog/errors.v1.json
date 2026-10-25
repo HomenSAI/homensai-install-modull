@@ -1,0 +1,2097 @@
+{
+  "schema_version": 1,
+  "catalog_version": "1.0.0",
+  "locales": [
+    "ru",
+    "en",
+    "de"
+  ],
+  "errors": {
+    "UNKNOWN_ERROR": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "export"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Неизвестная ошибка",
+          "description": "Компонент сообщил ошибку, для которой пока нет точного объяснения.",
+          "possible_causes": [
+            "Непредусмотренный отказ компонента или неполные диагностические данные."
+          ],
+          "checks": [
+            "Откройте этап операции и исходный код возврата; проверьте, завершилась ли операция."
+          ],
+          "remediation": [
+            "Сохраните очищенный отчёт. Не повторяйте миграцию или установку до проверки фактического состояния."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Unknown error",
+          "description": "A component reported an error without an established explanation.",
+          "possible_causes": [
+            "An unexpected component failure or incomplete diagnostic evidence."
+          ],
+          "checks": [
+            "Inspect the operation phase and original exit code; check whether the operation completed."
+          ],
+          "remediation": [
+            "Save a sanitized report. Check the actual state before retrying an installation or migration."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Unbekannter Fehler",
+          "description": "Eine Komponente hat einen Fehler ohne gesicherte Erklärung gemeldet.",
+          "possible_causes": [
+            "Unerwarteter Komponentenfehler oder unvollständige Diagnosedaten."
+          ],
+          "checks": [
+            "Prüfen Sie die Vorgangsphase, den ursprünglichen Rückgabecode und den tatsächlichen Abschluss."
+          ],
+          "remediation": [
+            "Speichern Sie einen bereinigten Bericht. Prüfen Sie vor Wiederholung einer Installation oder Migration den tatsächlichen Zustand."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "INVALID_REQUEST": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "validate"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Неверный запрос",
+          "description": "Запрос не соответствует опубликованной схеме API.",
+          "possible_causes": [
+            "Пропущено обязательное поле, неверный тип или неизвестный параметр."
+          ],
+          "checks": [
+            "Проверьте версии API и схему запроса; не выводите значения секретов."
+          ],
+          "remediation": [
+            "Исправьте запрос по схеме выбранной версии и выполните validate/plan повторно."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Invalid request",
+          "description": "The request does not match the published API schema.",
+          "possible_causes": [
+            "A required field is missing, has an invalid type, or is unknown."
+          ],
+          "checks": [
+            "Check the API version and request schema without exposing secret values."
+          ],
+          "remediation": [
+            "Correct the request using the selected schema and run validate/plan again."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Ungültige Anfrage",
+          "description": "Die Anfrage entspricht nicht dem veröffentlichten API-Schema.",
+          "possible_causes": [
+            "Ein Pflichtfeld fehlt, hat den falschen Typ oder ist unbekannt."
+          ],
+          "checks": [
+            "Prüfen Sie API-Version und Anfrageschema, ohne Geheimnisse offenzulegen."
+          ],
+          "remediation": [
+            "Korrigieren Sie die Anfrage anhand des Schemas und führen Sie validate/plan erneut aus."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "INVALID_MANIFEST": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "validate"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Неверный манифест продукта",
+          "description": "Описание продукта не прошло проверку совместимости и структуры.",
+          "possible_causes": [
+            "Неизвестная версия схемы, цикл зависимостей, дубли полей или опасный путь."
+          ],
+          "checks": [
+            "Проверьте указанный код нарушения и поддержанные schema_version/targets."
+          ],
+          "remediation": [
+            "Исправьте исходный манифест и пересоберите доверенный пакет; не отключайте проверку."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Invalid product manifest",
+          "description": "The product description failed structural or compatibility validation.",
+          "possible_causes": [
+            "Unsupported schema, a dependency cycle, duplicate fields, or an unsafe path."
+          ],
+          "checks": [
+            "Check the validation code and supported schema_version/targets."
+          ],
+          "remediation": [
+            "Correct the source manifest and rebuild the trusted package; do not disable validation."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Ungültiges Produktmanifest",
+          "description": "Die Produktbeschreibung hat die Struktur- oder Kompatibilitätsprüfung nicht bestanden.",
+          "possible_causes": [
+            "Nicht unterstütztes Schema, zyklische Abhängigkeit, doppelte Felder oder unsicherer Pfad."
+          ],
+          "checks": [
+            "Prüfen Sie den Validierungscode und unterstützte schema_version/targets."
+          ],
+          "remediation": [
+            "Korrigieren Sie das Manifest und erstellen Sie das vertrauenswürdige Paket neu; deaktivieren Sie keine Prüfungen."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "API_UNSUPPORTED": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "recheck"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Версия API не поддерживается",
+          "description": "Запрошенная версия интерфейса отсутствует у установленного модуля.",
+          "possible_causes": [
+            "Клиент и модуль используют несовместимые версии API."
+          ],
+          "checks": [
+            "Сравните api describe/discovery с версией клиента."
+          ],
+          "remediation": [
+            "Выберите совместимую закреплённую версию клиента/модуля; не подменяйте версию в запросе вслепую."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Unsupported API version",
+          "description": "The installed module does not provide the requested API version.",
+          "possible_causes": [
+            "The client and module use incompatible API versions."
+          ],
+          "checks": [
+            "Compare api describe/discovery with the client version."
+          ],
+          "remediation": [
+            "Select compatible pinned client/module versions; do not blindly change the requested version."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Nicht unterstützte API-Version",
+          "description": "Das installierte Modul stellt die angeforderte API-Version nicht bereit.",
+          "possible_causes": [
+            "Client und Modul verwenden inkompatible API-Versionen."
+          ],
+          "checks": [
+            "Vergleichen Sie api describe/discovery mit der Clientversion."
+          ],
+          "remediation": [
+            "Wählen Sie kompatible festgelegte Versionen; ändern Sie die angeforderte Version nicht ungeprüft."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "CAPABILITY_UNSUPPORTED": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "recheck"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Операция не поддерживается",
+          "description": "Этот продукт или целевая среда не объявляет запрошенную возможность.",
+          "possible_causes": [
+            "Не реализован адаптер или выбран неподдержанный профиль ОС/режима."
+          ],
+          "checks": [
+            "Просмотрите capabilities и проверенную матрицу продукта."
+          ],
+          "remediation": [
+            "Выберите поддержанный вариант; расширение адаптера требует отдельной реализации и проверки."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Unsupported capability",
+          "description": "This product or target does not declare the requested capability.",
+          "possible_causes": [
+            "The adapter is not implemented or the selected OS/mode profile is unsupported."
+          ],
+          "checks": [
+            "Inspect capabilities and the product support matrix."
+          ],
+          "remediation": [
+            "Select a supported option; extending an adapter requires implementation and validation."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Nicht unterstützte Funktion",
+          "description": "Dieses Produkt oder Zielsystem unterstützt die angeforderte Funktion nicht.",
+          "possible_causes": [
+            "Der Adapter fehlt oder das Betriebssystem-/Modusprofil wird nicht unterstützt."
+          ],
+          "checks": [
+            "Prüfen Sie capabilities und die Unterstützungsmatrix des Produkts."
+          ],
+          "remediation": [
+            "Wählen Sie eine unterstützte Option; Adaptererweiterungen müssen implementiert und geprüft werden."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "PLAN_STALE": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "discover",
+        "plan"
+      ],
+      "translations": {
+        "ru": {
+          "title": "План установки устарел",
+          "description": "Значимые условия изменились после формирования плана.",
+          "possible_causes": [
+            "Изменились пути, права, версии компонентов, свободное место или состояние установки."
+          ],
+          "checks": [
+            "Повторите обнаружение среды и сравните изменения плана."
+          ],
+          "remediation": [
+            "Сформируйте новый план и подтвердите актуальные действия; выполненные эффекты проверьте отдельно."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Installation plan is stale",
+          "description": "Relevant conditions changed after the plan was created.",
+          "possible_causes": [
+            "Paths, permissions, component versions, free space, or installation state changed."
+          ],
+          "checks": [
+            "Discover the environment again and review plan differences."
+          ],
+          "remediation": [
+            "Create a new plan and confirm its actions; verify already performed effects separately."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Installationsplan ist veraltet",
+          "description": "Relevante Bedingungen haben sich seit der Planung geändert.",
+          "possible_causes": [
+            "Pfade, Berechtigungen, Komponentenversionen, freier Speicher oder Installationszustand haben sich geändert."
+          ],
+          "checks": [
+            "Ermitteln Sie die Umgebung erneut und prüfen Sie Planänderungen."
+          ],
+          "remediation": [
+            "Erstellen und bestätigen Sie einen neuen Plan; bereits ausgeführte Wirkungen müssen separat geprüft werden."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "PLAN_NOT_FOUND": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "plan"
+      ],
+      "translations": {
+        "ru": {
+          "title": "План не найден",
+          "description": "Сохранённый план с указанным идентификатором недоступен.",
+          "possible_causes": [
+            "Неверный идентификатор, другая рабочая область или удалённый план."
+          ],
+          "checks": [
+            "Проверьте идентификатор и каталог состояния установщика."
+          ],
+          "remediation": [
+            "Создайте новый проверенный план; не восстанавливайте его из непроверенного произвольного файла."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Plan not found",
+          "description": "The saved plan with the requested identifier is unavailable.",
+          "possible_causes": [
+            "An incorrect identifier, different state directory, or removed plan."
+          ],
+          "checks": [
+            "Check the identifier and installer state directory."
+          ],
+          "remediation": [
+            "Create a new verified plan; do not load an arbitrary untrusted plan file."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Plan nicht gefunden",
+          "description": "Der gespeicherte Plan mit dieser Kennung ist nicht verfügbar.",
+          "possible_causes": [
+            "Falsche Kennung, anderes Zustandsverzeichnis oder entfernter Plan."
+          ],
+          "checks": [
+            "Prüfen Sie Kennung und Zustandsverzeichnis des Installers."
+          ],
+          "remediation": [
+            "Erstellen Sie einen neuen geprüften Plan; laden Sie keine beliebige unzuverlässige Plandatei."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "OPERATION_NOT_FOUND": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "history"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Операция не найдена",
+          "description": "История не содержит запрошенную операцию.",
+          "possible_causes": [
+            "Неверный идентификатор, другая установка или применённая политика хранения."
+          ],
+          "checks": [
+            "Проверьте installation_id, operation_id и период хранения истории."
+          ],
+          "remediation": [
+            "Выберите операцию из доступной истории; отсутствие записи не доказывает отсутствие установленной программы."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Operation not found",
+          "description": "The requested operation is not present in the available history.",
+          "possible_causes": [
+            "Incorrect identity, another installation, or retention removed the history."
+          ],
+          "checks": [
+            "Check installation_id, operation_id, and history retention."
+          ],
+          "remediation": [
+            "Select an operation from available history; a missing record does not prove the application is absent."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Vorgang nicht gefunden",
+          "description": "Der angeforderte Vorgang ist in der verfügbaren Historie nicht enthalten.",
+          "possible_causes": [
+            "Falsche Kennung, andere Installation oder abgelaufene Aufbewahrung."
+          ],
+          "checks": [
+            "Prüfen Sie installation_id, operation_id und Aufbewahrungszeit."
+          ],
+          "remediation": [
+            "Wählen Sie einen vorhandenen Vorgang; eine fehlende Aufzeichnung beweist nicht, dass die Anwendung fehlt."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "OPERATION_CONFLICT": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "status",
+        "resume"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Конфликт операции",
+          "description": "Запрос конфликтует с уже выполняемой операцией или ранее использованным ключом.",
+          "possible_causes": [
+            "Одна установка изменяется параллельно либо idempotency key повторно использован с другим содержимым."
+          ],
+          "checks": [
+            "Проверьте текущую операцию, владельца блокировки и исходный запрос."
+          ],
+          "remediation": [
+            "Дождитесь безопасного завершения или продолжите существующую операцию; не удаляйте lock вслепую."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Operation conflict",
+          "description": "The request conflicts with a running operation or a previously used key.",
+          "possible_causes": [
+            "Concurrent changes to one installation or an idempotency key reused for another request."
+          ],
+          "checks": [
+            "Check the active operation, lock ownership, and original request."
+          ],
+          "remediation": [
+            "Wait for safe completion or resume the existing operation; do not blindly remove locks."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Vorgangskonflikt",
+          "description": "Die Anfrage kollidiert mit einem laufenden Vorgang oder einem bereits verwendeten Schlüssel.",
+          "possible_causes": [
+            "Parallele Änderungen an einer Installation oder Wiederverwendung eines Idempotenzschlüssels für andere Inhalte."
+          ],
+          "checks": [
+            "Prüfen Sie aktiven Vorgang, Sperrbesitzer und ursprüngliche Anfrage."
+          ],
+          "remediation": [
+            "Warten Sie auf einen sicheren Abschluss oder setzen Sie den bestehenden Vorgang fort; entfernen Sie Sperren nicht ungeprüft."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "CONSENT_REQUIRED": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "review_terms",
+        "cancel"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Требуется подтверждение условий",
+          "description": "Не получено необходимое явное согласие с актуальными условиями или планом.",
+          "possible_causes": [
+            "Редакция соглашения изменилась либо пользователь ещё не принял нужные условия."
+          ],
+          "checks": [
+            "Откройте соответствующий экран и проверьте редакцию/hash показанного текста."
+          ],
+          "remediation": [
+            "Прочитайте и примите применимые условия либо отмените установку; общий --yes не заменяет согласие."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Consent required",
+          "description": "Required explicit consent for current terms or the plan has not been provided.",
+          "possible_causes": [
+            "The agreement changed or the user has not accepted the applicable terms."
+          ],
+          "checks": [
+            "Open the relevant page and check the displayed document revision/hash."
+          ],
+          "remediation": [
+            "Review and accept applicable terms or cancel; a general --yes flag does not replace consent."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Zustimmung erforderlich",
+          "description": "Die erforderliche ausdrückliche Zustimmung zu aktuellen Bedingungen oder zum Plan fehlt.",
+          "possible_causes": [
+            "Die Vereinbarung wurde geändert oder noch nicht angenommen."
+          ],
+          "checks": [
+            "Öffnen Sie die betreffende Seite und prüfen Sie Fassung und Hash des angezeigten Textes."
+          ],
+          "remediation": [
+            "Prüfen und akzeptieren Sie die Bedingungen oder brechen Sie ab; ein allgemeines --yes ersetzt keine Zustimmung."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "INTEGRITY_FAILED": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "repair"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Целостность нарушена",
+          "description": "Файлы не соответствуют доверенному подписанному выпуску.",
+          "possible_causes": [
+            "Файл повреждён, подменён или относится к другой версии/платформе."
+          ],
+          "checks": [
+            "Сравните издателя, подпись, target и контрольную сумму с доверенными metadata."
+          ],
+          "remediation": [
+            "Не запускайте компонент. Получите корректный пакет из проверенного источника или выполните repair с сохранением данных."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Integrity verification failed",
+          "description": "Files do not match the trusted signed release.",
+          "possible_causes": [
+            "A file is damaged, replaced, or belongs to another release or target."
+          ],
+          "checks": [
+            "Compare publisher, signature, target, and checksum with trusted metadata."
+          ],
+          "remediation": [
+            "Do not execute the component. Obtain a verified package or run repair while preserving data."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Integritätsprüfung fehlgeschlagen",
+          "description": "Dateien entsprechen nicht der vertrauenswürdig signierten Version.",
+          "possible_causes": [
+            "Eine Datei ist beschädigt, ersetzt oder gehört zu einer anderen Version oder Plattform."
+          ],
+          "checks": [
+            "Vergleichen Sie Herausgeber, Signatur, Zielsystem und Prüfsumme mit vertrauenswürdigen Metadaten."
+          ],
+          "remediation": [
+            "Führen Sie die Komponente nicht aus. Beschaffen Sie ein geprüftes Paket oder reparieren Sie unter Erhalt der Daten."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "RECOVERY_REQUIRED": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "resume",
+        "restore"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Требуется восстановление",
+          "description": "Операцию нельзя безопасно продолжить без проверки сохранённого состояния.",
+          "possible_causes": [
+            "Предыдущий процесс прерван или отсутствуют необходимые сведения о завершённых шагах."
+          ],
+          "checks": [
+            "Проверьте журнал, active release, резервные копии и реальные эффекты последнего шага."
+          ],
+          "remediation": [
+            "Используйте предложенный план resume/recovery; не повторяйте миграцию и не удаляйте данные вручную."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Recovery required",
+          "description": "The operation cannot safely continue until the saved state is checked.",
+          "possible_causes": [
+            "A previous process was interrupted or completed-step evidence is missing."
+          ],
+          "checks": [
+            "Inspect the journal, active release, backups, and actual effects of the last step."
+          ],
+          "remediation": [
+            "Use the offered resume/recovery plan; do not repeat migrations or manually delete data."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Wiederherstellung erforderlich",
+          "description": "Der Vorgang kann erst nach Prüfung des gespeicherten Zustands sicher fortgesetzt werden.",
+          "possible_causes": [
+            "Ein Prozess wurde unterbrochen oder Nachweise abgeschlossener Schritte fehlen."
+          ],
+          "checks": [
+            "Prüfen Sie Journal, aktive Version, Sicherungen und tatsächliche Wirkungen des letzten Schritts."
+          ],
+          "remediation": [
+            "Verwenden Sie den angebotenen Wiederherstellungsplan; wiederholen Sie Migrationen nicht ungeprüft und löschen Sie keine Daten."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "STATE_STORAGE_UNAVAILABLE": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Журнал состояния недоступен",
+          "description": "Не удалось надёжно сохранить обязательное состояние операции.",
+          "possible_causes": [
+            "Недостаток места, ошибка носителя, права или повреждённый журнал."
+          ],
+          "checks": [
+            "Проверьте доступность и место на томе состояния, сохранив исходный журнал."
+          ],
+          "remediation": [
+            "Устраните причину и выполните проверку восстановления; опасные изменения до этого запрещены."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "State storage unavailable",
+          "description": "Required operation state could not be durably saved.",
+          "possible_causes": [
+            "Insufficient space, storage failure, permissions, or a damaged journal."
+          ],
+          "checks": [
+            "Check state-volume availability and free space while preserving the original journal."
+          ],
+          "remediation": [
+            "Resolve the cause and check recovery; destructive transitions are blocked until then."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Zustandsspeicher nicht verfügbar",
+          "description": "Der erforderliche Vorgangszustand konnte nicht dauerhaft gespeichert werden.",
+          "possible_causes": [
+            "Speichermangel, Datenträgerfehler, Berechtigungen oder beschädigtes Journal."
+          ],
+          "checks": [
+            "Prüfen Sie Verfügbarkeit und freien Speicher; bewahren Sie das ursprüngliche Journal auf."
+          ],
+          "remediation": [
+            "Beheben Sie die Ursache und prüfen Sie die Wiederherstellung; gefährliche Änderungen bleiben bis dahin gesperrt."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "DIAGNOSTIC_STORE_UNAVAILABLE": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "export"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Хранилище диагностики недоступно",
+          "description": "Расширенную диагностическую запись не удалось сохранить в SQLite.",
+          "possible_causes": [
+            "Недоступная/повреждённая диагностическая БД или недостаток места."
+          ],
+          "checks": [
+            "Проверьте статус аварийного журнала и свободное место; не удаляйте повреждённую БД."
+          ],
+          "remediation": [
+            "Сохраните доступный аварийный отчёт и восстановите доступ. Статистика до импорта может быть неполной."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Diagnostic store unavailable",
+          "description": "The detailed diagnostic record could not be saved in SQLite.",
+          "possible_causes": [
+            "Unavailable or damaged diagnostic database, or insufficient space."
+          ],
+          "checks": [
+            "Check fallback-journal status and available space; preserve the damaged database."
+          ],
+          "remediation": [
+            "Save available fallback evidence and restore access. Statistics may remain incomplete until import."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Diagnosespeicher nicht verfügbar",
+          "description": "Der ausführliche Diagnoseeintrag konnte nicht in SQLite gespeichert werden.",
+          "possible_causes": [
+            "Nicht verfügbare oder beschädigte Diagnosedatenbank oder Speichermangel."
+          ],
+          "checks": [
+            "Prüfen Sie Ersatzprotokoll und freien Speicher; bewahren Sie die beschädigte Datenbank auf."
+          ],
+          "remediation": [
+            "Sichern Sie verfügbare Diagnoseinformationen und stellen Sie den Zugriff wieder her. Statistiken können bis zum Import unvollständig sein."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "DEPENDENCY_MISSING": {
+      "severity": "error",
+      "retryable": true,
+      "permitted_actions": [
+        "inspect",
+        "recheck"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Отсутствует необходимый компонент",
+          "description": "Обязательная зависимость не обнаружена или ещё не готова.",
+          "possible_causes": [
+            "Компонент не установлен, не запущен или недоступен текущему пользователю."
+          ],
+          "checks": [
+            "Проверьте страницу компонентов, найденную версию, scope и результат readiness."
+          ],
+          "remediation": [
+            "Выберите автоматическую установку или выполните предложенную ручную инструкцию, затем «Проверить снова»."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Required dependency missing",
+          "description": "A required dependency was not found or is not ready.",
+          "possible_causes": [
+            "The component is not installed, running, or accessible to the current user."
+          ],
+          "checks": [
+            "Inspect components, detected version, scope, and readiness results."
+          ],
+          "remediation": [
+            "Choose automatic installation or follow the manual instructions, then check again."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Erforderliche Abhängigkeit fehlt",
+          "description": "Eine erforderliche Abhängigkeit wurde nicht gefunden oder ist noch nicht bereit.",
+          "possible_causes": [
+            "Die Komponente fehlt, läuft nicht oder ist für den Benutzer nicht zugänglich."
+          ],
+          "checks": [
+            "Prüfen Sie Komponenten, erkannte Version, Geltungsbereich und Bereitschaft."
+          ],
+          "remediation": [
+            "Wählen Sie automatische Installation oder die manuelle Anleitung und prüfen Sie anschließend erneut."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "DEPENDENCY_INCOMPATIBLE": {
+      "severity": "error",
+      "retryable": true,
+      "permitted_actions": [
+        "inspect",
+        "recheck"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Несовместимая версия компонента",
+          "description": "Найденная зависимость не соответствует требованиям продукта.",
+          "possible_causes": [
+            "Версия, архитектура или профиль компонента не поддерживаются."
+          ],
+          "checks": [
+            "Сравните найденную и допустимые версии и проверьте принадлежность установки."
+          ],
+          "remediation": [
+            "Подготовьте поддержанный отдельный экземпляр либо согласованный план изменения; не обновляйте чужой компонент автоматически."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Incompatible dependency",
+          "description": "The detected dependency does not meet the product requirements.",
+          "possible_causes": [
+            "Its version, architecture, or profile is unsupported."
+          ],
+          "checks": [
+            "Compare detected and supported versions and inspect resource ownership."
+          ],
+          "remediation": [
+            "Prepare a supported private instance or an approved change plan; do not automatically upgrade shared components."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Inkompatible Abhängigkeit",
+          "description": "Die erkannte Abhängigkeit erfüllt die Produktanforderungen nicht.",
+          "possible_causes": [
+            "Version, Architektur oder Profil werden nicht unterstützt."
+          ],
+          "checks": [
+            "Vergleichen Sie erkannte und unterstützte Versionen und prüfen Sie die Zugehörigkeit."
+          ],
+          "remediation": [
+            "Richten Sie eine unterstützte private Instanz ein oder bestätigen Sie einen Änderungsplan; aktualisieren Sie fremde Komponenten nicht automatisch."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "DOWNLOAD_FAILED": {
+      "severity": "error",
+      "retryable": true,
+      "permitted_actions": [
+        "inspect",
+        "recheck"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Не удалось загрузить компонент",
+          "description": "Утверждённый пакет не был полностью получен.",
+          "possible_causes": [
+            "Разрыв связи, недоступный источник, proxy или ошибка записи на диск."
+          ],
+          "checks": [
+            "Проверьте доступность официального источника, proxy и свободное место без вывода credentials."
+          ],
+          "remediation": [
+            "Повторите загрузку с проверкой кэша или выберите проверяемый локальный пакет; не меняйте источник на случайный сайт."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Component download failed",
+          "description": "The approved package was not completely downloaded.",
+          "possible_causes": [
+            "Connection loss, unavailable source, proxy failure, or disk write failure."
+          ],
+          "checks": [
+            "Check the official source, proxy, and free disk space without exposing credentials."
+          ],
+          "remediation": [
+            "Retry using verified cache or select a verifiable local package; do not switch to an arbitrary source."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Komponentendownload fehlgeschlagen",
+          "description": "Das freigegebene Paket wurde nicht vollständig heruntergeladen.",
+          "possible_causes": [
+            "Verbindungsabbruch, nicht verfügbare Quelle, Proxy- oder Schreibfehler."
+          ],
+          "checks": [
+            "Prüfen Sie offizielle Quelle, Proxy und freien Speicher, ohne Zugangsdaten offenzulegen."
+          ],
+          "remediation": [
+            "Versuchen Sie es mit geprüftem Cache erneut oder wählen Sie ein prüfbares lokales Paket; wechseln Sie nicht zu beliebigen Quellen."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "TLS_VERIFICATION_FAILED": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "recheck"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Проверка защищённого соединения не пройдена",
+          "description": "Происхождение удалённого источника не подтверждено TLS-проверкой.",
+          "possible_causes": [
+            "Неверное время, неизвестный сертификат, proxy-подмена или неправильный hostname."
+          ],
+          "checks": [
+            "Проверьте время ОС, доверенную конфигурацию proxy и сертификат официального источника."
+          ],
+          "remediation": [
+            "Исправьте доверие штатным способом или используйте независимо проверяемый offline-пакет; не отключайте TLS verification."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Secure connection verification failed",
+          "description": "TLS verification could not authenticate the remote source.",
+          "possible_causes": [
+            "Incorrect system time, unknown certificate, intercepting proxy, or hostname mismatch."
+          ],
+          "checks": [
+            "Check system time, trusted proxy configuration, and the official source certificate."
+          ],
+          "remediation": [
+            "Correct the trust configuration or use an independently verified offline package; do not disable TLS verification."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Prüfung der sicheren Verbindung fehlgeschlagen",
+          "description": "Die TLS-Prüfung konnte die entfernte Quelle nicht authentifizieren.",
+          "possible_causes": [
+            "Falsche Systemzeit, unbekanntes Zertifikat, eingreifender Proxy oder abweichender Hostname."
+          ],
+          "checks": [
+            "Prüfen Sie Systemzeit, vertrauenswürdige Proxy-Konfiguration und Zertifikat der offiziellen Quelle."
+          ],
+          "remediation": [
+            "Korrigieren Sie die Vertrauenskonfiguration oder nutzen Sie ein unabhängig geprüftes Offline-Paket; deaktivieren Sie TLS-Prüfungen nicht."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "DISK_SPACE_LOW": {
+      "severity": "error",
+      "retryable": true,
+      "permitted_actions": [
+        "inspect",
+        "recheck"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Недостаточно свободного места",
+          "description": "Для запланированных загрузок, staging и восстановления недостаточно места.",
+          "possible_causes": [
+            "Размер payload, резервных копий или старого runtime превышает доступное место."
+          ],
+          "checks": [
+            "Проверьте каждый используемый том и расчёт места для backup/before-rollback."
+          ],
+          "remediation": [
+            "Освободите место за пределами управляемых данных или выберите допустимый путь; не удаляйте единственную восстановимую копию."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Insufficient free space",
+          "description": "The plan needs more space for downloads, staging, and recovery.",
+          "possible_causes": [
+            "Payload, backups, or the previous runtime exceed available storage."
+          ],
+          "checks": [
+            "Check each involved volume and backup/before-rollback space estimates."
+          ],
+          "remediation": [
+            "Free unrelated space or select an allowed location; do not delete the only recoverable copy."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Nicht genügend freier Speicher",
+          "description": "Für Downloads, Zwischenablage und Wiederherstellung fehlt Speicherplatz.",
+          "possible_causes": [
+            "Nutzdaten, Sicherungen oder vorherige Laufzeit überschreiten den verfügbaren Speicher."
+          ],
+          "checks": [
+            "Prüfen Sie alle beteiligten Datenträger und den Bedarf für Sicherungen vor dem Rücksetzen."
+          ],
+          "remediation": [
+            "Geben Sie anderweitig Speicher frei oder wählen Sie einen zulässigen Pfad; löschen Sie nicht die einzige wiederherstellbare Kopie."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "PERMISSION_DENIED": {
+      "severity": "error",
+      "retryable": true,
+      "permitted_actions": [
+        "inspect",
+        "recheck"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Недостаточно прав",
+          "description": "Требуемое действие недоступно выбранному пользователю или helper.",
+          "possible_causes": [
+            "Права каталога, отменённое повышение прав или неподходящая служебная identity."
+          ],
+          "checks": [
+            "Проверьте владельца, scope и конкретное разрешённое действие; не выгружайте все ACL пользователя."
+          ],
+          "remediation": [
+            "Используйте предложенный запрос прав либо приватный путь. Не запускайте всё приложение постоянно от администратора/root."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Permission denied",
+          "description": "The selected user or helper cannot perform the required action.",
+          "possible_causes": [
+            "Directory permissions, declined elevation, or unsuitable service identity."
+          ],
+          "checks": [
+            "Check ownership, scope, and the specific required permission."
+          ],
+          "remediation": [
+            "Use the offered elevation or a private location. Do not run the entire application permanently as administrator/root."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Zugriff verweigert",
+          "description": "Der gewählte Benutzer oder Hilfsprozess darf die erforderliche Aktion nicht ausführen.",
+          "possible_causes": [
+            "Verzeichnisrechte, abgelehnte Rechteerhöhung oder ungeeignetes Dienstkonto."
+          ],
+          "checks": [
+            "Prüfen Sie Besitzer, Geltungsbereich und konkret benötigte Berechtigung."
+          ],
+          "remediation": [
+            "Verwenden Sie die angebotene Rechteerhöhung oder einen privaten Pfad. Führen Sie die gesamte Anwendung nicht dauerhaft als Administrator/root aus."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "PORT_IN_USE": {
+      "severity": "error",
+      "retryable": true,
+      "permitted_actions": [
+        "inspect",
+        "recheck"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Порт уже используется",
+          "description": "Нужный локальный порт занят другим процессом или экземпляром.",
+          "possible_causes": [
+            "Работает другая установка либо стороннее приложение."
+          ],
+          "checks": [
+            "Проверьте доверенную identity процесса и текущую установку; одного PID или HTTP 200 недостаточно."
+          ],
+          "remediation": [
+            "Выберите другой разрешённый порт или управляйте своей существующей установкой. Не завершайте чужой процесс автоматически."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Port already in use",
+          "description": "The required local port is occupied by another process or instance.",
+          "possible_causes": [
+            "Another installation or an unrelated application is running."
+          ],
+          "checks": [
+            "Verify trusted process identity and the current installation; a PID or HTTP 200 alone is insufficient."
+          ],
+          "remediation": [
+            "Select another allowed port or manage your existing installation. Do not automatically terminate another application."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Port bereits belegt",
+          "description": "Der benötigte lokale Port wird von einem anderen Prozess oder einer Instanz verwendet.",
+          "possible_causes": [
+            "Eine andere Installation oder fremde Anwendung läuft."
+          ],
+          "checks": [
+            "Prüfen Sie die vertrauenswürdige Prozessidentität; PID oder HTTP 200 allein reichen nicht."
+          ],
+          "remediation": [
+            "Wählen Sie einen anderen zulässigen Port oder verwalten Sie Ihre vorhandene Installation. Beenden Sie fremde Prozesse nicht automatisch."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "REBOOT_REQUIRED": {
+      "severity": "info",
+      "retryable": false,
+      "permitted_actions": [
+        "restart_later",
+        "restart_now"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Требуется перезагрузка",
+          "description": "Системный компонент станет доступен после перезагрузки или повторного входа.",
+          "possible_causes": [
+            "ОС завершает изменение WSL, runtime или прав пользователя."
+          ],
+          "checks": [
+            "Проверьте сохранённый checkpoint и предложенный тип продолжения."
+          ],
+          "remediation": [
+            "Выберите «Сейчас» или «Позже»; после входа продолжите тот же план с повторным обнаружением среды."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Restart required",
+          "description": "A system component becomes available after a restart or sign-in.",
+          "possible_causes": [
+            "The OS needs to finalize WSL, runtime, or user-permission changes."
+          ],
+          "checks": [
+            "Check the saved checkpoint and the required continuation type."
+          ],
+          "remediation": [
+            "Choose now or later; after sign-in resume the same plan with environment checks."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Neustart erforderlich",
+          "description": "Eine Systemkomponente ist erst nach Neustart oder erneuter Anmeldung verfügbar.",
+          "possible_causes": [
+            "Das System muss Änderungen an WSL, Laufzeit oder Benutzerrechten abschließen."
+          ],
+          "checks": [
+            "Prüfen Sie den gespeicherten Kontrollpunkt und die Art der Fortsetzung."
+          ],
+          "remediation": [
+            "Wählen Sie jetzt oder später; setzen Sie anschließend denselben Plan nach erneuter Umgebungsprüfung fort."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "BACKUP_FAILED": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "backup"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Не удалось создать проверенную резервную копию",
+          "description": "Полный согласованный архив не создан или не прошёл проверку.",
+          "possible_causes": [
+            "Писатели не остановлены, носитель недоступен, не хватает места или отсутствует ключ."
+          ],
+          "checks": [
+            "Проверьте quiesce, состав архива, ключи, свободное место и результат проверки чтения."
+          ],
+          "remediation": [
+            "Устраните причину и повторите безопасный backup. Не продолжайте замену существующих данных без проверенной копии."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Verified backup failed",
+          "description": "A complete consistent archive could not be created or validated.",
+          "possible_causes": [
+            "Writers remain active, storage is unavailable, space is insufficient, or a key is missing."
+          ],
+          "checks": [
+            "Check quiescence, archive contents, keys, available space, and read verification."
+          ],
+          "remediation": [
+            "Resolve the cause and retry backup safely. Do not replace existing data without a verified copy."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Geprüfte Sicherung fehlgeschlagen",
+          "description": "Ein vollständiges konsistentes Archiv konnte nicht erstellt oder geprüft werden.",
+          "possible_causes": [
+            "Schreibende Prozesse sind aktiv, Speicher fehlt oder ein Schlüssel ist nicht verfügbar."
+          ],
+          "checks": [
+            "Prüfen Sie Schreibsperre, Archivinhalt, Schlüssel, freien Speicher und Lesbarkeit."
+          ],
+          "remediation": [
+            "Beheben Sie die Ursache und wiederholen Sie die Sicherung sicher. Ersetzen Sie keine vorhandenen Daten ohne geprüfte Kopie."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "MIGRATION_FAILED": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "resume",
+        "rollback"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Миграция данных не завершена",
+          "description": "Преобразование схемы или данных завершилось ошибкой.",
+          "possible_causes": [
+            "Несовместимая схема, ошибка продуктового адаптера или недостаток ресурсов."
+          ],
+          "checks": [
+            "Проверьте журнал шага, исходную схему, backup и фактическое состояние БД."
+          ],
+          "remediation": [
+            "Удерживайте внешние действия; используйте план resume/rollback с before-rollback копией. Не запускайте миграцию повторно вслепую."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Data migration failed",
+          "description": "The schema or data migration did not complete successfully.",
+          "possible_causes": [
+            "Incompatible schema, product-adapter failure, or insufficient resources."
+          ],
+          "checks": [
+            "Inspect step journal, original schema, backup, and actual database state."
+          ],
+          "remediation": [
+            "Keep external actions on hold; use resume/rollback with a before-rollback backup. Do not blindly repeat the migration."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Datenmigration fehlgeschlagen",
+          "description": "Die Schema- oder Datenmigration wurde nicht erfolgreich abgeschlossen.",
+          "possible_causes": [
+            "Inkompatibles Schema, Fehler im Produktadapter oder fehlende Ressourcen."
+          ],
+          "checks": [
+            "Prüfen Sie Schrittjournal, Ausgangsschema, Sicherung und tatsächlichen Datenbankzustand."
+          ],
+          "remediation": [
+            "Halten Sie externe Aktionen an; verwenden Sie Fortsetzung/Rücksetzen mit vorheriger Sicherung. Wiederholen Sie die Migration nicht ungeprüft."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "RESTORE_FAILED": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "restore"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Восстановление не завершено",
+          "description": "Архив не удалось безопасно восстановить и проверить.",
+          "possible_causes": [
+            "Неверный пароль/ключ, повреждение, неподдержанный формат или недоступный runtime."
+          ],
+          "checks": [
+            "Проверьте исходный архив и восстановленный кандидат, не изменяя единственную копию."
+          ],
+          "remediation": [
+            "Сохраните обе стороны и следуйте плану восстановления; отсутствующий ключ не заменяйте новой пустой БД."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Restore failed",
+          "description": "The archive could not be safely restored and verified.",
+          "possible_causes": [
+            "Incorrect password/key, damage, unsupported format, or missing runtime."
+          ],
+          "checks": [
+            "Check the source archive and candidate restore without modifying the only copy."
+          ],
+          "remediation": [
+            "Preserve both states and follow recovery guidance; never replace a missing key with an empty database."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Wiederherstellung fehlgeschlagen",
+          "description": "Das Archiv konnte nicht sicher wiederhergestellt und geprüft werden.",
+          "possible_causes": [
+            "Falsches Passwort/Schlüssel, Beschädigung, unbekanntes Format oder fehlende Laufzeit."
+          ],
+          "checks": [
+            "Prüfen Sie Originalarchiv und Wiederherstellungskandidat, ohne die einzige Kopie zu verändern."
+          ],
+          "remediation": [
+            "Bewahren Sie beide Zustände auf und folgen Sie dem Wiederherstellungsplan; ersetzen Sie einen fehlenden Schlüssel nicht durch eine leere Datenbank."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "ROLLBACK_FAILED": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "restore"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Откат не завершён",
+          "description": "Прежнее работоспособное состояние не было подтверждено.",
+          "possible_causes": [
+            "Отсутствует старый release/runtime, metadata, ключ или before-rollback архив."
+          ],
+          "checks": [
+            "Просмотрите первичную ошибку и отдельную ошибку отката; проверьте доступность всех recovery-компонентов."
+          ],
+          "remediation": [
+            "Сохраните изменённые данные и оба архива; используйте проверенный recovery-план. Успешность обновления не подтверждена."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Rollback failed",
+          "description": "The previous working state could not be confirmed.",
+          "possible_causes": [
+            "Previous release/runtime, metadata, a key, or before-rollback archive is unavailable."
+          ],
+          "checks": [
+            "Review the primary error separately from rollback failure and check recovery components."
+          ],
+          "remediation": [
+            "Preserve changed data and both archives; use a verified recovery plan. The update is not successful."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Rücksetzen fehlgeschlagen",
+          "description": "Der vorherige funktionsfähige Zustand konnte nicht bestätigt werden.",
+          "possible_causes": [
+            "Vorherige Version/Laufzeit, Metadaten, Schlüssel oder Sicherung vor dem Rücksetzen fehlen."
+          ],
+          "checks": [
+            "Prüfen Sie ursprünglichen Fehler und Rücksetzfehler getrennt sowie alle Wiederherstellungskomponenten."
+          ],
+          "remediation": [
+            "Bewahren Sie geänderte Daten und beide Archive auf; verwenden Sie einen geprüften Wiederherstellungsplan. Das Update war nicht erfolgreich."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "HEALTH_CHECK_FAILED": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "retry",
+        "restore"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Приложение не прошло проверку готовности",
+          "description": "Запущенные компоненты не подтвердили готовность нужной версии приложения.",
+          "possible_causes": [
+            "Не готова БД/worker, неверная версия процесса, отсутствуют frontend-ресурсы или занят порт."
+          ],
+          "checks": [
+            "Проверьте product/instance/version, схему БД, workers, HTML/JS/CSS и browser smoke."
+          ],
+          "remediation": [
+            "Используйте диагностику компонента и безопасный retry/recovery; не отмечайте установку успешной по одному HTTP 200."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Application readiness failed",
+          "description": "Components did not confirm readiness of the expected application version.",
+          "possible_causes": [
+            "Database/worker unavailable, wrong process version, missing frontend assets, or occupied port."
+          ],
+          "checks": [
+            "Check product/instance/version, database schema, workers, HTML/JS/CSS, and browser smoke."
+          ],
+          "remediation": [
+            "Use component diagnostics and safe retry/recovery; do not declare success based only on HTTP 200."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Bereitschaftsprüfung fehlgeschlagen",
+          "description": "Die Komponenten haben die Bereitschaft der erwarteten Anwendungsversion nicht bestätigt.",
+          "possible_causes": [
+            "Datenbank/Worker nicht bereit, falsche Prozessversion, fehlende Frontend-Dateien oder belegter Port."
+          ],
+          "checks": [
+            "Prüfen Sie Produkt, Instanz, Version, Datenbankschema, Worker, HTML/JS/CSS und Browser-Test."
+          ],
+          "remediation": [
+            "Verwenden Sie Komponentendiagnose und sichere Wiederholung/Wiederherstellung; HTTP 200 allein belegt keinen Erfolg."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "CANCELLED": {
+      "severity": "info",
+      "retryable": false,
+      "permitted_actions": [
+        "plan"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Операция отменена",
+          "description": "Пользователь запросил остановку на безопасной границе.",
+          "possible_causes": [
+            "Явная отмена или отказ от необходимого действия."
+          ],
+          "checks": [
+            "Проверьте итоговое состояние, сохранённые данные и оставшиеся общие компоненты."
+          ],
+          "remediation": [
+            "При необходимости создайте новый план или продолжите допустимую операцию. Отмена не считается технической ошибкой установки."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Operation cancelled",
+          "description": "The user requested a stop at a safe boundary.",
+          "possible_causes": [
+            "Explicit cancellation or refusal of a required action."
+          ],
+          "checks": [
+            "Check final state, preserved data, and any remaining shared components."
+          ],
+          "remediation": [
+            "Create a new plan or resume a permitted operation when needed. Cancellation is not a technical installation failure."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Vorgang abgebrochen",
+          "description": "Der Benutzer hat einen Stopp an einer sicheren Grenze angefordert.",
+          "possible_causes": [
+            "Ausdrücklicher Abbruch oder Ablehnung einer erforderlichen Aktion."
+          ],
+          "checks": [
+            "Prüfen Sie Endzustand, erhaltene Daten und verbleibende gemeinsam genutzte Komponenten."
+          ],
+          "remediation": [
+            "Erstellen Sie bei Bedarf einen neuen Plan oder setzen Sie einen zulässigen Vorgang fort. Abbruch ist kein technischer Installationsfehler."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      }
+    },
+    "UNEXPECTED_ERROR": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "export"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Неизвестная ошибка",
+          "description": "Компонент сообщил ошибку, для которой пока нет точного объяснения.",
+          "possible_causes": [
+            "Непредусмотренный отказ компонента или неполные диагностические данные."
+          ],
+          "checks": [
+            "Откройте этап операции и исходный код возврата; проверьте, завершилась ли операция."
+          ],
+          "remediation": [
+            "Сохраните очищенный отчёт. Не повторяйте миграцию или установку до проверки фактического состояния."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Unknown error",
+          "description": "A component reported an error without an established explanation.",
+          "possible_causes": [
+            "An unexpected component failure or incomplete diagnostic evidence."
+          ],
+          "checks": [
+            "Inspect the operation phase and original exit code; check whether the operation completed."
+          ],
+          "remediation": [
+            "Save a sanitized report. Check the actual state before retrying an installation or migration."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Unbekannter Fehler",
+          "description": "Eine Komponente hat einen Fehler ohne gesicherte Erklärung gemeldet.",
+          "possible_causes": [
+            "Unerwarteter Komponentenfehler oder unvollständige Diagnosedaten."
+          ],
+          "checks": [
+            "Prüfen Sie die Vorgangsphase, den ursprünglichen Rückgabecode und den tatsächlichen Abschluss."
+          ],
+          "remediation": [
+            "Speichern Sie einen bereinigten Bericht. Prüfen Sie vor Wiederholung einer Installation oder Migration den tatsächlichen Zustand."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      },
+      "alias_of": "UNKNOWN_ERROR"
+    },
+    "OPERATION_FAILED": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "export"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Неизвестная ошибка",
+          "description": "Компонент сообщил ошибку, для которой пока нет точного объяснения.",
+          "possible_causes": [
+            "Непредусмотренный отказ компонента или неполные диагностические данные."
+          ],
+          "checks": [
+            "Откройте этап операции и исходный код возврата; проверьте, завершилась ли операция."
+          ],
+          "remediation": [
+            "Сохраните очищенный отчёт. Не повторяйте миграцию или установку до проверки фактического состояния."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Unknown error",
+          "description": "A component reported an error without an established explanation.",
+          "possible_causes": [
+            "An unexpected component failure or incomplete diagnostic evidence."
+          ],
+          "checks": [
+            "Inspect the operation phase and original exit code; check whether the operation completed."
+          ],
+          "remediation": [
+            "Save a sanitized report. Check the actual state before retrying an installation or migration."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Unbekannter Fehler",
+          "description": "Eine Komponente hat einen Fehler ohne gesicherte Erklärung gemeldet.",
+          "possible_causes": [
+            "Unerwarteter Komponentenfehler oder unvollständige Diagnosedaten."
+          ],
+          "checks": [
+            "Prüfen Sie die Vorgangsphase, den ursprünglichen Rückgabecode und den tatsächlichen Abschluss."
+          ],
+          "remediation": [
+            "Speichern Sie einen bereinigten Bericht. Prüfen Sie vor Wiederholung einer Installation oder Migration den tatsächlichen Zustand."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      },
+      "alias_of": "UNKNOWN_ERROR"
+    },
+    "MANIFEST_INVALID": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "validate"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Неверный манифест продукта",
+          "description": "Описание продукта не прошло проверку совместимости и структуры.",
+          "possible_causes": [
+            "Неизвестная версия схемы, цикл зависимостей, дубли полей или опасный путь."
+          ],
+          "checks": [
+            "Проверьте указанный код нарушения и поддержанные schema_version/targets."
+          ],
+          "remediation": [
+            "Исправьте исходный манифест и пересоберите доверенный пакет; не отключайте проверку."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Invalid product manifest",
+          "description": "The product description failed structural or compatibility validation.",
+          "possible_causes": [
+            "Unsupported schema, a dependency cycle, duplicate fields, or an unsafe path."
+          ],
+          "checks": [
+            "Check the validation code and supported schema_version/targets."
+          ],
+          "remediation": [
+            "Correct the source manifest and rebuild the trusted package; do not disable validation."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Ungültiges Produktmanifest",
+          "description": "Die Produktbeschreibung hat die Struktur- oder Kompatibilitätsprüfung nicht bestanden.",
+          "possible_causes": [
+            "Nicht unterstütztes Schema, zyklische Abhängigkeit, doppelte Felder oder unsicherer Pfad."
+          ],
+          "checks": [
+            "Prüfen Sie den Validierungscode und unterstützte schema_version/targets."
+          ],
+          "remediation": [
+            "Korrigieren Sie das Manifest und erstellen Sie das vertrauenswürdige Paket neu; deaktivieren Sie keine Prüfungen."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      },
+      "alias_of": "INVALID_MANIFEST"
+    },
+    "UNSUPPORTED_TARGET": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "recheck"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Операция не поддерживается",
+          "description": "Этот продукт или целевая среда не объявляет запрошенную возможность.",
+          "possible_causes": [
+            "Не реализован адаптер или выбран неподдержанный профиль ОС/режима."
+          ],
+          "checks": [
+            "Просмотрите capabilities и проверенную матрицу продукта."
+          ],
+          "remediation": [
+            "Выберите поддержанный вариант; расширение адаптера требует отдельной реализации и проверки."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Unsupported capability",
+          "description": "This product or target does not declare the requested capability.",
+          "possible_causes": [
+            "The adapter is not implemented or the selected OS/mode profile is unsupported."
+          ],
+          "checks": [
+            "Inspect capabilities and the product support matrix."
+          ],
+          "remediation": [
+            "Select a supported option; extending an adapter requires implementation and validation."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Nicht unterstützte Funktion",
+          "description": "Dieses Produkt oder Zielsystem unterstützt die angeforderte Funktion nicht.",
+          "possible_causes": [
+            "Der Adapter fehlt oder das Betriebssystem-/Modusprofil wird nicht unterstützt."
+          ],
+          "checks": [
+            "Prüfen Sie capabilities und die Unterstützungsmatrix des Produkts."
+          ],
+          "remediation": [
+            "Wählen Sie eine unterstützte Option; Adaptererweiterungen müssen implementiert und geprüft werden."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      },
+      "alias_of": "CAPABILITY_UNSUPPORTED"
+    },
+    "SIGNATURE_INVALID": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "repair"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Целостность нарушена",
+          "description": "Файлы не соответствуют доверенному подписанному выпуску.",
+          "possible_causes": [
+            "Файл повреждён, подменён или относится к другой версии/платформе."
+          ],
+          "checks": [
+            "Сравните издателя, подпись, target и контрольную сумму с доверенными metadata."
+          ],
+          "remediation": [
+            "Не запускайте компонент. Получите корректный пакет из проверенного источника или выполните repair с сохранением данных."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Integrity verification failed",
+          "description": "Files do not match the trusted signed release.",
+          "possible_causes": [
+            "A file is damaged, replaced, or belongs to another release or target."
+          ],
+          "checks": [
+            "Compare publisher, signature, target, and checksum with trusted metadata."
+          ],
+          "remediation": [
+            "Do not execute the component. Obtain a verified package or run repair while preserving data."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Integritätsprüfung fehlgeschlagen",
+          "description": "Dateien entsprechen nicht der vertrauenswürdig signierten Version.",
+          "possible_causes": [
+            "Eine Datei ist beschädigt, ersetzt oder gehört zu einer anderen Version oder Plattform."
+          ],
+          "checks": [
+            "Vergleichen Sie Herausgeber, Signatur, Zielsystem und Prüfsumme mit vertrauenswürdigen Metadaten."
+          ],
+          "remediation": [
+            "Führen Sie die Komponente nicht aus. Beschaffen Sie ein geprüftes Paket oder reparieren Sie unter Erhalt der Daten."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      },
+      "alias_of": "INTEGRITY_FAILED"
+    },
+    "INTEGRITY_MISMATCH": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "repair"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Целостность нарушена",
+          "description": "Файлы не соответствуют доверенному подписанному выпуску.",
+          "possible_causes": [
+            "Файл повреждён, подменён или относится к другой версии/платформе."
+          ],
+          "checks": [
+            "Сравните издателя, подпись, target и контрольную сумму с доверенными metadata."
+          ],
+          "remediation": [
+            "Не запускайте компонент. Получите корректный пакет из проверенного источника или выполните repair с сохранением данных."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Integrity verification failed",
+          "description": "Files do not match the trusted signed release.",
+          "possible_causes": [
+            "A file is damaged, replaced, or belongs to another release or target."
+          ],
+          "checks": [
+            "Compare publisher, signature, target, and checksum with trusted metadata."
+          ],
+          "remediation": [
+            "Do not execute the component. Obtain a verified package or run repair while preserving data."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Integritätsprüfung fehlgeschlagen",
+          "description": "Dateien entsprechen nicht der vertrauenswürdig signierten Version.",
+          "possible_causes": [
+            "Eine Datei ist beschädigt, ersetzt oder gehört zu einer anderen Version oder Plattform."
+          ],
+          "checks": [
+            "Vergleichen Sie Herausgeber, Signatur, Zielsystem und Prüfsumme mit vertrauenswürdigen Metadaten."
+          ],
+          "remediation": [
+            "Führen Sie die Komponente nicht aus. Beschaffen Sie ein geprüftes Paket oder reparieren Sie unter Erhalt der Daten."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      },
+      "alias_of": "INTEGRITY_FAILED"
+    },
+    "JOURNAL_UNAVAILABLE": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Журнал состояния недоступен",
+          "description": "Не удалось надёжно сохранить обязательное состояние операции.",
+          "possible_causes": [
+            "Недостаток места, ошибка носителя, права или повреждённый журнал."
+          ],
+          "checks": [
+            "Проверьте доступность и место на томе состояния, сохранив исходный журнал."
+          ],
+          "remediation": [
+            "Устраните причину и выполните проверку восстановления; опасные изменения до этого запрещены."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "State storage unavailable",
+          "description": "Required operation state could not be durably saved.",
+          "possible_causes": [
+            "Insufficient space, storage failure, permissions, or a damaged journal."
+          ],
+          "checks": [
+            "Check state-volume availability and free space while preserving the original journal."
+          ],
+          "remediation": [
+            "Resolve the cause and check recovery; destructive transitions are blocked until then."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Zustandsspeicher nicht verfügbar",
+          "description": "Der erforderliche Vorgangszustand konnte nicht dauerhaft gespeichert werden.",
+          "possible_causes": [
+            "Speichermangel, Datenträgerfehler, Berechtigungen oder beschädigtes Journal."
+          ],
+          "checks": [
+            "Prüfen Sie Verfügbarkeit und freien Speicher; bewahren Sie das ursprüngliche Journal auf."
+          ],
+          "remediation": [
+            "Beheben Sie die Ursache und prüfen Sie die Wiederherstellung; gefährliche Änderungen bleiben bis dahin gesperrt."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      },
+      "alias_of": "STATE_STORAGE_UNAVAILABLE"
+    },
+    "OPERATION_BUSY": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "status",
+        "resume"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Конфликт операции",
+          "description": "Запрос конфликтует с уже выполняемой операцией или ранее использованным ключом.",
+          "possible_causes": [
+            "Одна установка изменяется параллельно либо idempotency key повторно использован с другим содержимым."
+          ],
+          "checks": [
+            "Проверьте текущую операцию, владельца блокировки и исходный запрос."
+          ],
+          "remediation": [
+            "Дождитесь безопасного завершения или продолжите существующую операцию; не удаляйте lock вслепую."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Operation conflict",
+          "description": "The request conflicts with a running operation or a previously used key.",
+          "possible_causes": [
+            "Concurrent changes to one installation or an idempotency key reused for another request."
+          ],
+          "checks": [
+            "Check the active operation, lock ownership, and original request."
+          ],
+          "remediation": [
+            "Wait for safe completion or resume the existing operation; do not blindly remove locks."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Vorgangskonflikt",
+          "description": "Die Anfrage kollidiert mit einem laufenden Vorgang oder einem bereits verwendeten Schlüssel.",
+          "possible_causes": [
+            "Parallele Änderungen an einer Installation oder Wiederverwendung eines Idempotenzschlüssels für andere Inhalte."
+          ],
+          "checks": [
+            "Prüfen Sie aktiven Vorgang, Sperrbesitzer und ursprüngliche Anfrage."
+          ],
+          "remediation": [
+            "Warten Sie auf einen sicheren Abschluss oder setzen Sie den bestehenden Vorgang fort; entfernen Sie Sperren nicht ungeprüft."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      },
+      "alias_of": "OPERATION_CONFLICT"
+    },
+    "RELOGIN_REQUIRED": {
+      "severity": "info",
+      "retryable": false,
+      "permitted_actions": [
+        "restart_later",
+        "restart_now"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Требуется перезагрузка",
+          "description": "Системный компонент станет доступен после перезагрузки или повторного входа.",
+          "possible_causes": [
+            "ОС завершает изменение WSL, runtime или прав пользователя."
+          ],
+          "checks": [
+            "Проверьте сохранённый checkpoint и предложенный тип продолжения."
+          ],
+          "remediation": [
+            "Выберите «Сейчас» или «Позже»; после входа продолжите тот же план с повторным обнаружением среды."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Restart required",
+          "description": "A system component becomes available after a restart or sign-in.",
+          "possible_causes": [
+            "The OS needs to finalize WSL, runtime, or user-permission changes."
+          ],
+          "checks": [
+            "Check the saved checkpoint and the required continuation type."
+          ],
+          "remediation": [
+            "Choose now or later; after sign-in resume the same plan with environment checks."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Neustart erforderlich",
+          "description": "Eine Systemkomponente ist erst nach Neustart oder erneuter Anmeldung verfügbar.",
+          "possible_causes": [
+            "Das System muss Änderungen an WSL, Laufzeit oder Benutzerrechten abschließen."
+          ],
+          "checks": [
+            "Prüfen Sie den gespeicherten Kontrollpunkt und die Art der Fortsetzung."
+          ],
+          "remediation": [
+            "Wählen Sie jetzt oder später; setzen Sie anschließend denselben Plan nach erneuter Umgebungsprüfung fort."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      },
+      "alias_of": "REBOOT_REQUIRED"
+    },
+    "OPERATION_CANCELED": {
+      "severity": "info",
+      "retryable": false,
+      "permitted_actions": [
+        "plan"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Операция отменена",
+          "description": "Пользователь запросил остановку на безопасной границе.",
+          "possible_causes": [
+            "Явная отмена или отказ от необходимого действия."
+          ],
+          "checks": [
+            "Проверьте итоговое состояние, сохранённые данные и оставшиеся общие компоненты."
+          ],
+          "remediation": [
+            "При необходимости создайте новый план или продолжите допустимую операцию. Отмена не считается технической ошибкой установки."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Operation cancelled",
+          "description": "The user requested a stop at a safe boundary.",
+          "possible_causes": [
+            "Explicit cancellation or refusal of a required action."
+          ],
+          "checks": [
+            "Check final state, preserved data, and any remaining shared components."
+          ],
+          "remediation": [
+            "Create a new plan or resume a permitted operation when needed. Cancellation is not a technical installation failure."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Vorgang abgebrochen",
+          "description": "Der Benutzer hat einen Stopp an einer sicheren Grenze angefordert.",
+          "possible_causes": [
+            "Ausdrücklicher Abbruch oder Ablehnung einer erforderlichen Aktion."
+          ],
+          "checks": [
+            "Prüfen Sie Endzustand, erhaltene Daten und verbleibende gemeinsam genutzte Komponenten."
+          ],
+          "remediation": [
+            "Erstellen Sie bei Bedarf einen neuen Plan oder setzen Sie einen zulässigen Vorgang fort. Abbruch ist kein technischer Installationsfehler."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      },
+      "alias_of": "CANCELLED"
+    },
+    "PREREQUISITE_MISSING": {
+      "severity": "error",
+      "retryable": true,
+      "permitted_actions": [
+        "inspect",
+        "recheck"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Отсутствует необходимый компонент",
+          "description": "Обязательная зависимость не обнаружена или ещё не готова.",
+          "possible_causes": [
+            "Компонент не установлен, не запущен или недоступен текущему пользователю."
+          ],
+          "checks": [
+            "Проверьте страницу компонентов, найденную версию, scope и результат readiness."
+          ],
+          "remediation": [
+            "Выберите автоматическую установку или выполните предложенную ручную инструкцию, затем «Проверить снова»."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Required dependency missing",
+          "description": "A required dependency was not found or is not ready.",
+          "possible_causes": [
+            "The component is not installed, running, or accessible to the current user."
+          ],
+          "checks": [
+            "Inspect components, detected version, scope, and readiness results."
+          ],
+          "remediation": [
+            "Choose automatic installation or follow the manual instructions, then check again."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Erforderliche Abhängigkeit fehlt",
+          "description": "Eine erforderliche Abhängigkeit wurde nicht gefunden oder ist noch nicht bereit.",
+          "possible_causes": [
+            "Die Komponente fehlt, läuft nicht oder ist für den Benutzer nicht zugänglich."
+          ],
+          "checks": [
+            "Prüfen Sie Komponenten, erkannte Version, Geltungsbereich und Bereitschaft."
+          ],
+          "remediation": [
+            "Wählen Sie automatische Installation oder die manuelle Anleitung und prüfen Sie anschließend erneut."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      },
+      "alias_of": "DEPENDENCY_MISSING"
+    },
+    "PERMISSION_REQUIRED": {
+      "severity": "error",
+      "retryable": true,
+      "permitted_actions": [
+        "inspect",
+        "recheck"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Недостаточно прав",
+          "description": "Требуемое действие недоступно выбранному пользователю или helper.",
+          "possible_causes": [
+            "Права каталога, отменённое повышение прав или неподходящая служебная identity."
+          ],
+          "checks": [
+            "Проверьте владельца, scope и конкретное разрешённое действие; не выгружайте все ACL пользователя."
+          ],
+          "remediation": [
+            "Используйте предложенный запрос прав либо приватный путь. Не запускайте всё приложение постоянно от администратора/root."
+          ],
+          "impact": "Операция не считается успешной, пока обязательные проверки не завершены."
+        },
+        "en": {
+          "title": "Permission denied",
+          "description": "The selected user or helper cannot perform the required action.",
+          "possible_causes": [
+            "Directory permissions, declined elevation, or unsuitable service identity."
+          ],
+          "checks": [
+            "Check ownership, scope, and the specific required permission."
+          ],
+          "remediation": [
+            "Use the offered elevation or a private location. Do not run the entire application permanently as administrator/root."
+          ],
+          "impact": "The operation is not successful until its required checks have completed."
+        },
+        "de": {
+          "title": "Zugriff verweigert",
+          "description": "Der gewählte Benutzer oder Hilfsprozess darf die erforderliche Aktion nicht ausführen.",
+          "possible_causes": [
+            "Verzeichnisrechte, abgelehnte Rechteerhöhung oder ungeeignetes Dienstkonto."
+          ],
+          "checks": [
+            "Prüfen Sie Besitzer, Geltungsbereich und konkret benötigte Berechtigung."
+          ],
+          "remediation": [
+            "Verwenden Sie die angebotene Rechteerhöhung oder einen privaten Pfad. Führen Sie die gesamte Anwendung nicht dauerhaft als Administrator/root aus."
+          ],
+          "impact": "Der Vorgang gilt erst nach Abschluss aller erforderlichen Prüfungen als erfolgreich."
+        }
+      },
+      "alias_of": "PERMISSION_DENIED"
+    }
+  }
+}

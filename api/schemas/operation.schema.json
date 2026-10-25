@@ -1,0 +1,118 @@
+{
+  "type": "object",
+  "properties": {
+    "api_version": {
+      "const": "1.0"
+    },
+    "operation_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+    },
+    "plan_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+    },
+    "plan_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "action": {
+      "enum": [
+        "build",
+        "install",
+        "update",
+        "modify_components",
+        "repair",
+        "reinstall",
+        "uninstall",
+        "backup",
+        "restore",
+        "rollback",
+        "start",
+        "stop"
+      ]
+    },
+    "status": {
+      "enum": [
+        "QUEUED",
+        "RUNNING",
+        "SUCCEEDED",
+        "FAILED",
+        "FAILED_ROLLED_BACK",
+        "CANCELED",
+        "RECOVERY_REQUIRED",
+        "AWAITING_USER",
+        "REBOOT_REQUIRED",
+        "RELOGIN_REQUIRED"
+      ]
+    },
+    "cancel_requested": {
+      "type": "boolean"
+    },
+    "last_sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "object"
+    },
+    "consent_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "result": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "error": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "duration_ms": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "diagnostics_unavailable": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "api_version",
+    "operation_id",
+    "plan_id",
+    "plan_digest",
+    "action",
+    "status",
+    "cancel_requested",
+    "last_sequence",
+    "created_at",
+    "updated_at",
+    "owner",
+    "consent_refs",
+    "attempt",
+    "result",
+    "error"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Operation snapshot v1"
+}

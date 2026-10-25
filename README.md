@@ -70,3 +70,9 @@ verify/restore с автоопределением; FS-порты принима
 отказывает, обычный ZIP работает. Готовность установщиков этим не подтверждается.
 
 © 2026 Serhii Khomenko · HomenS.AI
+
+## Публичное подключение
+
+Единая точка входа для проектов: [INSTALLER_API.md](INSTALLER_API.md).
+Машиночитаемый контракт: [api/discovery.json](api/discovery.json).
+Фактическое покрытие и ограничения: [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md).

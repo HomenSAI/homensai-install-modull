@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "checkpoint": "CP-20261025-020",
+  "observed_checkpoint": "CP-20261025-019",
+  "source_commit": "4d6282dc4d983822e952c3b2c9cfb75eacbc7eae",
+  "production_ready": false,
+  "status": "PASS_SCOPED",
+  "note": "Историческая блокировка до выделения runner больше не актуальна для CP019. Причина прежнего отказа по этим данным не установлена; billing/workflow/credentials не менялись.",
+  "runs": [
+    {
+      "id": 40229629613,
+      "event": "pull_request",
+      "head_sha": "4d6282dc4d983822e952c3b2c9cfb75eacbc7eae",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40229629613"
+    },
+    {
+      "id": 40229626061,
+      "event": "push",
+      "head_sha": "4d6282dc4d983822e952c3b2c9cfb75eacbc7eae",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40229626061"
+    }
+  ],
+  "jobs": [
+    {
+      "id": 121278360136,
+      "name": "Windows portable source subset (no service installation)",
+      "runner_name": "GitHub Actions 1000002055",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-25T20:12:00Z",
+      "completed_at": "2026-10-25T20:12:40Z",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Preserve checked-in LF golden files on this ephemeral runner",
+          "conclusion": "success"
+        },
+        {
+          "name": "Checkout reviewed source",
+          "conclusion": "success"
+        },
+        {
+          "name": "Select CPython 3.14.9 x64 with GIL",
+          "conclusion": "success"
+        },
+        {
+          "name": "Isolate build tools",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install exact hashed wheels",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run portable source subset",
+          "conclusion": "success"
+        },
+        {
+          "name": "Build SDK and reference wheels without dependency resolution",
+          "conclusion": "success"
+        },
+        {
+          "name": "Record source and wheel inputs locally",
+          "conclusion": "success"
+        },
+        {
+          "name": "Explain this job's boundary",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Select CPython 3.14.9 x64 with GIL",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Checkout reviewed source",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ],
+      "observed_log_summary": [
+        "2026-10-25T20:12:31.7481646Z 492 passed in 2.09s\r"
+      ]
+    },
+    {
+      "id": 121278360329,
+      "name": "Linux source and user-process integration (no installer acceptance)",
+      "runner_name": "GitHub Actions 1000002056",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-25T20:12:00Z",
+      "completed_at": "2026-10-25T20:16:11Z",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Checkout reviewed source",
+          "conclusion": "success"
+        },
+        {
+          "name": "Select CPython 3.14.9 x64 with GIL",
+          "conclusion": "success"
+        },
+        {
+          "name": "Isolate build tools",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install exact hashed wheels",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run complete offline source suite",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run Linux user-process and loopback integration",
+          "conclusion": "success"
+        },
+        {
+          "name": "Build SDK and reference wheels without dependency resolution",
+          "conclusion": "success"
+        },
+        {
+          "name": "Record source and wheel inputs locally",
+          "conclusion": "success"
+        },
+        {
+          "name": "Explain this job's boundary",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Select CPython 3.14.9 x64 with GIL",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Checkout reviewed source",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ],
+      "observed_log_summary": [
+        "2026-10-25T20:14:56.8970622Z 2139 passed, 1 skipped, 10 subtests passed in 151.09s (0:02:31)",
+        "2026-10-25T20:16:04.5754301Z 53 passed, 5 subtests passed in 66.78s (0:01:06)"
+      ]
+    }
+  ],
+  "limits": [
+    "Linux source/integration Ubuntu24.04 и Windows portable source Windows Server2025; НЕ Windows11 install/ACL/UAC/platform acceptance",
+    "Synthetic user processes, not real product installers",
+    "No production signing or release publication"
+  ]
+}

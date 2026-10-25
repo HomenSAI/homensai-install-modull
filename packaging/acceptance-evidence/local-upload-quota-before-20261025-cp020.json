@@ -1,0 +1,40 @@
+{
+  "checkpoint": "CP-20261025-020",
+  "task_ids": [
+    "HIM-033"
+  ],
+  "scenario_ids": [
+    "ACC-05",
+    "ACC-14"
+  ],
+  "phase": "regression-before-fix",
+  "status": "FAIL",
+  "exit_code": 1,
+  "command": [
+    "docker",
+    "run",
+    "--rm",
+    "--network",
+    "none",
+    "--mount",
+    "type=bind,source=E:\\homensai\\homensai-install-modull,target=/workspace,readonly",
+    "hinstall-dev:cp019",
+    "python",
+    "-B",
+    "-m",
+    "pytest",
+    "-q",
+    "tests/test_local_artifacts.py",
+    "-k",
+    "failed_cleanup_keeps or repeated_active_cancel"
+  ],
+  "checked_at_utc": "2026-10-25T20:24:14.583037+00:00",
+  "duration_seconds": 4.765000000000327,
+  "input_sha256": {
+    "homensai_install/local_artifacts.py": "ca501888999b4fd79004b593f4f02248b33474f0dde293efe1c27c422a45340b",
+    "tests/test_local_artifacts.py": "ef8ce8fda8bbb3f0ba49e77fe9b6e0911b642c7cfa7a5fb2351e262d0f79cafd"
+  },
+  "observed": "FF                                                                       [100%]\n=================================== FAILURES ===================================\n_________ test_failed_cleanup_keeps_byte_reservation_and_primary_error _________\n\ntmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_failed_cleanup_keeps_byte0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x79d53b873950>\n\n    def test_failed_cleanup_keeps_byte_reservation_and_primary_error(tmp_path, monkeypatch):\n        import homensai_install.local_artifacts as uploads\n        monkeypatch.setattr(uploads, \"MAX_UPLOAD_BYTES\", len(CONTENT))\n        store, upload_id = allocated(tmp_path)\n        original_remove = store._remove\n        def locked(_):\n            raise PermissionError(\"synthetic locked staging file\")\n        monkeypatch.setattr(store, \"_remove\", locked)\n        with pytest.raises(InstallerError) as primary:\n            store.receive(upload_id, io.BytesIO(b\"X\" * len(CONTENT)), len(CONTENT), binding=BINDING)\n        assert primary.value.code == \"INTEGRITY_FAILED\", \"Cleanup must not mask the original hash failure\"\n        assert sum(path.stat().st_size for path in store.directory.iterdir()) == len(CONTENT)\n>       with pytest.raises(InstallerError):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE InstallerError\n\ntests/test_local_artifacts.py:217: Failed\n___ test_repeated_active_cancel_keeps_file_and_quota_until_receive_finishes ____\n\ntmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_repeated_active_cancel_ke0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x79d53b8735c0>\n\n    def test_repeated_active_cancel_keeps_file_and_quota_until_receive_finishes(tmp_path, monkeypatch):\n        import homensai_install.local_artifacts as uploads\n        monkeypatch.setattr(uploads, \"MAX_UPLOAD_BYTES\", len(CONTENT))\n        store, upload_id = allocated(tmp_path)\n        class CancelingStream(io.BytesIO):\n            def read(self, size):\n                store.cancel(upload_id)\n                store.cancel(upload_id)\n                assert len(list(store.directory.iterdir())) == 1, \"An active writer owns its staged file until finalization\"\n                with pytest.raises(InstallerError):\n                    store.create(\"base\", artifact(), binding=BINDING)\n                return super().read(size)\n        with pytest.raises(InstallerError) as canceled:\n>           store.receive(upload_id, CancelingStream(CONTENT), len(CONTENT), binding=BINDING)\n\ntests/test_local_artifacts.py:238: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \nhomensai_install/local_artifacts.py:185: in receive\n    chunk = stream.read(min(CHUNK_BYTES, remaining))\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <test_local_artifacts.test_repeated_active_cancel_keeps_file_and_quota_until_receive_finishes.<locals>.CancelingStream object at 0x79d53b196070>\nsize = 34\n\n    def read(self, size):\n        store.cancel(upload_id)\n        store.cancel(upload_id)\n>       assert len(list(store.directory.iterdir())) == 1, \"An active writer owns its staged file until finalization\"\nE       AssertionError: An active writer owns its staged file until finalization\nE       assert 0 == 1\nE        +  where 0 = len([])\nE        +    where [] = list(<generator object Path.iterdir.<locals>.<genexpr> at 0x79d53b232c50>)\nE        +      where <generator object Path.iterdir.<locals>.<genexpr> at 0x79d53b232c50> = iterdir()\nE        +        where iterdir = PosixPath('/tmp/pytest-of-root/pytest-0/test_repeated_active_cancel_ke0/state/wizard-uploads/3780206761614def9f81f50b2dcdb20b').iterdir\nE        +          where PosixPath('/tmp/pytest-of-root/pytest-0/test_repeated_active_cancel_ke0/state/wizard-uploads/3780206761614def9f81f50b2dcdb20b') = <homensai_install.local_artifacts.LocalArtifactUploads object at 0x79d53b9bead0>.directory\n\ntests/test_local_artifacts.py:233: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_local_artifacts.py::test_failed_cleanup_keeps_byte_reservation_and_primary_error\nFAILED tests/test_local_artifacts.py::test_repeated_active_cancel_keeps_file_and_quota_until_receive_finishes\n2 failed, 29 deselected in 1.61s\n",
+  "scope": "Синтетический source fault injection cleanupPermissionError и repeatedcancel пока writer активен; cap уменьшен до34байт. Не Windows locked-file/OS acceptance.",
+  "production_ready": false
+}

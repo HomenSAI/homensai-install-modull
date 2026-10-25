@@ -104,7 +104,8 @@ const prereq = {
   epoch:0, observationEpoch:0, polling:false, pollEpoch:0, startPending:false, startUncertain:false,
   changePending:null, cancelPending:false, reviewPending:false, discoveryUnknown:false,
   operations:[], nextCursor:null, listEpoch:0, listPending:false, replaceOperationId:null, afterReady:false,
-  connectionLost:false, eventLines:[], refreshPending:false, proceedPending:false
+  connectionLost:false, eventLines:[], refreshPending:false, proceedPending:false,
+  localFiles:{}, localUploads:{}, localUploadStatus:{}, uploadPending:null
 };
 const prereqStorageKey = "hinstall-prerequisite-operation";
 const prereqVersionPattern = /^v?[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:\+[A-Za-z0-9_.-]+)?$(?![\s\S])/;
@@ -134,7 +135,7 @@ function prerequisiteSettled() {
   return prerequisiteControllerFree()&&(prereq.snapshot.status==="CANCELED"||prereq.snapshot.status==="READY"&&prereq.snapshot.ready===true);
 }
 function prerequisiteRequestBusy() {
-  return prereq.startPending||prereq.startUncertain||!!prereq.changePending||prereq.reviewPending||prereq.proceedPending||prereq.cancelPending||prereq.listPending||languagePending;
+  return prereq.startPending||prereq.startUncertain||!!prereq.changePending||prereq.reviewPending||prereq.proceedPending||prereq.cancelPending||prereq.listPending||!!prereq.uploadPending||languagePending;
 }
 function prerequisiteBlocksProduct() {
   if(!prereq.initialized)return false;
@@ -202,6 +203,137 @@ function appendPrerequisiteManual(parent,manual) {
   }catch{}
   parent.append(details);
 }
+function localPrerequisiteArtifact(item,artifact) {
+  return prereq.caps?.local_artifact_upload===true&&samePrerequisiteBinding(prereq.caps,prereq.displayPlan)&&
+    (prereq.choices[item.component_id]||item.choice)==="auto"&&!item.initial_ready&&
+    typeof artifact?.artifact_id==="string"&&typeof artifact.sha256==="string"&&/^[0-9a-f]{64}$(?![\s\S])/.test(artifact.sha256)&&
+    Number.isSafeInteger(artifact.size)&&artifact.size>0&&
+    Number.isSafeInteger(prereq.caps.local_upload_max_bytes)&&prereq.caps.local_upload_max_bytes>0;
+}
+function sameLocalPrerequisiteArtifact(item,artifact,value) {
+  return !!value&&value.component_id===item.component_id&&value.artifact_id===artifact.artifact_id&&
+    value.size===artifact.size&&value.sha256===artifact.sha256;
+}
+function localPrerequisiteHandles() {
+  const selected={};
+  for(const item of prereq.displayPlan?.components||[])for(const artifact of item.artifacts||[]) {
+    const value=prereq.localUploads[artifact.artifact_id];
+    if(localPrerequisiteArtifact(item,artifact)&&sameLocalPrerequisiteArtifact(item,artifact,value)&&
+       value.state==="verified"&&value.verified===true)selected[artifact.artifact_id]=value.upload_id;
+  }
+  return selected;
+}
+function hasUnsentPrerequisiteFile() {
+  const handles=localPrerequisiteHandles();
+  return Object.keys(prereq.localFiles).some(id=>!handles[id]&&
+    (prereq.displayPlan?.components||[]).some(item=>(prereq.choices[item.component_id]||item.choice)==="auto"&&
+      !item.initial_ready&&(item.artifacts||[]).some(artifact=>artifact.artifact_id===id&&
+        sameLocalPrerequisiteArtifact(item,artifact,prereq.localFiles[id]))));
+}
+function resetPrerequisiteUploadConsents() {
+  $("prereq-accept-plan").checked=false;
+  for(const {input} of prereq.consentInputs)input.checked=false;
+  invalidateProductForPrerequisites();
+}
+function renderLocalPrerequisiteArtifact(card,item,artifact) {
+  if(!localPrerequisiteArtifact(item,artifact))return;
+  const id=artifact.artifact_id,box=prepNode("section",undefined,"prereq-local-file");
+  box.dataset.artifactId=id;
+  box.append(prepNode("h4",tr("prereq_local_title")),prepNode("p",tr("prereq_local_help"),"muted"));
+  const numbers=new Intl.NumberFormat(locale,{maximumFractionDigits:0});
+  box.append(prepNode("p",prepText("prereq_local_expected",{size:numbers.format(artifact.size)})));
+  if(artifact.size>prereq.caps.local_upload_max_bytes) {
+    box.append(prepNode("p",prepText("prereq_local_limit",{size:numbers.format(prereq.caps.local_upload_max_bytes)}),"notice"));
+    card.append(box);return;
+  }
+  const label=prepNode("label",tr("prereq_local_choose")),input=prepNode("input");input.type="file";
+  input.id="prereq-file-"+id;input.dataset.localArtifact=id;
+  label.append(input);box.append(label);
+  const selected=prereq.localFiles[id],verified=prereq.localUploads[id];
+  if(sameLocalPrerequisiteArtifact(item,artifact,selected))box.append(prepNode("p",prepText("prereq_local_selected",{name:selected.file.name||tr("prereq_local_file")})));
+  const status=prepNode("p");status.id="prereq-upload-status-"+id;status.setAttribute("role","status");status.setAttribute("aria-live","polite");
+  const key=prereq.localUploadStatus[id];
+  status.textContent=key?tr(key):sameLocalPrerequisiteArtifact(item,artifact,verified)?tr("prereq_local_verified"):tr("prereq_local_not_selected");
+  box.append(status);
+  const actions=prepNode("div",undefined,"prereq-actions"),send=prepNode("button",tr("prereq_local_upload"),"secondary");send.type="button";
+  send.id="prereq-upload-"+id;send.dataset.localUpload=id;
+  const cancel=prepNode("button",tr("prereq_local_cancel"),"secondary");cancel.type="button";cancel.id="prereq-upload-cancel-"+id;
+  cancel.dataset.localUploadCancel=id;
+  const clear=prepNode("button",tr("prereq_local_clear"),"secondary");clear.type="button";clear.id="prereq-upload-clear-"+id;
+  clear.dataset.localUploadClear=id;
+  clear.hidden=!sameLocalPrerequisiteArtifact(item,artifact,selected)&&!sameLocalPrerequisiteArtifact(item,artifact,verified);
+  input.addEventListener("change",()=>{
+    if(input.disabled)return;
+    const file=input.files?.[0];
+    delete prereq.localFiles[id];delete prereq.localUploads[id];resetPrerequisiteUploadConsents();
+    if(!file){delete prereq.localUploadStatus[id];}
+    else if(!Number.isSafeInteger(file.size)||file.size!==artifact.size||file.size>prereq.caps.local_upload_max_bytes)
+      prereq.localUploadStatus[id]="prereq_local_wrong_size";
+    else {prereq.localFiles[id]={file,component_id:item.component_id,artifact_id:id,size:artifact.size,sha256:artifact.sha256};prereq.localUploadStatus[id]="prereq_local_selected_ready";}
+    renderPrerequisiteComponents();updatePrerequisiteControls();
+    $(prereq.localFiles[id]?"prereq-upload-"+id:"prereq-file-"+id)?.focus();
+  });
+  send.addEventListener("click",()=>guarded(()=>uploadPrerequisiteArtifact(item,artifact)));
+  cancel.addEventListener("click",()=>guarded(()=>cancelPrerequisiteUpload(id)));
+  clear.addEventListener("click",()=>{
+    if(clear.disabled)return;
+    delete prereq.localFiles[id];delete prereq.localUploads[id];delete prereq.localUploadStatus[id];
+    prereq.epoch++;clearPrerequisiteReview();invalidateProductForPrerequisites();renderPrerequisiteComponents();updatePrerequisiteControls();
+  });
+  actions.append(send,cancel,clear);box.append(actions);card.append(box);
+}
+async function cancelPrerequisiteUpload(id) {
+  const pending=prereq.uploadPending;
+  if(!pending||pending.artifact_id!==id)return;
+  pending.canceled=true;pending.controller.abort();
+  prereq.localUploadStatus[id]="prereq_local_canceling";renderPrerequisiteComponents();updatePrerequisiteControls();
+  // The transfer's finally also cancels a handle returned after this request.
+  if(pending.upload_id)try{await api("/prerequisites/uploads/"+encodeURIComponent(pending.upload_id)+"/cancel",{});}catch{}
+}
+async function uploadPrerequisiteArtifact(item,artifact) {
+  const selected=prereq.localFiles[artifact.artifact_id],review=prereq.review,id=artifact.artifact_id;
+  if(prerequisiteRequestBusy()||!review||!samePrerequisiteBinding(prereq.caps,review.plan)||
+     !localPrerequisiteArtifact(item,artifact)||!sameLocalPrerequisiteArtifact(item,artifact,selected)||
+     selected.file.size!==artifact.size||artifact.size>prereq.caps.local_upload_max_bytes||
+     !review.plan.components?.some(component=>component.component_id===item.component_id&&component.choice==="auto"&&
+       component.artifacts?.some(value=>value.artifact_id===id&&value.size===artifact.size&&value.sha256===artifact.sha256)))throw{code:"PLAN_STALE"};
+  const pending={artifact_id:id,controller:new AbortController(),canceled:false,upload_id:null};
+  prereq.uploadPending=pending;resetPrerequisiteUploadConsents();prereq.localUploadStatus[id]="prereq_local_transferring";
+  renderPrerequisiteComponents();updatePrerequisiteControls();
+  try {
+    const allocated=await api("/prerequisites/uploads",{plan_id:review.plan_id,plan_digest:review.plan_digest,
+      component_id:item.component_id,artifact_id:id});
+    if(typeof allocated.upload_id!=="string"||!/^[a-z][a-z0-9_-]{0,79}$(?![\s\S])/.test(allocated.upload_id)||
+       !sameLocalPrerequisiteArtifact(item,artifact,allocated)||allocated.state!=="pending"||allocated.verified!==false)throw{code:"INTEGRITY_FAILED"};
+    pending.upload_id=allocated.upload_id;
+    if(pending.canceled)return;
+    // File bytes only: the browser supplies framing; no filename, local path,
+    // command, trust root or owner is sent with the upload.
+    const response=await fetch("/api/v1/prerequisites/uploads/"+encodeURIComponent(allocated.upload_id)+"/content",{
+      method:"POST",headers:{"X-HInstall-Token":token||"","Content-Type":"application/octet-stream"},
+      body:selected.file,signal:pending.controller.signal,credentials:"omit",cache:"no-store"});
+    const data=await response.json();if(!response.ok||data.error)throw data.error||{code:"UNEXPECTED_ERROR"};
+    if(pending.canceled)return;
+    const value=data.result;
+    if(value?.upload_id!==allocated.upload_id||!sameLocalPrerequisiteArtifact(item,artifact,value)||
+       value.state!=="verified"||value.verified!==true)throw{code:"INTEGRITY_FAILED"};
+    prereq.localUploads[id]=value;prereq.localUploadStatus[id]="prereq_local_verified";
+    // A verified file authorizes no installation. A fresh server plan and all
+    // explicit consents are still required before the existing coordinator.
+    prereq.epoch++;clearPrerequisiteReview();
+  }catch(error){
+    if(!pending.canceled){prereq.localUploadStatus[id]="prereq_local_failed";throw{code:typeof error?.code==="string"?error.code:"DOWNLOAD_FAILED",description:tr("prereq_local_failed")};}
+  }finally{
+    if(pending.canceled){
+      if(pending.upload_id)try{await api("/prerequisites/uploads/"+encodeURIComponent(pending.upload_id)+"/cancel",{});}catch{}
+      delete prereq.localUploads[id];prereq.localUploadStatus[id]="prereq_local_canceled";
+    }
+    if(prereq.uploadPending===pending)prereq.uploadPending=null;
+    renderPrerequisiteComponents();renderPrerequisiteStatus();
+    if(prereq.localUploads[id])$("prereq-review").focus();
+    else $("prereq-upload-"+id)?.focus();
+  }
+}
 function renderPrerequisiteComponents() {
   $("prereq-components").replaceChildren();
   for(const item of prereq.displayPlan?.components||[]) {
@@ -218,6 +350,7 @@ function renderPrerequisiteComponents() {
     if((prereq.choices[item.component_id]||item.choice)==="auto")for(const artifact of item.artifacts||[]){
       card.append(prepNode("p",prepText("prereq_artifact",{version:knownPrerequisiteVersion(artifact.version)||tr("prereq_version_unknown"),source:artifact.source_host||tr("prereq_unknown")})));
       const details=prepNode("details");details.append(prepNode("summary",tr("technical_details")),prepNode("p","SHA-256: "+artifact.sha256));card.append(details);
+      renderLocalPrerequisiteArtifact(card,item,artifact);
     }
     const label=prepNode("label",tr("prereq_choice"));const select=prepNode("select");
     select.id="prereq-choice-"+item.component_id;select.dataset.componentId=item.component_id;
@@ -296,7 +429,7 @@ function renderPrerequisiteTerms() {
   $("prereq-accept-plan").checked=false;
 }
 function prerequisiteReviewApproved() {
-  return !!prereq.review&&!prereq.unsupportedConsent&&$("prereq-accept-plan").checked&&
+  return !!prereq.review&&!prereq.unsupportedConsent&&!hasUnsentPrerequisiteFile()&&$("prereq-accept-plan").checked&&
     prereq.consentInputs.every(({input})=>input.checked&&!input.disabled);
 }
 function acceptedPrerequisiteRefs() {
@@ -379,6 +512,7 @@ async function changePrerequisiteMode() {
   if(!prereq.initialized)return;
   if(prerequisiteRequestBusy()||prereq.operationId&&!prerequisiteSettled()||prereq.operations.length||prereq.nextCursor){$("mode").value=prereq.mode;return;}
   prereq.epoch++;prereq.observationEpoch++;prereq.pollEpoch++;prereq.polling=false;clearPrerequisiteReview();prereq.displayPlan=null;prereq.choices={};
+  prereq.localFiles={};prereq.localUploads={};prereq.localUploadStatus={};
   prereq.operationId=null;prereq.snapshot=null;prereq.afterReady=false;prereq.cursor=0;prereq.revision=-1;
   sessionStorage.removeItem(prereqStorageKey);prereq.mode=$("mode").value;prereq.caps=prereq.capabilitiesByMode[prereq.mode];
   renderPrerequisiteComponents();renderPrerequisiteStatus();
@@ -395,7 +529,9 @@ async function planPrerequisites() {
   if(prereq.operationId&&!prerequisiteSettled()&&(Object.values(prereq.snapshot.steps||{}).some(item=>["UNKNOWN","INSTALLING"].includes(item.state))||["REBOOT_REQUIRED","RELOGIN_REQUIRED"].includes(prereq.snapshot.status)))throw{code:"OPERATION_CONFLICT"};
   const epoch=++prereq.epoch;prereq.reviewPending=true;clearPrerequisiteReview();invalidateProductForPrerequisites();updatePrerequisiteControls();
   try {
-    const result=await api("/prerequisites/plans",{mode:prereq.mode,locale,choices:{...prereq.choices},offline:false});
+    const localUploads=localPrerequisiteHandles();
+    const result=await api("/prerequisites/plans",{mode:prereq.mode,locale,choices:{...prereq.choices},offline:false,
+      ...(Object.keys(localUploads).length?{local_uploads:localUploads}:{})});
     if(epoch!==prereq.epoch)return;
     if(!samePrerequisiteBinding(prereq.caps,result.plan)||result.locale!==locale||result.plan?.locale!==locale)throw{code:"PLAN_STALE"};
     prereq.displayPlan=result.plan;prereq.choices={...result.plan.choices};renderPrerequisiteComponents();
@@ -567,6 +703,18 @@ function updatePrerequisiteControls() {
   $("prereq-proceed").hidden=!(value?.status==="READY"&&value.ready===true);
   $("prereq-proceed").disabled=!free||busy||prereq.discoveryUnknown||prereq.operations.some(item=>item.operation_id!==prereq.operationId)||!!prereq.nextCursor;
   for(const select of document.querySelectorAll("#prereq-components select"))select.disabled=busy||!!prereq.operationId&&!free;
+  if(prereq.caps?.local_artifact_upload===true) {
+    for(const input of document.querySelectorAll("#prereq-components input[type=file]"))input.disabled=busy||!!prereq.operationId&&!free;
+    for(const button of document.querySelectorAll("#prereq-components button[data-local-upload]")) {
+      const id=button.dataset.localUpload;
+      button.disabled=busy||!prereq.review||!prereq.localFiles[id]||!!prereq.localUploads[id]||!!prereq.operationId&&!free;
+    }
+    for(const button of document.querySelectorAll("#prereq-components button[data-local-upload-cancel]")) {
+      button.hidden=prereq.uploadPending?.artifact_id!==button.dataset.localUploadCancel;
+      button.disabled=!!prereq.uploadPending?.canceled;
+    }
+    for(const button of document.querySelectorAll("#prereq-components button[data-local-upload-clear]"))button.disabled=busy||!!prereq.operationId&&!free;
+  }
   updateCapabilities();
 }
 async function pollPrerequisites() {

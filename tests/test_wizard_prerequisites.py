@@ -485,7 +485,7 @@ def test_published_http_contract_and_paired_resources_match_transport(tmp_path):
     schemas = contract["components"]["schemas"]
     assert schemas["PrerequisiteReviewRequest"]["additionalProperties"] is False
     assert "plan" not in schemas["PrerequisiteReviewRequest"]["properties"]
-    assert set(schemas["PrerequisitePlanRequest"]["properties"]) == {"mode", "locale", "choices", "offline"}
+    assert set(schemas["PrerequisitePlanRequest"]["properties"]) == {"mode", "locale", "choices", "offline", "local_uploads"}
     for path, packaged in (("api/openapi.yaml", "openapi.yaml"), ("api/discovery.json", "discovery.json"),
                            ("INSTALLER_API.md", "INSTALLER_API.md")):
         assert (root / path).read_bytes() == (root / "homensai_install/api/resources" / packaged).read_bytes()

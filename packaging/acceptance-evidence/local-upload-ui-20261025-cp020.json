@@ -1,0 +1,88 @@
+{
+  "checkpoint": "CP-20261025-020",
+  "task_ids": [
+    "HIM-033",
+    "HIM-029",
+    "HIM-035",
+    "HIM-102"
+  ],
+  "scenario_ids": [
+    "ACC-01",
+    "ACC-05",
+    "ACC-07",
+    "ACC-08",
+    "ACC-16",
+    "ACC-23"
+  ],
+  "source_head": "4d6282dc4d983822e952c3b2c9cfb75eacbc7eae",
+  "source_diff": "Текущие незакоммиченные UI-файлы с SHA-256 ниже; не результат исходного HEAD.",
+  "started_at_utc": "2026-10-25T20:16:18.767392+00:00",
+  "duration_seconds": 32.32800000000043,
+  "command": [
+    "docker",
+    "run",
+    "--rm",
+    "--network",
+    "none",
+    "--mount",
+    "type=bind,source=E:\\homensai\\homensai-install-modull,target=/workspace,readonly",
+    "hinstall-dev:cp019",
+    "node",
+    "tests/js/wizard_prerequisites.cjs"
+  ],
+  "exit_code": 0,
+  "status": "PASS",
+  "inputs_unchanged": true,
+  "input_sha256": {
+    "homensai_install/wizard/app.js": "c9fca5cf005c92d8b968cb4b102e101c50bc7ba84fc2bd3c7cc7e6d4ea50d9f7",
+    "homensai_install/wizard/index.html": "d74c895868de6428c6d431a16b8f7a05d932884f59934492d0bee18bce87bf2d",
+    "homensai_install/wizard/locales.json": "3de7506e6c5481f8ac021f699b6ff421b668fa5feec17834dbc4d3153bbbbb92",
+    "homensai_install/wizard/style.css": "dec992ced7a2976b04e4a7e491ee1fb151423faca2b1841480c3ce3f138c5386",
+    "tests/js/wizard_prerequisites.cjs": "67cc0802631b63cd5345190bfeda2e161eba7f7b374d83714b2295f2d5ad4263",
+    "tests/test_wizard_prerequisite_ui.py": "81b23b6c310bbb55790db38f5a7b45f8b080dee9be8fe8f2c115be25ed190bc8"
+  },
+  "node_result": {
+    "status": "PASS",
+    "cases": 39,
+    "scope": "actual wizard JavaScript with injected DOM/HTTP; not browser acceptance",
+    "assets_sha256": {
+      "app.js": "c9fca5cf005c92d8b968cb4b102e101c50bc7ba84fc2bd3c7cc7e6d4ea50d9f7",
+      "index.html": "d74c895868de6428c6d431a16b8f7a05d932884f59934492d0bee18bce87bf2d",
+      "locales.json": "3de7506e6c5481f8ac021f699b6ff421b668fa5feec17834dbc4d3153bbbbb92"
+    }
+  },
+  "previous_attempts": [
+    {
+      "status": "FAIL",
+      "source": "Исходный HEAD CP018 и его исходные app.js/index.html/locales.json, независимо извлечённые git show",
+      "command": "docker run --rm --network none --mount ... hinstall-dev:cp019 node build/cp019/ui-baseline-contract.cjs build/cp019/ui-baseline-assets",
+      "observed": "Contract handler did not finish within 20 seconds",
+      "exit_code": 1
+    },
+    {
+      "status": "FAIL",
+      "source": "Первый текущий UI draft с исходным watchdog20s",
+      "observed": "Contract handler did not finish within 20 seconds",
+      "exit_code": 1
+    },
+    {
+      "status": "PASS",
+      "scope": "Промежуточные38групп при watchdog120s; финальные39проверены отдельно"
+    }
+  ],
+  "harness_change": "Watchdog увеличен20→120s и внешний pytest timeout30→150s после воспроизведения исходного CP018 timeout на текущем Windows/Docker host. Assertions и сценарии сохранены.",
+  "scope": "Shipped JavaScript в Node VM с моделируемым DOM/HTTP; синтетические Files и ответы transport. Это не настоящий браузер и не установленный продукт.",
+  "locale_keys": {
+    "ru": 245,
+    "en": 245,
+    "de": 245
+  },
+  "not_run": [
+    "Настоящий браузер — отдельный receipt",
+    "Windows/native/ACL/UAC",
+    "Настоящие установщики ОС",
+    "Полная матрица4targets×3locales",
+    "Production signing/legal/licence"
+  ],
+  "production_ready": false
+}

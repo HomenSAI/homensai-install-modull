@@ -1,0 +1,602 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "checkpoint": "CP-20261025-020",
+  "task_ids": [
+    "HIM-033",
+    "HIM-029",
+    "HIM-035",
+    "HIM-102",
+    "HIM-062",
+    "HIM-063"
+  ],
+  "scenario_ids": [
+    "ACC-05",
+    "ACC-07",
+    "ACC-08",
+    "ACC-16",
+    "ACC-23"
+  ],
+  "started_at_utc": "2026-10-25T20:19:41.893460+00:00",
+  "scope": "Installed wheel + настоящий Chromium Linux x64 в Docker; signed synthetic fixture; ru/en/de. Не Windows11/Ubuntu clean-host/native frozen/OS installer/full lifecycle.",
+  "production_ready": false,
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/workspace",
+      "started_at_utc": "2026-10-25T20:19:41.899737+00:00",
+      "exit_code": 0,
+      "duration_seconds": 0.11714984199988976,
+      "log": "/tmp/hinstall-cp020-browser-attempt1/reports/command-1.log",
+      "log_sha256": "226b5e50b9e380bcb7b371349ee02fa5f16f5e79317b2265792adaeef138d061"
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD^{tree}"
+      ],
+      "cwd": "/workspace",
+      "started_at_utc": "2026-10-25T20:19:42.017201+00:00",
+      "exit_code": 0,
+      "duration_seconds": 0.11519010000029084,
+      "log": "/tmp/hinstall-cp020-browser-attempt1/reports/command-2.log",
+      "log_sha256": "d17f87875b04f0c1f0813272f0e6a5dcd68147174f1eab8296e776c41da9d920"
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--porcelain=v1"
+      ],
+      "cwd": "/workspace",
+      "started_at_utc": "2026-10-25T20:19:42.133003+00:00",
+      "exit_code": 0,
+      "duration_seconds": 2.587841776999994,
+      "log": "/tmp/hinstall-cp020-browser-attempt1/reports/command-3.log",
+      "log_sha256": "b6c5e6ba759ac58a9e3d974620cba860ee770be9439b1a2d827f89011a4d91c4"
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--binary",
+        "HEAD"
+      ],
+      "cwd": "/workspace",
+      "started_at_utc": "2026-10-25T20:19:44.721241+00:00",
+      "exit_code": 0,
+      "duration_seconds": 2.7563010740004756,
+      "log": "/tmp/hinstall-cp020-browser-attempt1/reports/command-4.log",
+      "log_sha256": "ae131e53d06ad9647a142653019b2ebafd9caab8f0f666a672c46a178b6ed9b7"
+    },
+    {
+      "argv": [
+        "/usr/local/bin/python",
+        "-I",
+        "-B",
+        "-m",
+        "pip",
+        "wheel",
+        "--no-index",
+        "--no-deps",
+        "--no-cache-dir",
+        "--no-build-isolation",
+        "--wheel-dir",
+        "/tmp/hinstall-cp020-browser-attempt1/wheels",
+        "/tmp/hinstall-cp020-browser-attempt1/build-source"
+      ],
+      "cwd": "/tmp/hinstall-cp020-browser-attempt1",
+      "started_at_utc": "2026-10-25T20:19:48.022270+00:00",
+      "exit_code": 0,
+      "duration_seconds": 2.9757824549997167,
+      "log": "/tmp/hinstall-cp020-browser-attempt1/reports/command-5.log",
+      "log_sha256": "259e4f98cb73cbecd2d721ba153fe74e903e1687ba4e85a6a38d04d7d6103491"
+    },
+    {
+      "argv": [
+        "/usr/local/bin/python",
+        "-I",
+        "-B",
+        "-m",
+        "venv",
+        "/tmp/hinstall-cp020-browser-attempt1/environment"
+      ],
+      "cwd": "/tmp/hinstall-cp020-browser-attempt1",
+      "started_at_utc": "2026-10-25T20:19:51.125040+00:00",
+      "exit_code": 0,
+      "duration_seconds": 5.739734153000427,
+      "log": "/tmp/hinstall-cp020-browser-attempt1/reports/command-6.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/tmp/hinstall-cp020-browser-attempt1/environment/bin/python",
+        "-I",
+        "-B",
+        "-m",
+        "pip",
+        "install",
+        "--no-index",
+        "--no-deps",
+        "--no-compile",
+        "--no-cache-dir",
+        "--require-hashes",
+        "--find-links",
+        "/tmp/hinstall-cp020-browser-attempt1/security-wheels",
+        "-r",
+        "/tmp/hinstall-cp020-browser-attempt1/security-wheels/security.lock"
+      ],
+      "cwd": "/tmp/hinstall-cp020-browser-attempt1",
+      "started_at_utc": "2026-10-25T20:19:56.862765+00:00",
+      "exit_code": 0,
+      "duration_seconds": 1.0675622230000954,
+      "log": "/tmp/hinstall-cp020-browser-attempt1/reports/command-7.log",
+      "log_sha256": "0ec9eab66228720ccd06993038fff8acf250832187f97556558eb9068abfaf1f"
+    },
+    {
+      "argv": [
+        "/tmp/hinstall-cp020-browser-attempt1/environment/bin/python",
+        "-I",
+        "-B",
+        "-m",
+        "pip",
+        "install",
+        "--no-index",
+        "--no-deps",
+        "--no-compile",
+        "--no-cache-dir",
+        "/tmp/hinstall-cp020-browser-attempt1/wheels/homensai_install_module-0.1.0-py3-none-any.whl"
+      ],
+      "cwd": "/tmp/hinstall-cp020-browser-attempt1",
+      "started_at_utc": "2026-10-25T20:19:57.930490+00:00",
+      "exit_code": 0,
+      "duration_seconds": 0.8163038910006435,
+      "log": "/tmp/hinstall-cp020-browser-attempt1/reports/command-8.log",
+      "log_sha256": "c36ba051a9a050e335d8e38de30bce8fadba641ca953f58575df6ed6a95c131a"
+    },
+    {
+      "argv": [
+        "/tmp/hinstall-cp020-browser-attempt1/environment/bin/python",
+        "-I",
+        "-B",
+        "-m",
+        "pip",
+        "check"
+      ],
+      "cwd": "/tmp/hinstall-cp020-browser-attempt1",
+      "started_at_utc": "2026-10-25T20:19:58.746949+00:00",
+      "exit_code": 0,
+      "duration_seconds": 0.5659623760002432,
+      "log": "/tmp/hinstall-cp020-browser-attempt1/reports/command-9.log",
+      "log_sha256": "9261363b733079a641c2e4cc9bc46ffa1d8336945a87f807b6cf68847dbc9b09"
+    },
+    {
+      "argv": [
+        "/tmp/hinstall-cp020-browser-attempt1/environment/bin/python",
+        "-I",
+        "-B",
+        "-c",
+        "import sysconfig; print(sysconfig.get_path('purelib'))"
+      ],
+      "cwd": "/tmp/hinstall-cp020-browser-attempt1",
+      "started_at_utc": "2026-10-25T20:19:59.313178+00:00",
+      "exit_code": 0,
+      "duration_seconds": 0.06469547100005002,
+      "log": "/tmp/hinstall-cp020-browser-attempt1/reports/command-10.log",
+      "log_sha256": "9c6689515ca06c073e4f6ae01a8be5e026376c98c129f11123e831b7a40bfc90"
+    },
+    {
+      "argv": [
+        "/usr/bin/node",
+        "/tmp/hinstall-cp020-browser-attempt1/check_prerequisite_upload_browser.cjs",
+        "/tmp/hinstall-cp020-browser-attempt1/fixture/url.txt",
+        "/tmp/hinstall-cp020-browser-attempt1/fixture",
+        "/tmp/hinstall-cp020-browser-attempt1/reports/browser"
+      ],
+      "cwd": "/tmp/hinstall-cp020-browser-attempt1",
+      "started_at_utc": "2026-10-25T20:20:00.592431+00:00",
+      "exit_code": 0,
+      "duration_seconds": 20.805756101000043,
+      "log": "/tmp/hinstall-cp020-browser-attempt1/reports/command-11.log",
+      "log_sha256": "65d15dda1656b1456104ccb98c9ea5708b2692339c76dcdb92c371021c7936a6"
+    }
+  ],
+  "environment": {
+    "python": "3.14.3 (main, Apr  7 2026, 02:23:36) [GCC 12.2.0]",
+    "platform": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+    "browser_path": "/usr/bin/chromium",
+    "venv_system_site_packages": false
+  },
+  "work_dir": "/tmp/hinstall-cp020-browser-attempt1",
+  "source_commit": "4d6282dc4d983822e952c3b2c9cfb75eacbc7eae",
+  "source_tree": "31ae45358ba93386773c2b92b9bbbb7404e9b43f",
+  "source_status": [
+    " M INSTALLER_API.md",
+    " M api/openapi.yaml",
+    " M homensai_install/api/resources/INSTALLER_API.md",
+    " M homensai_install/api/resources/openapi.yaml",
+    " M homensai_install/gui.py",
+    " M homensai_install/wizard/app.js",
+    " M homensai_install/wizard/locales.json",
+    " M homensai_install/wizard/style.css",
+    " M tests/js/wizard_prerequisites.cjs",
+    " M tests/test_prerequisites_projection.py",
+    " M tests/test_wizard_prerequisite_ui.py",
+    " M tests/test_wizard_prerequisites.py",
+    "?? docs/PREREQUISITES_LOCAL_ARTIFACTS.md",
+    "?? homensai_install/local_artifacts.py",
+    "?? integration_tests/test_local_artifact_upload_http.py",
+    "?? packaging/acceptance-evidence/local-upload-ui-20261025-cp020.json",
+    "?? packaging/acceptance-evidence/local-upload-ui-wrapper-20261025-cp020.json",
+    "?? packaging/check_prerequisite_upload_browser.cjs",
+    "?? packaging/check_prerequisite_upload_browser.py",
+    "?? packaging/prerequisite_upload_browser_fixture.py",
+    "?? tests/test_local_artifacts.py",
+    "?? tests/test_wizard_local_artifacts.py"
+  ],
+  "source_diff_sha256": "ae131e53d06ad9647a142653019b2ebafd9caab8f0f666a672c46a178b6ed9b7",
+  "source_package_files": {
+    "homensai_install/__init__.py": "23319568614d158aa4b9d9d38fb824f4fca7d6cf941647536d5e25dd2d86b366",
+    "homensai_install/__main__.py": "935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d",
+    "homensai_install/adapters.py": "92642dc09410ac92bf205dc849551c5cd4e16da66c03a31fc7090cbf6ae93092",
+    "homensai_install/api/__init__.py": "d90cb75adf5f560ed2bc563961e22c71a3254dfc9fd68c8996acf51e8adf240e",
+    "homensai_install/api/journal.py": "e7e0e71fb6576847639871dbf1ac7bb7b7842c0be2a886460250afec5914c801",
+    "homensai_install/api/model.py": "ae38ba380cdef51a1c4955511953c6f7c9696e6996b8c3be6ee2e9e44cd56c82",
+    "homensai_install/api/resources/INSTALLER_API.md": "88c1c8aafe30244d9197fe1b3e685467694db0200d28e75d03f1473ef143a18b",
+    "homensai_install/api/resources/INTEGRATION_GUIDE.md": "65785f7f96ca257442d7b0031b82b2d0efec10f30134129201a9bf07a4827919",
+    "homensai_install/api/resources/discovery.json": "58fe0b3f88d4880858db3eabfdb085a329fad3e47de8a65c71f714e98957e5dd",
+    "homensai_install/api/resources/openapi.yaml": "918ac80d3fab0a9a7adf28d58f24ea1db1c1b6258315a33805fcb28224468574",
+    "homensai_install/api/schemas/event.schema.json": "98d27aea1422ab94df888fee3ac6d7bdc56f7a5bcec55c2139113017a5da4767",
+    "homensai_install/api/schemas/normalized.schema.json": "0377695226479804b3f9e9cb7543ad1941261bcbafef92f810367cb761baaaea",
+    "homensai_install/api/schemas/operation.schema.json": "f6d6a8969df040eab98b03fcc5625da8fd53107c72f989d0d379da03c70788f6",
+    "homensai_install/api/schemas/plan.schema.json": "13d603c20072f31cfca9f4690748661faaa3d6c33a37439394901dc877beed11",
+    "homensai_install/api/schemas/request.schema.json": "2aa3d8bf2a66a78519833468919da1504221f1bbe587dd19ebac2dab57127ca2",
+    "homensai_install/api/v1.py": "1ffd4bc53acf50ec230b4974eba01e01b31fe9108ab3deb61e1bff9d4cee301f",
+    "homensai_install/backends.py": "24c2cd89f48e9f64f580274c46d5d2d058bde4ea1913cf1bb6ce94cac08833f3",
+    "homensai_install/catalog/errors.v1.json": "33288134e406a1907e83cf0d06682a780346ccddb1a354ab900a858e8d3e4582",
+    "homensai_install/cli.py": "50ba071b46b0e9b530b3f5233afcd9790758d241db7257760d64e2b02499762e",
+    "homensai_install/diagnostics.py": "66a62f6b6adf73d1be149b3033703d977bb2b7bf08295844ddaff4d3b014950f",
+    "homensai_install/docker_cli.py": "8d98f92855f35126231cb2cf3f7be6208552e7cc14c5a9d70287ceb9fe5bf44b",
+    "homensai_install/docker_commands.py": "01e40bad589ee59028cc391fc15a9ef63faf05719ac9069243ddd10e3aa52dd0",
+    "homensai_install/docker_contract.py": "dcc843afa3863336c2ececeb5dd37448bfdf3abbdec84c6e5ffd8ef0dbd92ea9",
+    "homensai_install/docker_engine.py": "a769728394f8bf144cdd077443cb3a93820ed117c0acff23bd82750c7ad47d6e",
+    "homensai_install/docker_lifecycle.py": "b9c5269ea0fd45fb91bd8c2399fe34cd37ad936c7abe6f8d031e04838a1bb210",
+    "homensai_install/downloads.py": "a2775a7e9fd8c3d1c23ed167d7104310f068095901843fe1c0567d3da1936bba",
+    "homensai_install/engine.py": "6bd75a3922d983dba8c30bb463052e7f3bb0ac76ca3b239845d366650b25e284",
+    "homensai_install/errors.py": "05f438a1ed6439cb0886248ed24251a08915353db5538307d7f2497fe5cd5cca",
+    "homensai_install/execution_lease.py": "093f6c0d8f54a543064c8e00cb8a92d8323377e3a77c88b55d1044e4662ed3c5",
+    "homensai_install/gui.py": "fa5ac75bc626c6e58a5b043fb47baa775ff3cb0f3a5c328fb1bea77ff025799c",
+    "homensai_install/i18n.py": "cc4ae69d3fc6d2473b9080c2f662a516c584736ac9564ea34eb62ba3e619fe94",
+    "homensai_install/local_artifacts.py": "ca501888999b4fd79004b593f4f02248b33474f0dde293efe1c27c422a45340b",
+    "homensai_install/locales/de.json": "fd5d69d44e555fc5731cc6ac04a335f8dea4e545e7c9ee52b8a8b45dee998586",
+    "homensai_install/locales/en.json": "4449b590485850d1c89b7208d1b106dcb5bf350d2ffe284157d7ec9bcaa5311f",
+    "homensai_install/locales/ru.json": "e2b43560348c45b66f2cde81252f7fe2bcd41b968f067a6dde4f4e7cda2f3904",
+    "homensai_install/prerequisite_async.py": "acc27592d3dea208043938067518e9d6054421d4036b6c3ad7569a80403e168a",
+    "homensai_install/prerequisite_catalog.py": "78b865a4f707faafa03453edb871a46b07a57ecdb609fb604b405b0736aef538",
+    "homensai_install/prerequisite_execution.py": "ec08c3ceb5e15e32d8fd8b34f7bc0654a107098617a1f3cc3362e4f53d9c598e",
+    "homensai_install/prerequisite_progress.py": "a6f04e2260d6ad9c42198b712bcfffd1e1b0cc86d0125b6f12664904d7922b85",
+    "homensai_install/prerequisite_runner.py": "e7b1d681f02400c04c129b6d5e0adc73f68352ea68deb7bd6f59c85e598675c2",
+    "homensai_install/prerequisite_state.py": "d26a5b83f332a9633e9037ad909092691e5d8889f1da6075d5f0f00dce4f5789",
+    "homensai_install/prerequisites.py": "f3c5b4a3ee32d2fa06429a83933089a850a537dd4b965e5de7fa28e0bb99f1bd",
+    "homensai_install/scaffold.py": "91c5e6e1beed4affe834e20f0b66555c5873b9af527fe3476d1c6c9c7cd64c42",
+    "homensai_install/service_contracts.py": "631cffe0a01936875214550d12cc94e95a1b3125ca179fcbb040a7fd8d66309c",
+    "homensai_install/service_manager.py": "f37f2f3cb16d118e95b25fd76ab26029e5e02f2798445711e48fd32671742c5e",
+    "homensai_install/service_systemd.py": "ba84ef1b3bce03f6d75974c877ebb93e3dc547100336c043be20cc2e6924c190",
+    "homensai_install/trust.py": "a6e3db84ad9f9d0380b72c89856a6d03eed2b48227f3e41d16c7a8d1270ac31a",
+    "homensai_install/wizard/app.js": "c9fca5cf005c92d8b968cb4b102e101c50bc7ba84fc2bd3c7cc7e6d4ea50d9f7",
+    "homensai_install/wizard/index.html": "d74c895868de6428c6d431a16b8f7a05d932884f59934492d0bee18bce87bf2d",
+    "homensai_install/wizard/locales.json": "3de7506e6c5481f8ac021f699b6ff421b668fa5feec17834dbc4d3153bbbbb92",
+    "homensai_install/wizard/style.css": "dec992ced7a2976b04e4a7e491ee1fb151423faca2b1841480c3ce3f138c5386",
+    "shared/__init__.py": "a1fbf3cc018b4067361b81154240dafecbb3a8bcaaa7dc40616cf50028b8f620",
+    "shared/adapters_docker.py": "49eca8dca5442a3a04cba8aaf1dbd567fb51f2080056bcc481adbd205d373475",
+    "shared/adapters_fs.py": "eecd85a7e7ffc7fedb02cbd7c11efeb5d78a3831c61910b7209f1afea845cdee",
+    "shared/archive.py": "8fe1608c7b32cbf4a68a3f4dea5c51754b9f3a76a1fd7f7441532e2925074ff1",
+    "shared/archive_crypto.py": "373c324e8e91e3f1a913bf21df8d75bce305b090890daefebc5aa9a981ad071d",
+    "shared/ctl.py": "578703a8501c179c3467ca93cbd63e140a8305a59d661465f7677aa8dc18abe7",
+    "shared/datahome.py": "d098a741fad91d3f049142e562888dcec1ab81b26122177b2b03f2383c85a0f8",
+    "shared/doctor.py": "4219979e3a6272035cb73136a66eb0495f89e1a5fdd074476dfadac8a052c2ec",
+    "shared/linux_sh.py": "bd2879348370345d1082f23aea81f82896f4ea223c70d53c4fc0c9c315009e4d",
+    "shared/manifest.py": "9de8092a5f78d27d3f49cbde8ef02fd364edf117d1673c35a364110a209976a3",
+    "shared/manifest.schema.json": "a8fce321b4621836558b23d171d4861cb0434b27c25f58e285a8a098b9ef797a",
+    "shared/render_docker.py": "c052cf877c70627f5a1e91b58e42c306f7f8d25317b711514a40a47fbb49fae0",
+    "shared/services.py": "e2b0c76b293ea647b507f0eb99a48020b51b0a1311456559ce5123906ee294ac",
+    "shared/update_plan.py": "57b76249ae4d2dd172c01b967e12c0f03946e353d501f3cd85ed603eb26a37d3",
+    "shared/windows_ps.py": "23a38271ad1f760baa4e7ad425fa70fa734100f8f407345891a0e58638aa1944"
+  },
+  "source_package_digest": "5430f54f3076f015fa8f278fc94d43b95d962540671a790bafd475bdc8745ea2",
+  "wheel": {
+    "name": "homensai_install_module-0.1.0-py3-none-any.whl",
+    "sha256": "2c7fea86b7aa4ae2803cce7101c2e8fe2166335825cf2b90c1497e1a9a7b0e94",
+    "exact_files_checked": 66
+  },
+  "dependencies": [
+    {
+      "name": "cryptography",
+      "version": "50.0.2",
+      "filename": "cryptography-50.0.2-cp311-abi3-manylinux_2_34_x86_64.whl",
+      "sha256": "9dab55f57c74c3cad24c323bacbbd04be4705ba6eb0d92e920b1fc4837ed5079"
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1",
+      "filename": "cffi-2.1.1-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "sha256": "b0431303acaea1089ad4b3e9ce4e6518193def1118d4073ca848635ee4ea2e96"
+    },
+    {
+      "name": "pycparser",
+      "version": "3.12",
+      "filename": "pycparser-3.12-py3-none-any.whl",
+      "sha256": "a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e"
+    }
+  ],
+  "scripts": {
+    "prerequisite_upload_browser_fixture.py": "1cb4b7fe8bd9c695708891283f6164558ea7db7a262252be4ba12b95606943bb",
+    "check_prerequisite_upload_browser.cjs": "a036368c89543d73f7fafa32e218b8ad72b0d720ef04486644023f6faf65e6d6"
+  },
+  "manifest_template_sha256": "331c4784795844d2da485f7f93513adff1267ef26e7429cdd2d20630680aa301",
+  "server": {
+    "argv": [
+      "/tmp/hinstall-cp020-browser-attempt1/environment/bin/python",
+      "-I",
+      "-B",
+      "/tmp/hinstall-cp020-browser-attempt1/prerequisite_upload_browser_fixture.py",
+      "--work-dir",
+      "/tmp/hinstall-cp020-browser-attempt1/fixture",
+      "--manifest-template",
+      "/tmp/hinstall-cp020-browser-attempt1/manifest-template.json",
+      "--checkout",
+      "/workspace"
+    ],
+    "cwd": "/tmp/hinstall-cp020-browser-attempt1"
+  },
+  "browser": {
+    "schema_version": 1,
+    "status": "PASS",
+    "started_at_utc": "2026-10-25T20:20:03.047Z",
+    "finished_at_utc": "2026-10-25T20:20:21.312Z",
+    "scope": "Actual headless Chromium on installed wheel, Linux x64 Docker; signed synthetic prerequisite; ru/en/de. Not Windows/Ubuntu clean-host/frozen/full lifecycle acceptance.",
+    "task_ids": [
+      "HIM-033",
+      "HIM-029",
+      "HIM-035",
+      "HIM-102",
+      "HIM-062",
+      "HIM-063"
+    ],
+    "scenario_ids": [
+      "ACC-05",
+      "ACC-07",
+      "ACC-08",
+      "ACC-16",
+      "ACC-23"
+    ],
+    "ledger": {
+      "installer_calls": [],
+      "transport_calls": [],
+      "product_calls": [],
+      "denied": []
+    },
+    "browser_version": "156.0.8078.47",
+    "harness_sha256": "a036368c89543d73f7fafa32e218b8ad72b0d720ef04486644023f6faf65e6d6",
+    "fixture": {
+      "scope": "Linux Docker synthetic browser upload; installed wheel; no real OS installer/product lifecycle",
+      "module_origins": {
+        "homensai_install": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/__init__.py",
+        "shared": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/shared/__init__.py",
+        "shared.manifest": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/shared/manifest.py",
+        "homensai_install.api.model": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/api/model.py",
+        "homensai_install.api.journal": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/api/journal.py",
+        "homensai_install.api.v1": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/api/v1.py",
+        "homensai_install.api": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/api/__init__.py",
+        "homensai_install.i18n": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/i18n.py",
+        "homensai_install.errors": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/errors.py",
+        "homensai_install.downloads": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/downloads.py",
+        "shared.datahome": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/shared/datahome.py",
+        "shared.archive": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/shared/archive.py",
+        "shared.archive_crypto": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/shared/archive_crypto.py",
+        "shared.services": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/shared/services.py",
+        "shared.update_plan": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/shared/update_plan.py",
+        "shared.adapters_fs": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/shared/adapters_fs.py",
+        "homensai_install.engine": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/engine.py",
+        "homensai_install.backends": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/backends.py",
+        "homensai_install.local_artifacts": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/local_artifacts.py",
+        "homensai_install.trust": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/trust.py",
+        "homensai_install.gui": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/gui.py",
+        "homensai_install.prerequisites": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/prerequisites.py",
+        "homensai_install.prerequisite_catalog": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/prerequisite_catalog.py",
+        "homensai_install.prerequisite_runner": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/prerequisite_runner.py",
+        "homensai_install.prerequisite_progress": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/prerequisite_progress.py",
+        "homensai_install.prerequisite_state": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/prerequisite_state.py",
+        "homensai_install.prerequisite_execution": "/tmp/hinstall-cp020-browser-attempt1/environment/lib/python3.14/site-packages/homensai_install/prerequisite_execution.py"
+      },
+      "payload_files": {
+        "installer/prerequisites.json": "f7fe20c3a4ccfd41b220e5d105ba0440480d6e16a084cf563e87a757fb533ac0",
+        "legal/de.txt": "319eaae6db63b101bd4debb6fa4c8c0685f999ad45d44f27d869fc75e59e3a27",
+        "legal/en.txt": "85b8dafd77be726705e4cb8b3df8a7d0f6e5f3f23a6a8444093bc3d50396f537",
+        "legal/ru.txt": "ae829a61d837a9d16a78a124d336c22aa0d4049aab63ad3886f423c9af33d278",
+        "licenses/base.txt": "7acf4ecd580b8a51c1bee3f6f161b2c3b5c6cac19ccd52ddc8bdbbc2d7a9cf0d",
+        "runtime": "13435e11e15c822edd9597dad401ff6d441f71e1c36cf03ac60235a2101536ed"
+      },
+      "artifact": {
+        "artifact_id": "base-package",
+        "size": 1048619,
+        "sha256": "06dcba0d026ca613eb214a0066ee2b18759b19158289e011721b91363591c1a4"
+      },
+      "manifest_sha256": "97d94e1b13d58a16689344b6de8f62f6fd182d9e8277d0553f52a0654f0a1333",
+      "target": {
+        "os": "linux",
+        "arch": "x64",
+        "mode": "native",
+        "scope": "user"
+      },
+      "production_ready": false
+    },
+    "cases": [
+      {
+        "locale": "ru",
+        "scenario": "wrong-size-no-transfer",
+        "status": "PASS",
+        "shown": "Файл отклонён: его размер не совпадает с подписанным каталогом. Передача не начиналась."
+      },
+      {
+        "locale": "ru",
+        "scenario": "wrong-hash-server-refusal",
+        "status": "PASS",
+        "shown": "Передача или проверка файла не завершилась. Повторите её либо выберите другой файл. Установка не запускалась."
+      },
+      {
+        "locale": "ru",
+        "scenario": "network-fault-injection-no-install",
+        "status": "PASS"
+      },
+      {
+        "locale": "ru",
+        "scenario": "keyboard-cancel-held-request",
+        "status": "PASS",
+        "shown": "Передача прервана. Файл можно передать заново. Установка не запускалась."
+      },
+      {
+        "locale": "ru",
+        "scenario": "verified-file-new-plan-still-consent-required",
+        "status": "PASS",
+        "plan_digest": "9582bef39270a24b881127da7eee1cf6c3e075292abd4f6023b1201651128f42",
+        "artifact_sha256": "06dcba0d026ca613eb214a0066ee2b18759b19158289e011721b91363591c1a4"
+      },
+      {
+        "locale": "ru",
+        "scenario": "200percent-css-zoom-keyboard-focus",
+        "status": "PASS",
+        "screenshot": "upload-verified-ru-200percent.png",
+        "screenshot_sha256": "d584003d3ba96361c583283151eca15c5673e9e2b644376757821ff0cf8f9cbc"
+      },
+      {
+        "locale": "ru",
+        "scenario": "reload-requires-explicit-reselection",
+        "status": "PASS"
+      },
+      {
+        "locale": "ru",
+        "scenario": "reopen-no-implicit-install",
+        "status": "PASS",
+        "post_count": 18
+      },
+      {
+        "locale": "en",
+        "scenario": "wrong-size-no-transfer",
+        "status": "PASS",
+        "shown": "File rejected: its size does not match the signed catalog. No upload started."
+      },
+      {
+        "locale": "en",
+        "scenario": "wrong-hash-server-refusal",
+        "status": "PASS",
+        "shown": "The file upload or verification did not finish. Retry or choose another file. No installation has started."
+      },
+      {
+        "locale": "en",
+        "scenario": "network-fault-injection-no-install",
+        "status": "PASS"
+      },
+      {
+        "locale": "en",
+        "scenario": "keyboard-cancel-held-request",
+        "status": "PASS",
+        "shown": "Upload interrupted. You can upload the file again. No installation has started."
+      },
+      {
+        "locale": "en",
+        "scenario": "verified-file-new-plan-still-consent-required",
+        "status": "PASS",
+        "plan_digest": "4d3a9252c6e1e7fec0d5ff52b123beb44c6d2ec504cf2c48ac823ec2b8ba9ab5",
+        "artifact_sha256": "06dcba0d026ca613eb214a0066ee2b18759b19158289e011721b91363591c1a4"
+      },
+      {
+        "locale": "en",
+        "scenario": "200percent-css-zoom-keyboard-focus",
+        "status": "PASS",
+        "screenshot": "upload-verified-en-200percent.png",
+        "screenshot_sha256": "4865a58394d2b30b892a4b8f702990fa57d841250a5f85fdf3cbdc8d336664d0"
+      },
+      {
+        "locale": "en",
+        "scenario": "reload-requires-explicit-reselection",
+        "status": "PASS"
+      },
+      {
+        "locale": "en",
+        "scenario": "reopen-no-implicit-install",
+        "status": "PASS",
+        "post_count": 18
+      },
+      {
+        "locale": "de",
+        "scenario": "wrong-size-no-transfer",
+        "status": "PASS",
+        "shown": "Datei abgelehnt: Ihre Größe stimmt nicht mit dem signierten Katalog überein. Die Übertragung wurde nicht gestartet."
+      },
+      {
+        "locale": "de",
+        "scenario": "wrong-hash-server-refusal",
+        "status": "PASS",
+        "shown": "Die Dateiübertragung oder Prüfung wurde nicht abgeschlossen. Versuchen Sie es erneut oder wählen Sie eine andere Datei. Es wurde keine Installation gestartet."
+      },
+      {
+        "locale": "de",
+        "scenario": "network-fault-injection-no-install",
+        "status": "PASS"
+      },
+      {
+        "locale": "de",
+        "scenario": "keyboard-cancel-held-request",
+        "status": "PASS",
+        "shown": "Übertragung unterbrochen. Sie können die Datei erneut übertragen. Es wurde keine Installation gestartet."
+      },
+      {
+        "locale": "de",
+        "scenario": "verified-file-new-plan-still-consent-required",
+        "status": "PASS",
+        "plan_digest": "cc61bd3595071a82d5c8f38dae7c0461664ccf102e198ed24f0de263ece1aa25",
+        "artifact_sha256": "06dcba0d026ca613eb214a0066ee2b18759b19158289e011721b91363591c1a4"
+      },
+      {
+        "locale": "de",
+        "scenario": "200percent-css-zoom-keyboard-focus",
+        "status": "PASS",
+        "screenshot": "upload-verified-de-200percent.png",
+        "screenshot_sha256": "9a3764cea97402c624218c22f5b81eb6bbbe34d6083456069b4cbba5a0acc9db"
+      },
+      {
+        "locale": "de",
+        "scenario": "reload-requires-explicit-reselection",
+        "status": "PASS"
+      },
+      {
+        "locale": "de",
+        "scenario": "reopen-no-implicit-install",
+        "status": "PASS",
+        "post_count": 18
+      }
+    ],
+    "browser_errors": [],
+    "external_requests": [],
+    "not_run": [
+      "Real OS installer",
+      "Full product lifecycle",
+      "Windows11",
+      "Actual browser zoom toolbar",
+      "Reboot/relogin",
+      "Production catalog/signing"
+    ],
+    "production_ready": false
+  },
+  "installed_package_and_dependencies_unchanged": true,
+  "package_source_unchanged": true,
+  "fixture_server_stopped": true,
+  "server_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "finished_at_utc": "2026-10-25T20:20:22.497104+00:00"
+}

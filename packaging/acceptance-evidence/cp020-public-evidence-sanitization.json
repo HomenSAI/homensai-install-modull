@@ -1,0 +1,41 @@
+{
+  "checkpoint": "CP-20261025-020",
+  "files": [
+    {
+      "path": "packaging/acceptance-evidence/cp019-source-attempt1.xml",
+      "raw_sha256": "0ce37276aa4da6ec137a5aedadbcebefe467bd2579d8bf10ab3c5f19ac01e484",
+      "published_sha256": "4199c2f19f31071f6fb08edef61af5cc4f1659972dcf1c09118401fd1ee7c03c",
+      "reason": "Синтетический parameter теста совпадает с секретным шаблоном; raw build logs сохранены без изменения."
+    },
+    {
+      "path": "packaging/acceptance-evidence/cp019-source-attempt2-interrupted.xml",
+      "raw_sha256": "e87bf3283bd95c5c17e5d50a273728de9202273a537a14b17e262ed11d407d52",
+      "published_sha256": "bf0ca2fd9ee91bdbb2391dc758cc67be46ed751c457668fcc7d64fa51eb23b2d",
+      "reason": "Синтетический parameter теста совпадает с секретным шаблоном; raw build logs сохранены без изменения."
+    },
+    {
+      "path": "packaging/acceptance-evidence/cp019-source-attempt3.xml",
+      "raw_sha256": "c09ae46a77351bcf1510b4379d8fa68289907d5db37e02765adfbc7f35b22a13",
+      "published_sha256": "84fc756a4f8383e87ddcbfe4c82ae0a53829a2c8a3ef2ba793b38d9c9b57c628",
+      "reason": "Синтетический parameter теста совпадает с секретным шаблоном; raw build logs сохранены без изменения."
+    },
+    {
+      "path": "packaging/acceptance-evidence/cp019-windows-full.xml",
+      "raw_sha256": "ae684d295b7f8147628b623594d89245c67e910a3269755b2d18dd7630808ab9",
+      "published_sha256": "5f05fba6f943336cc6ea8b6f538ebb31e5c14dfc1c7cc422ee6a6a3a56721a6f",
+      "reason": "Синтетический parameter теста совпадает с секретным шаблоном; raw build logs сохранены без изменения."
+    },
+    {
+      "path": "packaging/acceptance-evidence/cp020-source-before-fixes.xml",
+      "raw_sha256": "5c455759f1130714ec9150a313d0d8e69ee46ea1cfd0d0afa769dfdab7fd67ac",
+      "published_sha256": "185e56fbeb1baafae9fc89dd8ed46584f9171b8fc87d17f84f414f1237d92f69",
+      "reason": "Синтетический parameter теста совпадает с секретным шаблоном; raw build logs сохранены без изменения."
+    },
+    {
+      "path": "packaging/acceptance-evidence/cp020-source-final.xml",
+      "raw_sha256": "d8664cd26f0907a1791da390732a6ff52adf560d707fb5d8348409e66937a3b6",
+      "published_sha256": "d571ca9850468aaea2ce8fb10a329a964e2bd18bf59b1fb0f1ce645817419f02",
+      "reason": "Синтетический parameter теста совпадает с секретным шаблоном; raw build logs сохранены без изменения."
+    }
+  ]
+}

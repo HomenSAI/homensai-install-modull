@@ -21,6 +21,7 @@ from .api.model import bounded_json, checked_id, digest
 from .backends import configured_backends
 from .errors import ErrorCatalog, InstallerError
 from .i18n import normalize_locale
+from .local_artifacts import LocalArtifactUploads, MAX_UPLOAD_BYTES
 from .trust import load_trust_config
 
 ASSETS = Path(__file__).with_name("wizard")
@@ -91,6 +92,7 @@ class WizardSession:
         self._prerequisite_observations = OrderedDict()
         self._prerequisite_inflight = set()
         self._prerequisite_binding = self._bind_prerequisites()
+        self._local_uploads = LocalArtifactUploads(api.state_dir)
 
     def _bind_prerequisites(self):
         """Только доверенный bootstrap; один раз сравнить полные signed bytes."""
@@ -252,8 +254,41 @@ class WizardSession:
                         "http_transport": True, "gui_auto_flow": False, "production_ready": False}
             binding = self._prerequisites_bound(mode)
             return {**api.prerequisites_capabilities(), "binding": binding, "http_transport": True,
-                    "gui_auto_flow": True, "durable_byte_progress": True, "production_ready": False}
+                    "gui_auto_flow": True, "durable_byte_progress": True,
+                    "local_artifact_upload": True, "local_upload_max_bytes": MAX_UPLOAD_BYTES,
+                    "production_ready": False}
         self._prerequisites_bound()
+        if method == "POST" and path == "/prerequisites/uploads":
+            self._query(query, set())
+            self._fields(body, {"plan_id", "plan_digest", "component_id", "artifact_id"},
+                         {"plan_id", "plan_digest", "component_id", "artifact_id"})
+            checked_id(body["plan_id"], field="plan_id")
+            if any(type(body[key]) is not str for key in ("component_id", "artifact_id", "plan_digest")):
+                raise InstallerError("INVALID_REQUEST")
+            with self._lock:
+                stored = deepcopy(self._prerequisite_plans.get(body["plan_id"]))
+            if stored is None:
+                raise InstallerError("PLAN_NOT_FOUND")
+            if (stored["plan"]["plan_digest"] != body["plan_digest"]
+                    or stored["generation"] != self._review_generation):
+                raise InstallerError("PLAN_STALE")
+            for component in stored["plan"]["components"]:
+                if component["component_id"] != body["component_id"] or component["choice"] != "auto":
+                    continue
+                for artifact in component["artifacts"]:
+                    if artifact["artifact_id"] == body["artifact_id"]:
+                        return self._local_uploads.create(component["component_id"], artifact,
+                                                          binding=deepcopy(self._prerequisite_binding))
+            raise InstallerError("INVALID_REQUEST")
+        if path.startswith("/prerequisites/uploads/"):
+            self._query(query, set())
+            self._fields(body, set())
+            parts = path.strip("/").split("/")
+            if method == "GET" and len(parts) == 3:
+                return self._local_uploads.status(parts[2])
+            if method == "POST" and len(parts) == 4 and parts[3] == "cancel":
+                return self._local_uploads.cancel(parts[2])
+            raise InstallerError("INVALID_REQUEST")
         if method == "GET" and path.startswith("/prerequisites/licenses/"):
             self._query(query, set())
             component = path.removeprefix("/prerequisites/licenses/")
@@ -262,7 +297,7 @@ class WizardSession:
             return api.prerequisites_license(component)
         if method == "POST" and path == "/prerequisites/plans":
             self._query(query, set())
-            self._fields(body, {"mode", "locale", "choices", "offline"})
+            self._fields(body, {"mode", "locale", "choices", "offline", "local_uploads"})
             mode = body.get("mode", "native")
             if type(mode) is not str or mode not in {"native", "docker"} or body.get("locale", self.locale) not in LOCALES:
                 raise InstallerError("INVALID_REQUEST")
@@ -272,22 +307,27 @@ class WizardSession:
                 generation = self._review_generation
             # Full signature reads/discovery run outside the session mutex.
             terms = self.terms(locale, mode)
-            plan = api.prerequisites_plan(body.get("choices"), locale=locale, offline=body.get("offline", False))
-            for key in ("product_id", "owner_id", "target", "catalog_digest"):
-                if plan.get(key) != self._prerequisite_binding[key]:
-                    raise InstallerError("PLAN_STALE")
-            plan_id, operation_id = "prereqplan_" + uuid.uuid4().hex, "prep_" + uuid.uuid4().hex
-            stored = {"plan_id": plan_id, "operation_id": operation_id, "plan": deepcopy(plan),
-                      "terms_digest": terms["digest"], "generation": generation}
-            with self._lock:
-                if generation != self._review_generation:
-                    raise InstallerError("PLAN_STALE")
-                self._prerequisite_plans[plan_id] = stored
-                while len(self._prerequisite_plans) > MAX_PREREQUISITE_PLANS:
-                    self._prerequisite_plans.popitem(last=False)
-            return {"plan_id": plan_id, "operation_id": operation_id, "plan_digest": plan["plan_digest"],
-                    "plan": plan, "terms_digest": terms["digest"], "locale": locale,
-                    "production_ready": False}
+            uploads = body.get("local_uploads", {})
+            with self._local_uploads.selection(uploads, binding=self._prerequisite_binding) as local:
+                plan = api.prerequisites_plan(body.get("choices"), locale=locale, offline=body.get("offline", False),
+                                             local_artifacts=local)
+                for key in ("product_id", "owner_id", "target", "catalog_digest"):
+                    if plan.get(key) != self._prerequisite_binding[key]:
+                        raise InstallerError("PLAN_STALE")
+                plan_id, operation_id = "prereqplan_" + uuid.uuid4().hex, "prep_" + uuid.uuid4().hex
+                stored = {"plan_id": plan_id, "operation_id": operation_id, "plan": deepcopy(plan),
+                          "terms_digest": terms["digest"], "generation": generation}
+                with self._lock:
+                    if generation != self._review_generation:
+                        raise InstallerError("PLAN_STALE")
+                    self._prerequisite_plans[plan_id] = stored
+                    self._local_uploads.retain(uploads)
+                    while len(self._prerequisite_plans) > MAX_PREREQUISITE_PLANS:
+                        self._prerequisite_plans.popitem(last=False)
+                public_plan = {**plan, "local_artifacts": dict(uploads)}
+                return {"plan_id": plan_id, "operation_id": operation_id, "plan_digest": plan["plan_digest"],
+                        "plan": public_plan, "terms_digest": terms["digest"], "locale": locale,
+                        "production_ready": False}
         if method == "POST" and path == "/prerequisites/operations":
             self._query(query, set())
             stored, refs = self._prerequisite_review(body)
@@ -373,6 +413,15 @@ class WizardSession:
                         with self._lock:
                             self._prerequisite_inflight.discard(operation_id)
         raise InstallerError("CAPABILITY_UNSUPPORTED")
+
+    def receive_local_artifact(self, path, query, stream, length):
+        """Authenticated HTTP handler only; never receives a browser file path."""
+        self._prerequisites_bound()
+        self._query(query, set())
+        parts = path.strip("/").split("/")
+        if len(parts) != 4 or parts[:2] != ["prerequisites", "uploads"] or parts[3] != "content":
+            raise InstallerError("INVALID_REQUEST")
+        return self._local_uploads.receive(parts[2], stream, length, binding=self._prerequisite_binding)
 
     def secret(self, reference):
         with self._lock:
@@ -664,10 +713,10 @@ def create_server(session: WizardSession, *, port=0):
 
         def handle_request(self):
             expected = f"127.0.0.1:{self.server.server_port}"
-            if self.headers.get("Host") != expected:
+            if len(self.headers.get_all("Host", [])) != 1 or self.headers.get("Host") != expected:
                 return self.send(403, {"error": {"code": "INVALID_REQUEST"}})
             origin = self.headers.get("Origin")
-            if origin and origin != "http://" + expected:
+            if len(self.headers.get_all("Origin", [])) > 1 or (origin and origin != "http://" + expected):
                 return self.send(403, {"error": {"code": "INVALID_REQUEST"}})
             if self.headers.get("Sec-Fetch-Site") == "cross-site":
                 return self.send(403, {"error": {"code": "INVALID_REQUEST"}})
@@ -679,7 +728,7 @@ def create_server(session: WizardSession, *, port=0):
                 file, kind = static[parsed.path]
                 return self.send(200, (ASSETS / file).read_bytes(), kind)
             token = self.headers.get("X-HInstall-Token", "")
-            if not secrets.compare_digest(token, session.token):
+            if len(self.headers.get_all("X-HInstall-Token", [])) != 1 or not secrets.compare_digest(token, session.token):
                 return self.send(403, {"error": {"code": "PERMISSION_REQUIRED"}})
             if not parsed.path.startswith("/api/v1/"):
                 return self.send(404, {"error": {"code": "INVALID_REQUEST"}})
@@ -688,9 +737,20 @@ def create_server(session: WizardSession, *, port=0):
                 if self.command == "POST":
                     if self.headers.get("Transfer-Encoding") or len(self.headers.get_all("Content-Length", [])) != 1:
                         raise InstallerError("INVALID_REQUEST")
+                    length_text = self.headers.get("Content-Length", "")
+                    if not length_text.isascii() or not length_text.isdecimal() or len(length_text) > 20:
+                        raise InstallerError("INVALID_REQUEST")
+                    length = int(length_text)
+                    relative_path = parsed.path[len("/api/v1"):]
+                    if relative_path.startswith("/prerequisites/uploads/") and relative_path.endswith("/content"):
+                        if (len(self.headers.get_all("Content-Type", [])) != 1
+                                or self.headers.get("Content-Type") != "application/octet-stream"):
+                            raise InstallerError("INVALID_REQUEST")
+                        result = session.receive_local_artifact(relative_path,
+                            parse_qs(parsed.query, keep_blank_values=True, max_num_fields=20), self.rfile, length)
+                        return self.send(200, {"api_version": "1", "result": result})
                     if self.headers.get_content_type() != "application/json":
                         raise InstallerError("INVALID_REQUEST")
-                    length = int(self.headers.get("Content-Length", "0"))
                     if not 0 < length <= MAX_BODY:
                         raise InstallerError("INVALID_REQUEST")
                     body = _json(self.rfile.read(length))

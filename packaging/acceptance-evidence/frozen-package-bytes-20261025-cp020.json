@@ -1,0 +1,414 @@
+{
+  "checkpoint": "CP-20261025-020",
+  "status": "PASS",
+  "scope": "67 package files: frozen browser wheel, Windows source snapshot, current checkout and canonical Git filters byte agreement",
+  "package_files": 67,
+  "browser_and_windows_same": true,
+  "current_source_same": true,
+  "crlf_files": [],
+  "git_blob_comparison": [
+    {
+      "path": "homensai_install/__init__.py",
+      "raw_blob": "96358ec3b7678daaad37e69878e1214c8cfba630",
+      "canonical_blob": "96358ec3b7678daaad37e69878e1214c8cfba630",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/__main__.py",
+      "raw_blob": "eb53e2f31b2f703ad32ef64b8a41faa3e7d18e08",
+      "canonical_blob": "eb53e2f31b2f703ad32ef64b8a41faa3e7d18e08",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/adapters.py",
+      "raw_blob": "f5be9734d355c9c6f37b6c669b198b20e20bb862",
+      "canonical_blob": "f5be9734d355c9c6f37b6c669b198b20e20bb862",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/api/__init__.py",
+      "raw_blob": "dfa5188137525ae9cda9090797733f8733676edd",
+      "canonical_blob": "dfa5188137525ae9cda9090797733f8733676edd",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/api/journal.py",
+      "raw_blob": "6b89173756de833e04267c1b872d527acd4b7875",
+      "canonical_blob": "6b89173756de833e04267c1b872d527acd4b7875",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/api/model.py",
+      "raw_blob": "1100b36de0ad72ad78ed1bb7bc234529ef5fafc6",
+      "canonical_blob": "1100b36de0ad72ad78ed1bb7bc234529ef5fafc6",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/api/resources/INSTALLER_API.md",
+      "raw_blob": "5240abfbe69c5cbe52adf6578eff0c55524ee8e5",
+      "canonical_blob": "5240abfbe69c5cbe52adf6578eff0c55524ee8e5",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/api/resources/INTEGRATION_GUIDE.md",
+      "raw_blob": "cb8c32a73ceefdc66fb6cbf7da7ae895b1dad8aa",
+      "canonical_blob": "cb8c32a73ceefdc66fb6cbf7da7ae895b1dad8aa",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/api/resources/discovery.json",
+      "raw_blob": "9035f5f3e6f5f24f68971e5b4f7d7f36c4867017",
+      "canonical_blob": "9035f5f3e6f5f24f68971e5b4f7d7f36c4867017",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/api/resources/openapi.yaml",
+      "raw_blob": "7014abb863174740a9f4a8c1e15ad9a840b3b501",
+      "canonical_blob": "7014abb863174740a9f4a8c1e15ad9a840b3b501",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/api/schemas/event.schema.json",
+      "raw_blob": "0306dc5b1e444e84c6739bc09d57cc18346e8fff",
+      "canonical_blob": "0306dc5b1e444e84c6739bc09d57cc18346e8fff",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/api/schemas/normalized.schema.json",
+      "raw_blob": "990aaa2f75e59b18b0a6da07227217e81e02bcee",
+      "canonical_blob": "990aaa2f75e59b18b0a6da07227217e81e02bcee",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/api/schemas/operation.schema.json",
+      "raw_blob": "a2f563d3119bae1cf5768d2c65cb04fed8ecc780",
+      "canonical_blob": "a2f563d3119bae1cf5768d2c65cb04fed8ecc780",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/api/schemas/plan.schema.json",
+      "raw_blob": "ad021c0b92ff6a4c52a0aa477c7b28e2d0d1907b",
+      "canonical_blob": "ad021c0b92ff6a4c52a0aa477c7b28e2d0d1907b",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/api/schemas/request.schema.json",
+      "raw_blob": "8b6e06d38d8c30875e460cbecf73b84ae11b4583",
+      "canonical_blob": "8b6e06d38d8c30875e460cbecf73b84ae11b4583",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/api/v1.py",
+      "raw_blob": "b4661c7e0fd8e8178fd7fdcfd6a3d9b04bfd2884",
+      "canonical_blob": "b4661c7e0fd8e8178fd7fdcfd6a3d9b04bfd2884",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/backends.py",
+      "raw_blob": "27b74b86d602a8786605ef50bae11da13c773f4a",
+      "canonical_blob": "27b74b86d602a8786605ef50bae11da13c773f4a",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/catalog/errors.v1.json",
+      "raw_blob": "ab2150df7875ba2ebca31d31b64886c8371073ae",
+      "canonical_blob": "ab2150df7875ba2ebca31d31b64886c8371073ae",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/cli.py",
+      "raw_blob": "1302e0ee8fdcee6b8c46d4459f3fc140a67c6a55",
+      "canonical_blob": "1302e0ee8fdcee6b8c46d4459f3fc140a67c6a55",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/diagnostics.py",
+      "raw_blob": "0189f1f4a03e937c2f9ea9fff95656cb5561580b",
+      "canonical_blob": "0189f1f4a03e937c2f9ea9fff95656cb5561580b",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/docker_cli.py",
+      "raw_blob": "8ca22aa1d682e089e264533c8abf5e4c2242e058",
+      "canonical_blob": "8ca22aa1d682e089e264533c8abf5e4c2242e058",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/docker_commands.py",
+      "raw_blob": "954c99e05b123cd32c624eafb0d25ed5a7b66bab",
+      "canonical_blob": "954c99e05b123cd32c624eafb0d25ed5a7b66bab",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/docker_contract.py",
+      "raw_blob": "7a20b40cfbf9dc1974b7e89f8d7d93a3851765a8",
+      "canonical_blob": "7a20b40cfbf9dc1974b7e89f8d7d93a3851765a8",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/docker_engine.py",
+      "raw_blob": "b04a7e904855692ebcf6583b58115c1468a53a1f",
+      "canonical_blob": "b04a7e904855692ebcf6583b58115c1468a53a1f",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/docker_lifecycle.py",
+      "raw_blob": "e4371f0c2d061b7cb0a407f6873d78c6012c2ff8",
+      "canonical_blob": "e4371f0c2d061b7cb0a407f6873d78c6012c2ff8",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/downloads.py",
+      "raw_blob": "4dfa4137e6d21bd11151d085808f705160c8ef85",
+      "canonical_blob": "4dfa4137e6d21bd11151d085808f705160c8ef85",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/engine.py",
+      "raw_blob": "96afc1b5e02514f77b9195377ab4aaeb70309ca7",
+      "canonical_blob": "96afc1b5e02514f77b9195377ab4aaeb70309ca7",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/errors.py",
+      "raw_blob": "eea1330b057a37bd607a31fae2d64bbbcd3e190f",
+      "canonical_blob": "eea1330b057a37bd607a31fae2d64bbbcd3e190f",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/execution_lease.py",
+      "raw_blob": "a4f5948f566fca552e594dca114d16797fb5aac9",
+      "canonical_blob": "a4f5948f566fca552e594dca114d16797fb5aac9",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/gui.py",
+      "raw_blob": "2abca948b11937f2b33e09ca22e79fd19b064fb6",
+      "canonical_blob": "2abca948b11937f2b33e09ca22e79fd19b064fb6",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/i18n.py",
+      "raw_blob": "754a213a3863aacb8314feb067a5f650f5760acc",
+      "canonical_blob": "754a213a3863aacb8314feb067a5f650f5760acc",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/local_artifacts.py",
+      "raw_blob": "ecce212561667a2aa2336b4bb46e07a6f0c64b85",
+      "canonical_blob": "ecce212561667a2aa2336b4bb46e07a6f0c64b85",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/locales/de.json",
+      "raw_blob": "59717495bc52c3441821a2b0ed5d5e6cfd61bc58",
+      "canonical_blob": "59717495bc52c3441821a2b0ed5d5e6cfd61bc58",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/locales/en.json",
+      "raw_blob": "dcaab0d4687038cc12b55a1d847504c2b01848b6",
+      "canonical_blob": "dcaab0d4687038cc12b55a1d847504c2b01848b6",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/locales/ru.json",
+      "raw_blob": "ef5f1d3afd5c3ef81e9a64ba5cc98ede9403be3f",
+      "canonical_blob": "ef5f1d3afd5c3ef81e9a64ba5cc98ede9403be3f",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/prerequisite_async.py",
+      "raw_blob": "16886713ac17d03c357bc3d985c32d1ecac1baaf",
+      "canonical_blob": "16886713ac17d03c357bc3d985c32d1ecac1baaf",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/prerequisite_catalog.py",
+      "raw_blob": "8e4bee088912e5fd67e464903d3c73e5a1127757",
+      "canonical_blob": "8e4bee088912e5fd67e464903d3c73e5a1127757",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/prerequisite_execution.py",
+      "raw_blob": "738014900af5e336126fe21ac5f68bf3393aeb4e",
+      "canonical_blob": "738014900af5e336126fe21ac5f68bf3393aeb4e",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/prerequisite_progress.py",
+      "raw_blob": "509aa218770764b0d3cede59f70c63cd34b711ad",
+      "canonical_blob": "509aa218770764b0d3cede59f70c63cd34b711ad",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/prerequisite_runner.py",
+      "raw_blob": "b7b686c92e154141d94a1ecc5133600c1c6b54a1",
+      "canonical_blob": "b7b686c92e154141d94a1ecc5133600c1c6b54a1",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/prerequisite_state.py",
+      "raw_blob": "c5a971a5cc41e7c16210ac525822310cc75a023c",
+      "canonical_blob": "c5a971a5cc41e7c16210ac525822310cc75a023c",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/prerequisites.py",
+      "raw_blob": "649df90b9a890c9f373c4cc52d85a1925ca2212b",
+      "canonical_blob": "649df90b9a890c9f373c4cc52d85a1925ca2212b",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/process_liveness.py",
+      "raw_blob": "f536100a9bd857833d0cb2b1d99e8d6eff23bddd",
+      "canonical_blob": "f536100a9bd857833d0cb2b1d99e8d6eff23bddd",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/scaffold.py",
+      "raw_blob": "7a522c45439e41b8642f8ea886a9c315519080fd",
+      "canonical_blob": "7a522c45439e41b8642f8ea886a9c315519080fd",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/service_contracts.py",
+      "raw_blob": "247e5bfeca4a8db3f80305d121ce70bc1fefc2a6",
+      "canonical_blob": "247e5bfeca4a8db3f80305d121ce70bc1fefc2a6",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/service_manager.py",
+      "raw_blob": "8cfbd289695081cc99d55f1f49b2c500c8ff97f9",
+      "canonical_blob": "8cfbd289695081cc99d55f1f49b2c500c8ff97f9",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/service_systemd.py",
+      "raw_blob": "9d1e2a073a50ea7292287e3b199f643935a559c4",
+      "canonical_blob": "9d1e2a073a50ea7292287e3b199f643935a559c4",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/trust.py",
+      "raw_blob": "50c0c9784e6238375fc60a822274a7746fe5dd98",
+      "canonical_blob": "50c0c9784e6238375fc60a822274a7746fe5dd98",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/wizard/app.js",
+      "raw_blob": "0e9709a499fc777cc234d07fbbd7c361dac5a338",
+      "canonical_blob": "0e9709a499fc777cc234d07fbbd7c361dac5a338",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/wizard/index.html",
+      "raw_blob": "93c478b77e148023ceb978c0a1acd1c79093ef2b",
+      "canonical_blob": "93c478b77e148023ceb978c0a1acd1c79093ef2b",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/wizard/locales.json",
+      "raw_blob": "cf828ff6c0bd76ee524f62d70a91efc515784439",
+      "canonical_blob": "cf828ff6c0bd76ee524f62d70a91efc515784439",
+      "equal": true
+    },
+    {
+      "path": "homensai_install/wizard/style.css",
+      "raw_blob": "b167d0a681faa05981919361356b3e4fcb9ddcb9",
+      "canonical_blob": "b167d0a681faa05981919361356b3e4fcb9ddcb9",
+      "equal": true
+    },
+    {
+      "path": "shared/__init__.py",
+      "raw_blob": "4cd830ec13bf8882e0ca2fdfa660f4865fc90f25",
+      "canonical_blob": "4cd830ec13bf8882e0ca2fdfa660f4865fc90f25",
+      "equal": true
+    },
+    {
+      "path": "shared/adapters_docker.py",
+      "raw_blob": "0cd15e657c2be774577888694052f04752821c4b",
+      "canonical_blob": "0cd15e657c2be774577888694052f04752821c4b",
+      "equal": true
+    },
+    {
+      "path": "shared/adapters_fs.py",
+      "raw_blob": "8ee14287bb98d724c32b3e29a830688dc2fa7628",
+      "canonical_blob": "8ee14287bb98d724c32b3e29a830688dc2fa7628",
+      "equal": true
+    },
+    {
+      "path": "shared/archive.py",
+      "raw_blob": "7bb6ac2ea9ecb450091e1eb7aaaf0d81c06e6b67",
+      "canonical_blob": "7bb6ac2ea9ecb450091e1eb7aaaf0d81c06e6b67",
+      "equal": true
+    },
+    {
+      "path": "shared/archive_crypto.py",
+      "raw_blob": "44b01d11e7d9ec7639d4690ba809263a4193b869",
+      "canonical_blob": "44b01d11e7d9ec7639d4690ba809263a4193b869",
+      "equal": true
+    },
+    {
+      "path": "shared/ctl.py",
+      "raw_blob": "89ed5ab2b330fb415302a358017831e9245b6d76",
+      "canonical_blob": "89ed5ab2b330fb415302a358017831e9245b6d76",
+      "equal": true
+    },
+    {
+      "path": "shared/datahome.py",
+      "raw_blob": "6f4208a4a8458cb6a7d646a8940eebb686cb7b23",
+      "canonical_blob": "6f4208a4a8458cb6a7d646a8940eebb686cb7b23",
+      "equal": true
+    },
+    {
+      "path": "shared/doctor.py",
+      "raw_blob": "14a382fec449b976cabd744b4efb84fe95475eb2",
+      "canonical_blob": "14a382fec449b976cabd744b4efb84fe95475eb2",
+      "equal": true
+    },
+    {
+      "path": "shared/linux_sh.py",
+      "raw_blob": "64432091e55544167e8318f456512147d4da9597",
+      "canonical_blob": "64432091e55544167e8318f456512147d4da9597",
+      "equal": true
+    },
+    {
+      "path": "shared/manifest.py",
+      "raw_blob": "d43601f2756c59595c341e370b08986f03496c41",
+      "canonical_blob": "d43601f2756c59595c341e370b08986f03496c41",
+      "equal": true
+    },
+    {
+      "path": "shared/manifest.schema.json",
+      "raw_blob": "2d8d538846d59d897af1d978d752ec06851316a4",
+      "canonical_blob": "2d8d538846d59d897af1d978d752ec06851316a4",
+      "equal": true
+    },
+    {
+      "path": "shared/render_docker.py",
+      "raw_blob": "482349f8eff2c3ca1a69f95b6bbcca37174a14ef",
+      "canonical_blob": "482349f8eff2c3ca1a69f95b6bbcca37174a14ef",
+      "equal": true
+    },
+    {
+      "path": "shared/services.py",
+      "raw_blob": "c49516e0deff15fe767185454fe381b30a92a4ce",
+      "canonical_blob": "c49516e0deff15fe767185454fe381b30a92a4ce",
+      "equal": true
+    },
+    {
+      "path": "shared/update_plan.py",
+      "raw_blob": "a6824b3a722ddc890454b9e3adb1a6f5f615ee98",
+      "canonical_blob": "a6824b3a722ddc890454b9e3adb1a6f5f615ee98",
+      "equal": true
+    },
+    {
+      "path": "shared/windows_ps.py",
+      "raw_blob": "9f270d8187ff327ac78cdb1197cb29f45e243f0d",
+      "canonical_blob": "9f270d8187ff327ac78cdb1197cb29f45e243f0d",
+      "equal": true
+    }
+  ],
+  "production_ready": false
+}

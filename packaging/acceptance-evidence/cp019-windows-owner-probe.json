@@ -1,0 +1,22 @@
+{
+  "source_commit": "3b82b54a83adce75afc59abf5feed53cc7379666",
+  "status": "FAIL",
+  "scope": "Safe source probe with os.kill replaced by recorder; no actual signal/process effect",
+  "os_name": "nt",
+  "CTRL_C_EVENT": 0,
+  "calls": [
+    {
+      "pid": 123456,
+      "signal": 0
+    },
+    {
+      "pid": 123456,
+      "signal": 0
+    }
+  ],
+  "api_owner_alive_result": true,
+  "adapter_process_alive_result": true,
+  "finding": "Windows liveness probes call os.kill(pid,0), whose zero signal equals Windows CTRL_C_EVENT; must use read-only Windows process query. May explain prior KeyboardInterrupt but causal relation not proved.",
+  "official_reference": "https://docs.python.org/3.14/library/os.html#os.kill",
+  "production_ready": false
+}

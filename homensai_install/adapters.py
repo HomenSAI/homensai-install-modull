@@ -27,6 +27,7 @@ from .api.journal import now, owned_directory
 from .api.model import (ProductAdapter, bounded_json, canonical, checked_id,
                         checked_product_id, digest, parse_json, read_manifest, target_model)
 from .errors import InstallerError, redact
+from .process_liveness import process_liveness
 from .trust import SignedPayloadVerifier
 from shared.datahome import checked_path, contains, DataHomeError
 
@@ -68,15 +69,7 @@ def _strict_keys(value, required, optional=()):
 
 
 def _process_alive(pid):
-    if type(pid) is not int or pid <= 0:
-        return False
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except OSError:
-        return True
-    return True
+    return process_liveness(pid) is not False
 
 
 class _Ledger:

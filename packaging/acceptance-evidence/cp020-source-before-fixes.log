@@ -1,0 +1,120 @@
+........................................................................ [  3%]
+........................................................................ [  6%]
+........................................................................ [  9%]
+........................................................................ [ 12%]
+........................................................................ [ 15%]
+........................................................................ [ 19%]
+................................s....................................... [ 22%]
+........................................................................ [ 25%]
+........................................................................ [ 28%]
+........................................................................ [ 31%]
+........................................................................ [ 35%]
+........................................................................ [ 38%]
+........................................................................ [ 41%]
+.......................F................................................ [ 44%]
+........................................................................ [ 47%]
+........................................................................ [ 51%]
+........................................................................ [ 54%]
+........................................................................ [ 57%]
+........................................................................ [ 60%]
+.............................................................. [ 63%]
+........................................................................ [ 66%]
+........................................................................ [ 69%]
+........................................................................ [ 73%]
+........................................................................ [ 76%]
+........................................................................ [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 85%]
+........................................................................ [ 89%]
+........................................................................ [ 92%]
+........................................................................ [ 95%]
+................................................................... [ 98%]
+....................................                                     [100%]
+=================================== FAILURES ===================================
+____ test_http_product_ack_and_resume_are_not_blocked_by_own_domain[resume] ____
+
+descriptor = 23, initialize = False
+
+    def _lock(descriptor, *, initialize=False):
+        if os.name == "nt":
+            import msvcrt
+            if os.fstat(descriptor).st_size == 0:
+                if not initialize:
+                    _fail("STATE_STORAGE_UNAVAILABLE", "execution_domain_lock_empty")
+                os.write(descriptor, b"\0")
+                os.fsync(descriptor)
+            os.lseek(descriptor, 0, os.SEEK_SET)
+            try:
+                msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
+            except OSError:
+                _fail("OPERATION_CONFLICT", "execution_domain_busy")
+        else:
+            import fcntl
+            try:
+>               fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+E               BlockingIOError: [Errno 11] Resource temporarily unavailable
+
+homensai_install/execution_lease.py:97: BlockingIOError
+
+During handling of the above exception, another exception occurred:
+
+bundle = {'payload': PosixPath('/tmp/hinstall-test/test_http_product_ack_and_resu1/payload'), 'manifest': {'schema_version': 2,...ser'}, 'private': <cryptography.hazmat.bindings._rust.openssl.ed25519.Ed25519PrivateKey object at 0x7ed4e476b7d0>, ...}
+scenario = 'resume'
+
+    @pytest.mark.parametrize("scenario", ["duplicate", "resume"])
+    def test_http_product_ack_and_resume_are_not_blocked_by_own_domain(bundle, scenario):
+        session, engine = wizard(bundle)
+        calls = []
+    
+        def interrupted(plan, emit, canceled):
+            calls.append("execute")
+            return {"status": "RECOVERY_REQUIRED"}
+    
+        def resumed(plan, previous, emit, canceled):
+            calls.append("resume")
+            return {"status": "SUCCEEDED"}
+    
+        engine.execute, engine.resume = interrupted, resumed
+        product = session.route("POST", "/plans", {}, {"action": "install", "mode": "native", "locale": "en"})
+        body = {"plan_id": product["plan_id"], "plan_digest": product["plan_digest"],
+                "consent_refs": [product["review_consent_ref"], *product["required_consents"]],
+                "idempotency_key": "same-product", "accepted_terms": True, "accepted_plan": True,
+                "terms_digest": product["options"]["eula_digest"]}
+        initial = session.route("POST", "/operations", {}, body)
+        operation_id = initial["operation_id"]
+        assert settled(session.api, operation_id)["status"] == "RECOVERY_REQUIRED"
+        assert session.api.execution_domain.busy() is True
+        if scenario == "duplicate":
+            result = session.route("POST", "/operations", {}, body)
+            assert result["operation_id"] == operation_id and result["status"] == "RECOVERY_REQUIRED"
+            assert calls == ["execute"]
+        else:
+>           result = session.route("POST", "/operations/" + operation_id + "/resume", {}, {})
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_execution_lease_wizard.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+homensai_install/gui.py:484: in route
+    return self._route(method, path, query, body)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+homensai_install/gui.py:635: in _route
+    result = api.resume(op, decisions=body.get("decisions"), background=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+homensai_install/api/v1.py:720: in resume
+    lease = (self.execution_domain.reserve("product", operation_id, binding, resume=True,
+homensai_install/execution_lease.py:408: in reserve
+    _lock(descriptor, initialize=created)
+homensai_install/execution_lease.py:99: in _lock
+    _fail("OPERATION_CONFLICT", "execution_domain_busy")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+code = 'OPERATION_CONFLICT', reason = 'execution_domain_busy'
+
+    def _fail(code, reason):
+>       raise InstallerError(code, details={"reason": reason})
+E       homensai_install.errors.InstallerError: OPERATION_CONFLICT
+
+homensai_install/execution_lease.py:29: InstallerError
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_datahome.py:105: Проверка пути POSIX на Windows
+1 failed, 2251 passed, 1 skipped, 15 subtests passed in 509.97s (0:08:29)

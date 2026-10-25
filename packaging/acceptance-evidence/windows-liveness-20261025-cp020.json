@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "checkpoint": "CP-20261025-020",
+  "task_ids": [
+    "HIM-019",
+    "HIM-020",
+    "HIM-046",
+    "HIM-047",
+    "HIM-062",
+    "HIM-094"
+  ],
+  "scenario_ids": [
+    "ACC-03",
+    "ACC-04",
+    "ACC-12",
+    "ACC-16"
+  ],
+  "status": "PASS",
+  "source_commit": "4d6282dc4d983822e952c3b2c9cfb75eacbc7eae",
+  "checked_at_utc": "2026-10-25T20:34:56.936870+00:00",
+  "input_sha256": {
+    "homensai_install/process_liveness.py": "e27d2a11660be42c4e51e32240b7016fc4a9c5e6794a43d7fc335696b6c2e8a5",
+    "homensai_install/api/v1.py": "9e37e5d2b763e6f5c7f53d81f6f2904586c7ebd3315e9a72fe92f15da936de85",
+    "homensai_install/adapters.py": "6f311d96e4bc5b3d2e06b58e859204318c2e756ca844205a243f35c4fb7136ed",
+    "tests/test_process_liveness.py": "97929ce0660c8f82188007bd57f5b19a39310731587d44c8d93ed748f8bfb632",
+    "integration_tests/test_windows_owner_liveness.py": "cd489df5aef3d2662958994f5998e2e413ef8aa15febf60e97f716101a2ceee9",
+    "integration_tests/test_owner_liveness.py": "e69bb0cff19ee699525f20bcc01bf1e9af00b3051a38ab8d5bed2b8577b73118",
+    "tests/test_adapters_protocol.py": "5b4655ee5fc295a5531a0a05954e8a652f8130df3e7a73e9f9e7421a5243362a"
+  },
+  "defect_before": {
+    "receipt": "build/cp019/windows-owner-probe.json",
+    "sha256": "ecbf49131007bd10e7d8534003287b40714961c023a3f6f201c263de8457e4b0",
+    "status": "FAIL",
+    "observation": "API and adapter call os.kill(pid,0); Windows CTRL_C_EVENT=0. Original full-suite interruption cause remains unproved."
+  },
+  "implementation": "Common tri-state liveness; Windows OpenProcess(SYNCHRONIZE), nonblocking WaitForSingleObject, CloseHandle on acquired handles; only ERROR_INVALID_PARAMETER proves missing PID. Access/query/cleanup errors remain unknown; unknown is conservatively alive in both consumers. POSIX signal0 semantics and API birth/zombie checks retained.",
+  "checks": [
+    {
+      "environment": {
+        "os": "Windows-10-10.0.19045-SP0",
+        "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+        "scope": "Windows10Home10.0.19045 x64 developer tests, not Windows11/UAC/platform acceptance"
+      },
+      "command": [
+        "E:\\homensai\\homensai-install-modull\\build\\cp019\\windows-env\\Scripts\\python.exe",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-rs",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp=build/cp020/windows-liveness-tmp",
+        "--junitxml=build/cp020/windows-liveness.xml",
+        "tests/test_process_liveness.py",
+        "integration_tests/test_windows_owner_liveness.py"
+      ],
+      "status": "PASS",
+      "exit_code": 0,
+      "observed": "29 passed in0.69s:27 fake-port/unit +2 real owned Windows children (exit0 and259). os.kill forbidden by regression, all owned children exited.",
+      "log": "build/cp020/windows-liveness.log",
+      "log_sha256": "78ede345b6cb78eb8ba7211e7d0bef6eacbcb8293e556a4eff4845518606efd9",
+      "junit": "build/cp020/windows-liveness.xml",
+      "junit_sha256": "2ff6236edb81e931f37f7959eb1c794375dfb5a1160313def7d357e7d770121f"
+    },
+    {
+      "environment": {
+        "os": "Debian12 bookworm Docker x64, Linux WSL2 kernel",
+        "python": "3.14.3",
+        "image": "hinstall-dev:cp019-full",
+        "scope": "Source + real owned Linux process/zombie/adapters; not clean-host platform acceptance"
+      },
+      "command": [
+        "docker",
+        "run",
+        "--name",
+        "hinstall-cp020-liveness-tests",
+        "--network",
+        "none",
+        "--mount",
+        "type=bind,source=E:\\homensai\\homensai-install-modull,target=/workspace,readonly",
+        "--mount",
+        "type=bind,source=E:\\homensai\\homensai-install-modull\\build\\cp020,target=/evidence",
+        "hinstall-dev:cp019-full",
+        "python",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-rs",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp=/tmp/liveness-tests",
+        "--junitxml=/evidence/linux-liveness.xml",
+        "tests/test_process_liveness.py",
+        "integration_tests/test_owner_liveness.py",
+        "tests/test_adapters_protocol.py"
+      ],
+      "status": "PASS",
+      "exit_code": 0,
+      "observed": "65 passed in8.80s; includes27 unit cases, overlaps future full suite. Do not add to full-suite count.",
+      "log": "build/cp020/linux-liveness.log",
+      "log_sha256": "2c14b301d37f1029db8a3762eb6ab984fab2592b8777ceece79468f02a528beb",
+      "junit": "build/cp020/linux-liveness.xml",
+      "junit_sha256": "fe49dc829b65268e3373d55d62943c8e6d9019ee05d49e068845a7f3fa2933f7"
+    }
+  ],
+  "not_run": [
+    "Windows11 acceptance",
+    "Windows ACL/UAC/real installers",
+    "Reboot/relogin",
+    "Hardware power loss"
+  ],
+  "official_references": [
+    "https://docs.python.org/3.14/library/os.html#os.kill",
+    "https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-openprocess",
+    "https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject"
+  ],
+  "production_ready": false
+}

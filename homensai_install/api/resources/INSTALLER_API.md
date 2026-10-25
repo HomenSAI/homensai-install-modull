@@ -322,7 +322,8 @@ HTTP endpoints начинаются с `/api/v1/prerequisites/`: `capabilities`,
 `replace-plan` под выбранной операцией. Сохраняются loopback Host/Origin/token
 и bounded JSON проверки. Точные schemas находятся в OpenAPI.
 
-`POST plans` принимает только mode/locale/choices/offline. Сервер хранит до 16
+`POST plans` принимает mode/locale/choices/offline и необязательный
+`local_uploads` (artifact ID → verified opaque upload ID текущей HTTP-сессии). Сервер хранит до 16
 неизменяемых планов и выдаёт opaque `plan_id` и заранее выделенный `operation_id`.
 `POST operations` принимает этот plan ID/digest, явные consent refs,
 `accepted_plan=true`, `accepted_terms=true` и digest показанных signed terms.
@@ -361,6 +362,31 @@ HTTP capabilities подтверждают его только для явно �
 preflight/terms/review после подготовки. GUI contract: `docs/PREREQUISITES_GUI.md`.
 Полный transport contract, ограничения и тестовые scopes:
 `docs/PREREQUISITES_HTTP.md`.
+
+### Явный локальный prerequisite-файл в мастере
+
+При capability `local_artifact_upload=true` browser сначала создаёт allocation
+через `POST /api/v1/prerequisites/uploads` с server `plan_id`, `plan_digest`,
+`component_id`, `artifact_id`. Ожидаемые size/SHA-256 берутся из signed plan.
+Затем `POST uploads/{upload_id}/content` принимает exact `application/octet-stream`
+и ровно подписанный `Content-Length`; лимит HTTP-сессии — 16 записей и 4 GiB.
+Host/Origin/session checks выполняются до чтения тела. Имя browser файла,
+произвольный путь, команда, owner/domain/trust не принимаются.
+
+`GET uploads/{upload_id}` читает состояние; `POST uploads/{upload_id}/cancel`
+с `{}` отменяет ещё не закреплённый файл. Verified staged bytes означают только
+успешную проверку размера/hash/повторного чтения. Они не запускают installer.
+Новый `POST plans` с `local_uploads={artifact_id: upload_id}` создаёт новый SDK
+план и новые согласия; исполнение использует прежние coordinator и lease.
+
+HTTP `plan.local_artifacts` содержит opaque upload IDs, внутренний SDK plan —
+приватные staging paths. `plan_digest` относится к внутреннему плану и
+проверяется сервером по `plan_id`; browser не пересчитывает его по проекции.
+SDK/CLI сохраняют прежний контракт. Cancel не удаляет bytes, уже удерживаемые
+планом/операцией. Reload не исполняет ничего; после новой серверной сессии
+незапущенные файлы выбираются заново, durable operation использует прежний plan.
+Автоматическая межсессионная очистка retained/abandoned staging пока отсутствует.
+Подробности и границы: `docs/PREREQUISITES_LOCAL_ARTIFACTS.md`.
 
 ### CLI transport prerequisites
 

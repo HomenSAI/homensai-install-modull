@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 import sqlite3
 import stat
+import time
 import uuid
 
 from .api.journal import owned_directory
@@ -44,14 +45,23 @@ if hasattr(os, "register_at_fork"):
     os.register_at_fork(after_in_child=_after_fork)
 
 
+class _UnlinkedPrivateFile(InstallerError):
+    """Strict rejection; only the SQLite sidecar checker may re-observe it."""
+
+
 def _private_file(path, flags):
     descriptor = None
     try:
         descriptor = os.open(path, flags | getattr(os, "O_NOFOLLOW", 0)
                              | getattr(os, "O_NONBLOCK", 0), 0o600)
         info = os.fstat(descriptor)
-        if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
+        if (not stat.S_ISREG(info.st_mode)
                 or (os.name != "nt" and (info.st_uid != os.geteuid() or info.st_mode & 0o077))):
+            _fail("STATE_STORAGE_UNAVAILABLE", "execution_domain_file_not_private")
+        if info.st_nlink != 1:
+            if info.st_nlink == 0:
+                raise _UnlinkedPrivateFile("STATE_STORAGE_UNAVAILABLE",
+                    details={"reason": "execution_domain_file_not_private"})
             _fail("STATE_STORAGE_UNAVAILABLE", "execution_domain_file_not_private")
         os.set_inheritable(descriptor, False)
         return descriptor
@@ -69,13 +79,22 @@ def _check_sqlite_files(path, *, allow_missing_main=False):
     normal even between its observation and open; other errors stay fatal.
     """
     for candidate in (path, Path(str(path) + "-journal"), Path(str(path) + "-wal"), Path(str(path) + "-shm")):
-        try:
-            descriptor = _private_file(candidate, os.O_RDONLY)
-        except FileNotFoundError:
-            if candidate != path or allow_missing_main:
+        for observation in range(4):
+            try:
+                descriptor = _private_file(candidate, os.O_RDONLY)
+            except FileNotFoundError:
+                if candidate != path or allow_missing_main:
+                    break
+                raise
+            except _UnlinkedPrivateFile:
+                # _private_file stays strict for all callers and closes its FD.
+                # Only this known sidecar may be re-opened and fully rechecked.
+                if candidate == path or observation == 3:
+                    raise
+                time.sleep(0.01)  # Bounded opportunity (at most 30 ms) for commit unlink.
                 continue
-            raise
-        os.close(descriptor)
+            os.close(descriptor)
+            break
 
 
 def _lock(descriptor, *, initialize=False):

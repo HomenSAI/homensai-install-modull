@@ -1,0 +1,177 @@
+........................................................................ [  3%]
+............................................................ssssssssssss [  6%]
+ssssssssssssss.......................................................... [  9%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+................................s.......................ssssssssssssssss [ 22%]
+ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss.......... [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 32%]
+........................................................................ [ 36%]
+........................................................................ [ 39%]
+........................................................................ [ 42%]
+.......................F................................................ [ 45%]
+........................................................................ [ 49%]
+........................................................................ [ 52%]
+........................................................................ [ 55%]
+........................................................................ [ 59%]
+........................................................................ [ 62%]
+.............................................................. [ 65%]
+........................................................................ [ 68%]
+........................................................................ [ 71%]
+........................................................................ [ 75%]
+........................................................................ [ 78%]
+....ss.ssssssssss....................................................... [ 81%]
+.....................................s.................................. [ 84%]
+........................................................................ [ 88%]
+........................................................................ [ 91%]
+........................................................................ [ 94%]
+.......................F................................................ [ 98%]
+...........................................                         [100%]
+=================================== FAILURES ===================================
+____ test_http_product_ack_and_resume_are_not_blocked_by_own_domain[resume] ____
+
+descriptor = 24, initialize = False
+
+    def _lock(descriptor, *, initialize=False):
+        if os.name == "nt":
+            import msvcrt
+            if os.fstat(descriptor).st_size == 0:
+                if not initialize:
+                    _fail("STATE_STORAGE_UNAVAILABLE", "execution_domain_lock_empty")
+                os.write(descriptor, b"\0")
+                os.fsync(descriptor)
+            os.lseek(descriptor, 0, os.SEEK_SET)
+            try:
+                msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
+            except OSError:
+                _fail("OPERATION_CONFLICT", "execution_domain_busy")
+        else:
+            import fcntl
+            try:
+>               fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+E               BlockingIOError: [Errno 11] Resource temporarily unavailable
+
+homensai_install/execution_lease.py:97: BlockingIOError
+
+During handling of the above exception, another exception occurred:
+
+bundle = {'payload': PosixPath('/tmp/hinstall-test/test_http_product_ack_and_resu1/payload'), 'manifest': {'schema_version': 2,...ser'}, 'private': <cryptography.hazmat.bindings._rust.openssl.ed25519.Ed25519PrivateKey object at 0x78bbdf462810>, ...}
+scenario = 'resume'
+
+    @pytest.mark.parametrize("scenario", ["duplicate", "resume"])
+    def test_http_product_ack_and_resume_are_not_blocked_by_own_domain(bundle, scenario):
+        session, engine = wizard(bundle)
+        calls = []
+    
+        def interrupted(plan, emit, canceled):
+            calls.append("execute")
+            return {"status": "RECOVERY_REQUIRED"}
+    
+        def resumed(plan, previous, emit, canceled):
+            calls.append("resume")
+            return {"status": "SUCCEEDED"}
+    
+        engine.execute, engine.resume = interrupted, resumed
+        product = session.route("POST", "/plans", {}, {"action": "install", "mode": "native", "locale": "en"})
+        body = {"plan_id": product["plan_id"], "plan_digest": product["plan_digest"],
+                "consent_refs": [product["review_consent_ref"], *product["required_consents"]],
+                "idempotency_key": "same-product", "accepted_terms": True, "accepted_plan": True,
+                "terms_digest": product["options"]["eula_digest"]}
+        initial = session.route("POST", "/operations", {}, body)
+        operation_id = initial["operation_id"]
+        assert settled(session.api, operation_id)["status"] == "RECOVERY_REQUIRED"
+        assert session.api.execution_domain.busy() is True
+        if scenario == "duplicate":
+            result = session.route("POST", "/operations", {}, body)
+            assert result["operation_id"] == operation_id and result["status"] == "RECOVERY_REQUIRED"
+            assert calls == ["execute"]
+        else:
+>           result = session.route("POST", "/operations/" + operation_id + "/resume", {}, {})
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_execution_lease_wizard.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+homensai_install/gui.py:435: in route
+    return self._route(method, path, query, body)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+homensai_install/gui.py:586: in _route
+    result = api.resume(op, decisions=body.get("decisions"), background=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+homensai_install/api/v1.py:720: in resume
+    lease = (self.execution_domain.reserve("product", operation_id, binding, resume=True,
+homensai_install/execution_lease.py:408: in reserve
+    _lock(descriptor, initialize=created)
+homensai_install/execution_lease.py:99: in _lock
+    _fail("OPERATION_CONFLICT", "execution_domain_busy")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+code = 'OPERATION_CONFLICT', reason = 'execution_domain_busy'
+
+    def _fail(code, reason):
+>       raise InstallerError(code, details={"reason": reason})
+E       homensai_install.errors.InstallerError: OPERATION_CONFLICT
+
+homensai_install/execution_lease.py:29: InstallerError
+__________________ test_prerequisite_wizard_response_contract __________________
+
+    def test_prerequisite_wizard_response_contract():
+        node = shutil.which("node")
+        if node is None:
+            pytest.skip("Node недоступен: prerequisite JS response contract NOT RUN")
+        script = Path(__file__).parent / "js/wizard_prerequisites.cjs"
+        result = subprocess.run([node, str(script)], capture_output=True, text=True, timeout=30, check=False)
+>       assert result.returncode == 0, result.stderr
+E       AssertionError: Contract handler did not finish within 20 seconds
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/node', '/tmp/hinstall-source/tests/js/wizard_prerequisites.cjs'], returncode=1, stdout='', stderr='Contract handler did not finish within 20 seconds\n').returncode
+
+tests/test_wizard_prerequisite_ui.py:16: AssertionError
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_adapters_protocol.py:146: Protocol fixture needs system CPython with installed stdlib; embedded runtime acceptance is separate
+SKIPPED [1] tests/test_adapters_protocol.py:158: Protocol fixture needs system CPython with installed stdlib; embedded runtime acceptance is separate
+SKIPPED [1] tests/test_adapters_protocol.py:171: Protocol fixture needs system CPython with installed stdlib; embedded runtime acceptance is separate
+SKIPPED [1] tests/test_adapters_protocol.py:182: Protocol fixture needs system CPython with installed stdlib; embedded runtime acceptance is separate
+SKIPPED [1] tests/test_adapters_protocol.py:199: Protocol fixture needs system CPython with installed stdlib; embedded runtime acceptance is separate
+SKIPPED [6] tests/test_adapters_protocol.py:216: Protocol fixture needs system CPython with installed stdlib; embedded runtime acceptance is separate
+SKIPPED [4] tests/test_adapters_protocol.py:232: Protocol fixture needs system CPython with installed stdlib; embedded runtime acceptance is separate
+SKIPPED [1] tests/test_adapters_protocol.py:239: Protocol fixture needs system CPython with installed stdlib; embedded runtime acceptance is separate
+SKIPPED [4] tests/test_adapters_protocol.py:245: Protocol fixture needs system CPython with installed stdlib; embedded runtime acceptance is separate
+SKIPPED [1] tests/test_adapters_protocol.py:258: Protocol fixture needs system CPython with installed stdlib; embedded runtime acceptance is separate
+SKIPPED [1] tests/test_adapters_protocol.py:269: Protocol fixture needs system CPython with installed stdlib; embedded runtime acceptance is separate
+SKIPPED [1] tests/test_adapters_protocol.py:278: Protocol fixture needs system CPython with installed stdlib; embedded runtime acceptance is separate
+SKIPPED [1] tests/test_adapters_protocol.py:283: Protocol fixture needs system CPython with installed stdlib; embedded runtime acceptance is separate
+SKIPPED [2] tests/test_adapters_protocol.py:296: Protocol fixture needs system CPython with installed stdlib; embedded runtime acceptance is separate
+SKIPPED [1] tests/test_datahome.py:105: Проверка пути POSIX на Windows
+SKIPPED [1] tests/test_docker_cli.py:107: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [1] tests/test_docker_cli.py:116: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [12] tests/test_docker_cli.py:128: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [22] tests/test_docker_cli.py:145: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [1] tests/test_docker_cli.py:167: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [1] tests/test_docker_cli.py:176: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [3] tests/test_docker_cli.py:182: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [1] tests/test_docker_cli.py:200: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [1] tests/test_docker_cli.py:205: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [8] tests/test_docker_cli.py:221: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [1] tests/test_docker_cli.py:226: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [1] tests/test_docker_cli.py:234: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [1] tests/test_docker_cli.py:251: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [9] tests/test_docker_cli.py:259: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [1] tests/test_docker_cli.py:266: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [1] tests/test_docker_cli.py:273: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [4] tests/test_docker_cli.py:282: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [8] tests/test_docker_cli.py:300: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [1] tests/test_docker_cli.py:326: Synthetic ELF test needs local C compiler; Docker is never used
+SKIPPED [1] tests/test_scaffold.py:84: Linux synthetic fixture needs system Python binary; no production runtime acceptance
+SKIPPED [1] tests/test_scaffold.py:107: Linux synthetic fixture needs system Python binary; no production runtime acceptance
+SKIPPED [4] tests/test_scaffold.py:138: Linux synthetic fixture needs system Python binary; no production runtime acceptance
+SKIPPED [1] tests/test_scaffold.py:148: Linux synthetic fixture needs system Python binary; no production runtime acceptance
+SKIPPED [1] tests/test_scaffold.py:162: Linux synthetic fixture needs system Python binary; no production runtime acceptance
+SKIPPED [1] tests/test_scaffold.py:170: Linux synthetic fixture needs system Python binary; no production runtime acceptance
+SKIPPED [1] tests/test_scaffold.py:178: Linux synthetic fixture needs system Python binary; no production runtime acceptance
+SKIPPED [1] tests/test_scaffold.py:190: Linux synthetic fixture needs system Python binary; no production runtime acceptance
+SKIPPED [1] tests/test_scaffold.py:199: Linux synthetic fixture needs system Python binary; no production runtime acceptance
+SKIPPED [1] tests/test_service_systemd.py:121: private bus regression needs matching namespaces and system busctl/dbus-daemon
+2 failed, 2073 passed, 118 skipped, 15 subtests passed in 847.37s (0:14:07)

@@ -145,6 +145,24 @@ renderers и build metadata. `test_windows_ps.py` проверяет текст 
 не выполнение сгенерированного сценария. Прохождение такого job не подтверждает
 UAC, WinSW/SCM, ACL, DPAPI, автозапуск, перезагрузку или установку на чистую Windows.
 
+CP020 расширяет этот профиль `tests/test_process_liveness.py`,
+`tests/test_local_artifacts.py` и
+`integration_tests/test_windows_owner_liveness.py`: проверяются staging на
+синтетических байтах и безопасное наблюдение собственных Windows-процессов.
+Нулевой сигнал Windows не используется для проверки PID; ожидающий handle
+проверяется через `OpenProcess(SYNCHRONIZE)` и `WaitForSingleObject(..., 0)`.
+Это дополнение вызвано воспроизведённым дефектом, а не попыткой исправить
+историческую недоступность CI. Windows Server hosted runner не заменяет Windows11.
+
+Для изолированных Linux source-проверок добавлен
+`packaging/Dockerfile.verification`. Он закрепляет digest базового CPython image
+и Python wheels из hash-lock. Пакеты Debian/Node/C compiler остаются отдельными
+входами DEV-среды; побитовая воспроизводимость всего image не заявляется.
+Включённый compile probe предотвращает повтор среды с gcc без libc headers.
+`packaging/Dockerfile.verification-browser` добавляет Chromium и Playwright
+для `packaging/check_prerequisite_upload_browser.py`; это среда проверки
+установленного wheel с синтетическими prerequisites, не продуктовый Docker backend.
+
 ## 4. Работа без сети после подготовки wheelhouse
 
 На доверенной машине **той же целевой платформы** можно заранее получить пакеты:

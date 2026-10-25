@@ -1,9 +1,9 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261025-019`;  ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261025-020`; ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый local/GitHub до создания CP-20261025-019:
-`3b82b54a83adce75afc59abf5feed53cc7379666` (CP-20261025-018).
+Последний подтверждённый local/GitHub до создания CP-20261025-020:
+`4d6282dc4d983822e952c3b2c9cfb75eacbc7eae` (CP-20261025-019).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
@@ -17,11 +17,19 @@ IMPLEMENTATION_STATUS.md, WORK_LOG.md, INSTALLER_API.md,
 dirty/staged files и активные процессы. Не сбрасывать чужие изменения и не
 завершать произвольный PID. Частичный PASS не означает готовность выпуска.
 
-106 задач: 8 DONE, 63 IN_PROGRESS, 4 BLOCKED, 31 TODO. HIM-006/007 закрыты
+106 задач: 8 DONE, 64 IN_PROGRESS, 3 BLOCKED, 31 TODO. HIM-006/007 закрыты
 только как source audit и design target matrix. Все G0–G5 OPEN.
 Список задач только в HomenSAI_Universal_Installer_TODO_RU.txt.
 
-## Текущий этап CP019
+## Текущий этап CP020
+
+CP-20261025-020: реализован безопасный browser local prerequisite upload: явный File, bounded raw streaming, signed size/SHA-256, private staging, opaque handles, cancel/interrupt, новый review/consents; исполнение использует прежние SDK/coordinator/lease. ru/en/de: 245 ключей, 39 Node групп (входят в pytest). Исправлены quota при неудачной очистке/открытом canceled writer, rollback временной plan reservation, подтверждённая SQLite zero-link sidecar race и Windows PID liveness без сигналов. Усилен test harness финализатора lease; старые FAIL сохранены. Полный Linux source/integration: 2309 PASS, 3 skip, 15 subtests, inputs unchanged. Установленные SDK/CLI и prerequisites: PASS; настоящий Chromium: 24 PASS. Во всех трёх wheel совпали 67 package files, разные SHA самих архивов явно сохранены. Windows10/Python3.14.3: 492 + 57 PASS (наборы раздельны), 4 POSIX skip; это НЕ Windows11 acceptance. CI CP019 реально выполнил Linux/Windows checks; Windows workflow расширен новыми regressions, текущий CI CP020 до push NOT RUN. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/local-artifact-upload-20261025-cp020.json.
+
+Следующий шаг: CP021: узкое trusted ProductAdapter maintenance подключение с signed review binding, свежей identity и строгим UNKNOWN reconciliation; сначала закрыть reviewer regression missing invocation. Затем реальная платформенная/reference приёмка.
+
+Прочитать также сохранённый CONTINUE_DEVELOPMENT_PROMPT_RU.txt. Исторические блокировки CP018/019 не переносить автоматически на текущий Docker, browser и CI.
+
+## Исторический этап CP019
 
 CP-20261025-019: сохранён CONTINUE_DEVELOPMENT_PROMPT_RU.txt без изменения исходного задания; сверены CP018 branch/ref/HEAD. Новый Docker DEV build с CPython 3.14.3 и require-hashes доступен. До runtime-изменений проверены установленный SDK (65 package files, 7 CLI), prerequisites SDK/CLI (10 clients, 11 CLI) и документированный Windows source профиль (492 PASS; фактически Windows10Home, НЕ Windows11). Полный source/integration baseline ещё PENDING в изолированном snapshot; первая среда имеет недостающие gcc/system Python/D-Bus, готовится полный профиль. Отдельный Docker Git BLOCKED: remote не настроен, Gitea3010 API403. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/baseline-environment-20261025-cp019.json.
 

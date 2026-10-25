@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-019",
+  "checkpoint_id": "CP-20261025-020",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
@@ -800,10 +800,10 @@
       ],
       "implementation": "PARTIAL: conditional source GUI implemented",
       "test_code": "Source Node contract IMPLEMENTED; actual browser harness/acceptance incomplete",
-      "acceptance_status": "PARTIAL: Node PASS, actual browser NOT RUN/BLOCKED",
+      "acceptance_status": "PARTIAL PASS: CP020 actual Chromium installed synthetic wheel ru/en/de; full platform acceptance PENDING",
       "ready": false,
       "next_executor_action": "Run actual browser rendering/focus/keyboard/locale and installed/platform acceptance on current artifacts. Preserve explicit consents, READ-only recovery, execution.active=false gate and fresh product review after READY.",
-      "note": "CP018:29 progress/prerequisite Node groups plus existing capability contracts pass on current shipped assets; full source/integration and installed synthetic SDK/CLI PASS. Browser rendering/OS acceptance remain unverified.",
+      "note": "24 browser cases на установленном wheel и39Nodegroups; не12target×locale сочетаний и не реальные OS installers.",
       "evidence": [
         "packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json",
         "packaging/acceptance-evidence/progress-20261025-cp018.json"
@@ -836,11 +836,14 @@
         "HIM-033",
         "HIM-046"
       ],
-      "implementation": "NOT IMPLEMENTED",
-      "test_code": "NOT IMPLEMENTED",
-      "acceptance_status": "NOT RUN",
+      "implementation": "IMPLEMENTED: bounded explicit upload, signed pins, private staging and opaque handles",
+      "test_code": "IMPLEMENTED: source/HTTP/Node/installed browser",
+      "acceptance_status": "PARTIAL PASS: CP020; full platform/OS installer/offline/TLS/retention PENDING",
       "ready": false,
-      "next_executor_action": "Implement explicit safe local installer selection with expected signed pins and bounded local handling; test rejection before effects. Arbitrary browser paths remain forbidden."
+      "next_executor_action": "Принять реальные OS installers и platform matrix; закончить доверенную межсессионную retention без удаления bound journals.",
+      "evidence": [
+        "packaging/acceptance-evidence/local-artifact-upload-20261025-cp020.json"
+      ]
     }
   ],
   "cp019_baseline": {
@@ -850,5 +853,10 @@
     "windows_profile": "492 PASS наWindows10; Windows11 NOT RUN",
     "installed_synthetic": "PASS до runtime-изменений",
     "docker_git": "BLOCKED"
+  },
+  "cp020": {
+    "status": "PASS_SCOPED",
+    "receipt": "packaging/acceptance-evidence/local-artifact-upload-20261025-cp020.json",
+    "full_acceptance": "PENDING / НЕ ГОТОВО"
   }
 }

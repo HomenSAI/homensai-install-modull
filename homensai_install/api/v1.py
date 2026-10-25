@@ -12,6 +12,7 @@ import time
 import uuid
 
 from homensai_install import API_VERSION, __version__
+from homensai_install.process_liveness import process_liveness
 from .journal import Journal, now
 from .model import (ProductAdapter, bounded_json, canonical, checked_id, checked_product_id, digest,
                     fail, normalize_manifest, parse_json, read_manifest, target_model)
@@ -54,12 +55,9 @@ def _owner_alive(owner: dict) -> bool:
     pid = owner.get("pid")
     if type(pid) is not int or pid <= 0:
         return False
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except (PermissionError, OSError):
-        return True  # Не объявляем процесс погибшим лишь из-за ограничения доступа.
+    alive = process_liveness(pid)
+    if alive is not True:
+        return alive is None  # Неизвестный результат не доказывает смерть владельца.
     identity = _process_identity(pid)
     if identity is None:
         return True  # Read/access failure is not evidence that an owner died.

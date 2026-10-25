@@ -1,0 +1,1582 @@
+{
+  "checkpoint": "CP-20261025-020",
+  "status": "FAIL",
+  "input_sha256": {
+    "homensai_install/prerequisite_state.py": "06ed7475b0b54e52801d0c5e553fce712d97bc30f214265919253ac3375861ea",
+    "homensai_install/execution_lease.py": "fcdcc2ab6a216cfd747b057c1153c6604d10ee696e999f2ba849a4867c52b2a0"
+  },
+  "scope": "Промежуточный retry4 сyield1ms. Prerequisite20s PASS, ExecutionDomain редкий четыре нулевыхlinkнаблюдения через18.49s; отказ сохранён.",
+  "observed": {
+    "prerequisite": {
+      "elapsed": 20.003361113999745,
+      "writes": 1290,
+      "checks": 142268,
+      "metadata": [
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 1,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 1,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        }
+      ],
+      "failure": null
+    },
+    "execution_domain": {
+      "elapsed": 18.487575345999176,
+      "writes": 1501,
+      "checks": 105240,
+      "metadata": [
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 1,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 1,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 1,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 1,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 1,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 1,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        }
+      ],
+      "failure": {
+        "code": "STATE_STORAGE_UNAVAILABLE",
+        "context": {
+          "details": {
+            "reason": "execution_domain_file_not_private"
+          }
+        }
+      }
+    }
+  },
+  "production_ready": false
+}

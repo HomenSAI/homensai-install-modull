@@ -7,6 +7,7 @@ import errno
 import os
 from pathlib import Path
 import sqlite3
+import stat
 
 import pytest
 
@@ -181,3 +182,102 @@ def test_other_lstat_errors_are_not_treated_as_absent(tmp_path, monkeypatch, suf
         assert caught.value.code == "STATE_STORAGE_UNAVAILABLE"
     else:
         assert caught.value.errno == error_number
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX unlink of an open SQLite sidecar")
+@pytest.mark.parametrize("suffix", ["-journal", "-wal", "-shm"])
+def test_unlinked_sidecar_metadata_with_zero_links_is_normal_commit(tmp_path, monkeypatch, suffix):
+    store = PrerequisiteStore(tmp_path / "state")
+    sidecar = file_for(store, suffix)
+    descriptor = os.open(sidecar, os.O_RDONLY)
+    original, observed = Path.lstat, []
+    def unlinked_metadata(path, *args, **kwargs):
+        if path == sidecar and not observed:
+            path.unlink()
+            info = os.fstat(descriptor)
+            assert info.st_nlink == 0 and stat.S_ISREG(info.st_mode)
+            observed.append(info)
+            return info
+        return original(path, *args, **kwargs)
+    monkeypatch.setattr(Path, "lstat", unlinked_metadata)
+    try:
+        assert store.get("missing") is None
+        assert observed and not sidecar.exists()
+    finally:
+        os.close(descriptor)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX unlink of an open authoritative database")
+def test_zero_link_main_database_is_never_a_transient_sidecar(tmp_path, monkeypatch):
+    store = PrerequisiteStore(tmp_path / "state")
+    descriptor = os.open(store.path, os.O_RDONLY)
+    original, observed = Path.lstat, []
+    def missing_main_metadata(path, *args, **kwargs):
+        if path == store.path and not observed:
+            path.unlink()
+            observed.append(True)
+            return os.fstat(descriptor)
+        return original(path, *args, **kwargs)
+    monkeypatch.setattr(Path, "lstat", missing_main_metadata)
+    prevent_database_open(monkeypatch)
+    try:
+        with pytest.raises(InstallerError):
+            store.get("missing")
+    finally:
+        os.close(descriptor)
+    assert not store.path.exists()
+
+
+@pytest.mark.parametrize("unsafe", ["permissions", "owner", "type", "two_links", "fresh_permissions", "fresh_owner", "fresh_type", "fresh_two_links", "four_zero", "fresh_eacces", "fresh_eio"])
+def test_zero_link_exception_requires_safe_metadata_and_confirmed_absence(tmp_path, monkeypatch, unsafe):
+    if os.name == "nt" and unsafe in {"permissions", "owner", "fresh_permissions", "fresh_owner"}:
+        pytest.skip("POSIX owner/mode refusal; Windows ACL acceptance is separate")
+    store = PrerequisiteStore(tmp_path / "state")
+    sidecar = file_for(store, "-journal")
+    original, observed = Path.lstat, []
+    def suspicious_metadata(path, *args, **kwargs):
+        if path != sidecar:
+            return original(path, *args, **kwargs)
+        if not observed:
+            values = list(original(path, *args, **kwargs)); values[3] = 0
+            if unsafe == "permissions": values[0] |= 0o044
+            elif unsafe == "owner": values[4] = os.geteuid() + 1
+            elif unsafe == "type": values[0] = stat.S_IFLNK | 0o600
+            elif unsafe == "two_links": values[3] = 2
+            observed.append(True)
+            if not unsafe.startswith("fresh_") and unsafe != "four_zero": sidecar.unlink()
+            return os.stat_result(values)
+        if unsafe == "fresh_eacces": raise PermissionError(errno.EACCES, "synthetic metadata denial")
+        if unsafe == "fresh_eio": raise OSError(errno.EIO, "synthetic metadata I/O failure")
+        values = list(original(path, *args, **kwargs))
+        if unsafe == "fresh_permissions": values[0] |= 0o044
+        elif unsafe == "fresh_owner": values[4] = os.geteuid() + 1
+        elif unsafe == "fresh_type": values[0] = stat.S_IFLNK | 0o600
+        elif unsafe == "fresh_two_links": values[3] = 2
+        elif unsafe == "four_zero": values[3] = 0
+        if unsafe in {"fresh_permissions", "fresh_owner", "fresh_type", "fresh_two_links", "four_zero"}:
+            observed.append(True)
+            return os.stat_result(values)
+        return original(path, *args, **kwargs)
+    monkeypatch.setattr(Path, "lstat", suspicious_metadata)
+    prevent_database_open(monkeypatch)
+    with pytest.raises(InstallerError):
+        store.get("missing")
+    if unsafe == "four_zero":
+        assert len(observed) == 4, "Re-observation must remain bounded"
+
+
+def test_new_private_sidecar_after_zero_link_observation_is_fully_rechecked(tmp_path, monkeypatch):
+    store = PrerequisiteStore(tmp_path / "state")
+    sidecar = file_for(store, "-journal")
+    original, observed = Path.lstat, []
+    def old_unlinked_metadata(path, *args, **kwargs):
+        info = original(path, *args, **kwargs)
+        if path == sidecar and not observed:
+            values = list(info); values[3] = 0
+            observed.append(True)
+            return os.stat_result(values)
+        return info
+    monkeypatch.setattr(Path, "lstat", old_unlinked_metadata)
+    store._check_files()  # Only metadata; synthetic sidecar is not a valid SQLite journal.
+    assert observed and sidecar.stat().st_nlink == 1

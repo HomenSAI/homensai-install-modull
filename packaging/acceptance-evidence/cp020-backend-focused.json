@@ -1,0 +1,86 @@
+{
+  "checkpoint": "CP-20261025-020",
+  "tasks": [
+    "HIM-033",
+    "HIM-029",
+    "HIM-035",
+    "HIM-102",
+    "HIM-062",
+    "HIM-063"
+  ],
+  "scenarios": [
+    "ACC-01",
+    "ACC-05",
+    "ACC-14",
+    "ACC-16",
+    "ACC-23"
+  ],
+  "status": "PASS",
+  "source_parent": "4d6282dc4d983822e952c3b2c9cfb75eacbc7eae",
+  "dirty_diff": true,
+  "tested_input_sha256": {
+    "homensai_install/local_artifacts.py": "ca501888999b4fd79004b593f4f02248b33474f0dde293efe1c27c422a45340b",
+    "homensai_install/gui.py": "fa5ac75bc626c6e58a5b043fb47baa775ff3cb0f3a5c328fb1bea77ff025799c",
+    "tests/test_local_artifacts.py": "adb87790a182c11120f59b786857c10e1acd831e03319f4e578068c7e850581c",
+    "tests/test_wizard_local_artifacts.py": "1b319571ae58839866d44b5526d04a5cd0abe0533e58a8511db263dc17fa79a8",
+    "tests/test_wizard_prerequisites.py": "8f6b21dba83987f2ad4ffa29c9341203ff7d841f204a32ce5f9d4f2fc3e40b33",
+    "tests/test_prerequisites_projection.py": "1ea3ad8e04f7980d819278495d6170d9606a7f216dd0f3e76b99ae2f15f2e002",
+    "tests/test_wizard.py": "d1b2daabc855724eb953718d3b154e85e571c47a99ad6ea33b64999dca87074a",
+    "integration_tests/test_local_artifact_upload_http.py": "fd86a19b4a9d118768b860c12a69a68f576fd07a53e0c1af2e690db6052fd76f",
+    "integration_tests/test_prerequisites_http.py": "f723f16ebccab668119c407c2f309e6c6af93d25c6c460b252beb2d2efae0bc1",
+    "integration_tests/test_execution_lease_http.py": "bb342ade54142e1416dc345f595e3082be89af1cf275cf34583aef404293bc60",
+    "api/openapi.yaml": "918ac80d3fab0a9a7adf28d58f24ea1db1c1b6258315a33805fcb28224468574",
+    "homensai_install/api/resources/openapi.yaml": "918ac80d3fab0a9a7adf28d58f24ea1db1c1b6258315a33805fcb28224468574",
+    "INSTALLER_API.md": "88c1c8aafe30244d9197fe1b3e685467694db0200d28e75d03f1473ef143a18b",
+    "homensai_install/api/resources/INSTALLER_API.md": "88c1c8aafe30244d9197fe1b3e685467694db0200d28e75d03f1473ef143a18b",
+    "docs/PREREQUISITES_LOCAL_ARTIFACTS.md": "be3af179af67df3841b56c078891fc5b993b657e3a20549d067f1d13aa6ae70e"
+  },
+  "inputs_unchanged": true,
+  "started_at_utc": "2026-10-25T20:16:19.628752+00:00",
+  "duration_seconds": 32.54910971699974,
+  "exit_code": 0,
+  "command": [
+    "/usr/local/bin/python",
+    "-B",
+    "-m",
+    "pytest",
+    "-q",
+    "-rs",
+    "--junitxml=/evidence/focused.xml",
+    "tests/test_local_artifacts.py",
+    "tests/test_wizard_local_artifacts.py",
+    "tests/test_wizard_prerequisites.py",
+    "tests/test_prerequisites_projection.py",
+    "tests/test_wizard.py",
+    "integration_tests/test_local_artifact_upload_http.py",
+    "integration_tests/test_prerequisites_http.py",
+    "integration_tests/test_execution_lease_http.py"
+  ],
+  "environment": {
+    "python": "3.14.3 (main, Apr  7 2026, 02:23:36) [GCC 12.2.0]",
+    "platform": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+    "architecture": "x86_64",
+    "backend": "synthetic-linux-native",
+    "scope": "user",
+    "locales": [
+      "ru",
+      "en",
+      "de"
+    ]
+  },
+  "scope": "Source/unit и настоящие loopback HTTP/threads на synthetic signed fixtures. Не platform installers, actual browser или полный lifecycle.",
+  "expected": "Signed pins + bounded upload/auth/framing/cancel/retention + прежние SDK consent/coordinator/lease; все выбранные regression проходят.",
+  "log_sha256": "006e8e850a607796dfca3541031871568f333bc1510b2fe36fbdd15b1ef743c8",
+  "junit_sha256": "07332f67ecdfe1fc596d02bfbade5abd7b00ae2f326137a60fd837c34c87f1fc",
+  "production_ready": false,
+  "initial_failure": {
+    "status": "FAIL",
+    "passed": 64,
+    "failed": 1,
+    "duration_seconds": 12.13,
+    "case": "test_unsafe_staged_inode_cannot_bind_or_be_unlinked_as_original[directory]",
+    "observed": "IsADirectoryError: [Errno 21] Is a directory: 11, os.fdopen before fstat file-type validation",
+    "fix": "Validate inode before fdopen; descriptor closed and error sanitized. Regression kept.",
+    "evidence_limit": "Первый raw log не сохранён; excerpt и counts из tool output. Хэши initial changed bytes не снимались; текущие hashes не выдаются за initial."
+  }
+}

@@ -173,7 +173,7 @@ def test_http_projection_binding_and_published_resource_contract(bundle):
     assert response["content"]["application/json"]["schema"]["properties"]["api_version"]["const"] == "1"
     assert response["content"]["application/json"]["schema"]["properties"]["result"] == {
         "$ref": "#/components/schemas/PrerequisiteCapabilitiesResult"}
-    assert set(schemas["PrerequisitePlanRequest"]["properties"]) == {"mode", "locale", "choices", "offline"}
+    assert set(schemas["PrerequisitePlanRequest"]["properties"]) == {"mode", "locale", "choices", "offline", "local_uploads"}
     for source, packaged in (("api/openapi.yaml", "openapi.yaml"), ("INSTALLER_API.md", "INSTALLER_API.md")):
         assert (root / source).read_bytes() == (root / "homensai_install/api/resources" / packaged).read_bytes()
     assert bundle["calls"] == [] and bundle["transport"].calls == []

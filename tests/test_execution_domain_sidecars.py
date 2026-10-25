@@ -2,6 +2,7 @@
 from contextlib import contextmanager
 import os
 from pathlib import Path
+import stat
 import threading
 
 import pytest
@@ -94,3 +95,66 @@ def test_transient_absence_policy_does_not_allow_unsafe_authoritative_files(tmp_
     assert caught.value.code == "STATE_STORAGE_UNAVAILABLE"
     if unsafe == "missing_main":
         assert not domain.path.exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX unlink of open SQLite metadata")
+@pytest.mark.parametrize("suffix", ["-journal", "-wal", "-shm"])
+def test_zero_link_private_sidecar_after_open_is_reobserved(tmp_path, monkeypatch, suffix):
+    main = tmp_path / "state.sqlite3"
+    main.write_bytes(b"synthetic main"); main.chmod(0o600)
+    sidecar = Path(str(main) + suffix)
+    sidecar.write_bytes(b"synthetic sidecar"); sidecar.chmod(0o600)
+    original, observed = os.fstat, []
+    def unlinked_after_open(descriptor):
+        info = original(descriptor)
+        if (info.st_dev, info.st_ino) == sidecar_identity and not observed:
+            sidecar.unlink()
+            info = original(descriptor)
+            assert info.st_nlink == 0
+            observed.append(True)
+        return info
+    sidecar_identity = (sidecar.stat().st_dev, sidecar.stat().st_ino)
+    monkeypatch.setattr(execution.os, "fstat", unlinked_after_open)
+    execution._check_sqlite_files(main)
+    assert observed and not sidecar.exists()
+
+
+@pytest.mark.parametrize("unsafe", ["main", "mode", "owner", "type", "hardlink", "four_zero"])
+def test_unlinked_retry_preserves_private_file_and_main_refusals(tmp_path, monkeypatch, unsafe):
+    if os.name == "nt" and unsafe in {"mode", "owner"}:
+        pytest.skip("POSIX owner/mode profile; Windows ACL acceptance is separate")
+    main = tmp_path / "state.sqlite3"
+    main.write_bytes(b"synthetic main"); main.chmod(0o600)
+    sidecar = Path(str(main) + "-journal")
+    sidecar.write_bytes(b"synthetic sidecar"); sidecar.chmod(0o600)
+    target = main if unsafe == "main" else sidecar
+    target_identity = (target.stat().st_dev, target.stat().st_ino)
+    original, observed = os.fstat, []
+    def unsafe_unlinked_metadata(descriptor):
+        info = original(descriptor)
+        if (info.st_dev, info.st_ino) != target_identity:
+            return info
+        values = list(info); values[3] = 0
+        if observed:
+            if unsafe == "mode": values[0] |= 0o044
+            elif unsafe == "owner": values[4] = os.geteuid() + 1
+            elif unsafe == "type": values[0] = stat.S_IFLNK | 0o600
+            elif unsafe == "hardlink": values[3] = 2
+        observed.append(True)
+        return os.stat_result(values)
+    monkeypatch.setattr(execution.os, "fstat", unsafe_unlinked_metadata)
+    with pytest.raises(InstallerError):
+        execution._check_sqlite_files(main)
+    assert len(observed) == (1 if unsafe == "main" else 4 if unsafe == "four_zero" else 2)
+
+
+def test_generic_private_file_keeps_rejecting_zero_links_for_locks(tmp_path, monkeypatch):
+    path = tmp_path / "controller.lock"
+    path.write_bytes(b"synthetic lock"); path.chmod(0o600)
+    original = os.fstat
+    def zero_links(descriptor):
+        values = list(original(descriptor)); values[3] = 0
+        return os.stat_result(values)
+    monkeypatch.setattr(execution.os, "fstat", zero_links)
+    with pytest.raises(InstallerError):
+        execution._private_file(path, os.O_RDONLY)

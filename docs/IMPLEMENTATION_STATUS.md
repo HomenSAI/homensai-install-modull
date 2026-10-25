@@ -1,12 +1,16 @@
 # Фактическое состояние реализации
 
-Дата: 25.10.2026. Checkpoint: **CP-20261025-018**.
+Дата: 25.10.2026. Checkpoint: **CP-20261025-020**.
 Ветка `codex/universal-installer-20261025`. **`production_ready=false`.**
 Исходный commit: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
 
 
 
-## Последний выполненный шаг
+## Текущий выполненный этап CP020
+
+CP-20261025-020: реализован безопасный browser local prerequisite upload: явный File, bounded raw streaming, signed size/SHA-256, private staging, opaque handles, cancel/interrupt, новый review/consents; исполнение использует прежние SDK/coordinator/lease. ru/en/de: 245 ключей, 39 Node групп (входят в pytest). Исправлены quota при неудачной очистке/открытом canceled writer, rollback временной plan reservation, подтверждённая SQLite zero-link sidecar race и Windows PID liveness без сигналов. Усилен test harness финализатора lease; старые FAIL сохранены. Полный Linux source/integration: 2309 PASS, 3 skip, 15 subtests, inputs unchanged. Установленные SDK/CLI и prerequisites: PASS; настоящий Chromium: 24 PASS. Во всех трёх wheel совпали 67 package files, разные SHA самих архивов явно сохранены. Windows10/Python3.14.3: 492 + 57 PASS (наборы раздельны), 4 POSIX skip; это НЕ Windows11 acceptance. CI CP019 реально выполнил Linux/Windows checks; Windows workflow расширен новыми regressions, текущий CI CP020 до push NOT RUN. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/local-artifact-upload-20261025-cp020.json.
+
+## Исторический выполненный шаг CP018
 
 CP-20261025-018: Добавлен сохраняемый measured download_progress и согласованный SDK/CLI/HTTP/OpenAPI контракт: 17 полей с signed plan/artifact binding, одна транзакция snapshot/event, обязательный writer, защита от stale transfer/attempt и сохранение cancellation. 100% разрешены только после SHA-256 staged-файла, не означают READY. Replan очищает проекцию даже при прежнем digest; восстановление использует фактический partial offset, не сохранённый byte counter. Мастер ru/en/de показывает отдельную загрузку, потерю связи и дочитывает страницы events по полученным sequence. Исправлены воспроизведённые SQLite sidecar races в prerequisite store и execution domain; чтение/запись через connection уже созданного prerequisite store не пересоздаёт исчезнувшую основную БД. Fresh constructor сохраняет отдельное явное создание новой БД.
 
@@ -328,3 +332,12 @@ Docker provisioning, systemd port и prerequisites ещё разрабатыва
 CP-20261025-019: сохранён CONTINUE_DEVELOPMENT_PROMPT_RU.txt без изменения исходного задания; сверены CP018 branch/ref/HEAD. Новый Docker DEV build с CPython 3.14.3 и require-hashes доступен. До runtime-изменений проверены установленный SDK (65 package files, 7 CLI), prerequisites SDK/CLI (10 clients, 11 CLI) и документированный Windows source профиль (492 PASS; фактически Windows10Home, НЕ Windows11). Полный source/integration baseline ещё PENDING в изолированном snapshot; первая среда имеет недостающие gcc/system Python/D-Bus, готовится полный профиль. Отдельный Docker Git BLOCKED: remote не настроен, Gitea3010 API403. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/baseline-environment-20261025-cp019.json.
 
 Следующий шаг: Завершить полный baseline в дополненной Docker-среде; затем CP020: безопасный браузерный выбор локального prerequisite-файла, source/HTTP/Node и installed/browser проверки. До выключения в22:30 Berlin завершить проверенные checkpoints и push, непроверенное сохранить явно.
+
+
+## CP-20261025-020 — local artifact upload и исправления baseline
+
+CP-20261025-020: реализован безопасный browser local prerequisite upload: явный File, bounded raw streaming, signed size/SHA-256, private staging, opaque handles, cancel/interrupt, новый review/consents; исполнение использует прежние SDK/coordinator/lease. ru/en/de: 245 ключей, 39 Node групп (входят в pytest). Исправлены quota при неудачной очистке/открытом canceled writer, rollback временной plan reservation, подтверждённая SQLite zero-link sidecar race и Windows PID liveness без сигналов. Усилен test harness финализатора lease; старые FAIL сохранены. Полный Linux source/integration: 2309 PASS, 3 skip, 15 subtests, inputs unchanged. Установленные SDK/CLI и prerequisites: PASS; настоящий Chromium: 24 PASS. Во всех трёх wheel совпали 67 package files, разные SHA самих архивов явно сохранены. Windows10/Python3.14.3: 492 + 57 PASS (наборы раздельны), 4 POSIX skip; это НЕ Windows11 acceptance. CI CP019 реально выполнил Linux/Windows checks; Windows workflow расширен новыми regressions, текущий CI CP020 до push NOT RUN. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/local-artifact-upload-20261025-cp020.json.
+
+Оставшиеся проверки: Полные ACC01–23 и 12 reference GUI target×locale сочетаний; Windows11/native Setup/UAC/ACL/другой администратор/реальные reboot и relogin; Ubuntu24 clean native installer, live Docker product lifecycle/systemd acceptance; Реальные prerequisite OS installers и контролируемые live TLS/proxy/offline failures; Полный независимый installed reference artifact, JobPilot/Rent lifecycle; Межсессионная безопасная очистка retained uploads и перенос control journals на новую identity; Production signing/legal/licence approvals и полная воспроизводимость выпускных artifacts.
+
+Следующий шаг: CP021: узкое trusted ProductAdapter maintenance подключение с signed review binding, свежей identity и строгим UNKNOWN reconciliation; сначала закрыть reviewer regression missing invocation. Затем реальная платформенная/reference приёмка.

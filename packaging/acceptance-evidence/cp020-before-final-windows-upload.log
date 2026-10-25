@@ -1,0 +1,4 @@
+.......................ssss..                                            [100%]
+=========================== short test summary info ===========================
+SKIPPED [4] tests\test_local_artifacts.py:159: POSIX ownership/mode and actual symlink profile
+25 passed, 4 skipped in 0.89s

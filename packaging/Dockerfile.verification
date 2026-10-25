@@ -1,0 +1,14 @@
+# Только DEV/source-проверки. Это не поставляемый runtime или installer image.
+FROM python:3.14.3-slim-bookworm@sha256:f21c0d5a44c56805654c15abccc1b2fd576c8d93aca0a3f74b4aba2dc92510e2
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git nodejs gcc libc6-dev python3 dbus systemd \
+    && rm -rf /var/lib/apt/lists/*
+COPY requirements-build.lock /opt/requirements-build.lock
+RUN python -m pip --isolated download --require-hashes --only-binary=:all: \
+    -r /opt/requirements-build.lock -d /opt/wheelhouse \
+    && python -m pip --isolated install --no-index --find-links=/opt/wheelhouse \
+    --require-hashes --only-binary=:all: -r /opt/requirements-build.lock
+RUN printf 'int main(){return 0;}' | cc -x c -o /tmp/compiler-probe - \
+    && /tmp/compiler-probe
+ENV PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+WORKDIR /workspace

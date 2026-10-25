@@ -1,0 +1,139 @@
+{
+  "checkpoint": "CP-20261025-020",
+  "status": "FAIL",
+  "input_sha256": {
+    "homensai_install/prerequisite_state.py": "881c09ed0ea61b7e83ea635ac15301188200a6e8d1c14768e9e1087701741aa5",
+    "homensai_install/execution_lease.py": "04ea232729ec7260d76e6f8150854ba8acf77c7c1a75db672db0bf50c1cf15b3"
+  },
+  "scope": "Промежуточный bounded4 retry без scheduler yield; реальные secure zero-link metadata повторяются пока commit завершает unlink. Не production acceptance.",
+  "observed": {
+    "prerequisite": {
+      "elapsed": 0.5239369859991712,
+      "writes": 19,
+      "checks": 3526,
+      "metadata": [
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": "ENOENT"
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        }
+      ],
+      "failure": {
+        "code": "STATE_STORAGE_UNAVAILABLE",
+        "context": {
+          "phase": "prerequisites",
+          "component_id": null,
+          "details": {
+            "reason": "prerequisite_journal_not_private"
+          }
+        }
+      }
+    },
+    "execution_domain": {
+      "elapsed": 0.1313619619995734,
+      "writes": 4,
+      "checks": 769,
+      "metadata": [
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        },
+        {
+          "name": "prerequisites.sqlite3-journal",
+          "nlink": 0,
+          "mode": "0o100600",
+          "uid": 0,
+          "fresh": {
+            "nlink": 0,
+            "mode": "0o100600",
+            "uid": 0
+          }
+        }
+      ],
+      "failure": {
+        "code": "STATE_STORAGE_UNAVAILABLE",
+        "context": {
+          "details": {
+            "reason": "execution_domain_file_not_private"
+          }
+        }
+      }
+    }
+  },
+  "production_ready": false
+}

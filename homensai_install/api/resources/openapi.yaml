@@ -3,7 +3,7 @@
   "info": {
     "title": "HomenSAI local installation API",
     "version": "1.0",
-    "description": "Development contract. Loopback only. SDK/CLI use the same InstallerAPI facade. No build/sign/arbitrary elevated command in HTTP. Wizard session binds product manifest and trust at startup; HTTP accepts only mode/path/action/consents, not arbitrary manifests or trust roots. Generic SDK request schema is separate. Prerequisite HTTP accepts only server-owned plan IDs and explicit consent; registered owner/product/manifest/target/catalog/payload binding is pinned. CLI prerequisites use synchronous trusted SDK injection. GUI prerequisite flow remains unavailable."
+    "description": "Development contract. Loopback only. SDK/CLI use the same InstallerAPI facade. No build/sign/arbitrary elevated command in HTTP. Wizard session binds product manifest and trust at startup; HTTP accepts only mode/path/action/consents, not arbitrary manifests or trust roots. Generic SDK request schema is separate. Prerequisite HTTP accepts only server-owned plan IDs and explicit consent; registered owner/product/manifest/target/catalog/payload binding is pinned. CLI prerequisites use synchronous trusted SDK injection. GUI prerequisite flow is available for an explicitly registered coordinator; browser/platform acceptance remains separate. Binary local uploads are signed-plan-bound and do not execute installers."
   },
   "servers": [
     {
@@ -2123,6 +2123,241 @@
           }
         ]
       }
+    },
+    "/api/v1/prerequisites/uploads": {
+      "post": {
+        "operationId": "prerequisitesUploadCreate",
+        "description": "Выделить bounded staging по существующему server plan и signed pins; не принимает filename/path/commands.",
+        "responses": {
+          "200": {
+            "description": "Состояние upload без local paths/имени файла/URL. verified относится только к staging bytes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/PrerequisiteUploadResult"
+                    }
+                  },
+                  "required": [
+                    "api_version",
+                    "result"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisiteUploadRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prerequisites/uploads/{upload_id}": {
+      "get": {
+        "operationId": "prerequisitesUploadStatus",
+        "description": "Состояние upload текущей HTTP-сессии, без исполнения.",
+        "responses": {
+          "200": {
+            "description": "Состояние upload без local paths/имени файла/URL. verified относится только к staging bytes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/PrerequisiteUploadResult"
+                    }
+                  },
+                  "required": [
+                    "api_version",
+                    "result"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^upload_[0-9a-f]{32}$(?![\\s\\S])"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/uploads/{upload_id}/content": {
+      "post": {
+        "operationId": "prerequisitesUploadContent",
+        "description": "Принять ровно signed size с ограниченной памятью, fsync и повторной SHA-256 проверкой staged файла. Не запускает installer.",
+        "responses": {
+          "200": {
+            "description": "Состояние upload без local paths/имени файла/URL. verified относится только к staging bytes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/PrerequisiteUploadResult"
+                    }
+                  },
+                  "required": [
+                    "api_version",
+                    "result"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^upload_[0-9a-f]{32}$(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "Content-Length",
+            "in": "header",
+            "required": true,
+            "description": "Ровно подписанный size allocation. Только один заголовок, без Transfer-Encoding.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4294967296
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prerequisites/uploads/{upload_id}/cancel": {
+      "post": {
+        "operationId": "prerequisitesUploadCancel",
+        "description": "Отменить/удалить только ещё не retained upload; bound SDK plan запрещает удаление.",
+        "responses": {
+          "200": {
+            "description": "Состояние upload без local paths/имени файла/URL. verified относится только к staging bytes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/PrerequisiteUploadResult"
+                    }
+                  },
+                  "required": [
+                    "api_version",
+                    "result"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^upload_[0-9a-f]{32}$(?![\\s\\S])"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisiteEmptyRequest"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2493,6 +2728,15 @@
           "offline": {
             "type": "boolean",
             "default": false
+          },
+          "local_uploads": {
+            "type": "object",
+            "maxProperties": 16,
+            "description": "Только verified opaque handles текущей сессии. Сервер хранит SDK paths; HTTP plan.local_artifacts возвращает opaque handles. plan_digest относится к внутреннему неизменяемому SDK plan.",
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^upload_[0-9a-f]{32}$(?![\\s\\S])"
+            }
           }
         },
         "required": [],
@@ -3120,6 +3364,14 @@
           "durable_byte_progress": {
             "type": "boolean",
             "description": "Поддержка сохранённых byte observations; поле необязательно для старых серверов. true не гарантирует наличие download_progress до первой загрузки и не объявляет operation READY."
+          },
+          "local_artifact_upload": {
+            "type": "boolean",
+            "description": "Явный binary staging локального prerequisite; не является разрешением установки."
+          },
+          "local_upload_max_bytes": {
+            "type": "integer",
+            "const": 4294967296
           }
         },
         "required": [
@@ -3151,6 +3403,90 @@
           }
         ],
         "additionalProperties": true
+      },
+      "PrerequisiteUploadRequest": {
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,79}$(?![\\s\\S])"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+          },
+          "component_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          },
+          "artifact_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          }
+        },
+        "required": [
+          "plan_id",
+          "plan_digest",
+          "component_id",
+          "artifact_id"
+        ],
+        "additionalProperties": false
+      },
+      "PrerequisiteUploadResult": {
+        "type": "object",
+        "properties": {
+          "upload_id": {
+            "type": "string",
+            "pattern": "^upload_[0-9a-f]{32}$(?![\\s\\S])"
+          },
+          "component_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          },
+          "artifact_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967296
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "transferring",
+              "verified",
+              "failed",
+              "canceled"
+            ]
+          },
+          "verified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "upload_id",
+          "component_id",
+          "artifact_id",
+          "size",
+          "sha256",
+          "state",
+          "verified"
+        ],
+        "additionalProperties": false
       }
     },
     "responses": {

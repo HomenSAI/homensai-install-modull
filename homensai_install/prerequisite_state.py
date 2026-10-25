@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import sqlite3
 import stat
+import time
 
 from .api.journal import owned_directory
 from .api.model import bounded_json, canonical, parse_json
@@ -47,19 +48,28 @@ class PrerequisiteStore:
 
     def _check_files(self):
         for path in (self.path, Path(str(self.path) + "-journal"), Path(str(self.path) + "-wal"), Path(str(self.path) + "-shm")):
-            try:
-                info = path.lstat()
-            except FileNotFoundError:
-                # SQLite removes transient sidecars during normal commit. Main
-                # is created explicitly by __init__ before its first connection.
-                if path != self.path:
-                    continue
-                fail("STATE_STORAGE_UNAVAILABLE", "prerequisite_journal_unavailable")
-            except OSError:
-                fail("STATE_STORAGE_UNAVAILABLE", "prerequisite_journal_unavailable")
-            if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
-                    or (os.name != "nt" and (info.st_uid != os.geteuid() or info.st_mode & 0o077))):
-                fail("STATE_STORAGE_UNAVAILABLE", "prerequisite_journal_not_private")
+            for observation in range(4):
+                try:
+                    info = path.lstat()
+                except FileNotFoundError:
+                    # SQLite removes transient sidecars during normal commit.
+                    # Main is created explicitly before its first connection.
+                    if path != self.path:
+                        break
+                    fail("STATE_STORAGE_UNAVAILABLE", "prerequisite_journal_unavailable")
+                except OSError:
+                    fail("STATE_STORAGE_UNAVAILABLE", "prerequisite_journal_unavailable")
+                if (not stat.S_ISREG(info.st_mode)
+                        or (os.name != "nt" and (info.st_uid != os.geteuid() or info.st_mode & 0o077))):
+                    fail("STATE_STORAGE_UNAVAILABLE", "prerequisite_journal_not_private")
+                if info.st_nlink == 1:
+                    break
+                # Linux may finish metadata lookup after commit unlinks an
+                # otherwise private ordinary sidecar. Re-observe at most four
+                # times; validate every new inode in full, never exempt main.
+                if path == self.path or info.st_nlink != 0 or observation == 3:
+                    fail("STATE_STORAGE_UNAVAILABLE", "prerequisite_journal_not_private")
+                time.sleep(0.01)  # Let the concurrent commit finish unlink; at most 30 ms.
 
     @contextmanager
     def lock(self):

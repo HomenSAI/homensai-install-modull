@@ -1,0 +1,53 @@
+{
+  "checkpoint": "CP-20261025-020",
+  "task_ids": [
+    "HIM-033"
+  ],
+  "scenario_ids": [
+    "ACC-05",
+    "ACC-08",
+    "ACC-14",
+    "ACC-16"
+  ],
+  "status": "PASS",
+  "source_head": "4d6282dc4d983822e952c3b2c9cfb75eacbc7eae",
+  "source_diff": "Текущий CP020 diff, SHA256 конкретных входов ниже; не результат исходного HEAD.",
+  "command": [
+    "docker",
+    "run",
+    "--rm",
+    "--network",
+    "none",
+    "--mount",
+    "type=bind,source=E:\\homensai\\homensai-install-modull,target=/workspace,readonly",
+    "hinstall-dev:cp019",
+    "python",
+    "-B",
+    "-m",
+    "pytest",
+    "-q",
+    "tests/test_local_artifacts.py",
+    "tests/test_wizard_local_artifacts.py",
+    "integration_tests/test_local_artifact_upload_http.py"
+  ],
+  "started_at_utc": "2026-10-25T20:25:30.111375+00:00",
+  "duration_seconds": 18.328999999999724,
+  "exit_code": 0,
+  "input_sha256": {
+    "homensai_install/local_artifacts.py": "624641105d49508bccf144d8859542dc1a3828d23d2a5954e23df555c91c2c95",
+    "homensai_install/gui.py": "fa5ac75bc626c6e58a5b043fb47baa775ff3cb0f3a5c328fb1bea77ff025799c",
+    "tests/test_local_artifacts.py": "b6ffee717b1b043bab3abb29be98201e191baf6b1500f342c3fda64b688c18ff",
+    "tests/test_wizard_local_artifacts.py": "1b319571ae58839866d44b5526d04a5cd0abe0533e58a8511db263dc17fa79a8",
+    "integration_tests/test_local_artifact_upload_http.py": "fd86a19b4a9d118768b860c12a69a68f576fd07a53e0c1af2e690db6052fd76f"
+  },
+  "inputs_unchanged": true,
+  "observed": "...............................................................          [100%]\n63 passed in 15.05s\n",
+  "previous_failure_receipt": "packaging/acceptance-evidence/local-upload-quota-before-20261025-cp020.json",
+  "changes": [
+    "Byte reservation сохраняется до подтверждённого unlink/no-file-created, включая cleanup failure.",
+    "Отдельный receiving fence сохраняет живой writer после первого cancel; повторный cancel не удаляет его файл и не освобождает quota.",
+    "Ошибка fstat после exclusive create закрывает FD, сохраняет неизвестный inode и quota; отмена не удаляет inode без проверенной identity."
+  ],
+  "scope": "Source/SDK с синтетическим fault injection + настоящий loopback HTTP, прежний синтетический installer/coordinator. Не реальная Windows locked-file/ACL/UAC/OS acceptance.",
+  "production_ready": false
+}

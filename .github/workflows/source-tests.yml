@@ -103,6 +103,8 @@ jobs:
           tests/test_manifest.py tests/test_manifest_v2.py tests/test_i18n.py
           tests/test_trust.py tests/test_render_docker.py tests/test_windows_ps.py
           tests/test_build_lock.py tests/test_build_receipt.py
+          tests/test_process_liveness.py tests/test_local_artifacts.py
+          integration_tests/test_windows_owner_liveness.py
       - name: Build SDK and reference wheels without dependency resolution
         shell: pwsh
         run: |

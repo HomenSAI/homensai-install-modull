@@ -138,7 +138,8 @@ class Harness {
     this.storage = new Map(Object.entries(options.storage || {})); this.caps = options.caps ?? capabilities(); this.review = options.review ?? reviewed();
     this.current = options.current ?? snapshot(); this.operations = options.operations || []; this.eventQueue = [];
     const fetch = async (url, init = {}) => {
-      const request = {url, path: url.replace(/^\/api\/v1/, ""), method: init.method || "GET", body: init.body ? JSON.parse(init.body) : null, init};
+      const binary=init.headers?.["Content-Type"]==="application/octet-stream";
+      const request = {url, path: url.replace(/^\/api\/v1/, ""), method: init.method || "GET", body: init.body ? binary?init.body:JSON.parse(init.body) : null, init};
       this.calls.push(request);
       let result;
       const matched = this.overrides.find(row => row.matches(request));
@@ -146,7 +147,7 @@ class Harness {
       if (result && result.__error) return {ok: false, json: async () => ({error: copy(result.__error)})};
       return {ok: true, json: async () => ({result: copy(result)})};
     };
-    const context = {document: this.document, URLSearchParams, URL, Intl, console,
+    const context = {document: this.document, URLSearchParams, URL, Intl, console, AbortController,
       location: {hash: "#token=fixture-token", pathname: "/"}, navigator: {language: "en"},
       sessionStorage: {getItem: key => this.storage.get(key) ?? null, setItem: (key, value) => this.storage.set(key, String(value)), removeItem: key => this.storage.delete(key)},
       history: {replaceState() {}}, fetch,
@@ -170,6 +171,15 @@ class Harness {
     if (route === "/discover") return {installation: {installed: false}};
     if (route === "/prerequisites/capabilities") return url.searchParams.get("mode") === "docker" ? {configured: false, target: {...identity.target, mode: "docker"}} : copy(this.caps);
     if (route === "/prerequisites/plans") return copy(this.review);
+    if (route === "/prerequisites/uploads") {
+      const component=this.review.plan.components.find(item=>item.component_id===request.body.component_id);
+      const artifact=component.artifacts.find(item=>item.artifact_id===request.body.artifact_id);
+      this.upload={upload_id:"upload_fixture",component_id:component.component_id,artifact_id:artifact.artifact_id,
+        size:artifact.size,sha256:artifact.sha256,state:"pending",verified:false};
+      return copy(this.upload);
+    }
+    if (route === "/prerequisites/uploads/upload_fixture/content")return {...copy(this.upload),state:"verified",verified:true};
+    if (route === "/prerequisites/uploads/upload_fixture/cancel")return {...copy(this.upload),state:"canceled",verified:false};
     if (route === "/prerequisites/operations") {
       if (request.method !== "GET") return copy(this.current);
       const operations = this.operations.map(row => row.operation_id === this.current.operation_id ? this.current : row)
@@ -206,6 +216,19 @@ class Harness {
 
 let cases = 0;
 async function test(name, body) {try {await body(); cases++;} catch (error) {console.error("CASE FAILED: " + name); throw error;}}
+function localUploadMetadata(changes={}) {
+  return {upload_id:"upload_fixture",component_id:"base",artifact_id:"base-installer",size:1024,
+    sha256:"c".repeat(64),state:"pending",verified:false,...changes};
+}
+async function localUploadUi(options={}) {
+  const value=reviewed();value.plan.components[0].choice="auto";value.plan.choices.base="auto";
+  const ui=new Harness({caps:capabilities({local_artifact_upload:true,local_upload_max_bytes:4*1024**3}),review:value,...options});
+  await ui.flush();await ui.click("prereq-review");return ui;
+}
+async function selectLocalFile(ui,size=1024,name="downloaded-installer.bin") {
+  const file={name,size},input=ui.el("prereq-file-base-installer");input.files=[file];
+  await input.dispatch("change");await ui.flush();return file;
+}
 
 async function main() {
   await test("absent trusted coordinator preserves product flow", async () => {
@@ -623,9 +646,131 @@ async function main() {
     await ui.tick(); assert.equal(ui.run("prereq.cursor"), 120);
     assert.equal(ui.mutating().length, 0);
   });
+  await test("local upload is opt-in and signed transport limits are visible", async () => {
+    const value=reviewed();value.plan.components[0].choice="auto";value.plan.choices.base="auto";
+    const legacy=new Harness({review:value});await legacy.flush();await legacy.click("prereq-review");
+    assert.equal(legacy.document.getElementById("prereq-file-base-installer"),null);
+    const ui=await localUploadUi({caps:capabilities({local_artifact_upload:true,local_upload_max_bytes:512})});
+    assert.equal(ui.document.getElementById("prereq-file-base-installer"),null);
+    assert.ok(ui.el("prereq-components").textContent.includes("512"));
+    assert.equal(ui.matching("POST","/prerequisites/uploads").length,0);
+  });
+  await test("file selection is explicit, size checked and never starts uploading or installing", async () => {
+    const ui=await localUploadUi();await ui.acceptReview();
+    const input=ui.el("prereq-file-base-installer");assert.equal(input.type,"file");
+    assert.equal(input.parentNode.tagName,"LABEL");
+    await selectLocalFile(ui,1025);
+    assert.equal(ui.matching("POST","/prerequisites/uploads").length,0);
+    assert.equal(ui.el("prereq-upload-base-installer").disabled,true);
+    assert.ok(ui.el("prereq-upload-status-base-installer").textContent.includes(translations.en.prereq_local_wrong_size));
+    await selectLocalFile(ui,1024,"<img src=x onerror=alert(1)>");
+    assert.equal(ui.el("prereq-upload-base-installer").disabled,false);
+    assert.equal(ui.el("prereq-start").disabled,true);
+    assert.equal(ui.el("prereq-accept-plan").checked,false);
+    assert.equal(ui.el("prereq-components").querySelector("img"),null);
+    await ui.acceptReview();await ui.click("prereq-start",{force:true});assert.equal(ui.mutating().length,0);
+  });
+  await test("verified upload uses raw File and requires a fresh local plan and fresh consent", async () => {
+    const ui=await localUploadUi(),file=await selectLocalFile(ui,1024,"private-local-name.exe");
+    await ui.click("prereq-upload-base-installer");
+    const allocate=ui.matching("POST","/prerequisites/uploads").find(item=>item.path==="/prerequisites/uploads");
+    assert.deepEqual(Object.keys(allocate.body).sort(),["artifact_id","component_id","plan_digest","plan_id"]);
+    const binary=ui.matching("POST","/prerequisites/uploads/upload_fixture/content")[0];
+    assert.equal(binary.body,file);assert.equal(binary.init.headers["Content-Type"],"application/octet-stream");
+    assert.equal(binary.init.headers["X-HInstall-Token"],"fixture-token");assert.equal(binary.init.credentials,"omit");
+    assert.equal("Content-Length" in binary.init.headers,false,"Browser owns exact body framing");
+    assert.equal("Content-Disposition" in binary.init.headers,false,"A browser filename is not sent");
+    assert.equal(ui.run("prereq.review"),null);assert.equal(ui.mutating().length,0);
+    assert.equal(ui.el("prereq-start").disabled,true);
+    await ui.click("prereq-review");
+    const request=ui.matching("POST","/prerequisites/plans").at(-1);
+    assert.deepEqual(request.body.local_uploads,{"base-installer":"upload_fixture"});
+    assert.equal(ui.el("prereq-accept-plan").checked,false);
+    assert.equal(ui.el("prereq-start").disabled,true);
+    assert.equal(ui.storage.has("private-local-name.exe"),false);
+    assert.ok(![...ui.storage.values()].some(value=>value.includes("private-local-name.exe")||value.includes("upload_fixture")));
+    assert.equal(ui.mutating().length,0);
+  });
+  await test("unverified upload response never becomes a local plan input", async () => {
+    for(const changes of [{sha256:"f".repeat(64)},{size:1023},{verified:false},{state:"pending"},{component_id:"client"},{upload_id:"another_upload"}]) {
+      const ui=await localUploadUi();await selectLocalFile(ui);
+      ui.overrides.push({matches:request=>request.path.endsWith("/content"),handle:()=>localUploadMetadata({state:"verified",verified:true,...changes})});
+      await ui.click("prereq-upload-base-installer");
+      assert.equal(ui.run("Object.keys(prereq.localUploads).length"),0);
+      assert.equal(ui.mutating().length,0);
+      assert.ok(ui.el("prereq-upload-status-base-installer").textContent.includes(translations.en.prereq_local_failed));
+    }
+  });
+  await test("server hash rejection and network loss preserve retry without any installer", async () => {
+    for(const failure of ["hash","network"]) {
+      const ui=await localUploadUi();await selectLocalFile(ui);
+      ui.overrides.push({matches:request=>request.path.endsWith("/content"),handle:()=>{
+        if(failure==="network")throw new TypeError("private transport details");
+        return {__error:{code:"INTEGRITY_FAILED"}};
+      }});
+      await ui.click("prereq-upload-base-installer");
+      assert.equal(ui.run("prereq.uploadPending"),null);assert.equal(ui.el("prereq-upload-base-installer").disabled,false);
+      assert.equal(ui.el("prereq-start").disabled,true);assert.equal(ui.mutating().length,0);
+      assert.ok(!ui.el("prereq-section").textContent.includes("private transport details"));
+    }
+  });
+  await test("cancel during binary upload remains available and late success does not bind a file", async () => {
+    const ui=await localUploadUi();await selectLocalFile(ui);const gate=deferred();
+    ui.overrides.push({matches:request=>request.path.endsWith("/content"),handle:()=>gate.promise});
+    const sending=ui.el("prereq-upload-base-installer").dispatch("click");await ui.flush();
+    assert.equal(ui.el("prereq-upload-cancel-base-installer").hidden,false);
+    assert.equal(ui.el("prereq-file-base-installer").disabled,true);assert.equal(ui.el("prereq-review").disabled,true);
+    await ui.click("prereq-upload-cancel-base-installer");
+    assert.equal(ui.matching("POST","/prerequisites/uploads/upload_fixture/cancel").length,1);
+    assert.equal(ui.matching("POST","/prerequisites/uploads/upload_fixture/content")[0].init.signal.aborted,true);
+    gate.resolve(localUploadMetadata({state:"verified",verified:true}));await sending;await ui.flush();
+    assert.equal(ui.run("Object.keys(prereq.localUploads).length"),0);assert.equal(ui.run("prereq.uploadPending"),null);
+    assert.equal(ui.mutating().length,0);
+    assert.ok(ui.el("prereq-upload-status-base-installer").textContent.includes(translations.en.prereq_local_canceled));
+  });
+  await test("cancel before allocation ACK cancels its eventual handle without transmitting bytes", async () => {
+    const ui=await localUploadUi();await selectLocalFile(ui);const gate=deferred();
+    ui.overrides.push({matches:request=>request.path==="/prerequisites/uploads",handle:()=>gate.promise});
+    const sending=ui.el("prereq-upload-base-installer").dispatch("click");await ui.flush();
+    await ui.click("prereq-upload-cancel-base-installer");gate.resolve(localUploadMetadata());await sending;await ui.flush();
+    assert.equal(ui.matching("POST","/prerequisites/uploads/upload_fixture/content").length,0);
+    assert.equal(ui.matching("POST","/prerequisites/uploads/upload_fixture/cancel").length,1);
+    assert.equal(ui.mutating().length,0);
+  });
+  await test("clear local selection requires a new review and reopening never reuploads a file", async () => {
+    const ui=await localUploadUi();await selectLocalFile(ui);await ui.click("prereq-upload-base-installer");
+    await ui.click("prereq-upload-clear-base-installer");
+    assert.equal(ui.run("Object.keys(prereq.localFiles).length"),0);assert.equal(ui.run("Object.keys(prereq.localUploads).length"),0);
+    assert.equal(ui.run("prereq.review"),null);await ui.click("prereq-review");
+    assert.equal("local_uploads" in ui.matching("POST","/prerequisites/plans").at(-1).body,false);
+    const reopened=await localUploadUi({storage:Object.fromEntries(ui.storage)});
+    assert.equal(reopened.matching("POST","/prerequisites/uploads").length,0);
+    assert.equal(reopened.run("Object.keys(prereq.localFiles).length"),0);assert.equal(reopened.mutating().length,0);
+  });
+  await test("local file controls and messages follow ru en de without any automatic upload", async () => {
+    const ui=await localUploadUi();
+    for(const language of ["ru","en","de"]) {
+      await ui.change("language",language);
+      assert.equal(ui.el("prereq-file-base-installer").parentNode._text,translations[language].prereq_local_choose);
+      assert.equal(ui.el("prereq-upload-base-installer").textContent,translations[language].prereq_local_upload);
+      assert.equal(ui.el("prereq-upload-status-base-installer").textContent,translations[language].prereq_local_not_selected);
+      assert.equal(ui.el("prereq-upload-base-installer").disabled,true,"Changing locale invalidates the review");
+    }
+    assert.equal(ui.matching("POST","/prerequisites/uploads").length,0);assert.equal(ui.mutating().length,0);
+  });
+  await test("all wizard locale keys and interpolation names match", async () => {
+    const keys=Object.keys(translations.en).sort();
+    const placeholders=text=>[...text.matchAll(/\{([a-z_]+)\}/g)].map(match=>match[1]).sort();
+    for(const language of ["ru","en","de"]) {
+      assert.deepEqual(Object.keys(translations[language]).sort(),keys);
+      for(const key of keys)assert.deepEqual(placeholders(translations[language][key]),placeholders(translations.en[key]),language+":"+key);
+    }
+  });
   const assets = Object.fromEntries(["app.js", "index.html", "locales.json"].map(name => [name,
     createHash("sha256").update(assetBytes[name]).digest("hex")]));
   console.log(JSON.stringify({status: "PASS", cases, scope: "actual wizard JavaScript with injected DOM/HTTP; not browser acceptance", assets_sha256: assets}));
 }
-const watchdog = setTimeout(() => {console.error("Contract handler did not finish within 20 seconds"); process.exit(1);}, 20000);
+// CP020: исходный CP018 также превышал 20 s на Windows Docker под нагрузкой.
+// Сохраняем все assertions; этот предел ограничивает зависание, а не производительность UI.
+const watchdog = setTimeout(() => {console.error("Contract handler did not finish within 120 seconds"); process.exit(1);}, 120000);
 main().catch(error => {console.error(error.stack || error); process.exitCode = 1;}).finally(() => clearTimeout(watchdog));

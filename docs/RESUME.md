@@ -1,9 +1,9 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261025-022` (документация); код `CP-20261025-021`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261025-023` (итоговый статус); код `CP-20261025-021`; ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый local/GitHub до создания CP-20261025-022:
-`7a3f8fe79fe64aff315e8bd529513121316819cd` (CP-20261025-021).
+Последний подтверждённый local/GitHub до создания CP-20261025-023:
+`a6ffdb73ef2af916f36a3b733fa093ce9c704ed5` (CP-20261025-022).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
@@ -21,7 +21,11 @@ dirty/staged files и активные процессы. Не сбрасыват
 только как source audit и design target matrix. Все G0–G5 OPEN.
 Список задач только в HomenSAI_Universal_Installer_TODO_RU.txt.
 
-## Текущее продолжение CP022
+## Итоговый статус перед выключением CP023
+
+CP-20261025-023 — окончательный статус по просьбе владельца, без новых задач. Все68 package files неизменны относительно проверенного CP021. Локальные результаты:2363PASS/3skip/15subtests; installed SDK/CLI и prerequisites PASS; Chromium24PASS ru/en/de; Windows492+57PASS/4POSIXskip. Последний код CP021 и документация CP022 подтверждены на GitHub. CP022 GitHub Actions push/PR завершились success: Linux2261source+102integration PASS,3skip,15subtests; Windows549PASS/4skip. Собственных процессов, активных контейнеров и слушающих TCP портов проекта не обнаружено; рабочая папка была чистой. Соседняя сессия остановлена по подтверждению владельца. После успешного сохранения и независимой проверки remote отправить ровно одну команду shutdown.exe /s /f /t30; результат хранить локальной квитанцией .git/hinstall-checkpoints/shutdown-20261025.json, не повторять автоматически. Этот doc-only checkpoint использует [skip ci] по указанию не запускать новые задачи. Production_ready=false, всеG0–G5OPEN; Docker Git BLOCKED до URL и авторизации. Следующая разработка: migration/backup-receipt/fresh-empty contract и independent installed reference lifecycle; возобновлять только по новому указанию владельца.
+
+## Материалы продолжения CP022
 
 CP-20261025-022 — только материалы продолжения: README теперь ведёт к актуальному RESUME и явно помечает обзор CP008 как исторический. Код и все68 package files совпадают с проверенным CP021; новых runtime-тестов для этой правки документации не запускали. Последний код: CP021, source2363PASS/3skip/15subtests; installed synthetic SDK/CLI, Chromium24cases и Windows492+57PASS/4POSIXskip сохранены с точными пределами. production_ready=false, всеG0–G5OPEN. Основная рабочая папка E:/homensai/homensai-install-modull; вспомогательный worktree E:/homensai/homensai-install-modull-core-cp021 сохраняет исходный проверенный черновик, интегрированный в основную ветку вместе с последующими исправлениями. Для продолжения использовать основную папку и её канонический ToDo. Собственные тестовые процессы завершены; отдельный Docker Git BLOCKED до URL и авторизации.
 

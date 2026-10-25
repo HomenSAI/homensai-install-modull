@@ -1,0 +1,153 @@
+{
+  "checkpoint": "CP-20261025-022",
+  "source_code_checkpoint": "CP-20261025-021",
+  "status": "PASS_SCOPED",
+  "production_ready": false,
+  "runs": [
+    {
+      "id": 40234525975,
+      "event": "pull_request",
+      "head_sha": "a6ffdb73ef2af916f36a3b733fa093ce9c704ed5",
+      "conclusion": "success",
+      "url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40234525975"
+    },
+    {
+      "id": 40234521998,
+      "event": "push",
+      "head_sha": "a6ffdb73ef2af916f36a3b733fa093ce9c704ed5",
+      "conclusion": "success",
+      "url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40234521998"
+    }
+  ],
+  "jobs": [
+    {
+      "name": "Linux source and user-process integration (no installer acceptance)",
+      "runner": "GitHub Actions 1000002076",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Checkout reviewed source",
+          "conclusion": "success"
+        },
+        {
+          "name": "Select CPython 3.14.9 x64 with GIL",
+          "conclusion": "success"
+        },
+        {
+          "name": "Isolate build tools",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install exact hashed wheels",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run complete offline source suite",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run Linux user-process and loopback integration",
+          "conclusion": "success"
+        },
+        {
+          "name": "Build SDK and reference wheels without dependency resolution",
+          "conclusion": "success"
+        },
+        {
+          "name": "Record source and wheel inputs locally",
+          "conclusion": "success"
+        },
+        {
+          "name": "Explain this job's boundary",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Select CPython 3.14.9 x64 with GIL",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Checkout reviewed source",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ],
+      "summary": [
+        "2026-10-25T21:17:27.4057143Z 2261 passed, 1 skipped, 10 subtests passed in 153.16s (0:02:33)",
+        "2026-10-25T21:19:26.6347535Z 102 passed, 2 skipped, 5 subtests passed in 118.27s (0:01:58)"
+      ]
+    },
+    {
+      "name": "Windows portable source subset (no service installation)",
+      "runner": "GitHub Actions 1000002077",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Preserve checked-in LF golden files on this ephemeral runner",
+          "conclusion": "success"
+        },
+        {
+          "name": "Checkout reviewed source",
+          "conclusion": "success"
+        },
+        {
+          "name": "Select CPython 3.14.9 x64 with GIL",
+          "conclusion": "success"
+        },
+        {
+          "name": "Isolate build tools",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install exact hashed wheels",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run portable source subset",
+          "conclusion": "success"
+        },
+        {
+          "name": "Build SDK and reference wheels without dependency resolution",
+          "conclusion": "success"
+        },
+        {
+          "name": "Record source and wheel inputs locally",
+          "conclusion": "success"
+        },
+        {
+          "name": "Explain this job's boundary",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Select CPython 3.14.9 x64 with GIL",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Checkout reviewed source",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ],
+      "summary": [
+        "2026-10-25T21:14:56.2208986Z 549 passed, 4 skipped in 2.18s\r"
+      ]
+    }
+  ],
+  "limits": [
+    "Source/portable checks и wheel builds; не full installer/platform acceptance",
+    "Windows hosted Server2025 и Ubuntu24.04; не Windows11/UAC/Setup"
+  ]
+}

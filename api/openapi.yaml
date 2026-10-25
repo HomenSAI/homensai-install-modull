@@ -1579,6 +1579,15 @@
           "acknowledge_data_loss": {
             "type": "boolean",
             "description": "Required true for restore and rollback in wizard."
+          },
+          "product_modes": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            },
+            "description": "Product modes from the startup manifest; engine enforces dependencies and exclusions."
           }
         },
         "required": [],
@@ -1624,6 +1633,15 @@
           "acknowledge_data_loss": {
             "type": "boolean",
             "description": "Required true for restore and rollback in wizard."
+          },
+          "product_modes": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            },
+            "description": "Product modes from the startup manifest; engine enforces dependencies and exclusions."
           }
         },
         "required": [

@@ -247,7 +247,7 @@ class NativeEngine:
             "execution_scope": "user-session", "manifest_schemas": [2],
             "deployment_form": "prebuilt-release", "installs_vendor_wheels": False,
             "service_autostart": False, "restart_supervision": False,
-            "health_model": "owned_processes_and_product_http", "heartbeat_monitoring": False,
+            "health_model": "owned_processes_owned_listener_and_product_http", "heartbeat_monitoring": False,
             "backup_strategy": "filesystem_quiesced", "product_backup_hooks_supported": False,
             "requires_trusted_payload_verifier": True,
             "development_runtime": self.development_runtime is not None}
@@ -323,14 +323,16 @@ class NativeEngine:
         processes = {name: {"running": self._running(record), "release": record.get("release"),
                             "state": record.get("status", "recorded")}
                      for name, record in records.items()}
-        owned_running = any(item["running"] for item in processes.values())
         integrity = {"state": "NOT_INSTALLED", "release": active}
         if owner and active and owner.get("installed"):
-            try:
-                self._installed(ctx, active)
-                integrity["state"] = "VERIFIED"
-            except Exception:
-                integrity.update(state="VIOLATED", error_code="INTEGRITY_FAILED")
+            if self.verifier is None:
+                integrity.update(state="UNVERIFIED", error_code="PREREQUISITE_MISSING")
+            else:
+                try:
+                    self._installed(ctx, active)
+                    integrity["state"] = "VERIFIED"
+                except Exception:
+                    integrity.update(state="VIOLATED", error_code="INTEGRITY_FAILED")
         elif owner and not active:
             integrity["state"] = "INCOMPLETE"
         essential["integrity"] = integrity
@@ -342,19 +344,17 @@ class NativeEngine:
                 if operation.get("status") in {"RUNNING", "CANCELED", "RECOVERY_REQUIRED", "FAILED"}:
                     pending.append({"receipt": file.stem, "action": operation.get("action"),
                                     "status": operation.get("status"), "phase": operation.get("phase")})
-        with socket.socket() as probe:
-            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            try:
-                probe.bind(("127.0.0.1", manifest["web"]["port"]))
-                essential["port_conflict"] = False
-            except OSError:
-                essential["port_conflict"] = not owned_running
+        essential.update(self._port_state(ctx, records))
         for option in ("inventory_file", "signature_file", "archive_path"):
             path = options.get(option)
             if path:
                 file = checked_path(path)
                 essential[option] = _file_digest(file) if file.is_file() else None
+        from .prerequisites import collect_inventory
+        environment_inventory = collect_inventory(paths=[str(ctx["root"])])
+        essential["environment_fingerprint"] = environment_inventory["fingerprint"]
         return {"fingerprint_data": essential, "installation": owner,
+                "environment_inventory": environment_inventory,
                 "active_release": active, "runtime": {"system_python_required": False},
                 "integrity": integrity, "components": processes,
                 "unfinished_operations": pending,
@@ -586,6 +586,58 @@ class NativeEngine:
                 records[name] = self._adopt_launch(ctx, name, record)
                 _write(ctx["control"] / "processes.json", records)
         return records
+
+    def _owns_loopback_listener(self, records, port):
+        """HTTP identity дополняется kernel socket ownership, а не заменяет его.
+
+        /proc/net/tcp — inventory сокетов namespace; принадлежность доказывают
+        inode в fd конкретного живого owned PID. Wildcard bind не соответствует
+        фиксированному 127.0.0.1 контракту. IPv6/shared proxy требуют adapter.
+        """
+        try:
+            listeners = set()
+            for line in Path("/proc/net/tcp").read_text().splitlines()[1:]:
+                fields = line.split()
+                address, encoded_port = fields[1].split(":")
+                if fields[3] != "0A" or int(encoded_port, 16) != port:
+                    continue
+                if address == "00000000":
+                    return False
+                if address == "0100007F":
+                    listeners.add(fields[9])
+            if not listeners:
+                return False
+            owned = set()
+            for record in records.values():
+                if not self._running(record):
+                    continue
+                found = set()
+                try:
+                    for entry in (Path("/proc") / str(record["pid"]) / "fd").iterdir():
+                        try:
+                            link = os.readlink(entry)
+                        except OSError:
+                            continue
+                        match = re.fullmatch(r"socket:\[([0-9]+)\]", link)
+                        if match:
+                            found.add(match[1])
+                except OSError:
+                    continue
+                if self._running(record):
+                    owned.update(found)
+            return listeners <= owned
+        except (OSError, ValueError, IndexError):
+            return False
+
+    def _port_state(self, ctx, records):
+        with socket.socket() as probe:
+            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                probe.bind(("127.0.0.1", ctx["manifest"]["web"]["port"]))
+                return {"port_conflict": False, "owned_listener": False}
+            except OSError:
+                owned = self._owns_loopback_listener(records, ctx["manifest"]["web"]["port"])
+                return {"port_conflict": not owned, "owned_listener": owned}
 
     def _assert_session_quiesced(self, record):
         """Main PID exit не означает, что его foreground session опустела.
@@ -845,13 +897,18 @@ class NativeEngine:
             records = self._records(ctx)
             required = component_order(manifest, tuple(meta["modes"]))
             if any(name not in records or not self._running(records[name]) for name in required):
-                raise EngineError("RECOVERY_REQUIRED", "Обязательный компонент не работает")
+                raise EngineError("HEALTH_CHECK_FAILED", "Обязательный компонент не работает",
+                                  details={"check": "owned_component_running"})
+            if not self._owns_loopback_listener(records, manifest["web"]["port"]):
+                time.sleep(0.1)
+                continue
             try:
                 with opener.open(url, timeout=1) as response:
                     body = response.read(65537)
                     value = json.loads(body) if len(body) <= 65536 else None
                     if (response.status == 200 and isinstance(value, dict)
-                            and value.get("ready") is True and all(value.get(k) == v for k, v in expected.items())):
+                            and value.get("ready") is True and all(value.get(k) == v for k, v in expected.items())
+                            and self._owns_loopback_listener(records, manifest["web"]["port"])):
                         for command in manifest["hooks"]["health_checks"]:
                             result = subprocess.run(self._argv(ctx, release, command), cwd=self._release(ctx, release),
                                                     env=self._environment(ctx, release), stdin=subprocess.DEVNULL,
@@ -863,7 +920,8 @@ class NativeEngine:
             except (OSError, ValueError, urllib.error.URLError):
                 pass
             time.sleep(0.1)
-        raise EngineError("RECOVERY_REQUIRED", "Readiness не подтвердил нужную установку и версию")
+        raise EngineError("HEALTH_CHECK_FAILED", "Readiness не подтвердил owned listener, установку и версию",
+                          details={"check": "owned_listener_and_product_readiness"})
 
     def _recovery_copy(self, ctx, release):
         destination = checked_path(ctx["home"].roots["runtime"] / "recovery" / release)
@@ -963,6 +1021,13 @@ class NativeEngine:
                     else None)
         if action != "install":
             self._owner(ctx, required=True)
+        if action in {"install", "start", "update", "repair", "reinstall"}:
+            records = self._records(ctx) if self._owner(ctx) else {}
+            # Незавершённый launch разрешается reconciliation под lock, но
+            # отсутствие receipt не даёт права доверять чужому listener.
+            unresolved_launch = any(record.get("status") == "launching" for record in records.values())
+            if not unresolved_launch and self._port_state(ctx, records)["port_conflict"]:
+                raise EngineError("PORT_IN_USE", "Порт занят не подтверждённым listener")
         if action in {"install", "update", "repair", "reinstall", "start"}:
             refs = ctx["options"].get("secret_refs", {})
             current = self._pointer(ctx) if self._owner(ctx) else None

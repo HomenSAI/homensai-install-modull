@@ -1,0 +1,297 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-004",
+  "observed_date": "2026-10-25",
+  "source_state": "uncommitted DEV snapshots during CP004; exact binary hashes identify tested artifacts",
+  "environment": {
+    "os": "linux",
+    "arch": "x64",
+    "scope": "user-session",
+    "python_runtime": "3.14.3",
+    "browser": "Chrome Headless156.0.8078.47"
+  },
+  "source_suite": {
+    "passed": 1493,
+    "skipped": 1,
+    "subtests_passed": 10,
+    "seconds": 35.41
+  },
+  "linux_native_api_http_integration": {
+    "passed": 26,
+    "seconds": 30.17
+  },
+  "results": {
+    "frozen_gui_lifecycle": {
+      "scope": "Linux x64 frozen DEV GUI + bundled runtime",
+      "locales": {
+        "ru": "Установка приложения",
+        "en": "Application setup",
+        "de": "Anwendung installieren"
+      },
+      "status": "SUCCEEDED",
+      "operation_id": "op_c4feb49f95b647208f5c85bf611407dd",
+      "browser_errors": [],
+      "product_ready": true,
+      "production_ready": false,
+      "lifecycle": [
+        {
+          "action": "backup",
+          "locale": "en",
+          "status": "SUCCEEDED",
+          "operation_id": "op_e79eeea0b9514250a4eeed52d3e10325"
+        },
+        {
+          "action": "uninstall",
+          "locale": "de",
+          "status": "SUCCEEDED",
+          "operation_id": "op_e6916b467b5f48eba9acd57bf72f97dc"
+        },
+        {
+          "action": "restore",
+          "locale": "ru",
+          "status": "SUCCEEDED",
+          "operation_id": "op_17db3239926e44a488016d0b0f495c9d"
+        },
+        {
+          "action": "stop",
+          "locale": "en",
+          "status": "SUCCEEDED",
+          "operation_id": "op_ed23e790e97d45e1bc0f1f81f36da980"
+        }
+      ],
+      "support_export": "PASS"
+    },
+    "isolated_fresh": {
+      "scope": "Linux x64 frozen DEV GUI + bundled runtime",
+      "locales": {
+        "ru": "Установка приложения",
+        "en": "Application setup",
+        "de": "Anwendung installieren"
+      },
+      "status": "SUCCEEDED",
+      "operation_id": "op_d7f945ee682b4a3d80714cd5aa27fd77",
+      "browser_errors": [],
+      "product_ready": true,
+      "production_ready": false
+    },
+    "isolated_update_v2": {
+      "scope": "Linux x64 frozen DEV GUI + bundled runtime",
+      "action": "update",
+      "status": "SUCCEEDED",
+      "operation_id": "op_c1c64739080d4afca4a6e9965e53d7e3",
+      "health": {
+        "product_id": "homensai-reference",
+        "installation_id": "6031766b5f30474ca70b40569e19e2c3",
+        "release": "reference-2.0.0-dev",
+        "product_version": "2.0.0",
+        "database_schema": 2,
+        "expected_database_schema": 2,
+        "api_key_configured": false,
+        "api_key_required": false,
+        "ready": true,
+        "checks": {
+          "database": true,
+          "settings": true,
+          "api_key": true,
+          "profile": true
+        }
+      },
+      "user_file_preserved": true,
+      "browser_errors": [],
+      "production_ready": false
+    },
+    "isolated_update_v3": {
+      "scope": "Linux x64 frozen DEV GUI + bundled runtime",
+      "action": "update",
+      "status": "SUCCEEDED",
+      "operation_id": "op_f913e49abe914b22aa7c371fe1b4aa30",
+      "health": {
+        "product_id": "homensai-reference",
+        "installation_id": "6031766b5f30474ca70b40569e19e2c3",
+        "release": "reference-3.0.0-dev",
+        "product_version": "3.0.0",
+        "database_schema": 3,
+        "expected_database_schema": 3,
+        "api_key_configured": false,
+        "api_key_required": false,
+        "ready": true,
+        "checks": {
+          "database": true,
+          "settings": true,
+          "api_key": true,
+          "profile": true
+        }
+      },
+      "user_file_preserved": true,
+      "browser_errors": [],
+      "production_ready": false
+    },
+    "isolated_automatic_rollback": {
+      "scope": "Linux x64 frozen DEV GUI + bundled runtime",
+      "action": "update",
+      "status": "FAILED_ROLLED_BACK",
+      "operation_id": "op_d3f5e7958dbe4327b791846d57b7cc01",
+      "health": {
+        "product_id": "homensai-reference",
+        "installation_id": "6031766b5f30474ca70b40569e19e2c3",
+        "release": "reference-3.0.0-dev",
+        "product_version": "3.0.0",
+        "database_schema": 3,
+        "expected_database_schema": 3,
+        "api_key_configured": false,
+        "api_key_required": false,
+        "ready": true,
+        "checks": {
+          "database": true,
+          "settings": true,
+          "api_key": true,
+          "profile": true
+        }
+      },
+      "user_file_preserved": true,
+      "browser_errors": [],
+      "production_ready": false
+    }
+  },
+  "artifacts": {
+    "reference-dev-bundle-05": {
+      "executable_sha256": "dcd23cddf16c4b92b68c549a96acef4e0d36ec375268f3b7e10a240e749fe505",
+      "inventory_sha256": "39cb3a2fd059edf4b15c4cf9f3c33c4387d81d2720cca6cef5178c86b38699c2",
+      "build_report": {
+        "schema_version": 1,
+        "release": "reference-1.0.0-dev",
+        "python": "3.14.3",
+        "target": {
+          "os": "linux",
+          "arch": "x64",
+          "mode": "native"
+        },
+        "reference_profile": {
+          "schema_version": 1,
+          "product_version": "1.0.0",
+          "database_schema": 1,
+          "health_failure": false,
+          "migration_failure": false,
+          "require_api_key": false
+        },
+        "files": 896,
+        "payload_bytes": 168898063,
+        "development": true,
+        "production_ready": false,
+        "freeze": true,
+        "blockers": [
+          "production publisher signature/certificate",
+          "runtime transitive licence audit",
+          "approved product EULA",
+          "Windows/Docker/system-service acceptance"
+        ]
+      }
+    },
+    "reference-dev-bundle-v2": {
+      "executable_sha256": "26e63cbc739c66387511771846ba38007c9a87f867acbcc7bd3b733e468a0c0e",
+      "inventory_sha256": "88f4a4b262dd789e84726b182ea92becfd2affffec76f79f12fbe8aa8ddc3b0e",
+      "build_report": {
+        "schema_version": 1,
+        "release": "reference-2.0.0-dev",
+        "python": "3.14.3",
+        "target": {
+          "os": "linux",
+          "arch": "x64",
+          "mode": "native"
+        },
+        "reference_profile": {
+          "schema_version": 1,
+          "product_version": "2.0.0",
+          "database_schema": 2,
+          "health_failure": false,
+          "migration_failure": false,
+          "require_api_key": false
+        },
+        "files": 896,
+        "payload_bytes": 168898765,
+        "development": true,
+        "production_ready": false,
+        "freeze": true,
+        "blockers": [
+          "production publisher signature/certificate",
+          "runtime transitive licence audit",
+          "approved product EULA",
+          "Windows/Docker/system-service acceptance"
+        ]
+      }
+    },
+    "reference-dev-bundle-v3-clean": {
+      "executable_sha256": "7bcf2431ef2f092e10d207bc8862468f7f245eaf50e27c17de60915b9c920c90",
+      "inventory_sha256": "2501dadd95303606255b1a9a3498cf79b557f2d5c5e93c7998608272716345eb",
+      "build_report": {
+        "schema_version": 1,
+        "release": "reference-3.0.0-dev",
+        "python": "3.14.3",
+        "target": {
+          "os": "linux",
+          "arch": "x64",
+          "mode": "native"
+        },
+        "reference_profile": {
+          "schema_version": 1,
+          "product_version": "3.0.0",
+          "database_schema": 3,
+          "health_failure": false,
+          "migration_failure": false,
+          "require_api_key": false
+        },
+        "files": 896,
+        "payload_bytes": 168898765,
+        "development": true,
+        "production_ready": false,
+        "freeze": true,
+        "blockers": [
+          "production publisher signature/certificate",
+          "runtime transitive licence audit",
+          "approved product EULA",
+          "Windows/Docker/system-service acceptance"
+        ]
+      }
+    },
+    "reference-dev-bundle-v3-bad": {
+      "executable_sha256": "892873db9b06ec2073ae5e5c68d6bb268786b39af7f2eceb6a5b39ac587afc37",
+      "inventory_sha256": "dcd49e2f9439f38e7f775f5ef070a8381b3cf21e809f522a18602256fbb6b1de",
+      "build_report": {
+        "schema_version": 1,
+        "release": "reference-3.0.1-bad-dev",
+        "python": "3.14.3",
+        "target": {
+          "os": "linux",
+          "arch": "x64",
+          "mode": "native"
+        },
+        "reference_profile": {
+          "schema_version": 1,
+          "product_version": "3.0.1-bad",
+          "database_schema": 3,
+          "health_failure": true,
+          "migration_failure": false,
+          "require_api_key": false
+        },
+        "files": 896,
+        "payload_bytes": 168898768,
+        "development": true,
+        "production_ready": false,
+        "freeze": true,
+        "blockers": [
+          "production publisher signature/certificate",
+          "runtime transitive licence audit",
+          "approved product EULA",
+          "Windows/Docker/system-service acceptance"
+        ]
+      }
+    }
+  },
+  "limits": [
+    "No Windows or Docker installed acceptance",
+    "No OS service/reboot acceptance",
+    "No production signature/license/EULA approval",
+    "Controller crash resume remains pending at this checkpoint"
+  ],
+  "production_ready": false
+}

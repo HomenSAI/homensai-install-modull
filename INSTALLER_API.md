@@ -277,10 +277,28 @@ stdout содержит один JSON envelope: `api_version`, `request_id`, `re
 precondition/apply/verify и допустимая компенсация. При миграции БД это
 проверенный backup/restore, а не универсальное обратное SQL.
 
-Данный пакет не динамически импортирует адаптер по URL и не выдаёт ему
-admin-права. Автоматическая регистрация произвольных plugin/executable hooks
-пока не заявляется как готовая capability. Текущий native backend использует
-явные продуктовые команды manifest v2 через проверенный runtime.
+Реализация `homensai_install.adapters.ExecutableProductAdapter` предоставляет
+явный signed-descriptor/JSON-subprocess protocol с ограниченными argv,
+stdin/stdout/stderr, deadline, env allowlist и отдельным durable журналом
+подтверждённых callbacks. Статический `capabilities()` не запускает процесс.
+Неопределённый исход эффекта требует `reconcile`, а не blind retry. Execution
+backend этой реализации пока поддерживает Linux; Windows требует отдельного
+Job Object backend и приёмки. Версия/entrypoint доступны в discovery.
+
+Пакет не импортирует adapter по URL и не выдаёт ему admin-права.
+Автоматическая регистрация executable protocol в lifecycle engine пока
+не реализована; текущий native backend использует явные продуктовые команды
+manifest v2 через проверенный runtime. Общий lifecycle не копируется в продукт.
+
+`hinstall init-adapter --output-dir NEW_DIR --spec product-spec.json --json`
+создаёт подключение из переданных реальных payload/runtime/wheels/locks,
+вычисляя SHA-256. SDK-вызов —
+`homensai_install.scaffold.scaffold_product(output_dir, spec)`.
+При недостающих inputs выдаются `BLOCKED`, schema-invalid manifest DRAFT и
+список недостающего; фиктивных хешей нет. Полный комплект остаётся
+`REVIEW_REQUIRED`, неподписанным и `production_ready=false` до release gates.
+Формат spec, descriptor, протокол callbacks и порядок независимого подключения
+описаны в [руководстве интеграции](docs/INTEGRATION_GUIDE.md).
 
 Приёмка нового продукта: установить wheel вне checkout ядра, прочитать этот
 документ и schemas, описать продукт, выполнить read-only contract-test,

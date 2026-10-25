@@ -108,6 +108,40 @@ def test_unfinished_operations_are_filtered_by_bound_product(tmp_path):
         session.route("GET", "/operations", {"product_id": ["foreign"]}, {})
 
 
+def test_secret_update_cannot_race_operation_registration(tmp_path):
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+    session = make_session(tmp_path)
+    entered, release, changed = threading.Event(), threading.Event(), threading.Event()
+    session._plan_locales["plan_test"] = ("en", "digest")
+    session.api.status = lambda _: {"status": "QUEUED"}
+    def submit(*args, **kwargs):
+        entered.set()
+        assert release.wait(3)
+        return {"operation_id": "op_busy"}
+    session.api.submit = submit
+    body = {"accepted_terms": True, "accepted_plan": True, "plan_id": "plan_test",
+            "plan_digest": "plan-digest", "terms_digest": "digest",
+            "consent_refs": [], "idempotency_key": "test-only"}
+    def change():
+        try:
+            session.route("POST", "/secrets", {}, {"archive_password": "test-only-new-password"})
+        finally:
+            changed.set()
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        started = pool.submit(session.route, "POST", "/operations", {}, body)
+        assert entered.wait(3)
+        changing = pool.submit(change)
+        try:
+            assert not changed.wait(.05)
+        finally:
+            release.set()
+        assert started.result()["operation_id"] == "op_busy"
+        with pytest.raises(InstallerError) as caught:
+            changing.result()
+        assert caught.value.code == "OPERATION_CONFLICT"
+
+
 def test_wizard_translation_coverage():
     catalogs = json.loads((ASSETS / "locales.json").read_text())
     assert set(catalogs) == {"ru", "en", "de"}

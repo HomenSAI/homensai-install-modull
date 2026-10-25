@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+from http.server import BaseHTTPRequestHandler, HTTPServer
 import hashlib
 import json
 import os
@@ -13,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import threading
 import unittest
 import uuid
 from unittest.mock import patch
@@ -37,6 +39,9 @@ class Handler(BaseHTTPRequestHandler):
   self.send_response(200);self.end_headers();self.wfile.write(body)
  def log_message(self,*args): pass
 class Server(HTTPServer): allow_reuse_address=True
+if Path('no-web-listener').exists():
+ import time
+ while True: time.sleep(.1)
 server=Server(('127.0.0.1',int(os.environ['HOMENSAI_WEB_PORT'])),Handler)
 if Path('spawn-child').exists(): subprocess.Popen([sys.executable,'child.py'])
 def stop(*args): threading.Thread(target=server.shutdown,daemon=True).start()
@@ -123,7 +128,7 @@ class NativeLifecycleTests(unittest.TestCase):
                         process.wait(timeout=5)
         self.tmp.cleanup()
 
-    def bundle(self, release, *, bad_health=False, child_writer=False, synthetic_secret=None):
+    def bundle(self, release, *, bad_health=False, child_writer=False, synthetic_secret=None, no_listener=False):
         folder = self.base / ("source-" + release)
         folder.mkdir()
         files = {"server.py": SERVER, "migrate.py": MIGRATE,
@@ -137,6 +142,8 @@ class NativeLifecycleTests(unittest.TestCase):
             files.update({"spawn-child": "test child writer\n", "child.py": CHILD_WRITER})
         if synthetic_secret is not None:
             files["expected-secret.txt"] = synthetic_secret  # Test fixture only, never a product secret.
+        if no_listener:
+            files["no-web-listener"] = "intentional test: alive owned process without listener\n"
         for path, content in files.items():
             dest = folder / path
             dest.parent.mkdir(parents=True, exist_ok=True)
@@ -253,6 +260,9 @@ class NativeLifecycleTests(unittest.TestCase):
         user_file = self.root / "data" / "user.txt"
         user_file.write_text("valuable")
         (self.root / "releases" / "app-v1" / "server.py").write_text("corrupt")
+        discovered = self.engine.discover(bundle["manifest"], self.target, bundle["options"])
+        self.assertEqual(discovered["integrity"]["state"], "VIOLATED")
+        self.assertEqual((self.root / "releases" / "app-v1" / "server.py").read_text(), "corrupt")
         result = self.run_action("repair", bundle)
         self.assertTrue(result["health"]["ready"])
         self.assertEqual(user_file.read_text(), "valuable")
@@ -499,6 +509,52 @@ class NativeLifecycleTests(unittest.TestCase):
         self.current = first
         ctx = self.engine._context(first["manifest"], self.target, first["options"])
         self.assertTrue(self.engine._health(ctx)["ready"])
+
+    def test_foreign_listener_cannot_spoof_product_readiness(self):
+        bundle = self.bundle("v1", no_listener=True)
+        parent = self
+        class SpoofedHealth(BaseHTTPRequestHandler):
+            def do_GET(self):
+                installation = json.loads((parent.root / ".hinstall" / "installation.json").read_text())
+                body = json.dumps({"product_id": bundle["manifest"]["product_id"], "release": "v1",
+                                   "installation_id": installation["installation_id"], "ready": True}).encode()
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(body)
+            def log_message(self, *args):
+                pass
+        servers = []
+        def intercept_after_launch(event):
+            if event["phase"] == "start" and event["status"] == "SUCCEEDED":
+                server = HTTPServer(("127.0.0.1", self.port), SpoofedHealth)
+                thread = threading.Thread(target=server.serve_forever, daemon=True)
+                thread.start()
+                servers.append((server, thread))
+        self.current = bundle
+        try:
+            with self.assertRaises(EngineError) as error:
+                self.engine.execute(self.operation_plan("install", bundle), emit=intercept_after_launch)
+            self.assertEqual(error.exception.code, "HEALTH_CHECK_FAILED")
+            inventory = self.engine.discover(bundle["manifest"], self.target, bundle["options"])
+            self.assertTrue(inventory["fingerprint_data"]["port_conflict"])
+            self.assertFalse(inventory["fingerprint_data"]["owned_listener"])
+            with self.assertRaises(EngineError) as conflict:
+                self.run_action("start", bundle)
+            self.assertEqual(conflict.exception.code, "PORT_IN_USE")
+        finally:
+            for server, thread in servers:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=3)
+
+    def test_status_without_trust_is_unverified_and_does_not_claim_corruption(self):
+        bundle = self.bundle("v1")
+        self.run_action("install", bundle)
+        before = (self.root / ".hinstall" / "processes.json").read_bytes()
+        discovered = NativeEngine().status(bundle["manifest"], self.target, bundle["options"])
+        self.assertEqual(discovered["integrity"]["state"], "UNVERIFIED")
+        self.assertTrue(discovered["read_only"])
+        self.assertEqual((self.root / ".hinstall" / "processes.json").read_bytes(), before)
 
 
 if __name__ == "__main__":

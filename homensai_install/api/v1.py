@@ -13,7 +13,7 @@ import uuid
 
 from homensai_install import API_VERSION, __version__
 from .journal import Journal, now
-from .model import (ProductAdapter, bounded_json, canonical, checked_id, digest,
+from .model import (ProductAdapter, bounded_json, canonical, checked_id, checked_product_id, digest,
                     fail, normalize_manifest, parse_json, read_manifest, target_model)
 
 ALL_ACTIONS = ("build", "install", "update", "modify_components", "repair", "reinstall", "uninstall",
@@ -114,6 +114,13 @@ class InstallerAPI:
             "api_version": API_VERSION, "module_version": __version__, "adapter_protocol_version": "1.0",
             "error_catalog_version": "1.0.0", "manifest_schemas": [1, 2], "normalized_model_version": 1,
             "sdk": "homensai_install.api.v1.InstallerAPI", "cli": "hinstall",
+            "product_adapter": {"sdk": "homensai_install.adapters.ExecutableProductAdapter",
+                                "protocol_version": "1.0", "registration": "explicit_sdk",
+                                "lifecycle_engine_registration": False,
+                                "execution_platforms": ["linux"], "execution_mode": "native",
+                                "execution_scope": "user"},
+            "scaffold": {"sdk": "homensai_install.scaffold.scaffold_product",
+                         "cli": "hinstall init-adapter", "missing_inputs": "DRAFT_BLOCKED"},
             "locales": ["ru", "en", "de"],
             "operations": ["describe", "capabilities", "validate", "discover", "plan", "submit",
                            "operations.list", "status", "events", "cancel", "resume", "errors.describe", "errors.search",
@@ -319,6 +326,7 @@ class InstallerAPI:
                                        {"type": "operation.started", "status": "RUNNING"})
             self._diagnostics("start_operation", plan["action"], operation_id=operation_id,
                               product_id=plan["source_manifest"]["product_id"],
+                              product_version=plan["options"].get("product_version") or plan["options"].get("release") or "",
                               target=plan["target"], metadata={"plan_digest": plan["plan_digest"]})
             attempt_id = self._diagnostics("start_attempt", operation_id, kind="resume" if resume else "execution")
             emit = lambda event: self._emit(operation_id, event)
@@ -395,7 +403,7 @@ class InstallerAPI:
                 or type(unfinished_only) is not bool):
             fail("INVALID_REQUEST")
         if product_id is not None:
-            checked_id(product_id, field="product_id")
+            checked_product_id(product_id)
         try:
             journal = Journal(self.state_dir, create=False)
         except FileNotFoundError:
@@ -409,7 +417,7 @@ class InstallerAPI:
                 continue  # Worker успел закончить между SQL-страницей и проверкой owner.
             for field in ("operation_id", "plan_id"):
                 checked_id(operation[field], field=field)
-            checked_id(candidate["product_id"], field="product_id")
+            checked_product_id(candidate["product_id"])
             if (operation["action"] not in ALL_ACTIONS
                     or operation["status"] not in TERMINAL | RESUMABLE | {"QUEUED", "RUNNING"}
                     or type(operation["updated_at"]) is not str or len(operation["updated_at"]) > 64):

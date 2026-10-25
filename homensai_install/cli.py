@@ -69,6 +69,10 @@ def parser() -> Parser:
     schema = apis.add_parser("schema")
     _common(schema)
     schema.add_argument("name", choices=("manifest", "request", "plan", "operation", "event", "normalized"))
+    scaffold = commands.add_parser("init-adapter", help="Создать подключение продукта из реальных inputs или DRAFT/BLOCKED")
+    _common(scaffold)
+    scaffold.add_argument("--output-dir", required=True)
+    scaffold.add_argument("--spec", help="JSON: product/target/payload/runtime/locks/wheels/commands")
     validate = commands.add_parser("validate")
     _common(validate)
     validate.add_argument("--manifest", required=True)
@@ -160,6 +164,9 @@ def _sdk(args) -> InstallerAPI:
 
 
 def _execute(args):
+    if args.command == "init-adapter":
+        from .scaffold import scaffold_product
+        return scaffold_product(args.output_dir, _json_file(args.spec))
     api = _sdk(args)
     target = {key: getattr(args, key) for key in ("os", "arch", "mode", "scope")
               if getattr(args, key, None) is not None}
@@ -223,7 +230,7 @@ def main(argv: list[str] | None = None) -> int:
         result = _execute(args)
         response = {"api_version": API_VERSION, "request_id": request_id, "result": result}
         state = result.get("status") if isinstance(result, dict) else None
-        exit_code = 1 if state in {"FAILED", "FAILED_ROLLED_BACK", "RECOVERY_REQUIRED"} else 0
+        exit_code = 2 if state == "BLOCKED" else 1 if state in {"FAILED", "FAILED_ROLLED_BACK", "RECOVERY_REQUIRED"} else 0
     except InstallerError as error:
         response = {"api_version": API_VERSION, "request_id": request_id,
                     "error": error.to_dict(locale=getattr(args, "locale", "ru"))}

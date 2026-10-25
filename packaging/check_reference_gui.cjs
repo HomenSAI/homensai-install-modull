@@ -47,12 +47,16 @@ async function main() {
     if (!(await page.locator('#open-app').isVisible())) throw new Error('Ready web URL absent');
     const appURL = await page.locator('#open-app').getAttribute('href');
     const response = await page.request.get(appURL);
-    if (!response.ok() || !(await response.text()).includes('Installed')) throw new Error('Installed product unavailable');
+    if (!response.ok() || !(await response.text()).includes('HomenSAI Reference')) throw new Error('Installed product unavailable');
     const output = {scope: 'Linux x64 frozen DEV GUI + bundled runtime', locales,
       status: result.status, operation_id: result.operation_id, browser_errors: errors,
       product_ready: true, production_ready: false};
     if (process.env.HINSTALL_TEST_FULL_LIFECYCLE === '1') {
       const password = 'reference-test-only-archive-password';
+      const installedRoot = await page.locator('#install-root').inputValue();
+      const preservedFile = path.join(installedRoot, 'data', 'user-files', 'acceptance-preserved.txt');
+      fs.mkdirSync(path.dirname(preservedFile), {recursive: true});
+      fs.writeFileSync(preservedFile, 'Synthetic user data must survive uninstall and restore.');
       const actions = [];
       async function action(name, language, archivePath) {
         await page.locator('#maintenance').click();
@@ -81,9 +85,11 @@ async function main() {
       const saved = await action('backup', 'en');
       if (!saved.archive?.path) throw new Error('Backup did not return archive path');
       await action('uninstall', 'de');
+      if (!fs.readFileSync(preservedFile, 'utf8').includes('must survive')) throw new Error('Uninstall removed user file');
       await action('restore', 'ru', saved.archive.path);
+      if (!fs.readFileSync(preservedFile, 'utf8').includes('must survive')) throw new Error('Restore lost user file');
       const ready = await page.request.get(appURL);
-      if (!ready.ok() || !(await ready.text()).includes('Installed')) throw new Error('Restored product unavailable');
+      if (!ready.ok() || !(await ready.text()).includes('HomenSAI Reference')) throw new Error('Restored product unavailable');
       await page.locator('#support > summary').click();
       await page.locator('#statistics').click();
       await page.waitForFunction(() => document.querySelector('#statistics-results').textContent.length > 5);

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-25T06:27:22Z",
+  "runtime": "CPython",
+  "python_version": "3.14.3",
+  "platform": "x86_64-unknown-linux-gnu",
+  "upstream": "astral-sh/python-build-standalone",
+  "release_tag": "20260325",
+  "release_id": 301097886,
+  "release_url": "https://github.com/astral-sh/python-build-standalone/releases/tag/20260325",
+  "metadata_url": "https://api.github.com/repos/astral-sh/python-build-standalone/releases/301097886",
+  "asset_id": 381127079,
+  "asset_name": "cpython-3.14.3+20260325-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+  "asset_size": 36239204,
+  "upstream_sha256": "34e8e7ea5192308f0fe6d93becdf3eeb00a64a1fdbb4beead98d0edb93b68cdd",
+  "upstream_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260325/cpython-3.14.3%2B20260325-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+  "reported_historical_download_url": "https://releases.astral.sh/github/python-build-standalone/releases/download/20260325/cpython-3.14.3%2B20260325-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+  "verification": {
+    "official_asset_metadata": "OBSERVED",
+    "archive_downloaded_for_this_check": false,
+    "archive_bytes_compared": false,
+    "historical_download_sha256_recorded": false,
+    "historical_runtime_origin": "NOT_PROVEN",
+    "extracted_runtime_tree_compared": false,
+    "production_status": "BLOCKED",
+    "security_review": "REQUIRED; current CI target is 3.14.9; old runtime is not approved for production"
+  },
+  "note": "This reconstructed expected digest can verify a newly obtained archive. It does not retroactively prove which archive produced the existing runtime tree."
+}

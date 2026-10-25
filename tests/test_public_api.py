@@ -351,3 +351,13 @@ def test_cli_operations_list_after_ui_state_loss(capsys, tmp_path):
     value = json.loads(capsys.readouterr().out)["result"]
     assert value == {"operations": [], "has_more": False, "limit": 100}
     assert not state.exists()
+
+
+def test_operations_list_accepts_digit_prefixed_product_id_from_shared_schema(subject):
+    api, _, manifest, options = subject
+    manifest = deepcopy(manifest)
+    manifest['product_id'] = '7-product'
+    plan = api.plan('install', manifest, options=options)
+    operation = submit(api, plan, background=False)
+    listed = api.operations_list('7-product', unfinished_only=False)
+    assert listed['operations'][0]['operation_id'] == operation['operation_id']

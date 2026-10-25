@@ -50,6 +50,23 @@
   },
   "documentation": {
     "entrypoint": "INSTALLER_API.md",
-    "openapi": "api/openapi.yaml"
+    "openapi": "api/openapi.yaml",
+    "integration_guide": "docs/INTEGRATION_GUIDE.md"
+  },
+  "product_adapter": {
+    "sdk": "homensai_install.adapters.ExecutableProductAdapter",
+    "protocol_version": "1.0",
+    "registration": "explicit_sdk",
+    "lifecycle_engine_registration": false,
+    "execution_platforms": [
+      "linux"
+    ],
+    "execution_mode": "native",
+    "execution_scope": "user"
+  },
+  "scaffold": {
+    "sdk": "homensai_install.scaffold.scaffold_product",
+    "cli": "hinstall init-adapter",
+    "missing_inputs": "DRAFT_BLOCKED"
   }
 }

@@ -48,6 +48,19 @@ def requirement(**changes):
     return value
 
 
+def test_free_space_observation_does_not_make_every_plan_stale(tmp_path, absent_programs, monkeypatch):
+    disk = {"path": str(tmp_path), "status": "available", "exists": True,
+            "free_bytes": 1000000, "total_bytes": 2000000, "parent_writable": True}
+    monkeypatch.setattr(module, "_disk", lambda _: dict(disk))
+    first = collect_inventory(paths=[tmp_path])
+    disk["free_bytes"] -= 4096  # The installer's own journal may allocate a block.
+    second = collect_inventory(paths=[tmp_path])
+    assert first["fingerprint"] == second["fingerprint"]
+    assert first["disks"][0]["free_bytes"] != second["disks"][0]["free_bytes"]
+    disk["parent_writable"] = False
+    assert collect_inventory(paths=[tmp_path])["fingerprint"] != second["fingerprint"]
+
+
 def test_inventory_is_read_only_and_does_not_export_environment_values(tmp_path, absent_programs):
     selected = tmp_path / "not-created" / "data"
     env = {

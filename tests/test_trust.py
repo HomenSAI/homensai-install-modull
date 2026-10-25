@@ -56,6 +56,13 @@ def test_tampering_rejected_before_execution(signed, change):
     with pytest.raises(InstallerError) as exc:
         verifier(manifest, target, options)
     assert exc.value.code == 'INTEGRITY_FAILED'
+    for language in ('ru', 'en', 'de'):
+        envelope = exc.value.to_dict(language)
+        assert envelope['code'] == 'INTEGRITY_FAILED'
+        assert envelope['cause_status'] == 'confirmed'
+        assert envelope['evidence'][0]['result'] == 'failed'
+        assert envelope['locale'] == language
+        json.dumps(envelope, allow_nan=False)
 
 
 def test_development_forbidden_by_default(signed):

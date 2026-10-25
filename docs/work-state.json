@@ -1,30 +1,67 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-003",
+  "checkpoint_id": "CP-20261025-004",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "active_tasks": [
+    "HIM-071",
     "HIM-011",
     "HIM-012",
     "HIM-013",
     "HIM-014",
+    "HIM-015",
     "HIM-016",
     "HIM-017",
     "HIM-018",
+    "HIM-019",
     "HIM-020",
     "HIM-021",
     "HIM-022",
+    "HIM-023",
+    "HIM-101",
+    "HIM-025",
+    "HIM-026",
+    "HIM-027",
+    "HIM-104",
+    "HIM-029",
+    "HIM-033",
+    "HIM-030",
+    "HIM-035",
+    "HIM-102",
     "HIM-036",
+    "HIM-038",
+    "HIM-040",
+    "HIM-041",
+    "HIM-043",
+    "HIM-047",
+    "HIM-048",
+    "HIM-105",
     "HIM-050",
+    "HIM-051",
+    "HIM-052",
+    "HIM-054",
+    "HIM-055",
+    "HIM-056",
+    "HIM-058",
+    "HIM-060",
     "HIM-062",
     "HIM-063",
+    "HIM-064",
     "HIM-065",
     "HIM-066",
     "HIM-067",
+    "HIM-068",
     "HIM-069",
-    "HIM-101",
-    "HIM-103"
+    "HIM-070",
+    "HIM-103",
+    "HIM-072",
+    "HIM-086",
+    "HIM-090",
+    "HIM-092",
+    "HIM-094",
+    "HIM-095",
+    "HIM-097"
   ],
   "completed_tasks": [
     "HIM-001",
@@ -34,21 +71,23 @@
     "HIM-009"
   ],
   "blocked_tasks": {
-    "HIM-003": "User Docker/Forgejo host is not connected to this cloud workspace"
+    "HIM-003": "User Docker/Forgejo host not connected",
+    "HIM-044": "No Windows Docker/WSL2 acceptance runner",
+    "HIM-088": "Exact distributed dependencies/notices/approvals unresolved"
   },
   "sync": {
     "cloud_git": "SYNC_PENDING",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261025-002"
+    "last_confirmed_checkpoint": "CP-20261025-003"
   },
-  "next_step": "Повтор чистого frozen lifecycle после license pruning; protocol/scaffold и licence gate; platform runners.",
+  "next_step": "Complete frozen bad-health rollback/crash-resume; checkpoint CP004; source Docker and CI checks",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
     "windows_docker": "BLOCKED",
-    "linux_native": "PARTIAL: frozen GUI fresh+backup PASS; full bundled lifecycle and restart resume pending",
-    "linux_docker": "BLOCKED"
+    "linux_native": "PARTIAL: frozen user-session GUI install/backup/uninstall/restore/stop + v1→v2→v3 PASS; services/reboot/remaining scenarios open",
+    "linux_docker": "NOT RUN"
   },
-  "last_confirmed_github_sha": "b2d99a2bf75aa8e35328f64c3b8b08dc618bceda"
+  "last_confirmed_github_sha": "db85d13811ea63b42142f97ca6a1e7fae76ba54c"
 }

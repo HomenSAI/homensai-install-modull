@@ -95,7 +95,17 @@
     "incomplete_history": "История неполная: часть записей недоступна или удалена по сроку хранения.",
     "unfinished_operations": "Незавершённые операции",
     "unfinished_help": "Выберите операцию для просмотра и продолжения. Само открытие списка не запускает установку.",
-    "review_operation": "Просмотреть операцию"
+    "review_operation": "Просмотреть операцию",
+    "product_modes": "Компоненты и режим продукта",
+    "available_memory": "Физическая память",
+    "available_disk": "Свободное место",
+    "elevated_context": "Повышенные права текущего процесса",
+    "ordinary_context": "Обычные права текущего пользователя",
+    "current_installation": "Найдена существующая установка",
+    "fresh_installation": "Новая установка",
+    "operation": "Состояние операции",
+    "post_update": "Проверки после обновления",
+    "status_queued": "В очереди"
   },
   "en": {
     "title": "Application setup",
@@ -193,7 +203,17 @@
     "incomplete_history": "History is incomplete: some records are unavailable or removed by retention.",
     "unfinished_operations": "Unfinished operations",
     "unfinished_help": "Choose an operation to review and resume. Opening this list does not start installation.",
-    "review_operation": "Review operation"
+    "review_operation": "Review operation",
+    "product_modes": "Product components and mode",
+    "available_memory": "Physical memory",
+    "available_disk": "Free disk space",
+    "elevated_context": "Current process has elevated privileges",
+    "ordinary_context": "Current user privileges",
+    "current_installation": "Existing installation detected",
+    "fresh_installation": "New installation",
+    "operation": "Operation status",
+    "post_update": "Checks after update",
+    "status_queued": "Queued"
   },
   "de": {
     "title": "Anwendung installieren",
@@ -291,6 +311,16 @@
     "incomplete_history": "Der Verlauf ist unvollständig: Einige Einträge sind nicht verfügbar oder wurden nach der Aufbewahrungsfrist gelöscht.",
     "unfinished_operations": "Nicht abgeschlossene Vorgänge",
     "unfinished_help": "Wählen Sie einen Vorgang zum Prüfen und Fortsetzen. Das Öffnen der Liste startet keine Installation.",
-    "review_operation": "Vorgang ansehen"
+    "review_operation": "Vorgang ansehen",
+    "product_modes": "Produktkomponenten und Betriebsart",
+    "available_memory": "Arbeitsspeicher",
+    "available_disk": "Freier Speicherplatz",
+    "elevated_context": "Aktueller Prozess mit erhöhten Rechten",
+    "ordinary_context": "Rechte des aktuellen Benutzers",
+    "current_installation": "Vorhandene Installation erkannt",
+    "fresh_installation": "Neue Installation",
+    "operation": "Vorgangsstatus",
+    "post_update": "Prüfungen nach der Aktualisierung",
+    "status_queued": "In der Warteschlange"
   }
 }

@@ -67,3 +67,48 @@ Production release заблокирован до лицензионного gate
 Следующая очередь: чистый frozen bundled lifecycle + crash/browser-restart resume,
 полный licence gate, signed executable ProductAdapter/scaffold, platform adapters
 и настоящие JobPilot/Rent. Docker/Windows runners и Forgejo владельца не подключены.
+
+
+## CP-20261025-004 — реальный GUI lifecycle, reference versions, adapter и build gates
+
+CP-003 подтверждён локально/GitHub: db85d13811ea63b42142f97ca6a1e7fae76ba54c.
+Source full suite1493PASS/1skip/10subtests35.41s. До этого новый field product_version
+вызвал2FAIL в diagnostic projection; пустое значение теперь нормализуется, общий
+прогон повторён. Native/API/HTTP26PASS; GUI/trust/prerequisite53PASS. Отдельный
+concurrency test проверил отсутствие смены секретов между submit и регистрацией
+активной операции. Эти числа описывают разные наборы, не суммируются.
+
+Frozen bundle05:896signedfiles, полностью самостоятельный Linux executable/runtime.
+Настоящий браузер прошёл install(ru),backup(en),uninstall(de),restore(ru),stop(en),
+реальный сайт/SQLite и сохранение user file; errors/search/stats/export PASS.
+Открытые токены и архивные пароли в Git не помещались. Private DEV key используется
+только вне repo для последовательных update builds; production signing отсутствует.
+
+Reference v1/v2/v3: настоящие DDL/data migrations, настройки, optional secret,
+transactional migration failure/health failure;30source tests. В отдельном /tmp
+fixture frozen GUI обновился v1→v2→v3 с проверкой фактической schema/version и файла.
+До этого workspace bundle-v3 получил extra hidden libpython tempfile; guard отверг
+его до effects. Новый workspace update остановился на backup:0/before-rollback.
+Источник изменения неизвестен; failed fixtures сохранены, ослабления проверки нет.
+
+Executable ProductAdapter: signed descriptor/callback/runtime, argv без shell,
+bounded execution, durable effect ledger, unknown effect запрещает blind retry.
+Scaffold требует настоящие hashes/inputs; иначе DRAFT/BLOCKED. Protocol ещё не
+подменяет legacy Native hooks автоматически. Добавлены integration guide и API docs.
+
+Build pipeline:17pins/22wheelhashes с exact installed matching,29new build tests,
+SDK wheel build PASS, source CI Linux/Windows с pinned action commits. Actual CI
+ещё NOT RUN до remote workflow результата. Source suite не заменяет Windows setup.
+License gate принимает только actual artifact evidence;05inventory/gateBLOCKED:
+896payload,902selectedartifacts,73componentcandidates,29removed.352signals —
+не352юридических нарушений. BDB/Tcl/ensurepip удалены; static/native closure,
+notices/OR decisions, historical runtime provenance и current security baseline
+остаются открыты. Никаких APPROVED записей или публичного binary release нет.
+
+Исправлена ошибочная ссылка CP-003: Linux evidence принадлежит HIM-043,
+HIM-044 — Windows Docker — BLOCKED. Canonical ToDo по-прежнему106tasks,
+5DONE, всеG0–G5OPEN. Разработка продолжается; ничего не переименовано в готовый
+выпуск ради прохождения gate. Следом: frozen rollback/crash-resume и source Docker.
+
+Подтверждено перед CP-004: frozen bad-health update → FAILED_ROLLED_BACK;
+фактический HTTP сайт v3.0.0/SQLite3 ready=true и user file сохранены.

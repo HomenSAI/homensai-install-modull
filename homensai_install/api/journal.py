@@ -10,7 +10,7 @@ import sqlite3
 import stat
 import uuid
 
-from .model import canonical, checked_id, fail, parse_json
+from .model import canonical, checked_id, checked_product_id, fail, parse_json
 
 
 def now() -> str:
@@ -157,7 +157,7 @@ class Journal:
                 or type(unfinished_only) is not bool):
             fail("INVALID_REQUEST")
         if product_id is not None:
-            checked_id(product_id, field="product_id")
+            checked_product_id(product_id)
         query = """
             SELECT o.operation_id,
                    json_extract(o.body, '$.plan_id'),

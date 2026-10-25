@@ -64,20 +64,21 @@ class WizardSession:
         self.verifier = verifier
         self.development = bool(development)
         self.token = secrets.token_urlsafe(32)
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._plan_locales = {}
         self._archive_password = None
         self._product_secrets = {}
         self._operations = set()
 
     def secret(self, reference):
-        if type(reference) is str and reference.startswith("wizard_product:"):
-            value = self._product_secrets.get(reference.split(":", 1)[1])
-            if value is not None:
-                return value
-        if reference != "wizard_archive" or self._archive_password is None:
-            raise InstallerError("PREREQUISITE_MISSING")
-        return self._archive_password
+        with self._lock:
+            if type(reference) is str and reference.startswith("wizard_product:"):
+                value = self._product_secrets.get(reference.split(":", 1)[1])
+                if value is not None:
+                    return value
+            if reference != "wizard_archive" or self._archive_password is None:
+                raise InstallerError("PREREQUISITE_MISSING")
+            return self._archive_password
 
     def target(self, mode="native"):
         import platform
@@ -109,6 +110,14 @@ class WizardSession:
                 "text": data.decode("utf-8"), "development": self.development}
 
     def route(self, method, path, query, body):
+        # Secret updates cannot slip between submit/resume and registration of
+        # the active operation. A worker reads values after this lock is released.
+        if method == "POST":
+            with self._lock:
+                return self._route(method, path, query, body)
+        return self._route(method, path, query, body)
+
+    def _route(self, method, path, query, body):
         api = self.api
         locale = normalize_locale(body.get("locale", query.get("locale", [self.locale])[0]))
         if method == "GET" and path == "/session":
@@ -117,6 +126,8 @@ class WizardSession:
                     "options": {k: self.options.get(k) for k in ("install_root", "release")},
                     "secrets": [{"name": item["name"], "required": item.get("required", False)}
                                 for item in self.manifest.get("secrets", [])],
+                    "product_modes": self.manifest.get("modes", []),
+                    "selected_modes": self.options.get("modes", []),
                     "target": self.target()}
         if method == "GET" and path.startswith("/locales/"):
             name = path.removeprefix("/locales/")
@@ -161,7 +172,7 @@ class WizardSession:
         if method == "POST" and path == "/validate":
             return api.validate(self.manifest)
         if method == "POST" and path in ("/discover", "/plans"):
-            if set(body) - {"install_root", "mode", "action", "locale", "archive_path", "acknowledge_data_loss"}:
+            if set(body) - {"install_root", "mode", "action", "locale", "archive_path", "acknowledge_data_loss", "product_modes"}:
                 raise InstallerError("INVALID_REQUEST")
             options = dict(self.options)
             if "install_root" in body:
@@ -172,6 +183,12 @@ class WizardSession:
             if mode not in ("native", "docker"):
                 raise InstallerError("INVALID_REQUEST")
             target = self.target(mode)
+            if "product_modes" in body:
+                modes = body["product_modes"]
+                allowed = {item["name"] for item in self.manifest.get("modes", [])}
+                if type(modes) is not list or not modes or any(type(item) is not str for item in modes) or set(modes) - allowed or len(modes) != len(set(modes)):
+                    raise InstallerError("INVALID_REQUEST")
+                options["modes"] = modes
             if path == "/discover":
                 return api.discover(self.manifest, target=target, options=options)
             action = body.get("action", "install")
@@ -262,6 +279,29 @@ class WizardSession:
 
 
 def create_server(session: WizardSession, *, port=0):
+    class LimitedServer(ThreadingHTTPServer):
+        daemon_threads = True
+
+        def __init__(self, *args, **kwargs):
+            self._slots = threading.BoundedSemaphore(32)
+            super().__init__(*args, **kwargs)
+
+        def process_request(self, request, address):
+            if not self._slots.acquire(blocking=False):
+                self.close_request(request)
+                return
+            try:
+                super().process_request(request, address)
+            except BaseException:
+                self._slots.release()
+                raise
+
+        def process_request_thread(self, request, address):
+            try:
+                super().process_request_thread(request, address)
+            finally:
+                self._slots.release()
+
     class Handler(BaseHTTPRequestHandler):
         server_version = "HomenSAI"
         sys_version = ""
@@ -331,8 +371,7 @@ def create_server(session: WizardSession, *, port=0):
         do_GET = handle_request
         do_POST = handle_request
 
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    server.daemon_threads = True
+    server = LimitedServer(("127.0.0.1", port), Handler)
     return server
 
 
@@ -366,13 +405,20 @@ def main(argv=None):
     engine.secret_provider = session.secret
     server = create_server(session, port=args.port)
     url = f"http://127.0.0.1:{server.server_port}/#token={session.token}"
+    from shared.datahome import checked_path
     if args.url_file:
-        fd = os.open(args.url_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(fd, "w") as stream:
-            stream.write(url + "\n")
+        url_path = checked_path(Path(args.url_file).absolute())
+    else:
+        directory = checked_path(Path(args.state_dir).absolute())
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        url_path = directory / ("wizard-session-" + uuid.uuid4().hex + ".url")
+    fd = os.open(url_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    with os.fdopen(fd, "w") as stream:
+        stream.write(url + "\n")
     if not args.no_browser:
         webbrowser.open(url)
     print(f"HomenSAI installer: http://127.0.0.1:{server.server_port}/")
+    print(f"Private browser launch link: {url_path}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

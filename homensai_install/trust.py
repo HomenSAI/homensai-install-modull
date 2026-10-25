@@ -28,7 +28,9 @@ _KEY_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}\Z")
 
 def _fail(reason: str) -> None:
     raise InstallerError("INTEGRITY_FAILED", phase="verification",
-                         details={"reason": reason}, cause_status="confirmed")
+                         details={"reason": reason}, cause_status="confirmed",
+                         evidence=[{"check": "signed_payload_inventory",
+                                    "result": "failed", "reason": reason}])
 
 
 def canonical_bytes(value: Any) -> bytes:

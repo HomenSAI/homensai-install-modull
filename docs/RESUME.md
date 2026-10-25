@@ -1,50 +1,73 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261025-003`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261025-004`; ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый remote до создания CP-003: `b2d99a2bf75aa8e35328f64c3b8b08dc618bceda`.
-Фактический SHA текущего checkpoint определять по Git history/ref и внешней receipt.
+Последний подтверждённый GitHub/local до создания CP-004:
+`db85d13811ea63b42142f97ca6a1e7fae76ba54c` (CP-003).
+Фактический SHA текущего checkpoint определять по Git history/ref и внешней receipt;
+не создавать рекурсивный commit ради записи собственного SHA.
 
 ## Восстановление контекста
 
-Прочитать CLAUDE.md, полный PROMPT, канонический ToDo, work-state.json и
-IMPLEMENTATION_STATUS.md. Не превращать частичный PASS в готовность выпуска.
-Проверить branch/dirty files/staged files/активные процессы до новых действий.
-Не сбрасывать чужие изменения и не завершать произвольный PID.
+Прочитать CLAUDE.md, полный PROMPT, канонический ToDo, work-state.json,
+IMPLEMENTATION_STATUS.md, WORK_LOG.md и INSTALLER_API.md. Проверить branch,
+dirty/staged files и активные процессы. Не сбрасывать чужие изменения и не
+завершать произвольный PID. Частичный PASS не означает готовность выпуска.
 
-## Доступная среда
+## Среда и сохранение
 
-Облачный Linux x64; host Python 3.12, изолированный build/test Python 3.14.3.
-Windows пользователя и Docker/Forgejo не подключены. Cloud Git не заменяет
-Git владельца в Docker. GitHub доступен через connector; HTTPS Git credentials
-в shell отсутствуют. Точный source snapshot импортирован с проверкой Git hashes.
+Облачный Linux x64. Host Python3.12, isolated build/test Python3.14.3.
+Windows владельца, Docker daemon и локальный Forgejo/Docker Git не подключены.
+Cloud Git не заменяет Git владельца в Docker. GitHub доступен через connector;
+HTTPS Git credentials в shell отсутствуют. Канонические commit/tree сверяются с
+GitHub после каждого push; исходный snapshot импортирован с проверкой Git hashes.
+Транспорт connector сохраняет draft checkpoint ref и затем точный remote commit.
+В обычной среде используйте tools/checkpoint.py и docs/CHECKPOINTS.md.
 
-## Что уже работает
+## Последние принятые области
 
-Публичный пакет/CLI/API, strict manifest normalization, планы/согласия/журнал,
-Ed25519 inventory с manifest/target/runtime binding, Linux user-session lifecycle,
-ошибки/диагностика/локальная статистика и общие строки на ru/en/de.
-Новые source tests: 1233 passed, 1 skipped; отдельные real loopback native/API tests.
-Нативные службы ОС, Windows/Docker и frozen GUI acceptance пока не приняты.
+- Source suite1493PASS/1skip/10subtests (Python3.14.3,35.41s), отдельные
+  native/API/HTTP26PASS. Исправлена missing diagnostics projection без product_version.
+- Frozen Linux x64 bundle05 с896signedpayloadfiles: GUI ru/en/de,
+  install/backup/uninstall-preserve/restore/stop, real SQLite+HTTP,
+  offline errors/stats/preview+confirmed export PASS.
+- Reference real v1/v2/v3, transactional SQLite migrations и failure profiles,
+  signed executable ProductAdapter protocol/scaffold и29build-lock/receipt tests.
+- Изолированный /tmp frozen GUI v1→v2→v3 PASS с actual version/schema/user file.
+- Exact17buildpins/22wheelhashes, source CI workflow для Linux/Windows;
+  сам workflow ещё не является фактом remote CI PASS.
+- License04/05 gates BLOCKED. 05:896payloadfiles,902selectedartifacts,
+  73componentcandidates,29removed; cffi/crypto bytes сверены с official wheels.
 
-## Следующая очередь
+## Следующие действия
 
-1. Завершить и проверить loopback GUI: три языка, consent, progress, resume, error help.
-2. Собрать reference package с реальным Python runtime, wheel, ru/en/de legal и подписью.
-3. Пройти реальную установку через GUI и frozen bootstrap на доступном Linux.
-4. Закрыть crash-window process receipt, encrypted-only restore и candidate recheck.
-5. Добавить безопасные prerequisite/download и portable Git checkpoint/resume tooling.
-6. Продолжить platform service/Docker adapters и JobPilot/Rent integration с явными runner gates.
-7. После каждой логической задачи обновлять ToDo/журнал, commit и каждый доступный remote.
+1. Сохранить и проверить CP-004 в GitHub; local Docker Git остаётся отдельным BLOCKED.
+2. Закончить настоящий frozen bad-health automatic rollback и controller SIGKILL
+   →fresh browser→explicit resume; записать точные receipts. Source tests этого
+   не заменяют. При recovery продолжать существующий operation_id, не новую install.
+3. Закончить source DockerCLI/owned-container controller и проверить его отдельно.
+   Полный provisioning/update/restore и live daemon acceptance всё ещё открыты.
+4. Повторить установленный SDK wheel вне checkout после финальных изменений.
+5. Проверить результат source CI на текущем SHA, если запуск доступен.
+6. Продолжить Windows native/service, Linux systemd, prerequisite auto-install,
+   reboot, clean-host/cross-platform restore и реальную интеграцию JobPilot/Rent.
 
-## Постоянные ограничения
+В workspace large-bundle сценариях дважды замечены лишние скрытые временные
+файлы с неизвестным источником, а update на backup:0 потребовал recovery.
+Исходные failed fixtures сохранены. Guard не ослаблять, неизвестные файлы не
+удалять ради PASS. В новом /tmp fixture последовательные обновления прошли;
+это наблюдение не устанавливает причину прежнего сбоя.
 
-Не хранить publisher private keys, архивные пароли и product secrets в repo/URL/logs.
-Тестовые ключи допускаются только с development marker; production_ready остаётся false.
-Не открывать HTTP installer на внешнем интерфейсе. Не публиковать main/release без
-разрешения. Каждый недоступный runner/remote фиксировать отдельно и продолжать
-независимую работу; никаких фиктивных PASS.
+## Выпускные ограничения
 
-## Дополнение CP-003
+Production_ready=false. Windows/Docker/system services и остальные product
+scenarios не приняты. Source implementations ещё требуют инженерного завершения;
+не называть все открытые задачи только внешними блокировками.
+Private publisher key, архивные пароли, product secrets, launch URL tokens
+не помещать в repo/logs. Production ключ/сертификат и утверждённые юридические
+тексты не предоставлены; transitive licenses/notices/security baseline не закрыты.
+Не открывать мастер на внешнем интерфейсе. Main/release не публиковать без
+соответствующего разрешения. Продолжать независимые задачи при отдельном BLOCKED.
 
-GUI/frozen first install принят на Linux; полный GUI04 остановился на recovery integrity violation. Не выдавать его за PASS uninstall. Новая source suite1363PASS1skip; 24integrationPASS. История текущих проверок — WORK_LOG; next clean bundle после exclusion BDB/ensurepip/Tcl.
+Подтверждено перед CP-004: frozen bad-health update → FAILED_ROLLED_BACK;
+фактический HTTP сайт v3.0.0/SQLite3 ready=true и user file сохранены.

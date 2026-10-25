@@ -168,6 +168,13 @@ def checked_id(value: str, *, field: str = "id") -> str:
     return value
 
 
+def checked_product_id(value: str) -> str:
+    """Product ID следует shared manifest, включая допустимую первую цифру."""
+    if type(value) is not str or re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,62}", value) is None:
+        fail("INVALID_REQUEST", details={"field_path": "product_id"})
+    return value
+
+
 @runtime_checkable
 class ProductAdapter(Protocol):
     """Контракт продуктовых hooks. Регистрация не выполняет hooks автоматически.

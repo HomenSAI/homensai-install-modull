@@ -1,0 +1,120 @@
+name: Source checks — Linux and Windows core
+
+on:
+  push:
+    branches: [main, "codex/universal-installer-*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONUTF8: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  linux-source:
+    name: Linux source and user-process integration (no installer acceptance)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout reviewed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1; official tag verified 2026-10-25
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Select CPython 3.14.9 x64 with GIL
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0; official tag verified 2026-10-25
+        with:
+          python-version: "3.14.9"
+          architecture: x64
+          check-latest: false
+          allow-prereleases: false
+          freethreaded: false
+      - name: Isolate build tools
+        run: |
+          python -m venv .venv-ci
+          echo "$GITHUB_WORKSPACE/.venv-ci/bin" >> "$GITHUB_PATH"
+      - name: Install exact hashed wheels
+        run: |
+          python -m pip --isolated install --require-hashes --only-binary=:all: -r requirements-build.lock
+          python -m pip --isolated check
+          python tools/check_build_lock.py --installed
+      - name: Run complete offline source suite
+        run: python -m pytest -q tests
+      - name: Run Linux user-process and loopback integration
+        run: python -m pytest -q integration_tests
+      - name: Build SDK and reference wheels without dependency resolution
+        run: |
+          python -m build --wheel --no-isolation --outdir dist .
+          python -m build --wheel --no-isolation --outdir reference/dist reference
+      - name: Record source and wheel inputs locally
+        run: python tools/build_receipt.py --artifact-dir dist --artifact-dir reference/dist --output build/receipts/source-build.json
+      - name: Explain this job's boundary
+        run: |
+          echo "Source tests and Linux user-process integration only." >> "$GITHUB_STEP_SUMMARY"
+          echo "No production signing, publication, Windows service, Docker, reboot or frozen-installer acceptance is performed." >> "$GITHUB_STEP_SUMMARY"
+
+  windows-core:
+    name: Windows portable source subset (no service installation)
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - name: Preserve checked-in LF golden files on this ephemeral runner
+        shell: pwsh
+        run: git config --global core.autocrlf false
+      - name: Checkout reviewed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Select CPython 3.14.9 x64 with GIL
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14.9"
+          architecture: x64
+          check-latest: false
+          allow-prereleases: false
+          freethreaded: false
+      - name: Isolate build tools
+        shell: pwsh
+        run: |
+          python -m venv .venv-ci
+          "$env:GITHUB_WORKSPACE\.venv-ci\Scripts" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Install exact hashed wheels
+        shell: pwsh
+        run: |
+          python -m pip --isolated install --require-hashes --only-binary=:all: -r requirements-build.lock
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pip --isolated check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/check_build_lock.py --installed
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run portable source subset
+        shell: pwsh
+        run: >-
+          python -m pytest -q
+          tests/test_manifest.py tests/test_manifest_v2.py tests/test_i18n.py
+          tests/test_trust.py tests/test_render_docker.py tests/test_windows_ps.py
+          tests/test_build_lock.py tests/test_build_receipt.py
+      - name: Build SDK and reference wheels without dependency resolution
+        shell: pwsh
+        run: |
+          python -m build --wheel --no-isolation --outdir dist .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m build --wheel --no-isolation --outdir reference/dist reference
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Record source and wheel inputs locally
+        shell: pwsh
+        run: python tools/build_receipt.py --artifact-dir dist --artifact-dir reference/dist --output build/receipts/source-build.json
+      - name: Explain this job's boundary
+        shell: pwsh
+        run: |
+          "Portable source subset on Windows only." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          "No administrator/UAC flow, native service installation, startup after reboot, Docker Desktop or frozen Windows installer acceptance is performed." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append

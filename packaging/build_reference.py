@@ -1,7 +1,8 @@
-"""Воспроизводимый по входам DEV reference bundle; release gate отдельно.
+"""Повторяемая процедура сборки DEV reference bundle; release gate отдельно.
 
 Сетевых скачиваний нет. Передать существующий проверенный Python 3.14 runtime.
-Приватный publisher key создаётся только для тестового build и не сохраняется.
+Тестовый ключ создаётся в памяти либо читается из явно заданного приватного файла.
+Ключ никогда не включается в bundle. Побайтовая reproducible-build приёмка не заявлена.
 Production signing этим скриптом не предоставляется.
 """
 from __future__ import annotations
@@ -14,6 +15,7 @@ from pathlib import Path
 import platform
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import zipfile
@@ -36,6 +38,9 @@ def main(argv=None):
     parser.add_argument("--release", default="reference-1.0.0-dev")
     parser.add_argument("--port", type=int, default=18480)
     parser.add_argument("--freeze", action="store_true")
+    parser.add_argument("--profile", type=Path)
+    parser.add_argument("--development-key-file", type=Path,
+                        help="Optional private 32-byte DEV key for a series of update tests; never packaged")
     args = parser.parse_args(argv)
     if sys.platform != "linux" or platform.machine() not in ("x86_64", "amd64"):
         parser.error("Этот builder пока принят только для Linux x64")
@@ -43,6 +48,9 @@ def main(argv=None):
         parser.error("Небезопасный release ID")
     if not 1024 <= args.port <= 65535:
         parser.error("Port должен быть 1024..65535")
+    sys.path.insert(0, str(ROOT / "reference/src"))
+    from homensai_reference.profile import DEFAULT_PROFILE, read_json, validate_profile
+    profile = validate_profile(read_json(args.profile.absolute())) if args.profile else dict(DEFAULT_PROFILE)
     runtime = args.runtime.resolve(strict=True)
     executable = runtime / "bin/python3.14"
     version = subprocess.check_output([str(executable), "-I", "-c", "import platform;print(platform.python_version())"], text=True).strip()
@@ -97,6 +105,7 @@ def main(argv=None):
                 raise RuntimeError("Unsafe own wheel entry")
         archive.extractall(site)
     shutil.copytree(ROOT / "reference/legal", payload / "legal")
+    write_json(payload / "reference-profile.json", profile)
     locks = payload / "locks"
     locks.mkdir()
     digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
@@ -119,6 +128,9 @@ def main(argv=None):
     manifest["mutual_exclusion"] = []
     manifest["web"] = {"host": "127.0.0.1", "port": args.port, "healthz": "/healthz"}
     manifest["secrets"] = []
+    if profile["require_api_key"]:
+        manifest["secrets"] = [{"name": "REFERENCE_API_KEY", "required": True,
+                                "contexts": ["service"], "same_value": True}]
     manifest["migrations"]["cmd"] = ["python", "-m", "homensai_reference.migrate"]
     manifest["backup"]["cmd"] = ["python", "-m", "homensai_reference.archive"]
     manifest["restore"]["cmd"] = ["python", "-m", "homensai_reference.archive"]
@@ -133,14 +145,24 @@ def main(argv=None):
         "runtime_executable": "runtime/bin/python3.14"}
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
     from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
-    key = Ed25519PrivateKey.generate()
+    if args.development_key_file:
+        from shared.datahome import checked_path
+        key_path = checked_path(args.development_key_file.absolute())
+        info = key_path.lstat()
+        if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size != 32
+                or stat.S_IMODE(info.st_mode) & 0o077 or info.st_uid != os.geteuid()):
+            parser.error("DEV key must be an owned private 0600 regular 32-byte file")
+        key = Ed25519PrivateKey.from_private_bytes(key_path.read_bytes())
+    else:
+        key = Ed25519PrivateKey.generate()
     key_id = "reference-dev-" + hashlib.sha256(key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)).hexdigest()[:12]
     write_json(out / "inventory.json", inventory)
     write_json(out / "signature.json", {"algorithm": "ed25519", "key_id": key_id,
         "signature": base64.b64encode(key.sign(canonical_bytes(inventory))).decode()})
     write_json(out / "publisher-trust.json", {"schema_version": 1,
         "keys": {key_id: base64.b64encode(key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)).decode()}})
-    # The private key is never exported. This does not create production publisher identity.
+    # The private key is never exported or included in the bundle. An explicitly
+    # supplied private DEV key lets test upgrades retain the same publisher identity.
     del key
     if args.freeze:
         environment = dict(os.environ, PYINSTALLER_CONFIG_DIR=str(build / "pyinstaller-cache"))
@@ -154,7 +176,7 @@ def main(argv=None):
             "--add-data", str(out / "publisher-trust.json") + ":.",
             str(ROOT / "packaging/bootstrap.py")], env=environment, check=True)
     write_json(out / "BUILD_REPORT.json", {"schema_version": 1, "release": args.release,
-        "python": version, "target": inventory["target"], "files": len(files),
+        "python": version, "target": inventory["target"], "reference_profile": profile, "files": len(files),
         "payload_bytes": sum((payload / name).stat().st_size for name in files),
         "development": True, "production_ready": False, "freeze": args.freeze,
         "blockers": ["production publisher signature/certificate", "runtime transitive licence audit",

@@ -108,6 +108,12 @@ installation/release и launch token. Если однозначного проц
 подписанные `hooks.health_checks`. Сам engine пока не мониторит heartbeat-файлы
 и не предоставляет постоянный restart supervisor.
 
+Linux backend также сопоставляет inode listening socket из `/proc/net/tcp` с fd
+конкретного owned PID. Чужой локальный HTTP-сервер не может подтвердить readiness
+одним скопированным JSON. Wildcard bind не соответствует loopback-контракту.
+IPv6, внешний reverse proxy и listener только у неучтённого daemon требуют
+отдельного адаптера.
+
 ## Стратегия backup: `filesystem_quiesced`
 
 Capabilities, plan и результаты явно показывают `backup_strategy=filesystem_quiesced`

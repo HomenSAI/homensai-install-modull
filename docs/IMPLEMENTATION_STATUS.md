@@ -17,8 +17,8 @@
 | `shared/ctl.py`, doctor | Сохранить совместимость | Новый `hinstall` — публичный фасад; прежние команды остаются доступными. |
 | Пакет и discovery | Добавить | `pyproject.toml`, SDK, CLI, schemas, OpenAPI, `INSTALLER_API.md`; проверка установленного wheel вне checkout. |
 | Подпись поставки | Добавить | Ed25519 + SHA-256, manifest/target/runtime binding; production trust root ещё не выпущен. |
-| Диагностика и три языка | Добавить | SQLite + ограниченный fallback, 40 codes, ru/en/de, local statistics/export. |
-| GUI и end-user bootstrap | Добавляется | Защищённый loopback-мастер; acceptance и frozen bundles учитываются отдельно. |
+| Диагностика и три языка | Добавить | SQLite + ограниченный fallback, 43 codes, ru/en/de, local statistics/export. |
+| GUI и end-user bootstrap | Реализован DEV Linux профиль | ru/en/de; frozen install/backup/uninstall/restore и browser export проверены; остальные платформы открыты. |
 
 ## Проверяемое покрытие
 
@@ -56,3 +56,39 @@ Windows native, Docker на обеих ОС и службы уровня ОС е
 происхождение и целостность относительно закреплённого ключа. CRC для этой цели
 не используется. Установщик не должен генерировать новый доверенный publisher key
 при каждой установке или принимать ключ из неподписанного скачивания.
+
+
+## Дополнение CP-004: выполненные проверки
+
+Полный source suite на Python 3.14.3: **1493 passed, 1 skipped, 10 subtests**, 35.41 s.
+Предшествовавший прогон выявил два пропуска диагностической проекции при пустой
+версии продукта; причина исправлена и общий прогон повторён успешно.
+Отдельные Linux NativeEngine/API/HTTP integration: **26 PASS**; GUI/trust/prerequisite
+целевые проверки: **53 PASS**. Это разные области проверки, их числа не складываются.
+
+Настоящий frozen Linux x64 bundle05: 896 подписанных payload files,
+install (ru), encrypted backup (en), uninstall (de) с сохранением пользовательского
+файла, restore (ru), реальный HTTP/SQLite readiness, errors/search/statistics,
+preview/confirmed support export, stop (en) — PASS. Ошибок JavaScript не было.
+Browser screenshots просмотрены. DEV bootstrap включает runtime; host Python
+не используется установленным reference продуктом.
+
+Reference v1/v2/v3 имеет настоящие SQLite migrations, проверяемые данные,
+настройки, optional test secret и контролируемые migration/health failures.
+ProductAdapter protocol и scaffold проверены: signed descriptor, fixed argv,
+bounded I/O, timeout, durable effect receipts и запрет слепого повторения.
+Executable adapter пока не заменяет автоматически legacy hooks NativeEngine.
+
+Build lock закрепляет 17 версий и 22 SHA-256 wheels для Linux/Windows x64;
+Linux установленный набор совпадает. Добавлены CI source checks с закреплёнными
+GitHub Actions. Факт создания workflow не означает выполненную CI-проверку;
+результат конкретного run должен быть записан отдельно.
+
+Production лицензии остаются BLOCKED: удалены ненужные BDB/Tcl/ensurepip, но
+встроенные runtime/frozen зависимости и обязательные notices требуют закрытия
+по точным bytes. Development publisher key, черновик EULA и непринятые платформы
+также не допускают production release. Исторические integrity failures сохранены
+в журнале; неизвестные файлы не исключаются из проверки ради успешного теста.
+
+Подтверждено перед CP-004: frozen bad-health update → FAILED_ROLLED_BACK;
+фактический HTTP сайт v3.0.0/SQLite3 ready=true и user file сохранены.

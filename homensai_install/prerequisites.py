@@ -428,7 +428,12 @@ def collect_inventory(*, paths=(), ports=(), program_paths=None, runner=None, en
                   "Controller runtime/SQLite versions do not establish product runtime or database readiness.",
                   "Windows registry/WSL probing requires separate installed Windows acceptance."]}
     # Stable discovery fingerprint excludes observation time and private values.
-    fingerprint_fields = {key: report[key] for key in ("platform", "identity", "resources", "disks", "ports", "components")}
+    fingerprint_fields = {key: report[key] for key in ("platform", "identity", "resources", "ports", "components")}
+    # Free bytes remain an observation, not an exact equality precondition:
+    # merely writing the installer's own journal changes them. A platform
+    # adapter must separately enforce its required-space threshold at execution.
+    fingerprint_fields["disks"] = [{key: value for key, value in disk.items() if key != "free_bytes"}
+                                  for disk in report["disks"]]
     report["fingerprint"] = hashlib.sha256(_canonical(fingerprint_fields).encode()).hexdigest()
     return redact(report)
 

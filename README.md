@@ -1,78 +1,84 @@
-# homensai-install-modull
+# HomenS.AI Install Module
 
-## План реализации универсального модуля
+Общий подключаемый модуль установки и обслуживания веб-приложений.
+Автор: Serhii Khomenko / HomenS.AI. SDK `0.1.0`, API `1.0`.
 
-Работа ведётся в ветке `codex/universal-installer-20261025`.
+**Статус: версия разработки.** На Linux x64 проверен настоящий frozen DEV
+установщик с собственным Python runtime и эталонным веб-приложением с SQLite.
+Windows native, полный Docker lifecycle и автоматический запуск через службу ОС
+пока не приняты. Production release не готов.
 
-- [Полный промпт](HomenSAI_Universal_Installer_PROMPT_RU.txt).
-- [Канонический ToDo: 106 задач](HomenSAI_Universal_Installer_TODO_RU.txt).
-- [Продолжение работы](docs/RESUME.md).
-- [Журнал выполнения](docs/WORK_LOG.md).
+## Два основных документа
 
-Обязательные языки установщика: русский, английский и немецкий.
-Статус готовности определяется фактическими проверками, а не наличием плана.
+- [Полный промпт реализации](HomenSAI_Universal_Installer_PROMPT_RU.txt).
+- [Канонический ToDo: 106 задач и текущие доказательства](HomenSAI_Universal_Installer_TODO_RU.txt).
 
+Рабочая ветка: `codex/universal-installer-20261025`. Три обязательных языка
+мастера и обслуживания: **русский, английский, немецкий**.
 
-Общий модуль установки HomenS.AI: Docker, Windows и Linux-установщики, которые
-подключаются к любой программе семейства (JobPilot Pro, Rent и др.).
+## Подключение к своему проекту
 
-**Статус: каркас (0.0.1). Готовых установщиков в модуле ещё нет.** Это не
-законченный пакет: в Rent нет Dockerfile/Setup.exe, а JobPilot-установщик и
-native-ветки (NSIS, build2 — FAIL по откату) ещё не приняты. Ничего не
-объявлять готовым без тестов.
+Начинайте с [INSTALLER_API.md](INSTALLER_API.md) и
+[руководства интеграции](docs/INTEGRATION_GUIDE.md).
+Машиночитаемое описание: [api/discovery.json](api/discovery.json).
+API, схемы, каталог ошибок и локализации поставляются внутри SDK wheel и
+доступны офлайн; копировать внутреннее ядро в продукт не требуется.
 
-## Структура
+```sh
+hinstall api describe --json
+hinstall api schema manifest --json
+hinstall init-adapter --help
+```
 
-| Папка | Назначение |
+Проверяйте `capabilities(target)` перед планированием. Наличие имени действия
+в API не означает, что конкретный backend уже исполняет его.
+Scaffold без настоящих artifacts/hashes создаёт явный DRAFT/BLOCKED, а не
+подставляет фиктивные пригодные к выпуску значения.
+
+## Что реализовано
+
+- Публичные SDK/CLI/API, строгие manifests, plan digest, согласия, журнал операций,
+  идемпотентность и поиск незавершённых операций после закрытия браузера.
+- Linux user-session lifecycle с настоящими subprocess, ownership PID/birth/pidfd,
+  проверкой владельца слушающего порта и readiness приложения.
+- Защищённый локальный web-мастер: ru/en/de, анализ среды, условия, review,
+  общий и пошаговый прогресс, обслуживание, ошибки, статистика и support export.
+- Ed25519 + SHA-256 inventory, привязанный к manifest/release/target/runtime.
+  Неизвестные или изменённые файлы останавливают исполнение.
+- Согласованные зашифрованные архивы AES-GCM/scrypt, сохранное удаление,
+  проверка recovery payload и восстановление на принятом Linux сценарии.
+- Каталог из 43 ошибок на трёх языках, SQLite diagnostics и ограниченный fallback.
+- Безопасный downloader с hashes/size/host policy, offline cache; readonly
+  prerequisites/manual recheck. Автоматическая установка ОС-зависимостей ещё открыта.
+- Подписанный executable ProductAdapter protocol, генератор тонкого подключения,
+  Git checkpoint/resume tooling, точные build locks и блокирующая проверка лицензий.
+
+Область каждого доказательства, остаточные работы и ограничения приведены в
+[фактическом статусе](docs/IMPLEMENTATION_STATUS.md) и
+[журнале](docs/WORK_LOG.md). Development signature не заменяет production
+подпись издателя и не делает сборку готовой к распространению.
+
+## Разработка и продолжение
+
+[BUILDING.md](docs/BUILDING.md) описывает закреплённые инструменты сборки,
+изолированную среду, SHA-256 wheels и границы CI.
+[RESUME.md](docs/RESUME.md) и [work-state.json](docs/work-state.json) задают
+следующий шаг после обрыва. [CHECKPOINTS.md](docs/CHECKPOINTS.md) описывает
+проверяемое сохранение одного commit в доступные remotes без force push.
+
+| Каталог | Назначение |
 |---|---|
-| `docker/` | образ, compose, healthcheck, тома данных |
-| `windows/` | PowerShell-установщик, лаунчер, DPAPI, ACL, позже Setup.exe |
-| `linux/` | systemd/скрипты |
-| `shared/` | общее: архив перед заменой, DataHome, миграции, откат, ключи |
-| `tests/` | проверки установки/обновления/отката |
-| `docs/` | требования, концепция; `docs/origin/` — материалы Rent (справочно) |
+| `homensai_install/` | Публичный SDK, engine, доверие, GUI, диагностика |
+| `api/` | Проверяемые экспорты публичных схем и OpenAPI |
+| `shared/` | Сохранённое внутреннее ядро: DataHome, архивы, update plan, generators |
+| `reference/` | Реальный эталонный веб-продукт, SQLite, профили v1/v2/v3 |
+| `packaging/` | DEV builder, браузерные сценарии, locks, audit evidence |
+| `tests/` | Source tests с запрещённой сетью |
+| `integration_tests/` | Отдельные реальные процессы и loopback HTTP |
+| `tools/` | Checkpoint, license gate, проверка build lock и receipts |
+| `windows/`, `linux/`, `docker/` | Исходные платформенные компоненты и генераторы |
 
-Цель интерфейса модуля: продукт задаёт манифест (имя, порт, папка данных,
-команда миграций, healthcheck), модуль выполняет установку, обновление с
-полным архивом, откат и удаление.
-
-См. [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md), [STATUS.md](STATUS.md).
-
-Шаг 1: [контракт манифеста](docs/MANIFEST.md),
-[пример JobPilot](examples/jobpilot.manifest.json),
-[происхождение](docs/PROVENANCE.md). Проверка манифеста и рендер Docker-заготовок
-реализованы; готовность установки и обновления этим не подтверждается.
-
-Шаг 4: [генераторы служб и возобновляемая транзакция update/rollback](docs/UPDATE.md)
-через внедряемые порты. Реальные службы, миграции и шифрованные копии
-требуют адаптеров; готовых установщиков по-прежнему нет.
-
-Шаг 5: [локальный CLI](docs/CLI.md), `python -m shared.ctl --manifest FILE COMMAND`:
-валидация, план без записи, рендер Docker/служб, полный ZIP/проверка/восстановление
-в отдельный каталог и чтение статуса UpdatePlan. Реальные адаптеры исполнения
-не реализованы; ZIP не зашифрован. Готовых установщиков по-прежнему нет.
-
-Шаг 6: [локальные файловые порты и E2E](docs/E2E.md) — staged release,
-атомарный pointer, ZIP/restore, crash-resume и stale detection блокировки.
-Службы/миграции/health внедряются как фейки; ZIP не зашифрован, Docker/native
-не приняты. Готовых установщиков по-прежнему нет.
-
-Шаг 7: [Compose-адаптер и docker-plan](docs/DOCKER-ADAPTER.md) — argv
-up/stop/ps/logs и loopback HTTP health для Docker-рендера v1. По умолчанию
-только план; библиотечные эффекты требуют отдельного `execute=True` и проходят
-через runner/fetcher. CLI показывает только dry-run. Реальный Docker и
-install/update/restore/rollback-приёмка не выполнялись; установщик не готов.
-
-K2: [шифрование полного архива](docs/ARCHIVE.md#шифрование) через необязательный
-`cryptography`, AES-256-GCM по блокам и scrypt. CLI `archive-create --encrypt`,
-verify/restore с автоопределением; FS-порты принимают внедрённый provider пароля.
-Хэши зависимостей ещё должен заполнить владелец. Без пакета шифрование явно
-отказывает, обычный ZIP работает. Готовность установщиков этим не подтверждается.
+История исходного каркаса сохранена в `STATUS.md`, `docs/origin/` и прежних
+платформенных документах. Старые отчёты не являются приёмкой новых сборок.
 
 © 2026 Serhii Khomenko · HomenS.AI
-
-## Публичное подключение
-
-Единая точка входа для проектов: [INSTALLER_API.md](INSTALLER_API.md).
-Машиночитаемый контракт: [api/discovery.json](api/discovery.json).
-Фактическое покрытие и ограничения: [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md).

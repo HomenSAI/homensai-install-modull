@@ -17,6 +17,7 @@ test = ["pytest>=8,<10"]
 
 [project.scripts]
 hinstall = "homensai_install.cli:main"
+hinstall-gui = "homensai_install.gui:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

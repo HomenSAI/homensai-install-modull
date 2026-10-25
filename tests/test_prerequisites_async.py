@@ -33,8 +33,15 @@ def settled(api, operation_id="async_one"):
         state = api.prerequisites_status(operation_id)
         with background._WORKERS_LOCK:
             reserved = background._key(api._prerequisite_instance) in background._WORKERS
-        if not reserved and state["execution"]["active"] is not True:
-            return state
+        if not reserved and state["execution"]["active"] is False:
+            # The first read may predate the worker's last cancellation write.
+            # Observe the journal again after quiescence, then ensure another
+            # dispatch did not begin while that final snapshot was being read.
+            state = api.prerequisites_status(operation_id)
+            with background._WORKERS_LOCK:
+                reserved = background._key(api._prerequisite_instance) in background._WORKERS
+            if not reserved and state["execution"]["active"] is False:
+                return state
         threading.Event().wait(0.01)
     pytest.fail("Background controller did not reach a bounded observable result")
 
@@ -159,6 +166,100 @@ def test_external_cancel_after_finish_commit_before_unlock_is_settled(bundle):
     finally:
         release.set()
     assert settled(api)["status"] == "CANCELED"
+
+
+@pytest.mark.parametrize("ready", [False, True])
+@pytest.mark.parametrize("outside_process", [False, True])
+def test_finished_dispatch_is_not_idle_while_final_observer_owns_controller(
+        bundle, monkeypatch, ready, outside_process):
+    entered, release = threading.Event(), threading.Event()
+
+    def observe(event):
+        if event["message_code"] == "prerequisite_background_finished":
+            entered.set()
+            assert release.wait(5)
+
+    if ready:
+        present(bundle, "base")
+        present(bundle, "client")
+    api = api_for(bundle, event_callback=observe)
+    plan = api.prerequisites_plan()
+    try:
+        api.prerequisites_start("async_one", plan, plan["required_consents"], background=True)
+        assert entered.wait(2)
+        subject = api._prerequisite_instance
+        assert subject.store.get("async_one")["_dispatch"]["state"] == "FINISHED"
+        assert subject.store.controller_busy() is True
+        with monkeypatch.context() as patch:
+            if outside_process:
+                # Another process cannot see this process's thread reservation.
+                # The actual file lock is still held by the gated worker.
+                patch.setattr(background, "_reserved", lambda *_: False)
+            state = api.prerequisites_status("async_one")
+            listed = api.prerequisites_operations_list(unfinished_only=False)["operations"][0]
+            for snapshot in (state, listed):
+                assert snapshot["execution"]["active"] is (None if outside_process else True)
+                assert snapshot["status"] == ("READY" if ready else "AWAITING_USER")
+        canceled = api.prerequisites_cancel("async_one")
+        assert canceled["status"] == ("READY" if ready else "CANCELED")
+        assert not release.is_set(), "Status/list/cancel must not wait for the observer"
+    finally:
+        release.set()
+    final = settled(api)
+    assert final["status"] == ("READY" if ready else "CANCELED")
+    assert final["execution"]["active"] is False
+    assert bundle["calls"] == [] and bundle["transport"].calls == []
+
+
+def test_settled_reads_current_journal_after_worker_exit_not_earlier_snapshot(bundle, monkeypatch):
+    entered, allow_cancel, released = threading.Event(), threading.Event(), threading.Event()
+    cancel_results = []
+    other = coordinator(bundle)
+
+    def observe(event):
+        if event["message_code"] == "prerequisite_background_finished":
+            entered.set()
+            assert allow_cancel.wait(5)
+            cancel_results.append(other.cancel("async_one"))
+
+    api = api_for(bundle, event_callback=observe)
+    subject = api._prerequisite_instance
+    original_release = background._Worker.release
+
+    def signal_release(worker):
+        original_release(worker)
+        if worker.coordinator is subject:
+            released.set()
+
+    monkeypatch.setattr(background._Worker, "release", signal_release)
+    plan = api.prerequisites_plan()
+    delayed = []
+    try:
+        api.prerequisites_start("async_one", plan, plan["required_consents"], background=True)
+        assert entered.wait(2)
+        original_get = subject._get
+
+        def delayed_read(operation_id):
+            snapshot = original_get(operation_id)
+            if not delayed:
+                delayed.append(snapshot)
+                assert snapshot["status"] == "AWAITING_USER"
+                allow_cancel.set()
+                assert released.wait(5)
+            return snapshot
+
+        # Force the exact failing ordering: read old journal -> worker commits
+        # cancel and exits -> return the old read -> observe no reservation.
+        monkeypatch.setattr(subject, "_get", delayed_read)
+        result = settled(api)
+    finally:
+        allow_cancel.set()
+        assert released.wait(5)
+    durable = subject.store.get("async_one")
+    assert cancel_results[0]["status"] == durable["status"] == "CANCELED"
+    assert result["status"] == "CANCELED" and result["revision"] == durable["revision"]
+    assert not subject.store.has_claim()
+    assert bundle["calls"] == [] and bundle["transport"].calls == []
 
 
 @pytest.mark.parametrize("error", [RuntimeError("private-start-secret"), ControllerDied("private-start-secret")])

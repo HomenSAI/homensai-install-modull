@@ -1,9 +1,9 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261025-012`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261025-013`; ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый local/GitHub до создания CP-20261025-012:
-`8e8075d895bd02e3027b7552e796f1ccf5de47e8` (CP-20261025-011).
+Последний подтверждённый local/GitHub до создания CP-20261025-013:
+`c778466a3a477bc273bda2061518aa57bfe6956e` (CP-20261025-012).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
@@ -79,6 +79,15 @@ CP-008 объединяет независимые source units в общем ro
 
 
 ## Последний выполненный шаг
+
+CP-20261025-013: Восстановлена неотправленная локальная CP-012 и подтверждены GitHub ref/tree. Независимый повтор выявил устаревший снимок в тесте отмены: durable журнал уже содержал CANCELED. Дополнительно исправлена преждевременная проекция execution.active=False при финальном observer. Пока worker удерживает reservation — active=True; занятый/неизвестный внешний controller — active=null. Тест заново читает журнал после освобождения потока, не ослабляя требование CANCELED.
+
+Текущие source bytes: 1961 PASS, 3 skips, 10 subtests (78.82 s), Python 3.14.3. Два пропущенных Linux process/D-Bus случая и три настоящих loopback HTTP случая отдельно: 5 PASS (2.61 s), JUnit receipt. Windows-only case NOT RUN. Пять детерминированных новых regressions FAIL на CP-012 и PASS после исправления; focused141 PASS (20.88 s), области пересекаются. Первоначальный recovery-прогон 1955 PASS/1 FAIL/3 skips сохранён. Новый installed/frozen/browser/full platform acceptance NOT RUN; Chromium --version вне sandbox также exit139, причина не установлена.
+
+Receipt: `packaging/acceptance-evidence/recovery-20261025-cp013.json`.
+Следующий шаг: HIM-029/035/102: условный GUI auto/manual/terms/progress/recovery для зарегистрированного coordinator, безопасная capabilities-проекция требований версий без изменения plan v1, независимые Node contract tests. Любой execution.active=true/null блокирует новый запуск/продолжение продукта, включая state=finished. После READY нужен новый явный product preflight/terms/review. Общий lease и durable byte-progress остаются обязательными отдельными core шагами.
+
+## Исторический шаг CP-20261025-012
 
 CP-20261025-012: Подключены HTTP routes и синхронный CLI к тому же доверенно зарегистрированному prerequisite coordinator. HTTP сравнивает полный signed payload, хранит планы на сервере, требует явные согласия и выдаёт durable background ACK. Status/events/cancel отвечают при медленных probes/installers; повтор start не становится resume. Подготовка и READY сбрасывают product review. Общий read-only busy guard видит claim старого каталога без раскрытия чужого ID. Исправлена реальная гонка отмены при sync recheck: принятая отмена не теряется при финальном сохранении, неизвестный installer сохраняет receipt/claim, отмена перед intent не запускает installer.
 

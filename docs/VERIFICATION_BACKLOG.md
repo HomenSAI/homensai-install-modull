@@ -1,6 +1,6 @@
 # Невыполненные проверки — обязательное задание следующему ИИ
 
-Автор: Serhii Khomenko. CP-20261025-012.
+Автор: Serhii Khomenko. CP-20261025-013.
 
 **Полная приёмка НЕ ГОТОВА; production_ready=false.** Этот документ и
 `verification-status.json` описывают проверки. Единственный список реализации —
@@ -27,6 +27,8 @@
 ранних попыток сохранять в истории, новый успех записывать отдельной квитанцией.
 
 ## Что подтверждено сейчас
+
+- CP-20261025-013: Текущие source bytes: 1961 PASS, 3 skips, 10 subtests (78.82 s), Python 3.14.3. Два пропущенных Linux process/D-Bus случая и три настоящих loopback HTTP случая отдельно: 5 PASS (2.61 s), JUnit receipt. Windows-only case NOT RUN. Пять детерминированных новых regressions FAIL на CP-012 и PASS после исправления; focused141 PASS (20.88 s), области пересекаются. Первоначальный recovery-прогон 1955 PASS/1 FAIL/3 skips сохранён. Новый installed/frozen/browser/full platform acceptance NOT RUN; Chromium --version вне sandbox также exit139, причина не установлена. Receipt: `packaging/acceptance-evidence/recovery-20261025-cp013.json`.
 
 - CP-20261025-012: Текущий root full source на Python 3.14.3: 1956 PASS, 3 skips, 10 subtests (84.26 s); два Linux skip отдельно выполнены с matching PID namespace: 2 PASS (0.12 s), Windows-only case NOT RUN. HTTP focused 141 PASS и настоящий loopback 3 PASS; CLI focused 69 PASS; независимый core/HTTP review 12+8 PASS, области пересекаются. Installed SDK planning: 63 exact files и 7 CLI calls PASS, wheel 5c327073061674dec7917915ce07d4ceea5eb9e3e2685e9c3867d3b39bb197e1. Ранее выявленные FAIL/EPERM сохранены в истории. GUI flow, durable byte events и atomic cross-executor lease ещё NOT IMPLEMENTED; registered installed prerequisite lifecycle, live OS/Windows/Docker/browser/frozen acceptance NOT RUN. Browser BLOCKED: официальный альтернативный архив проверен, запуск SIGSEGV с неизвестной причиной. CI CP-011: 4 jobs без runner/steps, тесты NOT RUN.
 - CP-20261025-011: Финальный source focused: 185 PASS (11.84 s), новые async cases: 17 PASS; независимый review: 7 race cases PASS; после интеграции root: 26 PASS (3.71 s). Новый installed SDK planning contract: 63 exact files/5 CLI calls PASS, wheel 931f6ec22a0550f5f5b8b6289dd3329adf1f959927f735d59996154c176c6535. Отдельный baseline CP-010 на Python 3.14.3: 1858 PASS/3 skips/10 subtests; 49 integration + 2 ранее пропущенных Linux cases = отдельный прогон 51 PASS/5 subtests. Windows case NOT RUN. Текущий новый full source/frozen/platform acceptance НЕ ГОТОВ; GUI browser BLOCKED (официальный endpoint вернул HTML), CI CP-010 без runner/steps. Exact scopes и предыдущие ошибки записаны в receipts.

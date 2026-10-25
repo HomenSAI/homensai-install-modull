@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-012",
+  "checkpoint_id": "CP-20261025-013",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -89,10 +89,10 @@
     "cloud_git": "SYNC_PENDING",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261025-011",
+    "last_confirmed_checkpoint": "CP-20261025-012",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
-  "next_step": "HIM-029/035/102: условный GUI auto/manual/terms/progress/recovery для зарегистрированного coordinator, безопасная проекция требований версий, независимые Node contract tests. После READY — новый product preflight/terms/review по явному действию. Глобальный product/prerequisite lease и durable byte-progress остаются отдельными обязательными core шагами до полной приёмки.",
+  "next_step": "HIM-029/035/102: условный GUI auto/manual/terms/progress/recovery для зарегистрированного coordinator, безопасная capabilities-проекция требований версий без изменения plan v1, независимые Node contract tests. Любой execution.active=true/null блокирует новый запуск/продолжение продукта, включая state=finished. После READY нужен новый явный product preflight/terms/review. Общий lease и durable byte-progress остаются обязательными отдельными core шагами.",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
@@ -100,7 +100,7 @@
     "linux_native": "PARTIAL: frozen x64 user-session lifecycle/updates/rollback/repair/crash-resume PASS in scoped receipts; OS service/reboot/full matrix open",
     "linux_docker": "NOT RUN/BLOCKED live daemon: source install/uninstall/start/stop/backup tested with modeled daemon; images/host attestation/full lifecycle remain open"
   },
-  "last_confirmed_github_sha": "8e8075d895bd02e3027b7552e796f1ccf5de47e8",
+  "last_confirmed_github_sha": "c778466a3a477bc273bda2061518aa57bfe6956e",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -127,7 +127,8 @@
     "packaging/acceptance-evidence/source-20261025-cp012.json",
     "packaging/acceptance-evidence/review-20261025-cp012.json",
     "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json",
-    "packaging/acceptance-evidence/environment-20261025-cp012.json"
+    "packaging/acceptance-evidence/environment-20261025-cp012.json",
+    "packaging/acceptance-evidence/recovery-20261025-cp013.json"
   ],
   "environment": {
     "os": "linux",
@@ -161,28 +162,22 @@
   "checkpoint_policy": "После каждого проверенного шага TODO+RESUME+код в одном checkpoint, GitHub ref/tree подтверждён до следующего шага.",
   "latest_scoped_verification": [
     {
-      "id": "CP012-current-full-source",
+      "id": "CP013-recovered-checkpoint",
+      "status": "PASS",
+      "scope": "Exact unpublished CP012 tree restored; remote c778466 ref/tree/parent independently verified; external Docker Git BLOCKED.",
+      "receipt": "packaging/acceptance-evidence/recovery-20261025-cp013.json"
+    },
+    {
+      "id": "CP013-current-full-source",
       "status": "PASS_WITH_EXPLICIT_SKIPS",
-      "scope": "1956 full source PASS/3 skips/10 subtests; 2 skipped Linux process cases separately PASS; Windows-only case NOT RUN. Exact integrated current package bytes.",
-      "receipt": "packaging/acceptance-evidence/source-20261025-cp012.json"
+      "scope": "1961 source PASS/3 skips/10 subtests; two Linux source skips +three real HTTP cases separately5 PASS. Windows-only case NOT RUN. Focused141/regression5 overlap full suite.",
+      "receipt": "packaging/acceptance-evidence/recovery-20261025-cp013.json"
     },
     {
-      "id": "CP012-prerequisite-transports",
-      "status": "PASS",
-      "scope": "HTTP141 focused and3 actual loopback; CLI69 focused; independent core12/HTTP8. Overlapping scopes, synthetic installers.",
-      "receipt": "packaging/acceptance-evidence/source-20261025-cp012.json"
-    },
-    {
-      "id": "CP012-installed-sdk",
-      "status": "PASS",
-      "scope": "63 exact package files/7 CLI calls outside checkout; SDK planning and stock unconfigured prerequisite refusal. Registered installed lifecycle NOT RUN.",
-      "receipt": "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json"
-    },
-    {
-      "id": "CP012-browser-ci",
+      "id": "CP013-browser-launch",
       "status": "BLOCKED",
-      "scope": "Chrome official archive CRC PASS but launch SIGSEGV; actual browser tests NOT RUN. CP011 CI4jobs runner0/steps[], tests NOT RUN.",
-      "receipt": "packaging/acceptance-evidence/environment-20261025-cp012.json"
+      "scope": "Verified official browser --version outside sandbox exits139; current GUI browser tests NOT RUN. Cause not established.",
+      "receipt": "packaging/acceptance-evidence/recovery-20261025-cp013.json"
     }
   ]
 }

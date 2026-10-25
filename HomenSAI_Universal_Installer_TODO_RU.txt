@@ -79,15 +79,15 @@ HIM-001/002 проверены в текущей сессии; остальны�
 Состояния отражают текущую сессию; полный выпуск ещё не принят.
 
 Текущая реализация: общий API/SDK, Linux native recovery, GUI ru/en/de; Docker install/uninstall/start/stop/backup, systemd user port и durable prerequisites в source. Live platform gates открыты.
-Текущая контрольная точка: CP-20261025-012; актуальный SHA проверять по Git history и внешней sync receipt.
+Текущая контрольная точка: CP-20261025-013; актуальный SHA проверять по Git history и внешней sync receipt.
 Рабочая ветка: codex/universal-installer-20261025; исходный SHA: a16a55d58e65ccf64ed2ba0c853a0053baea6689.
 Канонический ToDo: HomenSAI_Universal_Installer_TODO_RU.txt;
 журнал: docs/WORK_LOG.md; продолжение: docs/RESUME.md и docs/work-state.json.
 Проверки: docs/VERIFICATION_BACKLOG.md + docs/verification-status.json. Новому ИИ обязательно прочитать их; NOT RUN/BLOCKED/FAIL означают НЕ ГОТОВО, отсутствие теста отмечается отдельно.
-Последний подтверждённый до создания CP-20261025-012 checkpoint_id: CP-20261025-011; GitHub SHA 8e8075d895bd02e3027b7552e796f1ccf5de47e8.
-Локальный Git / Docker Git / GitHub: SYNC_CONFIRMED / SYNC_BLOCKED / SYNC_CONFIRMED для CP-20261025-011. CP-20261025-012: SYNC_PENDING до независимой проверки ref/commit/tree.
+Последний подтверждённый до создания CP-20261025-013 checkpoint_id: CP-20261025-012; GitHub SHA c778466a3a477bc273bda2061518aa57bfe6956e.
+Локальный Git / Docker Git / GitHub: SYNC_CONFIRMED / SYNC_BLOCKED / SYNC_CONFIRMED для CP-20261025-012. CP-20261025-013: SYNC_PENDING до независимой проверки ref/commit/tree.
 Блокировки: локальный Forgejo/Docker владельца не подключён; GitHub CI завершился до runner/steps; production signing и юридические/лицензионные gates открыты.
-Следующий инженерный этап: HIM-029/035/102: условный GUI auto/manual/terms/progress/recovery для зарегистрированного coordinator, безопасная проекция требований версий, независимые Node contract tests. После READY — новый product preflight/terms/review по явному действию. Глобальный product/prerequisite lease и durable byte-progress остаются отдельными обязательными core шагами до полной приёмки.
+Следующий инженерный этап: HIM-029/035/102: условный GUI auto/manual/terms/progress/recovery для зарегистрированного coordinator, безопасная capabilities-проекция требований версий без изменения plan v1, независимые Node contract tests. Любой execution.active=true/null блокирует новый запуск/продолжение продукта, включая state=finished. После READY нужен новый явный product preflight/terms/review. Общий lease и durable byte-progress остаются обязательными отдельными core шагами.
 
 Ориентиры из предыдущего рабочего окружения владельца:
 локальный Forgejo/Gitea — http://127.0.0.1:8796/;
@@ -202,13 +202,14 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [x] HIM-071. Проверить продолжение разработки без истории чата
-Статус: DONE | Проверки: PASS | checkpoint_id: CP-20261025-009
+Статус: DONE | Проверки: PASS | checkpoint_id: CP-20261025-013
 Зависимости: HIM-009; PROMPT: § 31.
 Готово, когда: Другой исполнитель/чистая сессия на тестовом репозитории восстанавливает очередь по
 ToDo/RESUME/Git. Проверены локальный commit без push, потерянный ответ push, недоступный один remote,
 dirty files и расходящаяся история; чужая работа сохранена.
 Доказательство / ограничения / следующий шаг: Новая независимая сессия восстановила CP-008 из чистой изолированной копии, сверила точный GitHub ref 960827cb32b65c9748c9a3f4eaee8406dfe27606 и tree b1a63e337779e8f800547be7daa9b87f9028c1c0, нашла следующий шаг по RESUME/ToDo без повторения CP-005. Повторно выполнены 37 настоящих temporary Git/bare checkpoint tests (dirty/staged, lost reply, disconnected/diverged remote, interrupted ref/index transaction, linked worktree) и 1 Node wizard contract: 38 PASS, 3.46 s. Scope — восстановление разработки; проверка постоянного Docker-хранилища владельца остаётся отдельной BLOCKED в HIM-003/ACC-21. Receipt: packaging/acceptance-evidence/recovery-20261025-cp009.json.
-Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-009); CP-008 independently SYNC_CONFIRMED.
+CP-20261025-013: Восстановлена неотправленная локальная CP-012 и подтверждены GitHub ref/tree. Независимый повтор выявил устаревший снимок в тесте отмены: durable журнал уже содержал CANCELED. Дополнительно исправлена преждевременная проекция execution.active=False при финальном observer. Пока worker удерживает reservation — active=True; занятый/неизвестный внешний controller — active=null. Тест заново читает журнал после освобождения потока, не ослабляя требование CANCELED. Текущие source bytes: 1961 PASS, 3 skips, 10 subtests (78.82 s), Python 3.14.3. Два пропущенных Linux process/D-Bus случая и три настоящих loopback HTTP случая отдельно: 5 PASS (2.61 s), JUnit receipt. Windows-only case NOT RUN. Пять детерминированных новых regressions FAIL на CP-012 и PASS после исправления; focused141 PASS (20.88 s), области пересекаются. Первоначальный recovery-прогон 1955 PASS/1 FAIL/3 skips сохранён. Новый installed/frozen/browser/full platform acceptance NOT RUN; Chromium --version вне sandbox также exit139, причина не установлена. Receipt: packaging/acceptance-evidence/recovery-20261025-cp013.json.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-20261025-013); CP-20261025-012 GitHub c778466a3a477bc273bda2061518aa57bfe6956e независимо SYNC_CONFIRMED.
 
 [ ] HIM-010. Закрыть G0: готовность к разработке
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -839,7 +840,7 @@ CP-20261025-012: Public prerequisites_busy(), HTTP route/OpenAPI/discovery/resou
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (до независимой проверки текущего ref/tree).
 
 [ ] HIM-063. Проверить идемпотентность, события и совместимость API
-Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-012
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-013
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-017, HIM-018, HIM-022, HIM-035, HIM-062; PROMPT: § 28.3–28.4.
 Готово, когда: Проверены same-key/same-request, конфликт содержимого, PLAN_STALE, consent refs,
@@ -849,7 +850,8 @@ cancel_pending, cursor replay/dedup и snapshot. Reboot/awaiting-user не SUCCE
 Дополнение CP-008: Prerequisite cancel сохраняется при занятом controller и исполняется на границе шага; OS installer не убивается, unknown effect требует reconciliation. Через SDK plan replacement не запускает установщик и требует новых consent refs.
 CP-20261025-011: 17 новых async/source cases, общий185PASS: duplicate/conflict/no-replay, lost controller, unknown effect, queued/final-commit cancel, BaseException startup cleanup, старый finished marker при sync resume. Независимый audit7PASS и root26PASS. Реальные OS installers/power loss/Windows NOT RUN.
 CP-20261025-012: Root current full source1956 PASS/3skip/10subtests; два Linux skip отдельно2 PASS, Windows case NOT RUN. Реальный loopback3 PASS: auth/Origin/lost ACK/server recreation; независимый12+8 safety review. Исходные FAIL и EPERM сохранены. Browser/OS/process-power-loss/cross-executor/full platform acceptance NOT RUN.
-Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (до независимой проверки текущего ref/tree).
+CP-20261025-013: Восстановлена неотправленная локальная CP-012 и подтверждены GitHub ref/tree. Независимый повтор выявил устаревший снимок в тесте отмены: durable журнал уже содержал CANCELED. Дополнительно исправлена преждевременная проекция execution.active=False при финальном observer. Пока worker удерживает reservation — active=True; занятый/неизвестный внешний controller — active=null. Тест заново читает журнал после освобождения потока, не ослабляя требование CANCELED. Текущие source bytes: 1961 PASS, 3 skips, 10 subtests (78.82 s), Python 3.14.3. Два пропущенных Linux process/D-Bus случая и три настоящих loopback HTTP случая отдельно: 5 PASS (2.61 s), JUnit receipt. Windows-only case NOT RUN. Пять детерминированных новых regressions FAIL на CP-012 и PASS после исправления; focused141 PASS (20.88 s), области пересекаются. Первоначальный recovery-прогон 1955 PASS/1 FAIL/3 skips сохранён. Новый installed/frozen/browser/full platform acceptance NOT RUN; Chromium --version вне sandbox также exit139, причина не установлена. Receipt: packaging/acceptance-evidence/recovery-20261025-cp013.json.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-20261025-013); CP-20261025-012 GitHub c778466a3a477bc273bda2061518aa57bfe6956e независимо SYNC_CONFIRMED.
 
 [ ] HIM-064. Сделать scaffold и инструменты подключения продукта
 Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
@@ -1199,7 +1201,7 @@ artifact не выдан за постоянный архив.
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-097. Опубликовать в документации честную матрицу возможностей
-Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-013
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-085, HIM-096; PROMPT: § 2, 14–16, 19, 28.
 Готово, когда: Поддержанные targets/actions/продукты согласованы с фактической приёмкой. Непроверенное
@@ -1207,7 +1209,8 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 readiness отделена от разработки с test keys.
 Доказательство / ограничения / следующий шаг: README/IMPLEMENTATION_STATUS/runtime capabilities разделяют source, installed SDK, frozen Linux user-session и непринятые platforms/services. CI без выполненных steps обозначен BLOCKED. Скриншоты ru/en/de и receipts сохранены; production_ready=false, все G0–G5 OPEN.
 Дополнение CP-008: README, IMPLEMENTATION_STATUS, канонический ToDo, WORK_LOG, RESUME/state и CP008 receipts согласованы. 7 DONE / 63 IN_PROGRESS / 4 BLOCKED / 32 TODO; production_ready=false, G0–G5 OPEN.
-Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
+CP-20261025-013: Восстановлена неотправленная локальная CP-012 и подтверждены GitHub ref/tree. Независимый повтор выявил устаревший снимок в тесте отмены: durable журнал уже содержал CANCELED. Дополнительно исправлена преждевременная проекция execution.active=False при финальном observer. Пока worker удерживает reservation — active=True; занятый/неизвестный внешний controller — active=null. Тест заново читает журнал после освобождения потока, не ослабляя требование CANCELED. Текущие source bytes: 1961 PASS, 3 skips, 10 subtests (78.82 s), Python 3.14.3. Два пропущенных Linux process/D-Bus случая и три настоящих loopback HTTP случая отдельно: 5 PASS (2.61 s), JUnit receipt. Windows-only case NOT RUN. Пять детерминированных новых regressions FAIL на CP-012 и PASS после исправления; focused141 PASS (20.88 s), области пересекаются. Первоначальный recovery-прогон 1955 PASS/1 FAIL/3 skips сохранён. Новый installed/frozen/browser/full platform acceptance NOT RUN; Chromium --version вне sandbox также exit139, причина не установлена. Receipt: packaging/acceptance-evidence/recovery-20261025-cp013.json.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-20261025-013); CP-20261025-012 GitHub c778466a3a477bc273bda2061518aa57bfe6956e независимо SYNC_CONFIRMED.
 
 [ ] HIM-098. Обновить финальный ToDo, RESUME и сохранение в Git
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —

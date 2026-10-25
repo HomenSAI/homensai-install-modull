@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-012",
+  "checkpoint_id": "CP-20261025-013",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
@@ -205,6 +205,24 @@
       "status": "BLOCKED",
       "scope": "Chrome official archive CRC PASS but launch SIGSEGV; actual browser tests NOT RUN. CP011 CI4jobs runner0/steps[], tests NOT RUN.",
       "receipt": "packaging/acceptance-evidence/environment-20261025-cp012.json"
+    },
+    {
+      "id": "CP013-recovered-checkpoint",
+      "status": "PASS",
+      "scope": "Exact unpublished CP012 tree restored; remote c778466 ref/tree/parent independently verified; external Docker Git BLOCKED.",
+      "receipt": "packaging/acceptance-evidence/recovery-20261025-cp013.json"
+    },
+    {
+      "id": "CP013-current-full-source",
+      "status": "PASS_WITH_EXPLICIT_SKIPS",
+      "scope": "1961 source PASS/3 skips/10 subtests; two Linux source skips +three real HTTP cases separately5 PASS. Windows-only case NOT RUN. Focused141/regression5 overlap full suite.",
+      "receipt": "packaging/acceptance-evidence/recovery-20261025-cp013.json"
+    },
+    {
+      "id": "CP013-browser-launch",
+      "status": "BLOCKED",
+      "scope": "Verified official browser --version outside sandbox exits139; current GUI browser tests NOT RUN. Cause not established.",
+      "receipt": "packaging/acceptance-evidence/recovery-20261025-cp013.json"
     }
   ],
   "historical_evidence": [
@@ -409,9 +427,10 @@
         "packaging/acceptance-evidence/source-20261025-cp012.json",
         "packaging/acceptance-evidence/review-20261025-cp012.json",
         "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json",
-        "packaging/acceptance-evidence/environment-20261025-cp012.json"
+        "packaging/acceptance-evidence/environment-20261025-cp012.json",
+        "packaging/acceptance-evidence/recovery-20261025-cp013.json"
       ],
-      "note": "Полный сценарий НЕ ГОТОВ. Последние частичные проверки: CP-20261025-012; области и непроверенное указаны в receipts. Выполнить оставшуюся приёмку."
+      "note": "Полная приёмка НЕ ГОТОВА. CP013 содержит восстановление, source concurrency/status и узкие real HTTP проверки; оставшиеся OS/installed/browser сценарии обязательны."
     },
     {
       "scenario_id": "ACC-09",
@@ -537,9 +556,10 @@
         "packaging/acceptance-evidence/source-20261025-cp012.json",
         "packaging/acceptance-evidence/review-20261025-cp012.json",
         "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json",
-        "packaging/acceptance-evidence/environment-20261025-cp012.json"
+        "packaging/acceptance-evidence/environment-20261025-cp012.json",
+        "packaging/acceptance-evidence/recovery-20261025-cp013.json"
       ],
-      "note": "Полный сценарий НЕ ГОТОВ. Последние частичные проверки: CP-20261025-012; области и непроверенное указаны в receipts. Выполнить оставшуюся приёмку."
+      "note": "Полная приёмка НЕ ГОТОВА. CP013 содержит восстановление, source concurrency/status и узкие real HTTP проверки; оставшиеся OS/installed/browser сценарии обязательны."
     },
     {
       "scenario_id": "ACC-17",
@@ -602,8 +622,10 @@
         "tests/test_checkpoint.py"
       ],
       "next_executor_action": "37 Git failure/recovery tests повторены в CP-009; новый независимый checkout восстановлен. Отдельно на доступном Docker Git владельца проверить постоянное хранилище/оба remotes без удаления его контейнеров.",
-      "current_artifact_evidence": [],
-      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+      "current_artifact_evidence": [
+        "packaging/acceptance-evidence/recovery-20261025-cp013.json"
+      ],
+      "note": "Полная приёмка НЕ ГОТОВА. CP013 содержит восстановление, source concurrency/status и узкие real HTTP проверки; оставшиеся OS/installed/browser сценарии обязательны."
     },
     {
       "scenario_id": "ACC-22",

@@ -366,3 +366,13 @@ CP-010: 63 целевых source tests PASS (1.69 s); отдельно уста�
 
 Предыдущий checkpoint CP-20261025-011 подтверждён: `8e8075d895bd02e3027b7552e796f1ccf5de47e8`.
 Текущий sync до проверки ref/tree — SYNC_PENDING. Следующий шаг: HIM-029/035/102: условный GUI auto/manual/terms/progress/recovery для зарегистрированного coordinator, безопасная проекция требований версий, независимые Node contract tests. После READY — новый product preflight/terms/review по явному действию. Глобальный product/prerequisite lease и durable byte-progress остаются отдельными обязательными core шагами до полной приёмки.
+
+## CP-20261025-013 — восстановление неотправленного checkpoint и корректный финальный статус
+
+Восстановлена неотправленная локальная CP-012 и подтверждены GitHub ref/tree. Независимый повтор выявил устаревший снимок в тесте отмены: durable журнал уже содержал CANCELED. Дополнительно исправлена преждевременная проекция execution.active=False при финальном observer. Пока worker удерживает reservation — active=True; занятый/неизвестный внешний controller — active=null. Тест заново читает журнал после освобождения потока, не ослабляя требование CANCELED.
+
+Текущие source bytes: 1961 PASS, 3 skips, 10 subtests (78.82 s), Python 3.14.3. Два пропущенных Linux process/D-Bus случая и три настоящих loopback HTTP случая отдельно: 5 PASS (2.61 s), JUnit receipt. Windows-only case NOT RUN. Пять детерминированных новых regressions FAIL на CP-012 и PASS после исправления; focused141 PASS (20.88 s), области пересекаются. Первоначальный recovery-прогон 1955 PASS/1 FAIL/3 skips сохранён. Новый installed/frozen/browser/full platform acceptance NOT RUN; Chromium --version вне sandbox также exit139, причина не установлена.
+
+Подтверждённый предыдущий GitHub: `c778466a3a477bc273bda2061518aa57bfe6956e`, tree `ec55e8beb9842c074e545b31eb903ccc46069556`. Исходная CP-012 сохранена отдельно, чужие worktree не изменялись. Текущий sync до ref/tree — SYNC_PENDING. Receipt: `packaging/acceptance-evidence/recovery-20261025-cp013.json`.
+
+Следующий шаг: HIM-029/035/102: условный GUI auto/manual/terms/progress/recovery для зарегистрированного coordinator, безопасная capabilities-проекция требований версий без изменения plan v1, независимые Node contract tests. Любой execution.active=true/null блокирует новый запуск/продолжение продукта, включая state=finished. После READY нужен новый явный product preflight/terms/review. Общий lease и durable byte-progress остаются обязательными отдельными core шагами.

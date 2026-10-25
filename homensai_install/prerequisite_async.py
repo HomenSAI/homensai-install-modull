@@ -38,17 +38,21 @@ def execution_status(coordinator, operation):
     dispatch = operation.get("_dispatch", {})
     state = dispatch.get("state")
     mode = "background" if dispatch else "synchronous"
-    if state in _ACTIVE and _reserved(coordinator, operation):
+    # FINISHED records the durable drive result, not release of its controller.
+    # Its final observer may still commit an accepted cancellation. Do not tell
+    # a poller to stop while that worker still owns its reservation/OS lock.
+    if dispatch and _reserved(coordinator, operation):
         return {"mode": mode, "state": state.lower(), "active": True}
     pending = operation["status"] not in _TERMINAL and (state in _ACTIVE or operation["status"] == "RUNNING")
-    if pending:
+    if pending or dispatch:
         busy = coordinator.store.controller_busy()
-        if busy is False:
+        if busy is not False:
+            # Another process may still be finalizing a FINISHED dispatch, or
+            # the lock is unavailable. Neither proves that polling may stop.
+            return {"mode": mode, "state": "unknown", "active": None}
+        if pending:
             return {"mode": mode, "state": "recovery_required", "active": False,
                     "reason": "prerequisite_controller_interrupted"}
-        # Another process may own the controller, or the lock is unavailable.
-        # Neither observation identifies an installer or permits a retry.
-        return {"mode": mode, "state": "unknown", "active": None}
     return {"mode": mode, "state": state.lower() if state and state not in _ACTIVE else "idle", "active": False}
 
 

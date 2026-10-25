@@ -59,7 +59,7 @@
     "status_succeeded": "Обязательные проверки этого действия пройдены.",
     "status_failed": "Действие завершилось ошибкой. Сохранены сведения для диагностики.",
     "status_failed_rolled_back": "Обновление не удалось; предыдущая версия восстановлена.",
-    "status_canceled": "Операция отменена на безопасной границе. Можно продолжить.",
+    "status_canceled": "Операция отменена. Уже выполненные изменения сохранены; может потребоваться восстановление.",
     "status_recovery_required": "Требуется проверка состояния и восстановление.",
     "status_blocked": "Выполнение заблокировано. Проверьте причину в подробностях.",
     "status_awaiting_user": "Ожидается действие пользователя.",
@@ -105,7 +105,10 @@
     "fresh_installation": "Новая установка",
     "operation": "Состояние операции",
     "post_update": "Проверки после обновления",
-    "status_queued": "В очереди"
+    "status_queued": "В очереди",
+    "cancel_paused": "Отменить эту попытку",
+    "cancel_paused_help": "Отмена не откатывает уже выполненные изменения. История и контрольные точки сохраняются; следующее действие отдельно проверит состояние установки.",
+    "active_release": "Обслуживаемая версия"
   },
   "en": {
     "title": "Application setup",
@@ -167,7 +170,7 @@
     "status_succeeded": "The required checks for this action passed.",
     "status_failed": "The action failed. Diagnostic information has been preserved.",
     "status_failed_rolled_back": "The update failed; the previous version was restored.",
-    "status_canceled": "Operation canceled at a safe boundary. It can be resumed.",
+    "status_canceled": "The operation was canceled. Completed changes remain; recovery may be required.",
     "status_recovery_required": "State verification and recovery are required.",
     "status_blocked": "Execution is blocked. See the details for the reason.",
     "status_awaiting_user": "Waiting for a user decision.",
@@ -213,7 +216,10 @@
     "fresh_installation": "New installation",
     "operation": "Operation status",
     "post_update": "Checks after update",
-    "status_queued": "Queued"
+    "status_queued": "Queued",
+    "cancel_paused": "Cancel this attempt",
+    "cancel_paused_help": "Cancellation does not undo completed changes. History and checkpoints remain; the next action checks the installation state separately.",
+    "active_release": "Version being maintained"
   },
   "de": {
     "title": "Anwendung installieren",
@@ -275,7 +281,7 @@
     "status_succeeded": "Die erforderlichen Prüfungen für diese Aktion waren erfolgreich.",
     "status_failed": "Die Aktion ist fehlgeschlagen. Diagnoseinformationen wurden gespeichert.",
     "status_failed_rolled_back": "Die Aktualisierung ist fehlgeschlagen. Die vorherige Version wurde wiederhergestellt.",
-    "status_canceled": "Vorgang an einer sicheren Grenze abgebrochen. Er kann fortgesetzt werden.",
+    "status_canceled": "Der Vorgang wurde abgebrochen. Bereits ausgeführte Änderungen bleiben bestehen; eine Wiederherstellung kann erforderlich sein.",
     "status_recovery_required": "Der Zustand muss geprüft und gegebenenfalls wiederhergestellt werden.",
     "status_blocked": "Die Ausführung ist blockiert. Den Grund finden Sie in den Details.",
     "status_awaiting_user": "Wartet auf eine Benutzerentscheidung.",
@@ -321,6 +327,9 @@
     "fresh_installation": "Neue Installation",
     "operation": "Vorgangsstatus",
     "post_update": "Prüfungen nach der Aktualisierung",
-    "status_queued": "In der Warteschlange"
+    "status_queued": "In der Warteschlange",
+    "cancel_paused": "Diesen Versuch abbrechen",
+    "cancel_paused_help": "Ein Abbruch macht bereits ausgeführte Änderungen nicht rückgängig. Verlauf und Kontrollpunkte bleiben erhalten; die nächste Aktion prüft den Installationszustand erneut.",
+    "active_release": "Zu wartende Version"
   }
 }

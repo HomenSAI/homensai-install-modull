@@ -211,6 +211,129 @@ def test_cancel_is_cooperative_and_does_not_report_success(subject):
     assert not engine.root.joinpath("executed").exists()
 
 
+def test_cancel_inactive_recovery_releases_api_claim_without_executing_engine(subject):
+    api, engine, _, _ = subject
+    calls = []
+    def interrupted(*args):
+        calls.append("attempt")
+        return {"status": "RECOVERY_REQUIRED"}
+    engine.execute = interrupted
+    first = submit(api, make_plan(subject), background=False)
+    assert first["status"] == "RECOVERY_REQUIRED"
+    canceled = api.cancel(first["operation_id"])
+    assert canceled["status"] == "CANCELED"
+    assert canceled["result"]["resume_required"] is True
+    assert canceled["result"]["effects_undone"] is False
+    assert calls == ["attempt"] and not engine.root.joinpath("executed").exists()
+    assert api.statistics_query()["cancelled_operations"] == 1
+    sequence = canceled["last_sequence"]
+    assert api.cancel(first["operation_id"])["last_sequence"] == sequence
+    second = submit(api, make_plan(subject), key="new-reviewed-plan", background=False)
+    assert second["operation_id"] != first["operation_id"]
+    assert calls == ["attempt", "attempt"]
+    api.cancel(second["operation_id"])
+
+
+def test_cancel_observes_concurrent_resume_as_queued_not_inactive(subject):
+    api, engine, _, _ = subject
+    engine.execute = lambda *args: {"status": "RECOVERY_REQUIRED"}
+    operation = submit(api, make_plan(subject), background=False)
+    journal = api._journal()
+    journal.claim_for_resume(operation["operation_id"], owner=operation["owner"])
+    canceled, event = journal.request_cancel(operation["operation_id"])
+    assert canceled["status"] == "QUEUED" and canceled["cancel_requested"] is True
+    assert event["type"] == "operation.cancel_requested"
+    with pytest.raises(InstallerError) as caught:
+        submit(api, make_plan(subject), key="must-not-bypass-live-claim", background=False)
+    assert caught.value.code == "OPERATION_CONFLICT"
+
+
+def test_delayed_interruption_cannot_cancel_resumed_worker(subject, monkeypatch):
+    from homensai_install.api.journal import Journal
+    api, engine, _, _ = subject
+    engine.execute = lambda *args: {"status": "RECOVERY_REQUIRED"}
+    operation = submit(api, make_plan(subject), background=False)
+    opid = operation["operation_id"]
+    journal = api._journal()
+    # The old attempt and the resumed one intentionally have the same owner.
+    journal.update(opid, {"status": "RUNNING"})
+    started, release = threading.Event(), threading.Event()
+
+    def resumed_work(plan, emit, canceled):
+        started.set()
+        assert release.wait(5)
+        return {"status": "CANCELED" if canceled() else "SUCCEEDED"}
+
+    engine.execute = resumed_work
+    original = Journal.mark_interrupted
+    interleaved = []
+
+    def delayed_observer(self, observed):
+        if not interleaved:
+            interleaved.append(True)
+            # Another observer marks the dead attempt and explicitly resumes it
+            # after this caller's liveness decision but before its journal write.
+            original(self, observed)
+            current = InstallerAPI(api.state_dir, engine=engine).resume(opid)
+            assert started.wait(2) and current["owner"] == observed["owner"]
+        return original(self, observed)
+
+    monkeypatch.setattr(Journal, "mark_interrupted", delayed_observer)
+    try:
+        canceled = api.cancel(opid)
+        assert interleaved and canceled["status"] == "RUNNING"
+        assert canceled["cancel_requested"] is True and canceled["attempt"] == 2
+        with pytest.raises(InstallerError) as caught:
+            submit(api, make_plan(subject), key="must-retain-resumed-claim", background=False)
+        assert caught.value.code == "OPERATION_CONFLICT"
+        events = journal.events(opid, 0)
+        assert sum(event["type"] == "operation.interrupted" for event in events) == 1
+        assert not any(event["type"] == "operation.canceled" for event in events)
+    finally:
+        release.set()
+    assert wait_terminal(api, opid)["status"] == "CANCELED"
+
+
+def test_delayed_interruption_cannot_replace_same_owner_queued_attempt(subject):
+    api, engine, _, _ = subject
+    engine.execute = lambda *args: {"status": "RECOVERY_REQUIRED"}
+    operation = submit(api, make_plan(subject), background=False)
+    journal = api._journal()
+    observed = journal.update(operation["operation_id"], {"status": "RUNNING"})
+    journal.mark_interrupted(observed)
+    journal.claim_for_resume(operation["operation_id"], owner=observed["owner"])
+    current = journal.mark_interrupted(observed)
+    assert current["status"] == "QUEUED" and current["owner"] == observed["owner"]
+    assert current["last_sequence"] > observed["last_sequence"]
+    canceled, event = journal.request_cancel(operation["operation_id"])
+    assert canceled["status"] == "QUEUED" and event["type"] == "operation.cancel_requested"
+
+
+def test_resume_waits_for_previous_local_worker_finalization(subject, monkeypatch):
+    api, engine, _, _ = subject
+    engine.execute = lambda *args: {"status": "RECOVERY_REQUIRED"}
+    finishing, release = threading.Event(), threading.Event()
+    original = api._diagnostics
+
+    def held_finalization(method, *args, **kwargs):
+        if method == "finish_operation":
+            finishing.set()
+            assert release.wait(5)
+        return original(method, *args, **kwargs)
+
+    monkeypatch.setattr(api, "_diagnostics", held_finalization)
+    operation = submit(api, make_plan(subject))
+    try:
+        assert finishing.wait(2)
+        with pytest.raises(InstallerError) as caught:
+            api.resume(operation["operation_id"], background=False)
+        assert caught.value.code == "OPERATION_CONFLICT"
+        current = api._journal().operation(operation["operation_id"])
+        assert current["status"] == "RECOVERY_REQUIRED" and current["attempt"] == 1
+    finally:
+        release.set()
+
+
 def test_rollback_success_is_failed_update(subject):
     api, engine, _, _ = subject
     engine.final = "FAILED_ROLLED_BACK"

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "head_sha": "9e0cb1d1ede5c288fa9c43f4048d4d42194dc924",
+  "run": [
+    {
+      "id": 40170554823,
+      "status": "completed",
+      "conclusion": "failure",
+      "event": "push",
+      "url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40170554823",
+      "created_at": "2026-10-25T06:50:42Z",
+      "updated_at": "2026-10-25T06:50:46Z"
+    }
+  ],
+  "jobs": [
+    {
+      "id": 121100338402,
+      "name": "Linux source and user-process integration (no installer acceptance)",
+      "status": "completed",
+      "conclusion": "failure",
+      "runner_id": 0,
+      "steps": []
+    },
+    {
+      "id": 121100338575,
+      "name": "Windows portable source subset (no service installation)",
+      "status": "completed",
+      "conclusion": "failure",
+      "runner_id": 0,
+      "steps": []
+    }
+  ],
+  "assessment": "Jobs ended before any runner/step. Logs returned 404. No source checks executed. Cause unavailable through connected API; do not infer billing or workflow failure cause.",
+  "acceptance": "BLOCKED",
+  "production_ready": false
+}

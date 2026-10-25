@@ -226,6 +226,7 @@ class NativeEngine:
 
     ACTIONS = ("install", "start", "stop", "backup", "restore", "update",
                "rollback", "repair", "reinstall", "uninstall")
+    MAINTENANCE_ACTIONS = {"start", "stop", "backup", "uninstall"}
 
     def __init__(self, verifier=None, secret_provider=None, *, development_runtime=None):
         self.verifier = verifier
@@ -368,8 +369,13 @@ class NativeEngine:
         ctx = self._context(manifest, target, options)
         if action not in self.ACTIONS:
             raise EngineError("CAPABILITY_UNSUPPORTED")
+        effective_active = None
+        if action in self.MAINTENANCE_ACTIONS:
+            ctx, effective_active = self._maintenance_context(ctx)
         mutates_payload = action in {"install", "update", "repair", "reinstall"}
-        if action in {"install", "start", "update", "repair", "reinstall"} and inventory.get("fingerprint_data", {}).get("port_conflict"):
+        conflict = (self._port_state(ctx, self._records(ctx))["port_conflict"] if action == "start"
+                    else inventory.get("fingerprint_data", {}).get("port_conflict"))
+        if action in {"install", "start", "update", "repair", "reinstall"} and conflict:
             raise EngineError("OPERATION_CONFLICT", "Порт занят чужим процессом")
         if mutates_payload and (not ctx["release"] or not options.get("payload_dir")):
             raise EngineError("INVALID_MANIFEST", "Нужны release и payload_dir")
@@ -398,13 +404,16 @@ class NativeEngine:
             consents.append("terms:" + eula)
         if action == "rollback":
             consents.append("restore-snapshot-data")
-        return {"steps": [{"id": x, "component_id": "product", "weight": 1} for x in steps],
+        result = {"steps": [{"id": x, "component_id": "product", "weight": 1} for x in steps],
                 "resources": [str(ctx["root"]), str(ctx["work"])],
                 "required_consents": consents, "scope": "user-session",
                 "preserves_user_data": True, "production_ready": False,
                 "backup_strategy": "filesystem_quiesced", "product_backup_hooks_supported": False,
                 "consistency_requires": ["all_writers_are_owned_components", "graceful_stop_completed"],
                 "legacy_commands_not_executed": ["backup.cmd", "restore.cmd"]}
+        if effective_active is not None:
+            result["effective_active"] = effective_active
+        return result
 
     def _password(self, ctx):
         reference = ctx["options"].get("backup_password_ref")
@@ -442,6 +451,9 @@ class NativeEngine:
         data = _read(self._metadata_path(ctx, release))
         if data.get("release") != release or data.get("manifest", {}).get("product_id") != ctx["manifest"]["product_id"]:
             raise EngineError("RECOVERY_REQUIRED", "Несовместимые release metadata")
+        binding = ctx.get("maintenance_binding")
+        if binding and release == binding["release"] and _digest(data) != binding["metadata_content_sha256"]:
+            raise EngineError("PLAN_STALE", "Metadata активного выпуска изменились после review")
         return data
 
     def _installed(self, ctx, release):
@@ -454,6 +466,92 @@ class NativeEngine:
         if inventory != meta["inventory"]:
             raise EngineError("INTEGRITY_FAILED", "Release inventory изменён")
         return meta
+
+    def _maintenance_context(self, source, *, uninstall_state=None):
+        """Bind maintenance to the signed installed release, never source argv.
+
+        Source supplies only the installation locator. DataHome, pointer locator,
+        product, target and selected modes must agree. Requests cannot change
+        active credentials, hooks or runtime by passing newer bundle options.
+        """
+        owner = self._owner(source, required=True)
+        active = self._pointer(source)
+        if not active:
+            raise EngineError("RECOVERY_REQUIRED", "Нет активной установки для обслуживания")
+        meta = self._metadata(source, active)
+        active_manifest = validate_manifest(meta["manifest"])
+        def target_identity(value):
+            if not isinstance(value, dict) or set(value) - {"os", "arch", "mode", "scope"}:
+                raise EngineError("CAPABILITY_UNSUPPORTED", "Target metadata не поддерживается")
+            return {"os": value.get("os"), "arch": value.get("arch"), "mode": value.get("mode", "native"),
+                    "scope": value.get("scope", "user")}
+        if (active_manifest["product_id"] != source["manifest"]["product_id"]
+                or active_manifest["paths"] != source["manifest"]["paths"]
+                or active_manifest["update"]["pointer_file"] != source["manifest"]["update"]["pointer_file"]
+                or target_identity(meta["target"]) != target_identity(source["target"])
+                or type(meta.get("modes")) is not list or tuple(meta["modes"]) != source["modes"]):
+            raise EngineError("CAPABILITY_UNSUPPORTED", "Обслуживание не меняет product, DataHome, pointer, target или modes")
+        component_order(active_manifest, tuple(meta["modes"]))
+        if not isinstance(meta.get("inventory"), dict) or meta.get("runtime_executable") not in meta["inventory"]:
+            raise EngineError("INTEGRITY_FAILED", "Runtime активного выпуска не закреплён inventory")
+        # An interrupted uninstall may already have removed part of the code.
+        # Only its own completed recovery checkpoint authorizes this fallback.
+        partial_remove = (isinstance(uninstall_state, dict) and uninstall_state.get("action") == "uninstall"
+                          and "preserve_recovery" in uninstall_state.get("completed", []))
+        if partial_remove:
+            recovery = checked_path(source["home"].roots["runtime"] / "recovery" / active)
+            if _read(recovery / "release.json") != meta:
+                raise EngineError("INTEGRITY_FAILED", "Recovery metadata отличаются от active release")
+            files = self._verify(active_manifest, meta["target"], {
+                "payload_dir": str(recovery / "payload"), "release": active,
+                "runtime_executable": meta["runtime_executable"],
+                "inventory_file": str(recovery / "release.inventory.json"),
+                "signature_file": str(recovery / "release.signature.json")})
+            if files != meta["inventory"]:
+                raise EngineError("INTEGRITY_FAILED", "Recovery inventory отличается от active release")
+            release_path = self._release(source, active)
+            if release_path.exists():
+                remaining = _tree(release_path)[1]
+                if any(name not in files or files[name] != digest for name, digest in remaining.items()):
+                    raise EngineError("INTEGRITY_FAILED", "Остаток удаляемого выпуска изменён")
+        else:
+            self._installed(source, active)
+        # Deliberately no overlay from the incoming bootstrap's secret_refs.
+        refs = self._secret_refs({**source, "release": None, "action": None, "options": {}}, active, meta)
+        active_options = {**source["options"], "release": active, "modes": list(meta["modes"]),
+            "runtime_executable": meta["runtime_executable"], "payload_dir": str(self._release(source, active)),
+            "inventory_file": str(source["control"] / "releases" / (active + ".inventory.json")),
+            "signature_file": str(source["control"] / "releases" / (active + ".signature.json")),
+            "secret_refs": refs}
+        effective = self._context(active_manifest, meta["target"], active_options)
+        if effective["home"] != source["home"] or effective["control"] != source["control"]:
+            raise EngineError("CAPABILITY_UNSUPPORTED", "Активный DataHome отличается от выбранной установки")
+        binding = {"selection": "verified_installed_active_release", "release": active,
+            "source_release": source["release"], "source_manifest_sha256": _digest(source["manifest"]),
+            "manifest_sha256": _digest(active_manifest), "installation_id": owner["installation_id"],
+            "target": target_identity(meta["target"]), "modes": list(meta["modes"]),
+            "components": list(component_order(active_manifest, tuple(meta["modes"]))),
+            "runtime_executable": meta["runtime_executable"], "inventory_sha256": _digest(meta["inventory"]),
+            "metadata_sha256": _file_digest(self._metadata_path(source, active)),
+            "metadata_content_sha256": _digest(meta),
+            "signed_inventory_sha256": _file_digest(active_options["inventory_file"]),
+            "signature_sha256": _file_digest(active_options["signature_file"]),
+            "credential_policy": "installed_release_refs", "secret_refs_sha256": _digest(refs),
+            "request_secret_refs_ignored": bool(source["options"].get("secret_refs", {}) != refs),
+            "web_url": f"http://127.0.0.1:{active_manifest['web']['port']}{active_manifest['web']['healthz']}"}
+        return effective, binding
+
+    def _check_maintenance_binding(self, ctx):
+        binding = ctx.get("maintenance_binding")
+        if not binding:
+            return
+        release = binding["release"]
+        if (self._pointer(ctx) != release
+                or self._owner(ctx, required=True)["installation_id"] != binding["installation_id"]
+                or _file_digest(self._metadata_path(ctx, release)) != binding["metadata_sha256"]
+                or _file_digest(ctx["options"]["inventory_file"]) != binding["signed_inventory_sha256"]
+                or _file_digest(ctx["options"]["signature_file"]) != binding["signature_sha256"]):
+            raise EngineError("PLAN_STALE", "Привязка активного выпуска изменилась после review")
 
     def _prepare(self, ctx):
         owner = self._owner(ctx)
@@ -1021,17 +1119,17 @@ class NativeEngine:
                     else None)
         if action != "install":
             self._owner(ctx, required=True)
-        if action in {"install", "start", "update", "repair", "reinstall"}:
+        if action in {"install", "update", "repair", "reinstall"}:
             records = self._records(ctx) if self._owner(ctx) else {}
             # Незавершённый launch разрешается reconciliation под lock, но
             # отсутствие receipt не даёт права доверять чужому listener.
             unresolved_launch = any(record.get("status") == "launching" for record in records.values())
             if not unresolved_launch and self._port_state(ctx, records)["port_conflict"]:
                 raise EngineError("PORT_IN_USE", "Порт занят не подтверждённым listener")
-        if action in {"install", "update", "repair", "reinstall", "start"}:
+        if action in {"install", "update", "repair", "reinstall"}:
             refs = ctx["options"].get("secret_refs", {})
             current = self._pointer(ctx) if self._owner(ctx) else None
-            if current and (current == ctx["release"] or action == "start"):
+            if current and current == ctx["release"]:
                 refs = self._secret_refs(ctx, current)
             for context in ("service", "admin"):
                 self._secrets(ctx["manifest"], refs, context, cache=ctx["secret_cache"])
@@ -1050,11 +1148,39 @@ class NativeEngine:
         ctx["operation_token"] = token
         journal = ctx["control"] / "operations" / (token + ".json")
         with operation_lock(lock):
-            self._prepare(ctx)
-            self._owner(ctx, required=True)
             previous = _read(journal) if journal.exists() else None
             if previous and previous.get("status") in {"SUCCEEDED", "FAILED_ROLLED_BACK"}:
                 return previous["result"]
+            if action in self.MAINTENANCE_ACTIONS:
+                source = ctx
+                ctx, binding = self._maintenance_context(source, uninstall_state=previous if action == "uninstall" else None)
+                detail = plan.get("engine_plan")
+                if detail is not None and not isinstance(detail, dict):
+                    raise EngineError("INVALID_MANIFEST", "Некорректный engine plan")
+                reviewed = detail.get("effective_active") if detail else None
+                if reviewed is None:
+                    # Legacy direct calls can retain identical-manifest behavior.
+                    # A cross-release manifest requires a concrete reviewed plan.
+                    if _digest(source["manifest"]) != binding["manifest_sha256"]:
+                        raise EngineError("PLAN_STALE", "Требуется новый план с verified effective_active")
+                elif _digest(reviewed) != _digest(binding):
+                    raise EngineError("PLAN_STALE", "Активная версия отличается от reviewed плана")
+                if previous and previous.get("maintenance_binding") is not None and previous["maintenance_binding"] != binding:
+                    raise EngineError("PLAN_STALE", "Незавершённый план относится к другому active release")
+                ctx.update(action=action, operation_token=token, maintenance_binding=binding,
+                           secret_cache=source["secret_cache"])
+                records = self._records(ctx)
+                if action == "start":
+                    unresolved = any(record.get("status") == "launching" for record in records.values())
+                    if not unresolved and self._port_state(ctx, records)["port_conflict"]:
+                        raise EngineError("PORT_IN_USE", "Порт active release занят не подтверждённым listener")
+                restart_required = (action == "start" or action == "backup" and
+                    (bool(previous and previous.get("was_running")) or any(self._running(record) for record in records.values())))
+                if restart_required:
+                    for context in ("service", "admin"):
+                        self._secrets(ctx["manifest"], ctx["options"]["secret_refs"], context, cache=ctx["secret_cache"])
+            self._prepare(ctx)
+            self._owner(ctx, required=True)
             if previous and previous.get("status") in {"FAILED", "RECOVERY_REQUIRED"} and action not in {"start", "stop", "update"}:
                 raise EngineError("RECOVERY_REQUIRED", "Неудавшийся шаг требует проверенного восстановления")
             # Незавершённый другой mutating plan нельзя обойти новым token.
@@ -1072,12 +1198,15 @@ class NativeEngine:
                                  "initial_data_empty": not any(ctx["home"].roots["data"].iterdir()),
                                  "was_running": any(self._running(record) for record in self._records(ctx).values())}
             state["status"] = "RUNNING"
+            if ctx.get("maintenance_binding"):
+                state["maintenance_binding"] = ctx["maintenance_binding"]
             ctx["operation_state"] = state
             _write(journal, state)
 
             def boundary(name):
                 if cancel_requested():
                     raise _Canceled()
+                self._check_maintenance_binding(ctx)
                 state["phase"] = name
                 _write(journal, state)
                 emit({"phase": name, "status": "RUNNING", "completed": 0, "total": None})
@@ -1117,6 +1246,8 @@ class NativeEngine:
                 raise
             result.setdefault("backup_strategy", "filesystem_quiesced")
             result.setdefault("production_ready", False)
+            if ctx.get("maintenance_binding"):
+                result["effective_active"] = ctx["maintenance_binding"]
             state.update(status=result.get("status", "SUCCEEDED"), result=result)
             _write(journal, state)
             return result
@@ -1278,6 +1409,16 @@ class NativeEngine:
             trusted = self._verify(meta["manifest"], ctx["target"], opts)
             if meta["manifest"]["paths"] != ctx["manifest"]["paths"]:
                 raise EngineError("CAPABILITY_UNSUPPORTED", "Restore paths требуют продуктового adapter")
+            # Credential references belong to the authenticated snapshot. A
+            # newer bootstrap (or same-release restore request) must not replace
+            # them while publishing metadata or starting the restored runtime.
+            restored_refs = self._secret_refs({**ctx, "release": None, "action": None, "options": {}}, release, meta)
+            component_order(meta["manifest"], tuple(meta["modes"]))
+            for context in ("service", "admin"):
+                self._secrets(meta["manifest"], restored_refs, context, cache=ctx["secret_cache"])
+            recover_ctx = {**ctx, "manifest": meta["manifest"], "release": release,
+                           "modes": tuple(meta["modes"]),
+                           "options": {**ctx["options"], **opts, "secret_refs": restored_refs}}
             step("stop", lambda: self._stop(ctx))
             step("before_restore", lambda: self._backup(ctx, ctx["work"] / (token + "-before-restore.hsac"), password))
             def restore():
@@ -1287,15 +1428,13 @@ class NativeEngine:
                         preserved = {ctx["manifest"]["update"]["pointer_file"], "operation.lock"}
                         preserved |= {x.name for x in destination.glob("update-*.json")}
                     FilesystemPorts._reconcile(candidate / "roots" / name, destination, preserved)
-                recover_ctx = {**ctx, "manifest": meta["manifest"], "release": release,
-                               "modes": tuple(meta["modes"]), "options": {**ctx["options"], **opts}}
                 ports = self._ports(recover_ctx, trusted, password, emit)
                 ports.stage_release(token + "/stage", release)
                 ports.switch_pointer(token + "/switch", release)
                 _write(ctx["control"] / "installation.json", {**owner, "installed": True})
             step("restore", restore)
-            step("start", lambda: self._start(ctx))
-            return {"status": "SUCCEEDED", "health": step("health", lambda: self._health(ctx)),
+            step("start", lambda: self._start(recover_ctx))
+            return {"status": "SUCCEEDED", "health": step("health", lambda: self._health(recover_ctx)),
                     "external_actions_on_hold": True}
         raise EngineError("CAPABILITY_UNSUPPORTED")
 

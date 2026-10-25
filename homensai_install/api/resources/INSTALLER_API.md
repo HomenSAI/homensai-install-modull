@@ -132,7 +132,7 @@ adapter не должен обращаться к их внутренним кл
 | `operations_list(product_id=None, unfinished_only=True, limit=100)` | Найти сохранённые операции после потери UI-сессии; только метаданные, без автоматического исполнения |
 | `status(operation_id)` | Фактическое состояние и результат |
 | `events(operation_id, after_sequence=0)` | Страница событий, snapshot и новый cursor |
-| `cancel(operation_id)` | Запрос безопасной отмены; не произвольный kill |
+| `cancel(operation_id)` | Cooperative cancel для живого worker; неактивное recovery-ожидание закрывается без отката эффектов |
 | `resume(operation_id, decisions, background=True)` | Только явный engine recovery из допустимого состояния |
 | `contract_test(manifest, target, options)` | Read-only проверка контракта; не installed-приёмка |
 
@@ -335,3 +335,19 @@ durable journal, resource claims, безопасный cancel, события и
 установщика, server scope, системные prerequisites, production trust или
 независимая интеграция JobPilot/Rent. Этот список должен обновляться вместе
 с фактической реализацией и canonical ToDo.
+
+### Отмена неактивной попытки
+
+`cancel` атомарно различает живой RUNNING/QUEUED worker и неактивное
+RECOVERY_REQUIRED/AWAITING_USER/REBOOT_REQUIRED/RELOGIN_REQUIRED. Для worker
+ставится cooperative request. Неактивная попытка становится CANCELED, API claim
+освобождается, но engine recovery receipts и уже выполненные изменения сохраняются.
+Ответ содержит `resume_required=true`, `effects_undone=false`. Новый план отдельно
+проверяет native/Docker recovery interlocks; отмена не разрешает обход partial install.
+При гонке с уже поставленным в очередь resume отмена остаётся cooperative.
+Если cancel вернул RUNNING/QUEUED, клиент продолжает получать events/status;
+завершение операции этим ответом ещё не подтверждено. Проверка исчезновения
+owner меняет journal только при совпадении ранее наблюдённого snapshot, включая
+возрастающий sequence. Задержанный status не перезаписывает новую попытку даже
+при resume в том же процессе.
+Повторная отмена terminal operation не меняет историю и не создаёт второй event.

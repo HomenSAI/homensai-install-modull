@@ -22,6 +22,8 @@ async function main() {
     await page.selectOption('#language', process.env.HINSTALL_TEST_LOCALE || 'en');
     await page.selectOption('#action', action);
     await page.locator('#archive-password').fill('reference-test-only-archive-password');
+    if (process.env.HINSTALL_TEST_ARCHIVE_PATH)
+      await page.locator('#archive-path').fill(process.env.HINSTALL_TEST_ARCHIVE_PATH);
     if (action === 'rollback') await page.locator('#data-loss').check();
     const root = await page.locator('#install-root').inputValue();
     const preserved = path.join(root, 'data/user-files/acceptance-preserved.txt');

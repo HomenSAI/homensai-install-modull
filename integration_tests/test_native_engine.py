@@ -128,7 +128,8 @@ class NativeLifecycleTests(unittest.TestCase):
                         process.wait(timeout=5)
         self.tmp.cleanup()
 
-    def bundle(self, release, *, bad_health=False, child_writer=False, synthetic_secret=None, no_listener=False):
+    def bundle(self, release, *, bad_health=False, child_writer=False, synthetic_secret=None, no_listener=False,
+               runtime_tag=None):
         folder = self.base / ("source-" + release)
         folder.mkdir()
         files = {"server.py": SERVER, "migrate.py": MIGRATE,
@@ -136,6 +137,11 @@ class NativeLifecycleTests(unittest.TestCase):
                  "locks/windows.lock": "test-lock\n", "locks/linux.lock": "test-lock\n",
                  "vendor/test_fixture-1.0-py3-none-any.whl": "test fixture, never production wheel\n"}
         files.update({"legal/" + lang + ".txt": "Test terms " + lang for lang in ("ru", "en", "de")})
+        if runtime_tag is not None:
+            # Distinct release build pins are the real post-rollback maintenance
+            # regression; previously every fixture used an identical manifest.
+            files["locks/linux.lock"] += "build=" + runtime_tag + "\n"
+            files["vendor/test_fixture-1.0-py3-none-any.whl"] += "build=" + runtime_tag + "\n"
         if bad_health:
             files["fail_health"] = "intentional readiness failure\n"
         if child_writer:
@@ -179,6 +185,12 @@ class NativeLifecycleTests(unittest.TestCase):
         return {"action": action, "source_manifest": bundle["manifest"], "target": self.target,
                 "options": {**bundle["options"], **overrides}, "plan_id": uuid.uuid4().hex}
 
+    def reviewed_plan(self, action, bundle, **overrides):
+        plan = self.operation_plan(action, bundle, **overrides)
+        inventory = self.engine.discover(plan["source_manifest"], plan["target"], plan["options"])
+        plan["engine_plan"] = self.engine.plan(action, plan["source_manifest"], plan["target"], inventory, plan["options"])
+        return plan
+
     def new_engine(self):
         self.engine = NativeEngine(self.engine.verifier, self.engine.secret_provider,
                                    development_runtime=sys.executable)
@@ -216,6 +228,219 @@ class NativeLifecycleTests(unittest.TestCase):
         self.assertEqual(json.loads((self.root / "services" / "active.json").read_text())["release"], "v3")
         self.assertEqual(data.read_text(), "retained")
         self.assertTrue(list((self.base / ".installed-recovery").glob("*.hsac")))
+
+    def test_latest_bootstrap_maintains_rolled_back_release_with_distinct_runtime_pins(self):
+        first, latest = self.bundle("v1", runtime_tag="old"), self.bundle("v2", runtime_tag="new")
+        self.assertNotEqual(first["manifest"]["runtime"], latest["manifest"]["runtime"])
+        self.run_action("install", first)
+        data = self.root / "data" / "user.txt"
+        data.write_text("keep original user data")
+        snapshot = self.engine.execute(self.reviewed_plan("backup", first))["archive"]["path"]
+        self.assertEqual(self.run_action("update", latest)["status"], "SUCCEEDED")
+        rolled_back = self.run_action("rollback", latest, archive_path=snapshot, acknowledge_data_loss=True)
+        self.assertEqual(rolled_back["health"]["release"], "v1")
+        self.assertEqual(data.read_text(), "keep original user data")
+        reviewed = self.reviewed_plan("stop", latest)
+        binding = reviewed["engine_plan"]["effective_active"]
+        self.assertEqual(binding["release"], "v1")
+        self.assertEqual(binding["source_release"], "v2")
+        self.assertEqual(binding["manifest_sha256"], engine_module._digest(first["manifest"]))
+        self.assertEqual(binding["runtime_executable"], "runtime/python")
+        self.assertEqual(self.engine.execute(reviewed)["effective_active"], binding)
+        backup = self.engine.execute(self.reviewed_plan("backup", latest))
+        self.assertEqual(backup["archive"]["release"], "v1")
+        self.assertTrue(archive_crypto.is_encrypted(backup["archive"]["path"]))
+        started = self.engine.execute(self.reviewed_plan("start", latest))
+        self.assertEqual(started["health"]["release"], "v1")
+        self.assertTrue(started["health"]["ready"])
+        removed = self.engine.execute(self.reviewed_plan("uninstall", latest))
+        self.assertTrue(removed["data_preserved"])
+        self.assertEqual(removed["effective_active"]["release"], "v1")
+        self.assertEqual(data.read_text(), "keep original user data")
+        self.assertFalse((self.root / "releases" / "app-v1").exists())
+
+    def test_cross_release_maintenance_requires_review_and_rechecks_active_pointer(self):
+        first, latest = self.bundle("v1", runtime_tag="old"), self.bundle("v2", runtime_tag="new")
+        self.run_action("install", first)
+        process_file = self.root / ".hinstall" / "processes.json"
+        initial = json.loads(process_file.read_text())["web"]
+        for old_plan in (self.operation_plan("stop", latest), self.operation_plan("stop", latest) | {"engine_plan": {"steps": []}}):
+            with self.assertRaises(EngineError) as error:
+                self.engine.execute(old_plan)
+            self.assertEqual(error.exception.code, "PLAN_STALE")
+            self.assertTrue(self.engine._running(initial))
+        reviewed = self.reviewed_plan("stop", latest)
+        self.run_action("update", latest)
+        active = json.loads(process_file.read_text())["web"]
+        self.assertEqual(active["release"], "v2")
+        with self.assertRaises(EngineError) as error:
+            self.engine.execute(reviewed)
+        self.assertEqual(error.exception.code, "PLAN_STALE")
+        self.assertTrue(self.engine._running(active))
+        self.assertEqual(json.loads(process_file.read_text())["web"]["pid"], active["pid"])
+
+    def test_maintenance_does_not_use_new_bundle_commands_or_secret_refs(self):
+        first = self.bundle("v1", runtime_tag="old", synthetic_secret="first-secret-fixture")
+        latest = self.bundle("v2", runtime_tag="new", synthetic_secret="second-secret-fixture")
+        first["options"]["secret_refs"] = {"PRODUCT_TOKEN": "vault:first"}
+        latest["options"]["secret_refs"] = {"PRODUCT_TOKEN": "vault:second"}
+        values = {"vault:first": "first-secret-fixture", "vault:second": "second-secret-fixture",
+                  "test:archive": "test-only-strong-archive-password"}
+        calls = []
+        self.engine.secret_provider = lambda ref: (calls.append(ref), values[ref])[1]
+        self.run_action("install", first)
+        self.engine.execute(self.reviewed_plan("stop", latest))
+        # A future bootstrap's product argv/options must never affect old runtime.
+        latest["manifest"]["components"][0]["cmd"] = ["python", "new-bundle-only.py"]
+        latest["options"]["runtime_executable"] = "not-the-installed-runtime"
+        calls.clear()
+        reviewed = self.reviewed_plan("start", latest)
+        self.assertEqual(reviewed["engine_plan"]["effective_active"]["credential_policy"], "installed_release_refs")
+        self.assertTrue(reviewed["engine_plan"]["effective_active"]["request_secret_refs_ignored"])
+        result = self.engine.execute(reviewed)
+        self.assertEqual(result["health"]["release"], "v1")
+        self.assertIn("vault:first", calls)
+        self.assertNotIn("vault:second", calls)
+        calls.clear()
+        self.assertEqual(self.engine.execute(self.reviewed_plan("backup", latest))["status"], "SUCCEEDED")
+        self.assertIn("vault:first", calls)
+        self.assertNotIn("vault:second", calls)
+
+    def test_maintenance_rejects_changed_locators_or_target_before_effects(self):
+        first, latest = self.bundle("v1", runtime_tag="old"), self.bundle("v2", runtime_tag="new")
+        self.run_action("install", first)
+        record = json.loads((self.root / ".hinstall" / "processes.json").read_text())["web"]
+        for changed in ("paths", "pointer", "modes", "target", "product"):
+            with self.subTest(changed=changed):
+                candidate = copy.deepcopy(latest)
+                target = dict(self.target)
+                if changed == "paths":
+                    candidate["manifest"]["paths"]["data"] = "different-data"
+                elif changed == "pointer":
+                    candidate["manifest"]["update"]["pointer_file"] = "different-active.json"
+                    (self.root / "services" / "different-active.json").write_text('{"release":"v1"}')
+                elif changed == "modes":
+                    candidate["manifest"]["modes"] = [{"name": "other", "components": ["web"]}]
+                    candidate["options"]["modes"] = ["other"]
+                elif changed == "target":
+                    target["scope"] = "machine"
+                else:
+                    candidate["manifest"]["product_id"] = "another-product"
+                with self.assertRaises(EngineError):
+                    self.engine.execute({"action": "stop", "source_manifest": candidate["manifest"],
+                        "target": target, "options": candidate["options"], "plan_id": uuid.uuid4().hex})
+                self.assertTrue(self.engine._running(record))
+                self.assertFalse((self.root / "different-data").exists())
+
+    def test_maintenance_rechecks_metadata_binding_and_full_installed_inventory(self):
+        first, latest = self.bundle("v1", runtime_tag="old"), self.bundle("v2", runtime_tag="new")
+        self.run_action("install", first)
+        record = json.loads((self.root / ".hinstall" / "processes.json").read_text())["web"]
+        plan = self.reviewed_plan("stop", latest)
+        metadata = self.root / ".hinstall" / "releases" / "v1.json"
+        original = metadata.read_bytes()
+        metadata.write_bytes(original + b"\n")
+        with self.assertRaises(EngineError) as error:
+            self.engine.execute(plan)
+        self.assertEqual(error.exception.code, "PLAN_STALE")
+        self.assertTrue(self.engine._running(record))
+        metadata.write_bytes(original)
+        installed = self.root / "releases" / "app-v1" / "server.py"
+        source = installed.read_bytes()
+        installed.write_bytes(source + b"\n# unexpected corruption\n")
+        with self.assertRaises(EngineError) as error:
+            self.engine.execute(plan)
+        self.assertEqual(error.exception.code, "INTEGRITY_FAILED")
+        self.assertTrue(self.engine._running(record))
+        installed.write_bytes(source)
+
+    def test_reviewed_maintenance_uninstall_resumes_partial_remove_with_verified_recovery(self):
+        first, latest = self.bundle("v1", runtime_tag="old"), self.bundle("v2", runtime_tag="new")
+        self.run_action("install", first)
+        data = self.root / "data" / "user.txt"
+        data.write_text("preserve during interrupted uninstall")
+        plan = self.reviewed_plan("uninstall", latest)
+        def crash(event):
+            if event["phase"] == "preserve_recovery" and event["status"] == "SUCCEEDED":
+                raise SimulatedCrash()
+        with self.assertRaises(SimulatedCrash):
+            self.engine.execute(plan, crash)
+        (self.root / "releases" / "app-v1" / "server.py").unlink()
+        result = self.new_engine().resume(plan, {})
+        self.assertTrue(result["data_preserved"])
+        self.assertEqual(result["effective_active"]["release"], "v1")
+        self.assertEqual(data.read_text(), "preserve during interrupted uninstall")
+        self.assertEqual(self.engine.execute(plan), result)
+
+    def test_late_rollback_restores_archived_secret_refs_instead_of_new_bootstrap_refs(self):
+        first = self.bundle("v1", runtime_tag="old", synthetic_secret="archived-first-secret")
+        latest = self.bundle("v2", runtime_tag="new", synthetic_secret="current-second-secret")
+        first["options"]["secret_refs"] = {"PRODUCT_TOKEN": "vault:first"}
+        latest["options"]["secret_refs"] = {"PRODUCT_TOKEN": "vault:second"}
+        values = {"vault:first": "archived-first-secret", "vault:second": "current-second-secret",
+                  "test:archive": "test-only-strong-archive-password"}
+        calls = []
+        self.engine.secret_provider = lambda ref: (calls.append(ref), values[ref])[1]
+        self.run_action("install", first)
+        archive = self.run_action("backup", first)["archive"]["path"]
+        self.assertEqual(self.run_action("update", latest)["status"], "SUCCEEDED")
+        calls.clear()
+        result = self.run_action("rollback", latest, archive_path=archive, acknowledge_data_loss=True)
+        self.assertTrue(result["health"]["ready"])
+        self.assertEqual(result["health"]["release"], "v1")
+        self.assertIn("vault:first", calls)
+        self.assertNotIn("vault:second", calls)
+        metadata = self.root / ".hinstall" / "releases"
+        self.assertEqual(json.loads((metadata / "v1.json").read_text())["secret_refs"], {"PRODUCT_TOKEN": "vault:first"})
+        self.assertEqual(json.loads((metadata / "v2.json").read_text())["secret_refs"], {"PRODUCT_TOKEN": "vault:second"})
+        self.current = first
+        self.assertEqual(self.engine.execute(self.reviewed_plan("backup", latest))["status"], "SUCCEEDED")
+
+    def test_same_release_restore_also_uses_archived_refs_after_publish(self):
+        bundle = self.bundle("v1", synthetic_secret="archived-same-release-secret")
+        bundle["options"]["secret_refs"] = {"PRODUCT_TOKEN": "vault:first"}
+        values = {"vault:first": "archived-same-release-secret", "vault:second": "wrong-request-reference",
+                  "test:archive": "test-only-strong-archive-password"}
+        calls = []
+        self.engine.secret_provider = lambda ref: (calls.append(ref), values[ref])[1]
+        self.run_action("install", bundle)
+        data = self.root / "data" / "user.txt"
+        data.write_text("snapshot data")
+        archive = self.run_action("backup", bundle)["archive"]["path"]
+        data.write_text("later data")
+        calls.clear()
+        result = self.run_action("restore", bundle, archive_path=archive, secret_refs={"PRODUCT_TOKEN": "vault:second"})
+        self.assertTrue(result["health"]["ready"])
+        self.assertEqual(result["health"]["release"], "v1")
+        self.assertEqual(data.read_text(), "snapshot data")
+        self.assertIn("vault:first", calls)
+        self.assertNotIn("vault:second", calls)
+        metadata = json.loads((self.root / ".hinstall" / "releases" / "v1.json").read_text())
+        self.assertEqual(metadata["secret_refs"], {"PRODUCT_TOKEN": "vault:first"})
+
+    def test_missing_archived_secret_blocks_rollback_before_stopping_current_process(self):
+        first = self.bundle("v1", runtime_tag="old", synthetic_secret="archived-first-secret")
+        latest = self.bundle("v2", runtime_tag="new", synthetic_secret="current-second-secret")
+        first["options"]["secret_refs"] = {"PRODUCT_TOKEN": "vault:first"}
+        latest["options"]["secret_refs"] = {"PRODUCT_TOKEN": "vault:second"}
+        values = {"vault:first": "archived-first-secret", "vault:second": "current-second-secret",
+                  "test:archive": "test-only-strong-archive-password"}
+        self.engine.secret_provider = lambda ref: values.get(ref)
+        self.run_action("install", first)
+        archive = self.run_action("backup", first)["archive"]["path"]
+        self.run_action("update", latest)
+        data = self.root / "data" / "user.txt"
+        data.write_text("preserve current data on rejected restore")
+        process_file = self.root / ".hinstall" / "processes.json"
+        record = json.loads(process_file.read_text())["web"]
+        del values["vault:first"]
+        with self.assertRaises(EngineError) as error:
+            self.run_action("rollback", latest, archive_path=archive, acknowledge_data_loss=True)
+        self.assertEqual(error.exception.code, "PREREQUISITE_MISSING")
+        self.assertTrue(self.engine._running(record))
+        self.assertEqual(json.loads(process_file.read_text())["web"]["pid"], record["pid"])
+        self.assertEqual(data.read_text(), "preserve current data on rejected restore")
+        self.assertEqual(json.loads((self.root / "services" / "active.json").read_text())["release"], "v2")
 
     def test_tampered_payload_rejected_before_claim(self):
         bundle = self.bundle("v1")

@@ -53,6 +53,55 @@ consent reference. Сам engine дополнительно связывает h
 подписанным текстом выбранного языка. Произвольный hash от клиента не принимается
 за содержимое соглашения.
 
+## Обслуживание после rollback текущим установщиком
+
+`start`, `stop`, `backup`, `uninstall` обслуживают **подписанный активный
+установленный выпуск**. Поэтому текущий bootstrap v3 может обслужить v2 после
+late rollback, даже если runtime lock/wheel hashes в их манифестах различаются.
+Команды, runtime, компоненты, readiness и сохранённые product secret refs берутся
+из проверенных metadata активной установки. Новые argv, hooks, runtime path или
+`secret_refs`, переданные вместе с другим bootstrap, их не заменяют.
+
+План общего API раскрывает `engine_plan.effective_active`:
+
+- `release` — фактически обслуживаемый выпуск, `source_release` — выпуск
+  открытого bootstrap;
+- SHA-256 исходного и активного manifest, полного inventory, локальных metadata,
+  signed inventory и signature envelope;
+- installation ID, target, modes, components, подписанный runtime path и web URL;
+- `credential_policy=installed_release_refs` и hash сохранённых ссылок; сами
+  значения секретов в план не попадают.
+
+Разрешение активного выпуска выполняется повторно **под lifecycle lock до
+эффектов**. Изменение pointer, выпуска или привязанных metadata по отношению к
+reviewed plan возвращает `PLAN_STALE`. Изменение подписанных bytes/signature
+остаётся `INTEGRITY_FAILED`. На durable границах pointer и metadata сверяются
+повторно; при чтении активных metadata проверяется их привязка к плану.
+
+Это не импорт произвольной установки. Source locator обязан точно совпадать с
+активной установкой по product ID, `paths`, имени pointer, ОС/архитектуре/backend/
+scope и выбранным modes. Изменение этих параметров требует отдельного adapter.
+Bootstrap должен доверять ключу издателя активного выпуска. Совпадение имени
+продукта само по себе доверия не создаёт.
+
+Для разных manifest необходим новый reviewed plan с `effective_active`.
+Старые immutable планы без этой привязки не дополняются догадкой при исполнении.
+Совместимость прямых SDK-вызовов без `engine_plan` сохранена только при полном
+совпадении source manifest и active manifest. Неактуальный план нужно явно
+закрыть и создать новый через API; удалять журналы ради обхода проверки нельзя.
+
+`install`, `update`, `repair`, `reinstall`, `restore`, `rollback` продолжают
+использовать свои исходные подписанные source/archive contracts. Выбор active
+maintenance manifest не ослабляет проверки нового payload и не подменяет
+семантику этих операций.
+
+Повторное чтение завершённой operation receipt возвращает её исторический
+результат. Прерванный `uninstall`, который уже сохранил recovery payload, может
+продолжить удаление частично удалённого кода: проверяются собственный checkpoint,
+полный подписанный recovery payload и каждый оставшийся файл. Дополнительные
+или изменённые файлы приводят к отказу; отсутствие кода после частичного удаления
+не заставляет исполнять код из нового bootstrap.
+
 ## Что должно находиться в release
 
 Builder сначала полностью собирает приложение и runtime для конкретных ОС и
@@ -141,6 +190,15 @@ recovery runtime проверяется независимо от шифрова
 создаётся отдельный полный `before-restore` snapshot; текущие данные не исчезают
 без сохранённой копии.
 
+Product secret refs для `restore` и позднего `rollback` берутся из metadata
+аутентифицированного snapshot. Их имена и допустимые contexts проверяются;
+provider должен разрешить все необходимые ссылки **до остановки** работающего
+продукта. Эти же archived refs передаются при публикации release metadata,
+последующем start и health. Incoming refs нового bootstrap не подмешиваются,
+включая восстановление snapshot той же версии. Сам архив не заменяет внешний
+vault: если старая версия секрета недоступна, операция отказывается менять живую
+установку. При неизменяемом ref его значение также должно оставаться неизменным.
+
 ## Реальные действия
 
 | Действие | Поведение |
@@ -190,6 +248,14 @@ Integration suite использует временные синтетическ
 start с тем же PID, несколько update, automatic rollback после bad health,
 AES backup, uninstall/restore, repair, late rollback, crash/cancel recovery,
 orphan adoption, отказ от plaintext/tampered candidates и защита чужих путей/PID.
+Отдельный сценарий использует разные runtime pins у v1/v2, настоящий update и
+late rollback, после чего latest bootstrap выполняет reviewed stop/backup/start/
+uninstall активной старой версии. Проверяются stale plan, неподходящие locators,
+target/modes, неизменность процесса при отказе, изоляция новых credentials/argv
+и восстановление прерванного uninstall из доверенного recovery payload.
+Отдельно проверяются backup/update/late rollback с `vault:first` и `vault:second`,
+same-release restore с несовпадающими incoming refs и отказ отсутствующего
+archived secret до остановки текущего процесса.
 Наличие этих source checks не заменяет установку frozen артефакта на целевой
 ОС, отсутствие host Python, reboot/login, VM acceptance и проверку подписанного
 публичного релиза.

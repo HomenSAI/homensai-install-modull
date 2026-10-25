@@ -249,7 +249,7 @@ module не удаляет автоматически статически вс�
 
 ## 7. Что делает подготовленный GitHub Actions workflow
 
-`.github/workflows/source-tests.yml` подготовлен для `push` в `main`, обычного
+`.github/workflows/source-tests.yml` подготовлен для `push` в `main` и `codex/universal-installer-*`, обычного
 `pull_request` и ручного `workflow_dispatch`. Он использует `contents: read`,
 `persist-credentials: false`, не получает production signing keys и ничего не
 публикует. В workflow нет package uploads, production release или автоматической
@@ -320,3 +320,16 @@ unit tests не заменяют эти условия.
 [github-security]: https://docs.github.com/en/actions/reference/security/secure-use
 [pbs-release-api]: https://api.github.com/repos/astral-sh/python-build-standalone/releases/tags/20260325
 [python-3143]: https://www.python.org/downloads/release/python-3143/
+
+
+## Наблюдение GitHub Actions на CP-004
+
+Workflow был успешно записан и запущен на commit
+`9e0cb1d1ede5c288fa9c43f4048d4d42194dc924`:
+https://github.com/HomenSAI/homensai-install-modull/actions/runs/40170554823 .
+Оба задания завершились `failure` до назначения исполнителя (`runner_id=0`,
+`steps=[]`). Endpoint логов вернул404. Поэтому source tests в GitHub в этом run
+**не исполнялись**, статус приёмкиCI — BLOCKED. Причина остановки не присутствует
+в доступном ответе; не приписывать её биллингу, YAML или инструментам без evidence.
+Receipt: `packaging/acceptance-evidence/github-ci-20261025-cp004.json`.
+Локальные Linux проверки относятся к собственным receipts и этим run не заменяются.

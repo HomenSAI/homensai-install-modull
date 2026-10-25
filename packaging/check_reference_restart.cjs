@@ -76,7 +76,17 @@ async function main() {
     await context.close();
     api = await start();
     await page.waitForSelector('#pending-operations:not([hidden])', {timeout: 30000});
-    const pending = await api('/operations?unfinished_only=true');
+    const recoveryDeadline = Date.now() + 10000;
+    let pending = await api('/operations?unfinished_only=true');
+    const initialRecoveryStatus = pending.operations.find(item => item.operation_id === operation)?.status || null;
+    // Waiting for the group leader's exit does not prove that every SIGKILL
+    // recipient has already exited/reaped. Observe durable recovery; never
+    // execute another install or resume automatically to make this test pass.
+    while (pending.operations.length === 1 && pending.operations[0].operation_id === operation
+        && ['RUNNING', 'QUEUED'].includes(pending.operations[0].status) && Date.now() < recoveryDeadline) {
+      await delay(50);
+      pending = await api('/operations?unfinished_only=true');
+    }
     if (pending.operations.length !== 1 || pending.operations[0].operation_id !== operation
         || pending.operations[0].status !== 'RECOVERY_REQUIRED') throw new Error('Durable operation not found');
     await delay(300);
@@ -108,7 +118,8 @@ async function main() {
     if (stopState.status !== 'SUCCEEDED') throw new Error('Owned product cleanup failed');
     const output = {scope: 'Linux x64 frozen DEV controller crash + fresh browser GUI',
       interrupted_phase: interruptedPhase, same_operation_id: operation,
-      recovery_status: 'RECOVERY_REQUIRED', automatic_replay: false, status: result.status,
+      recovery_status: 'RECOVERY_REQUIRED', initial_recovery_observation: initialRecoveryStatus,
+      automatic_replay: false, status: result.status,
       health, product_stopped: true, production_ready: false};
     fs.writeFileSync(path.join(directory, 'result.json'), JSON.stringify(output, null, 2) + '\n');
     console.log(JSON.stringify(output));

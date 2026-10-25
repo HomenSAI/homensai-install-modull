@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-005",
+  "observed_date": "2026-10-25",
+  "environment": {
+    "os": "linux",
+    "arch": "x64",
+    "python": "3.14.3",
+    "kind": "isolated cloud test environment",
+    "owner_docker_host": false
+  },
+  "source": {
+    "command": "python -m pytest -q -rs tests",
+    "passed": 1637,
+    "skipped": 1,
+    "subtests_passed": 10,
+    "duration_seconds": 40.5,
+    "skip": "tests/test_datahome.py:105: Проверка пути POSIX на Windows",
+    "status": "PASS"
+  },
+  "integration": {
+    "command": "python -m pytest integration_tests -q",
+    "passed": 47,
+    "subtests_passed": 5,
+    "duration_seconds": 41.57,
+    "scope": "Synthetic Linux native user-session, actual owned processes/HTTP/SQLite/encrypted archives",
+    "status": "PASS"
+  },
+  "docker_scoped": {
+    "passed": 163,
+    "subtests_passed": 10,
+    "duration_seconds": 15.14,
+    "scope": "Real crypto/files/synthetic ELF, modeled daemon; no real Docker CLI/container acceptance",
+    "status": "PASS"
+  },
+  "counts_are_separate_scopes": true,
+  "production_ready": false,
+  "scoped_api_gui": {
+    "passed": 42,
+    "duration_seconds": 1.26,
+    "scope": "Public API, diagnostics API, wizard source contracts after CAS race fix"
+  },
+  "owner_liveness": {
+    "status": "PASS",
+    "cases": 12,
+    "scope": "Actual owned Linux unreaped child with waitid(WNOWAIT), birth identity, conservative permissions/proc handling and API recovery without engine effects",
+    "standalone_with_public_api": {
+      "passed": 41,
+      "duration_seconds": 1.13
+    },
+    "historical_frozen_failure_cause_proven": false
+  }
+}

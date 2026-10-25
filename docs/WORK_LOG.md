@@ -112,3 +112,63 @@ HIM-044 — Windows Docker — BLOCKED. Canonical ToDo по-прежнему106t
 
 Подтверждено перед CP-004: frozen bad-health update → FAILED_ROLLED_BACK;
 фактический HTTP сайт v3.0.0/SQLite3 ready=true и user file сохранены.
+
+
+## CP-20261025-005 — Docker source controller и надёжность recovery
+
+CP-004 подтверждён локально/GitHub: 9e0cb1d1ede5c288fa9c43f4048d4d42194dc924.
+Добавлен DockerCLI/contract/controller для start/stop/backup подготовленных owned
+containers. Проверены exact CLI bytes/argv/endpoint, container/network ownership,
+quiesced encrypted snapshot и durable intent/outcome reconciliation. 163 scoped
+PASS+10subtests; daemon моделируемый. Полного provisioning/update/restore нет.
+
+Реальный frozen repair(v3) и late rollback(v3→v2) PASS. До замены сохранён AES
+snapshot со SQLite3; после восстановления actual site/DB сообщают v2/schema2.
+Выявленный затем PLAN_STALE при stop новым bootstrap привёл к исправлению:
+start/stop/backup/uninstall используют verified active manifest/runtime/hooks/refs,
+reviewed effective_active повторно сверяется под lifecycle lock. Старую попытку
+закрыли без утверждения undo; новый GUI прошёл stop(de)/start(en)/backup(ru)/stop(en).
+Архив принадлежит active v2. Секреты старого архива не подменяются новыми;
+недоступный provider отклоняется до stop. Добавлены реальные regression cases.
+
+Независимый review обнаружил delayed owner check race и потерю GUI polling после
+cancel concurrent resume. Добавлены snapshot CAS, same-owner event-sequence guard,
+local-worker finalization guard и продолжение UI polling. Три существенных source
+interleavings и отдельный browser response-contract PASS. Последний использует
+моделируемые ответы, реальные product operations он не меняет.
+
+Frozen SIGKILL на stage→новый process/browser→explicit resume той же операции
+принят в scoped receipts. Отдельный повтор сначала увидел RUNNING на первом
+мгновенном чтении после kill; позже owner отсутствовал. Неуспех сохранён, его
+причина не установлена по одному позднему наблюдению. Harness теперь ограниченно
+ожидает recovery, не запускает другую install и не выполняет автоматический replay.
+
+SDK wheel отдельно установлен вне checkout в чистую среду: схемы, контракты,
+документация, ru/en/de, console entrypoints, DRAFT scaffold и отсутствие сети
+проверены. Точные source/wheel bytes и все последние counts/timings — в receipts
+packaging/acceptance-evidence; номера разных scope не складываются.
+
+GitHub CI CP-004 действительно запускался: Linux/Windows jobs завершились failure
+при runner_id=0, steps=[]. Это не выполненные source tests. Логи не предоставлены,
+точная причина через доступный API неизвестна. CI остаётся BLOCKED. Production
+licence/signing/EULA gates, OS services, Windows и полный Docker также открыты.
+
+Обновлены канонический ToDo, RESUME/state и README. 106 карточек: 5 DONE,
+59 IN_PROGRESS, 38 TODO, 4 BLOCKED; G0–G5 OPEN. Нет публичного binary release
+или merge в main. Синхронизация CP-005 считается успешной только после независимой
+проверки GitHub ref/commit/tree; Git владельца в Docker отдельно SYNC_BLOCKED.
+
+
+Финальная проверка CP-005 после исправлений CAS и Linux owner liveness:
+**1637 source PASS, 1 skip, 10 subtests** (40.50s); отдельно **47 integration
+PASS, 5 subtests** (41.57s). В последние входят 12 liveness cases: настоящий
+собственный unreaped zombie распознаётся завершённым, permission/read failures
+остаются unknown/alive, API отмечает recovery без engine effects. Причина старого
+первого frozen FAIL этим не считается доказанной. Установленный SDK и актуальные
+package resources повторно проверены по точным bytes.
+
+Финальный frozen bundle после owner fix повторно прошёл реальный SIGKILL на stage:
+новый controller/browser сразу увидел RECOVERY_REQUIRED, явный Resume завершил
+ту же op_e4a33118c10642058bfc85447bee5581, actual v1/SQLite1 ready=true.
+Продукт остановлен, собственные тестовые controller processes завершены; failed
+fixtures сохранены. Точный executable/inventory hash — CP-005 frozen receipt.

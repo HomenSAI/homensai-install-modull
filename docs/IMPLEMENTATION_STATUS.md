@@ -92,3 +92,62 @@ Production лицензии остаются BLOCKED: удалены ненуж�
 
 Подтверждено перед CP-004: frozen bad-health update → FAILED_ROLLED_BACK;
 фактический HTTP сайт v3.0.0/SQLite3 ready=true и user file сохранены.
+
+
+## Доказательства, добавленные после CP-004
+
+- Настоящий frozen controller был SIGKILL во время stage. Новый process и новый
+  browser context нашли прежний operation_id в RECOVERY_REQUIRED; автоматического
+  replay не было. Нажатие Resume завершило ту же операцию, SQLite/HTTPready PASS.
+- Frozen repair(v3) и явный late rollback(v3→v2) через GUI PASS. Отдельно проверен
+  зашифрованный snapshot перед поздним откатом: внутри SQLite schema3, после
+  восстановления рабочая БД schema2. Это доказательство сохранения состояния
+  перед заменой, а не только проверки файлового расширения архива.
+- DockerCLI/contract/controller реализован для start/stop/backup уже подготовленных
+  owned containers. Scoped163PASS+10subtests: реальные crypto/files/syntheticELF,
+  моделируемый daemon. Полный provisioning/update/restore не реализован, реального
+  Docker acceptance нет. См. DOCKER_ENGINE.md.
+- GitHub CI наCP004 создал Linux/Windows jobs и завершился failure до runner/steps.
+  Проверки там не исполнялись; scopeCI BLOCKED. Причина в доступном ответе неизвестна.
+
+Выявленный stop после late rollback исправлен: обслуживание привязано к
+подписанному активному выпуску. Старую неактивную попытку закрыли через новый GUI;
+новые reviewed stop(de)/start(en)/backup(ru)/stop(en) завершились успешно для v2,
+хотя был открыт bootstrap v3. Реальный сайт сообщил v2.0.0/SQLite2 ready=true;
+архив принадлежит тому же выпуску. Screenshots ru/en/de сохранены и просмотрены.
+
+Restore/late rollback использует архивные credential refs без incoming overlay.
+Девять новых реальных integration cases проверяют maintenance и archived secrets;
+отсутствующий старый секрет не останавливает и не меняет текущую версию.
+
+Независимый review выявил гонку delayed status→concurrent resume→cancel. Snapshot
+CAS под SQLite write transaction сохраняет новую попытку и resource claim; same-owner
+resume также защищён monotonic event sequence. GUI при RUNNING продолжает polling.
+Source interleavings и отдельный browser response-contract проверены; последний
+использует воспроизведённые ответы, а не настоящий конкурентный backend.
+
+Итоговый core SDK установлен в clean venv вне checkout: 9 групп, 35 Python files,
+18 packaged resources, 17 guarded CLI invocations, 0 socket attempts; state не
+создан. Wheel/исходный snapshot и точные границы находятся в sdk-installed receipt.
+
+Точные последние test counts, artifact hashes, успешные сценарии и сохранённые
+исторические FAIL: packaging/acceptance-evidence/source-20261025-cp005.json,
+linux-frozen-20261025-cp005.json и sdk-installed-20261025.json. Отдельный final
+crash-run сначала увидел RUNNING немедленно после SIGKILL; позже owner уже отсутствовал.
+Этот FAIL сохранён. Проверка должна дождаться подтверждённого RECOVERY_REQUIRED,
+не выполнять скрытый resume и не подменять отсутствие готовности успехом.
+
+
+Финальная проверка CP-005 после исправлений CAS и Linux owner liveness:
+**1637 source PASS, 1 skip, 10 subtests** (40.50s); отдельно **47 integration
+PASS, 5 subtests** (41.57s). В последние входят 12 liveness cases: настоящий
+собственный unreaped zombie распознаётся завершённым, permission/read failures
+остаются unknown/alive, API отмечает recovery без engine effects. Причина старого
+первого frozen FAIL этим не считается доказанной. Установленный SDK и актуальные
+package resources повторно проверены по точным bytes.
+
+Финальный frozen bundle после owner fix повторно прошёл реальный SIGKILL на stage:
+новый controller/browser сразу увидел RECOVERY_REQUIRED, явный Resume завершил
+ту же op_e4a33118c10642058bfc85447bee5581, actual v1/SQLite1 ready=true.
+Продукт остановлен, собственные тестовые controller processes завершены; failed
+fixtures сохранены. Точный executable/inventory hash — CP-005 frozen receipt.

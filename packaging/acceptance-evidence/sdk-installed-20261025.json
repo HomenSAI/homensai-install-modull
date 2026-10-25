@@ -1,0 +1,503 @@
+{
+  "schema_version": 1,
+  "evidence_id": "sdk-installed-20261025",
+  "observed_date": "2026-10-25",
+  "scope": "Linux x64 / CPython 3.14.3 / clean installed SDK wheel outside checkout / offline core contract acceptance",
+  "status": "PASS",
+  "source_state": "Frozen working-tree snapshot; wheel SHA-256 and source_snapshot_sha256 identify tested bytes; no Git operation performed",
+  "source_snapshot_sha256": "112ae6765504d470a72158dc4281a9df1e2659709d204c2090c67ba3bb19ee16",
+  "source_files": 56,
+  "source_unchanged_during_acceptance": true,
+  "supersedes_wheel_sha256": "bf24addb6764c2115b549355f834f90a046492fdb96d683ff71a8c85f4be3913",
+  "build": {
+    "frontend": "build",
+    "frontend_version": "1.6.1",
+    "backend": "setuptools",
+    "backend_version": "84.2.1",
+    "python": "3.14.3",
+    "build_isolation": false,
+    "source_copy_and_outputs_outside_checkout": true,
+    "network_policy": "local source and already installed build backend; --no-isolation; no dependency download requested",
+    "network_activity_independently_observed": false
+  },
+  "wheel": {
+    "filename": "homensai_install_module-0.1.0-py3-none-any.whl",
+    "sha256": "6dc037d423ff61494f8cc5d62da5fb2180815f7393631bf959fddb6c9041b09e",
+    "bytes": 268657,
+    "packaged_python_files_matching_source": 35,
+    "packaged_resources_matching_source": 18
+  },
+  "installation": {
+    "environment": "new venv",
+    "include_system_site_packages": false,
+    "network_policy": "local explicit wheel with --no-index and --no-deps; no remote candidate or dependency resolution",
+    "network_activity_independently_observed": false,
+    "dependency_resolution": false,
+    "editable_install": false,
+    "wheel_hash_verified_by_installer": true,
+    "optional_dependencies_installed": [],
+    "installer": "pip",
+    "installer_version": "25.3",
+    "installer_origin": "CPython 3.14.3 bundled ensurepip",
+    "flags": [
+      "--isolated",
+      "--no-index",
+      "--no-deps",
+      "--require-hashes",
+      "--only-binary=:all:"
+    ]
+  },
+  "validation": {
+    "status": "PASS",
+    "python": "3.14.3",
+    "platform": "linux",
+    "architecture": "x86_64",
+    "module_version": "0.1.0",
+    "api_version": "1.0",
+    "checks": [
+      {
+        "check": "installed_module_origin",
+        "status": "PASS",
+        "module_file": "lib/python3.14/site-packages/homensai_install/__init__.py",
+        "shared_file": "lib/python3.14/site-packages/shared/__init__.py",
+        "outside_checkout": true,
+        "within_isolated_venv": true,
+        "module_sha256": "23319568614d158aa4b9d9d38fb824f4fca7d6cf941647536d5e25dd2d86b366"
+      },
+      {
+        "check": "clean_environment",
+        "status": "PASS",
+        "installed_distributions": [
+          "homensai-install-module",
+          "pip"
+        ],
+        "include_system_site_packages": false,
+        "python_isolated_flag": true,
+        "cwd_outside_checkout": true
+      },
+      {
+        "check": "sdk_describe_and_schemas",
+        "status": "PASS",
+        "api_version": "1.0",
+        "schema_names": [
+          "manifest",
+          "request",
+          "plan",
+          "operation",
+          "event",
+          "normalized"
+        ],
+        "production_ready": false
+      },
+      {
+        "check": "packaged_resources_match",
+        "status": "PASS",
+        "resources": [
+          {
+            "resource": "homensai_install/api/resources/INSTALLER_API.md",
+            "sha256": "558f81def3afa7c587bdb23ab25ee280bce013d9dc743e62c508a1b749269963",
+            "source_mirror": "INSTALLER_API.md",
+            "match": true
+          },
+          {
+            "resource": "homensai_install/api/resources/INTEGRATION_GUIDE.md",
+            "sha256": "4a6b76e017201115886de0afb03ed709bfd79aeba7aa8d6765d5a9be9c763922",
+            "source_mirror": "docs/INTEGRATION_GUIDE.md",
+            "match": true
+          },
+          {
+            "resource": "homensai_install/api/resources/discovery.json",
+            "sha256": "7b996762bae2fa582190529195f61872ace924f00a1c154c6fbca8651091876a",
+            "source_mirror": "api/discovery.json",
+            "match": true
+          },
+          {
+            "resource": "homensai_install/api/resources/openapi.yaml",
+            "sha256": "442e623cb738add15b200afecaf871051297d6099060bb0a6110fc1951b41d70",
+            "source_mirror": "api/openapi.yaml",
+            "match": true
+          },
+          {
+            "resource": "homensai_install/api/schemas/event.schema.json",
+            "sha256": "98d27aea1422ab94df888fee3ac6d7bdc56f7a5bcec55c2139113017a5da4767",
+            "source_mirror": "api/schemas/event.schema.json",
+            "match": true
+          },
+          {
+            "resource": "homensai_install/api/schemas/normalized.schema.json",
+            "sha256": "0377695226479804b3f9e9cb7543ad1941261bcbafef92f810367cb761baaaea",
+            "source_mirror": "api/schemas/normalized.schema.json",
+            "match": true
+          },
+          {
+            "resource": "homensai_install/api/schemas/operation.schema.json",
+            "sha256": "f6d6a8969df040eab98b03fcc5625da8fd53107c72f989d0d379da03c70788f6",
+            "source_mirror": "api/schemas/operation.schema.json",
+            "match": true
+          },
+          {
+            "resource": "homensai_install/api/schemas/plan.schema.json",
+            "sha256": "13d603c20072f31cfca9f4690748661faaa3d6c33a37439394901dc877beed11",
+            "source_mirror": "api/schemas/plan.schema.json",
+            "match": true
+          },
+          {
+            "resource": "homensai_install/api/schemas/request.schema.json",
+            "sha256": "2aa3d8bf2a66a78519833468919da1504221f1bbe587dd19ebac2dab57127ca2",
+            "source_mirror": "api/schemas/request.schema.json",
+            "match": true
+          },
+          {
+            "resource": "homensai_install/catalog/errors.v1.json",
+            "sha256": "33288134e406a1907e83cf0d06682a780346ccddb1a354ab900a858e8d3e4582",
+            "source_mirror": null,
+            "match": true
+          },
+          {
+            "resource": "homensai_install/locales/de.json",
+            "sha256": "fd5d69d44e555fc5731cc6ac04a335f8dea4e545e7c9ee52b8a8b45dee998586",
+            "source_mirror": null,
+            "match": true
+          },
+          {
+            "resource": "homensai_install/locales/en.json",
+            "sha256": "4449b590485850d1c89b7208d1b106dcb5bf350d2ffe284157d7ec9bcaa5311f",
+            "source_mirror": null,
+            "match": true
+          },
+          {
+            "resource": "homensai_install/locales/ru.json",
+            "sha256": "e2b43560348c45b66f2cde81252f7fe2bcd41b968f067a6dde4f4e7cda2f3904",
+            "source_mirror": null,
+            "match": true
+          },
+          {
+            "resource": "homensai_install/wizard/app.js",
+            "sha256": "ea38d81813f00ca916d615b3cbee10676f8dde15f09f3c39418c6d42456c8f60",
+            "source_mirror": null,
+            "match": true
+          },
+          {
+            "resource": "homensai_install/wizard/index.html",
+            "sha256": "be576d00cfea553a8d9d2c3c8791e7193b477bf4f56826623a53210ea6b39737",
+            "source_mirror": null,
+            "match": true
+          },
+          {
+            "resource": "homensai_install/wizard/locales.json",
+            "sha256": "67ed7583c0eacd690e5d37ffb8e3c1c606d59d614265f951bfeeaea98581c381",
+            "source_mirror": null,
+            "match": true
+          },
+          {
+            "resource": "homensai_install/wizard/style.css",
+            "sha256": "592045ac040b3e75a000037ad9bbed106c37e84289ac7952f4e2cba11acee68e",
+            "source_mirror": null,
+            "match": true
+          },
+          {
+            "resource": "shared/manifest.schema.json",
+            "sha256": "a8fce321b4621836558b23d171d4861cb0434b27c25f58e285a8a098b9ef797a",
+            "source_mirror": null,
+            "match": true
+          }
+        ],
+        "openapi_version": "3.1.0",
+        "api_description_matches_packaged_discovery": true
+      },
+      {
+        "check": "installed_ru_en_de",
+        "status": "PASS",
+        "locales": [
+          "ru",
+          "en",
+          "de"
+        ],
+        "core_keys": 33,
+        "error_titles": {
+          "ru": "Целостность нарушена",
+          "en": "Integrity verification failed",
+          "de": "Integritätsprüfung fehlgeschlagen"
+        },
+        "wizard_locales_present": true
+      },
+      {
+        "check": "installed_console_entrypoints",
+        "status": "PASS",
+        "commands": [
+          {
+            "entrypoint": "hinstall",
+            "execution": "installed console script under isolated venv Python and socket audit guard",
+            "arguments": [
+              "--state-dir",
+              "<isolated-path>",
+              "api",
+              "describe"
+            ],
+            "exit_code": 0
+          },
+          {
+            "entrypoint": "hinstall",
+            "execution": "installed console script under isolated venv Python and socket audit guard",
+            "arguments": [
+              "--state-dir",
+              "<isolated-path>",
+              "api",
+              "schema",
+              "manifest"
+            ],
+            "exit_code": 0
+          },
+          {
+            "entrypoint": "hinstall",
+            "execution": "installed console script under isolated venv Python and socket audit guard",
+            "arguments": [
+              "--state-dir",
+              "<isolated-path>",
+              "api",
+              "schema",
+              "request"
+            ],
+            "exit_code": 0
+          },
+          {
+            "entrypoint": "hinstall",
+            "execution": "installed console script under isolated venv Python and socket audit guard",
+            "arguments": [
+              "--state-dir",
+              "<isolated-path>",
+              "api",
+              "schema",
+              "plan"
+            ],
+            "exit_code": 0
+          },
+          {
+            "entrypoint": "hinstall",
+            "execution": "installed console script under isolated venv Python and socket audit guard",
+            "arguments": [
+              "--state-dir",
+              "<isolated-path>",
+              "api",
+              "schema",
+              "operation"
+            ],
+            "exit_code": 0
+          },
+          {
+            "entrypoint": "hinstall",
+            "execution": "installed console script under isolated venv Python and socket audit guard",
+            "arguments": [
+              "--state-dir",
+              "<isolated-path>",
+              "api",
+              "schema",
+              "event"
+            ],
+            "exit_code": 0
+          },
+          {
+            "entrypoint": "hinstall",
+            "execution": "installed console script under isolated venv Python and socket audit guard",
+            "arguments": [
+              "--state-dir",
+              "<isolated-path>",
+              "api",
+              "schema",
+              "normalized"
+            ],
+            "exit_code": 0
+          },
+          {
+            "entrypoint": "hinstall",
+            "execution": "installed console script under isolated venv Python and socket audit guard",
+            "arguments": [
+              "--state-dir",
+              "<isolated-path>",
+              "--locale",
+              "ru",
+              "errors",
+              "--code",
+              "INTEGRITY_FAILED"
+            ],
+            "exit_code": 0
+          },
+          {
+            "entrypoint": "hinstall",
+            "execution": "installed console script under isolated venv Python and socket audit guard",
+            "arguments": [
+              "--state-dir",
+              "<isolated-path>",
+              "--locale",
+              "en",
+              "errors",
+              "--code",
+              "INTEGRITY_FAILED"
+            ],
+            "exit_code": 0
+          },
+          {
+            "entrypoint": "hinstall",
+            "execution": "installed console script under isolated venv Python and socket audit guard",
+            "arguments": [
+              "--state-dir",
+              "<isolated-path>",
+              "--locale",
+              "de",
+              "errors",
+              "--code",
+              "INTEGRITY_FAILED"
+            ],
+            "exit_code": 0
+          },
+          {
+            "entrypoint": "hinstall",
+            "execution": "installed console script under isolated venv Python and socket audit guard",
+            "arguments": [
+              "--help"
+            ],
+            "exit_code": 0
+          },
+          {
+            "entrypoint": "hinstall-gui",
+            "execution": "installed console script under isolated venv Python and socket audit guard",
+            "arguments": [
+              "--help"
+            ],
+            "exit_code": 0
+          },
+          {
+            "entrypoint": "hinstall",
+            "execution": "installed console script under isolated venv Python and socket audit guard",
+            "arguments": [
+              "gui",
+              "--help"
+            ],
+            "exit_code": 0
+          },
+          {
+            "entrypoint": "homensai_install.__main__",
+            "execution": "runpy.run_module under isolated venv Python and socket audit guard",
+            "arguments": [
+              "--help"
+            ],
+            "exit_code": 0
+          },
+          {
+            "entrypoint": "hinstall",
+            "execution": "installed console script under isolated venv Python and socket audit guard",
+            "arguments": [
+              "--state-dir",
+              "<isolated-path>",
+              "init-adapter",
+              "--output-dir",
+              "<isolated-path>"
+            ],
+            "exit_code": 2
+          },
+          {
+            "entrypoint": "hinstall",
+            "execution": "installed console script under isolated venv Python and socket audit guard",
+            "arguments": [
+              "--state-dir",
+              "<isolated-path>",
+              "validate",
+              "--manifest",
+              "<isolated-path>"
+            ],
+            "exit_code": 2
+          },
+          {
+            "entrypoint": "hinstall",
+            "execution": "installed console script under isolated venv Python and socket audit guard",
+            "arguments": [
+              "--state-dir",
+              "<isolated-path>",
+              "api",
+              "capabilities",
+              "--os",
+              "linux",
+              "--arch",
+              "x64",
+              "--mode",
+              "docker"
+            ],
+            "exit_code": 0
+          }
+        ]
+      },
+      {
+        "check": "installed_scaffold_without_product_inputs",
+        "status": "PASS",
+        "exit_code": 2,
+        "status_returned": "BLOCKED",
+        "readiness": "DRAFT",
+        "blockers": [
+          "TARGET_REQUIRED",
+          "RELEASE_REQUIRED",
+          "PAYLOAD_REQUIRED",
+          "RUNTIME_EXECUTABLE_REQUIRED",
+          "REAL_LOCKS_AND_WHEELS_REQUIRED",
+          "EULA_RU_REQUIRED",
+          "EULA_EN_REQUIRED",
+          "EULA_DE_REQUIRED",
+          "INSTALLER_WHEEL_REQUIRED",
+          "MANIFEST_REQUIRES_PRODUCT_CONFIGURATION"
+        ],
+        "production_ready": false,
+        "product_hooks_executed": false,
+        "dependencies_installed": false,
+        "draft_fails_manifest_validation": true,
+        "copied_contracts_match": true
+      },
+      {
+        "check": "installed_docker_imports_and_unconfigured_capabilities",
+        "status": "PASS",
+        "profiles": {
+          "linux": {
+            "supported_actions": [],
+            "docker_was_probed": false,
+            "production_ready": false,
+            "provisioning_implemented": false,
+            "reasons": [
+              "CAPABILITY_UNSUPPORTED"
+            ]
+          },
+          "windows": {
+            "supported_actions": [],
+            "docker_was_probed": false,
+            "production_ready": false,
+            "provisioning_implemented": false,
+            "reasons": [
+              "CAPABILITY_UNSUPPORTED"
+            ]
+          }
+        },
+        "daemon_calls": 0,
+        "live_docker_acceptance": false,
+        "cli_does_not_fall_back_to_native": true
+      },
+      {
+        "check": "read_only_contract_calls_leave_no_state",
+        "status": "PASS",
+        "state_directory_created": false,
+        "sdk_socket_attempts": 0,
+        "guarded_cli_children": 17,
+        "cli_socket_attempts": 0
+      }
+    ],
+    "checks_passed": 9,
+    "optional_crypto_installed": false,
+    "production_ready": false
+  },
+  "duration_seconds": 3.269,
+  "limits": [
+    "Checks cover installed core SDK contracts, resources, CLI entrypoints, draft scaffold and unconfigured Docker capability reporting",
+    "SDK in-process and each CLI entrypoint child have socket audit guards; build and pip use offline flags/local inputs without separate network observation",
+    "Optional cryptography dependency was not required or installed for this scope; encryption/signature execution not tested here",
+    "Docker classes imported without runner or daemon; no live Docker operation or installation acceptance",
+    "No Windows, system-service, reboot, elevation, or full product lifecycle acceptance in this receipt",
+    "No production signing, license approval, EULA approval or production readiness claim"
+  ],
+  "production_ready": false
+}

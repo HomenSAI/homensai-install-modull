@@ -205,6 +205,54 @@ class Journal:
             db.execute("UPDATE operations SET body=? WHERE operation_id=?", (canonical(operation), operation_id))
         return result
 
+    def mark_interrupted(self, observed: dict) -> dict:
+        """Mark only the exact attempt whose owner was observed as dead.
+
+        Owner PID alone is insufficient: a resume in the same controller has
+        the same PID/start time. The complete snapshot includes the monotonic
+        event sequence, so a concurrent resume or completion cannot be replaced
+        by a delayed liveness observation. Return the current row on conflict.
+        """
+        operation_id = checked_id(observed.get("operation_id"), field="operation_id")
+        with self.connection(write=True) as db:
+            row = db.execute("SELECT body FROM operations WHERE operation_id=?", (operation_id,)).fetchone()
+            if row is None:
+                fail("OPERATION_NOT_FOUND")
+            operation = parse_json(row[0], error_code="RECOVERY_REQUIRED")
+            if operation != observed or operation["status"] not in {"RUNNING", "QUEUED"}:
+                return operation
+            operation.update(status="RECOVERY_REQUIRED", duration_ms=None, updated_at=now())
+            self._event(db, operation, {"type": "operation.interrupted", "status": "RECOVERY_REQUIRED"})
+            db.execute("UPDATE operations SET body=? WHERE operation_id=?", (canonical(operation), operation_id))
+        return operation
+
+    def request_cancel(self, operation_id: str) -> tuple[dict, dict | None]:
+        """Atomically distinguish a live worker from an inactive recovery wait.
+
+        Closing the API claim never edits the engine's recovery receipts and
+        never asserts that partial effects were undone. Explicit resume remains
+        possible; a concurrent resume already queued here receives a cooperative
+        cancel request instead of being marked terminal under its worker.
+        """
+        checked_id(operation_id, field="operation_id")
+        with self.connection(write=True) as db:
+            row = db.execute("SELECT body FROM operations WHERE operation_id=?", (operation_id,)).fetchone()
+            if row is None:
+                fail("OPERATION_NOT_FOUND")
+            operation = parse_json(row[0], error_code="RECOVERY_REQUIRED")
+            if operation["status"] in {"SUCCEEDED", "FAILED", "FAILED_ROLLED_BACK", "CANCELED"}:
+                return operation, None
+            inactive = operation["status"] in {"RECOVERY_REQUIRED", "AWAITING_USER", "REBOOT_REQUIRED", "RELOGIN_REQUIRED"}
+            operation.update(cancel_requested=True, updated_at=now())
+            if inactive:
+                operation.update(status="CANCELED", result={**(operation.get("result") or {}),
+                    "status": "CANCELED", "resume_required": True, "effects_undone": False})
+                db.execute("DELETE FROM claims WHERE operation_id=?", (operation_id,))
+            event = self._event(db, operation, {"type": "operation.canceled" if inactive else "operation.cancel_requested",
+                                               "status": operation["status"]})
+            db.execute("UPDATE operations SET body=? WHERE operation_id=?", (canonical(operation), operation_id))
+        return operation, event
+
     @staticmethod
     def _event(db, operation: dict, event: dict) -> dict:
         opid = operation["operation_id"]

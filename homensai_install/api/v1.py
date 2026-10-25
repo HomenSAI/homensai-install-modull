@@ -32,12 +32,18 @@ _JOBS: dict[tuple[str, str], threading.Thread] = {}
 _JOBS_LOCK = threading.RLock()
 
 
-def _process_start(pid: int) -> str | None:
+def _process_identity(pid: int) -> tuple[str, str, int] | None:
+    """One proc snapshot: state, birth ticks, thread count; unknown stays unknown."""
     try:
         fields = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()
-        return fields[19]
-    except (OSError, IndexError):
+        return fields[0], fields[19], int(fields[17])
+    except (OSError, IndexError, ValueError, UnicodeError):
         return None
+
+
+def _process_start(pid: int) -> str | None:
+    identity = _process_identity(pid)
+    return identity[1] if identity is not None else None
 
 
 def _owner() -> dict:
@@ -54,8 +60,15 @@ def _owner_alive(owner: dict) -> bool:
         return False
     except (PermissionError, OSError):
         return True  # Не объявляем процесс погибшим лишь из-за ограничения доступа.
-    actual = _process_start(pid)
-    return actual is None or owner.get("process_start") in (None, actual)
+    identity = _process_identity(pid)
+    if identity is None:
+        return True  # Read/access failure is not evidence that an owner died.
+    state, actual, threads = identity
+    if owner.get("process_start") not in (None, actual):
+        return False
+    # kill(pid, 0) also succeeds for an unreaped zombie. Keep the result
+    # conservative if the thread group still reports additional threads.
+    return not (state in {"Z", "X", "x"} and 0 <= threads <= 1)
 
 
 def _plan_digest(plan: dict) -> str:
@@ -379,7 +392,9 @@ class InstallerAPI:
                 pass
         finally:
             with _JOBS_LOCK:
-                _JOBS.pop((str(self.state_dir), operation_id), None)
+                key = (str(self.state_dir), operation_id)
+                if _JOBS.get(key) is threading.current_thread():
+                    _JOBS.pop(key, None)
 
     def status(self, operation_id: str) -> dict:
         journal = self._journal()
@@ -392,8 +407,7 @@ class InstallerAPI:
                     worker = _JOBS.get((str(self.state_dir), operation_id))
                     alive = worker is not None and worker.is_alive()
             if not alive:
-                result = journal.update(operation_id, {"status": "RECOVERY_REQUIRED", "duration_ms": None},
-                                        {"type": "operation.interrupted", "status": "RECOVERY_REQUIRED"})
+                result = journal.mark_interrupted(result)
         return result
 
     def operations_list(self, product_id: str | None = None, unfinished_only: bool = True,
@@ -434,11 +448,14 @@ class InstallerAPI:
         return self._journal().event_page(operation_id, after_sequence)
 
     def cancel(self, operation_id: str) -> dict:
-        operation = self.status(operation_id)
-        if operation["status"] in TERMINAL:
-            return operation
-        return self._journal().update(operation_id, {"cancel_requested": True},
-                                      {"type": "operation.cancel_requested"})
+        self.status(operation_id)  # First observe a dead controller if necessary.
+        operation, event = self._journal().request_cancel(operation_id)
+        if event:
+            self._diagnostics("record_event", operation_id, event)
+            if operation["status"] == "CANCELED":
+                self._diagnostics("finish_operation", operation_id, "CANCELED",
+                                  duration_ms=operation.get("duration_ms"))
+        return operation
 
     def resume(self, operation_id: str, decisions: dict | None = None, *, background: bool = True) -> dict:
         if type(background) is not bool:
@@ -451,6 +468,9 @@ class InstallerAPI:
             fail("RECOVERY_REQUIRED")
         plan = self.get_plan(operation["plan_id"])
         with _JOBS_LOCK:
+            worker = _JOBS.get((str(self.state_dir), operation_id))
+            if worker is not None and worker.is_alive():
+                fail("OPERATION_CONFLICT")
             self._journal().claim_for_resume(operation_id, owner=_owner())
             self._launch(operation_id, plan, background=background, resume=True, decisions=decisions)
         return self.status(operation_id)

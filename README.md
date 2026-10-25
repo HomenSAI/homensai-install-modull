@@ -50,13 +50,24 @@ Scaffold без настоящих artifacts/hashes создаёт явный DR
 - Каталог из 43 ошибок на трёх языках, SQLite diagnostics и ограниченный fallback.
 - Безопасный downloader с hashes/size/host policy, offline cache; readonly
   prerequisites/manual recheck. Автоматическая установка ОС-зависимостей ещё открыта.
+- Docker controller для запуска, остановки и encrypted backup заранее подготовленных
+  owned containers; source tests выполнены, полноценный provisioning и live acceptance открыты.
 - Подписанный executable ProductAdapter protocol, генератор тонкого подключения,
-  Git checkpoint/resume tooling, точные build locks и блокирующая проверка лицензий.
+  Git checkpoint/resume tooling, точные build locks и отдельный fail-closed
+  checker `tools/check_licenses.py`. Его обязательное включение в production pipeline
+  ещё открыто; DEV builder не выдаёт production artifacts.
 
 Область каждого доказательства, остаточные работы и ограничения приведены в
 [фактическом статусе](docs/IMPLEMENTATION_STATUS.md) и
 [журнале](docs/WORK_LOG.md). Development signature не заменяет production
 подпись издателя и не делает сборку готовой к распространению.
+
+## Интерфейс на трёх языках
+
+Настоящие снимки Linux DEV-мастера: [русский](docs/screenshots/wizard-ru.png),
+[English](docs/screenshots/wizard-en.png), [Deutsch](docs/screenshots/wizard-de.png).
+Это результаты проверенных действий с эталонным приложением; они не означают
+завершённую приёмку Windows или Docker.
 
 ## Разработка и продолжение
 

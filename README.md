@@ -1,5 +1,18 @@
 # homensai-install-modull
 
+## План реализации универсального модуля
+
+Работа ведётся в ветке `codex/universal-installer-20261025`.
+
+- [Полный промпт](HomenSAI_Universal_Installer_PROMPT_RU.txt).
+- [Канонический ToDo: 106 задач](HomenSAI_Universal_Installer_TODO_RU.txt).
+- [Продолжение работы](docs/RESUME.md).
+- [Журнал выполнения](docs/WORK_LOG.md).
+
+Обязательные языки установщика: русский, английский и немецкий.
+Статус готовности определяется фактическими проверками, а не наличием плана.
+
+
 Общий модуль установки HomenS.AI: Docker, Windows и Linux-установщики, которые
 подключаются к любой программе семейства (JobPilot Pro, Rent и др.).
 

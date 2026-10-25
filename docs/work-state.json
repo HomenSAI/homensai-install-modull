@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-001",
+  "branch": "codex/universal-installer-20261025",
+  "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
+  "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
+  "active_tasks": [
+    "HIM-004",
+    "HIM-013",
+    "HIM-022",
+    "HIM-036",
+    "HIM-101"
+  ],
+  "completed_tasks": [
+    "HIM-001",
+    "HIM-002"
+  ],
+  "blocked_tasks": {
+    "HIM-003": "User Docker/Forgejo host is not connected to this cloud workspace"
+  },
+  "sync": {
+    "cloud_git": "PENDING",
+    "docker_git": "SYNC_BLOCKED",
+    "github": "SYNC_PENDING"
+  },
+  "next_step": "Подтвердить первый checkpoint; продолжить API, native engine, diagnostics/i18n, trust и GUI.",
+  "production_ready": false,
+  "installed_acceptance": {
+    "windows_native": "NOT RUN",
+    "windows_docker": "BLOCKED",
+    "linux_native": "NOT RUN",
+    "linux_docker": "BLOCKED"
+  }
+}

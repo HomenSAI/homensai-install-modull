@@ -6,3 +6,11 @@ secrets/
 dist/
 build/
 .test-tmp/
+
+# Изолированные build/test environments и приватные checkpoints
+.venv*/
+build/
+dist/
+*.egg-info/
+.local-state/
+.private/

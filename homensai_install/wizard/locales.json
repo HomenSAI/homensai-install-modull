@@ -108,7 +108,8 @@
     "status_queued": "В очереди",
     "cancel_paused": "Отменить эту попытку",
     "cancel_paused_help": "Отмена не откатывает уже выполненные изменения. История и контрольные точки сохраняются; следующее действие отдельно проверит состояние установки.",
-    "active_release": "Обслуживаемая версия"
+    "active_release": "Обслуживаемая версия",
+    "action_unavailable": "Это действие недоступно в выбранном режиме. Выберите другое действие или режим."
   },
   "en": {
     "title": "Application setup",
@@ -219,7 +220,8 @@
     "status_queued": "Queued",
     "cancel_paused": "Cancel this attempt",
     "cancel_paused_help": "Cancellation does not undo completed changes. History and checkpoints remain; the next action checks the installation state separately.",
-    "active_release": "Version being maintained"
+    "active_release": "Version being maintained",
+    "action_unavailable": "This action is unavailable in the selected mode. Choose another action or mode."
   },
   "de": {
     "title": "Anwendung installieren",
@@ -330,6 +332,7 @@
     "status_queued": "In der Warteschlange",
     "cancel_paused": "Diesen Versuch abbrechen",
     "cancel_paused_help": "Ein Abbruch macht bereits ausgeführte Änderungen nicht rückgängig. Verlauf und Kontrollpunkte bleiben erhalten; die nächste Aktion prüft den Installationszustand erneut.",
-    "active_release": "Zu wartende Version"
+    "active_release": "Zu wartende Version",
+    "action_unavailable": "Diese Aktion ist im ausgewählten Modus nicht verfügbar. Wählen Sie eine andere Aktion oder einen anderen Modus."
   }
 }

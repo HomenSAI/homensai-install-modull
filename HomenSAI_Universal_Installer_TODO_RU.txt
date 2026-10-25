@@ -73,20 +73,20 @@ SYNC_CONFLICT / SYNC_BLOCKED.
 НАЧАЛЬНАЯ ПАНЕЛЬ СОСТОЯНИЯ
 ========================================================================
 
-Всего задач: 106. Принято DONE: 5. Разработка продолжается; IN_PROGRESS не означает готовый выпуск.
+Всего задач: 106. DONE: 7; IN_PROGRESS: 63; BLOCKED: 4; TODO: 32. Разработка продолжается; IN_PROGRESS не означает готовый выпуск.
 HIM-001/002 проверены в текущей сессии; остальные проверки указаны в карточках.
 Все G0–G5: OPEN; доступ к локальному Docker Git владельца: BLOCKED.
 Состояния отражают текущую сессию; полный выпуск ещё не принят.
 
-Текущая реализация: API/SDK, Linux native recovery, GUI ru/en/de, диагностика и исходный Docker controller.
-Текущая контрольная точка: CP-20261025-007; актуальный SHA проверять по Git history и внешней sync receipt.
+Текущая реализация: общий API/SDK, Linux native recovery, GUI ru/en/de; Docker install/uninstall/start/stop/backup, systemd user port и durable prerequisites в source. Live platform gates открыты.
+Текущая контрольная точка: CP-20261025-008; актуальный SHA проверять по Git history и внешней sync receipt.
 Рабочая ветка: codex/universal-installer-20261025; исходный SHA: a16a55d58e65ccf64ed2ba0c853a0053baea6689.
 Канонический ToDo: HomenSAI_Universal_Installer_TODO_RU.txt;
 журнал: docs/WORK_LOG.md; продолжение: docs/RESUME.md и docs/work-state.json.
-Последний подтверждённый до создания CP-007 checkpoint_id: CP-20261025-006; GitHub SHA ae70b7ae30902259e62ea6323c5f001573b96251.
-Локальный Git / Docker Git / GitHub: SYNC_CONFIRMED / SYNC_BLOCKED / SYNC_CONFIRMED для CP-006. CP-007: SYNC_PENDING до независимой проверки ref/commit/tree.
+Последний подтверждённый до создания CP-008 checkpoint_id: CP-20261025-007; GitHub SHA 4fa7cc26bc4fb8fa8ae2ddca3a531a9a2afe5625.
+Локальный Git / Docker Git / GitHub: SYNC_CONFIRMED / SYNC_BLOCKED / SYNC_CONFIRMED для CP-007. CP-008: SYNC_PENDING до независимой проверки ref/commit/tree.
 Блокировки: локальный Forgejo/Docker владельца не подключён; GitHub CI завершился до runner/steps; production signing и юридические/лицензионные gates открыты.
-Следующий инженерный этап: system services, полный Docker provisioning/lifecycle, Windows native, auto prerequisites и реальная интеграция продуктов; затем platform acceptance. Точные действия — docs/RESUME.md.
+Следующий инженерный этап: service-engine integration, оставшиеся Docker lifecycle/image transport/host attestation, Windows native и production prerequisites bootstrap, тонкие product adapters; затем platform acceptance. Точные действия — docs/RESUME.md.
 
 Ориентиры из предыдущего рабочего окружения владельца:
 локальный Forgejo/Gitea — http://127.0.0.1:8796/;
@@ -162,32 +162,32 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Доказательство / ограничения / следующий шаг: docs/IMPLEMENTATION_STATUS.md: таблица сохранить/интегрировать/исправить/добавить. Сохранены shared manifest, update/archive/crypto/datahome и существующие adapters; новые реальные проверки отделены от generators.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
-[ ] HIM-006. Сверить исходники и ограничения JobPilot и Rent
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+[x] HIM-006. Сверить исходники и ограничения JobPilot и Rent
+Статус: DONE | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-002; PROMPT: § 1.2–1.3, 15.
 Готово, когда: Зафиксированы реальные продуктовые ветки/SHA, доступные локальные native worktree,
 контракты данных и сервисов. Известный build2 rollback риск отмечен отдельно. Недоступные исходники не
 заменены предположением о готовности.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: docs/PRODUCT_AUDIT_20261025.md: 26 source blobs проверены; JobPilot dev 43d079c477d3e6489c1960e59a84c4f539d8d37b, Rent main a456f69480006b3a67558485368609b2d05874be. Зафиксированы данные/службы/секреты, недоступные native worktree и build2 rollback FAIL. DONE относится к аудиту, не продуктовой интеграции.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
-[ ] HIM-007. Утвердить проверяемую матрицу targets и сред сборки
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+[x] HIM-007. Утвердить проверяемую матрицу targets и сред сборки
+Статус: DONE | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-005, HIM-006; PROMPT: § 2, 7–9, 14, 16, 20.
 Готово, когда: Заданы начальные ОС/версии/архитектуры, Windows/Linux × native/Docker, user/service
 profiles, доступные runners и локальная сборка. Для reference app все четыре сочетания обязательны;
 ограничения отдельных продуктов перечислены.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: docs/TARGET_MATRIX.md: Windows 11 x64 и Ubuntu 24.04 LTS x86_64; четыре обязательных native/Docker targets, user/service profiles, 12 языковых сочетаний, реальные доступные и отсутствующие runners. DONE относится к заданной матрице, не installed acceptance.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-008. Зафиксировать архитектуру, права и правила допуска зависимостей
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-005, HIM-006, HIM-007; PROMPT: § 3, 6, 11, 19, 26.
 Готово, когда: Описаны границы core/platform/product adapter, владельцы ресурсов, основные угрозы и
 минимальные проверки доверия. Заведён реестр exact versions/licenses/hashes; неизвестные или запрещающие
 нужное использование компоненты не включаются.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: docs/ARCHITECTURE.md: границы core/platform/product, ownership, общий lifecycle lock, exact signed bytes, intents/receipts и допуск зависимостей. Реестр build locks сохранён; production licence pipeline, Windows/service integration и юридические approvals открыты.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [x] HIM-009. Автоматизировать сохранение после каждой задачи
 Статус: DONE | Проверки: PASS | checkpoint_id: CP-20261025-003
@@ -199,13 +199,14 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-071. Проверить продолжение разработки без истории чата
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-003
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-009; PROMPT: § 31.
 Готово, когда: Другой исполнитель/чистая сессия на тестовом репозитории восстанавливает очередь по
 ToDo/RESUME/Git. Проверены локальный commit без push, потерянный ответ push, недоступный один remote,
 dirty files и расходящаяся история; чужая работа сохранена.
 Доказательство / ограничения / следующий шаг: 37 Git/checkpoint tests покрывают dirty/staged, lost push reply, diverged/disconnected remote, linked worktree и crash after ref. Независимая чистая сессия по всему текущему handoff ещё не принята.
-Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+Дополнение CP-008: Новая сессия восстановила CP005 по 205 точным Git blobs/tree/commit, затем CP006/007 подтверждены remote/local. Независимые worktree объединены без сброса dirty изменений. Полная отдельная handoff acceptance всех failure modes ещё не закрыта.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-010. Закрыть G0: готовность к разработке
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -238,24 +239,26 @@ installation/data/host identities. Проверяются дубли ключе�
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-013. Собрать подключаемый пакет SDK и CLI
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-007
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-011; PROMPT: § 5, 28.2.
 Готово, когда: Пакет собирается и устанавливается как закреплённая зависимость вне checkout ядра.
 Публичный namespace и CLI работают; production не использует случайную editable-зависимость; --help и
 документация согласованы.
 Доказательство / ограничения / следующий шаг: Финальный SDK 0.1.0 установлен в чистый venv вне checkout; 9 групп проверок, 35 Python files/18 resources совпадают, 17 guarded CLI invocations и 0 socket attempts. Schemas/OpenAPI/docs/ru-en-de доступны офлайн; missing-input scaffold DRAFT/BLOCKED. Exact receipt: packaging/acceptance-evidence/sdk-installed-20261025.json. Windows и продуктовый lifecycle отдельны.
 Дополнение CP-007: Новый wheel установлен вне checkout: 36 Python files и 18 resources побайтно совпадают с source/wheel, 5 offline CLI вызовов, 0 socket attempts. Receipt sdk-installed-20261025-cp007.json; lifecycle этой проверкой не заявляется.
-Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-007); предыдущий CP-006 SYNC_CONFIRMED.
+Дополнение CP-008: Новый wheel установлен вне checkout: 44 Python files и 18 resources совпали с source/wheel побайтно; 5 CLI calls, ru/en/de и 0 network attempts. sdk-installed-20261025-cp008.json; это SDK, не frozen installer.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-014. Создать INSTALLER_API.md и discovery
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-007
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-012, HIM-013; PROMPT: § 28.1.
 Готово, когда: README ведёт к единой точке входа API; discovery и api describe возвращают версии,
 schemas, capabilities и target restrictions офлайн. Планируемая возможность отделена от реализованной и
 проверенной.
 Доказательство / ограничения / следующий шаг: INSTALLER_API.md, discovery, OpenAPI, schemas и offline api describe синхронизированы. Добавлены operations_list и executable ProductAdapter/scaffold docs; HTTP внутренние refs проверяются тестом.
 Дополнение CP-007: BackendRouter отражён в describe/discovery/docs; CLI принимает pinned bootstrap config, HTTP OpenAPI связывает terms с mode. Отсутствующий backend явно unsupported; source tests и installed SDK PASS.
-Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-007); предыдущий CP-006 SYNC_CONFIRMED.
+Дополнение CP-008: Общий InstallerAPI делегирует явно зарегистрированному PrerequisiteCoordinator plan/start/status/events/attempts/recheck/resume/cancel/replan. Второго executor нет; READY не означает установку продукта. SDK synchronous; GUI/CLI auto-flow и production registry не подключены.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-015. Опубликовать минимальный ProductAdapter protocol
 Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
@@ -276,42 +279,46 @@ validate/discover не исполняют произвольные hooks.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-017. Реализовать планирование и привязку согласий
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-007
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-012, HIM-016; PROMPT: § 21, 24, 28.3–28.4.
 Готово, когда: План перечисляет действия, владельцев, место, права и reboot steps; имеет digest и
 существенный environment fingerprint. plan не меняет систему; изменившиеся условия дают PLAN_STALE;
 consent не подменяется одним hash.
 Доказательство / ограничения / следующий шаг: Публичный API и immutable plan, reviewed consent, idempotency, cooperative cancel/resume. CP-005: неактивная попытка закрывается без притворного rollback; delayed owner check использует transactional snapshot CAS и не снимает claim с нового worker. Реальные source interleavings проверены; полная platform matrix открыта.
 Дополнение CP-007: Reviewed engine_plan хранит полный backend target; изменённый marker даёт PLAN_STALE. Повтор и resume после нового SDK instance сохраняют прежний engine, общий journal и idempotency; Docker не подменяется native.
-Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-007); предыдущий CP-006 SYNC_CONFIRMED.
+Дополнение CP-008: Capabilities разделены по target/action и configured prerequisites. GUI допускает maintenance без install; unavailable action блокирует Next. Изменение mode/action сбрасывает review и согласия; source Node contract, без новой browser acceptance.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-018. Ввести общий каркас операций и recovery journal
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-017; PROMPT: § 3, 12, 28.3–28.4.
 Готово, когда: Есть operation/step IDs, lock, состояния, durable journal и receipts; предусмотрены
 безопасные границы cancel/resume. Fresh не требует фиктивного previous release. Ошибка обязательной
 записи журнала не допускает опасный переход.
 Доказательство / ограничения / следующий шаг: Durable SQLite API journal и engine journal, resource claim/idempotency, crash/cancel/resume. Реальные Linux tests; Windows/Docker ещё не приняты.
-Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+Дополнение CP-008: Docker install/uninstall, systemd port и prerequisites используют durable intent/outcome и explicit reconciliation; полные signed bytes закреплены в плане. Неопределённый OS/daemon effect не повторяется вслепую. Реальные reboot/power loss остаются NOT RUN.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-019. Реализовать DataHome, владельца и хранение секретов
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-007
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-012, HIM-018; PROMPT: § 4, 11, 20, 24.
 Готово, когда: Разделены код, runtime, постоянные данные и execution scope. Пути и фактические
 symlink/junction/reparse points проверяются перед записью; Windows/Linux права и user/service secret
 boundaries заданы; секретов нет в argv/logs.
 Доказательство / ограничения / следующий шаг: Native DataHome/ownership и private files, signed release/runtime, session-only secret refs реализованы. Исправлена гонка смены GUI секрета во время submit/resume. DPAPI/OS secret-store и Windows ACL end-to-end открыты.
 Дополнение CP-007: NativeEngine теперь симметрично отказывает при Docker ownership receipt в том же корне до filesystem/process effects; отдельный regression PASS.
-Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-007); предыдущий CP-006 SYNC_CONFIRMED.
+Дополнение CP-008: SystemdUserManager использует тот же root lifecycle lock, что NativeEngine. Приватные metadata/units, strict effective config, cgroup/process ownership и чужие namespace consumers проверены; Windows ACL/UAC/service credentials остаются открыты.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-020. Связать launcher с release/runtime и владением процессами
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-015, HIM-018, HIM-019; PROMPT: § 7–11.
 Готово, когда: Launcher запускает согласованную активную пару release/runtime; изменение указателя
 влияет на реальный процесс. Start/stop проверяют product/instance/version ownership, не убивают чужой
 PID и не запускают второй scheduler.
 Доказательство / ограничения / следующий шаг: 26 реальных Linux integration cases: PID birth/pidfd + launch intent, adoption, отказ чужого слушающего порта даже с верным JSON, quiescence дочерних writers. Frozen process/readiness проверены. OS services/Windows не приняты.
-Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+Дополнение CP-008: Исполняемый Linux systemd user port: register/start/stop/enable/disable/uninstall, trusted fixed runner, typed D-Bus и cgroup ownership. Native/user отклоняет registered/pending service journal; native/service ещё unavailable, Windows SCM и live systemd/reboot не приняты.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-021. Реализовать минимальную проверку происхождения и payload
 Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
@@ -374,13 +381,14 @@ Windows/Linux имеют работоспособный bootstrap; доступ 
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-026. Реализовать экраны мастера и выбор способа установки
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-016, HIM-017, HIM-025; PROMPT: § 20, 23.
 Готово, когда: Мастер определяет среду, показывает допустимые native/Docker и scope, пути и состав
 установки. Пользователь может выбрать способ; неподдержанная комбинация объясняется до изменений; одна
 модель состояния используется с CLI.
 Доказательство / ограничения / следующий шаг: GUI ru/en/de: среда, native/Docker capabilities, signed product modes, secret fields, EULA/review/progress/result/maintenance. Непринятый Docker disabled. Полный prerequisite auto-install и scope selection ещё открыты.
-Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+Дополнение CP-008: Docker доступен только через явные trusted backend/artifact bindings. Мастер проверяет доступность выбранного action, допускает maintenance при unavailable install и сбрасывает старый review при смене mode/action. Полный prerequisites GUI auto-flow и service scope ещё не подключены.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-027. Встроить принятие EULA и отдельных условий
 Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
@@ -410,22 +418,23 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-029. Реализовать граф prerequisites и выбор auto/manual
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-003
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-016, HIM-017, HIM-022, HIM-026, HIM-027; PROMPT: § 21.
 Готово, когда: Required/optional и compatible/incompatible/missing компоненты видны с checkbox и
 причинами. Работают auto-install, ручной путь и «Проверить снова»; shared/external отличены от
 managed/private; обязательная зависимость не пропускается молча.
-Доказательство / ограничения / следующий шаг: Read-only prerequisite check/manual/recheck plans и инструкции ru/en/de реализованы; автоматические OS package installs явно unsupported. Общая suite downloads+prerequisites:56PASS.
-Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+Доказательство / ограничения / следующий шаг: Signed catalogue/DAG, auto/manual, отдельные условия и consent refs, fixed adapters, readonly recheck, durable attempts, cancel/resume/replan реализованы и доступны через explicit SDK. Реальные OS packages не устанавливались; production catalogue, bootstrap/GUI и full platform acceptance открыты.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-033. Реализовать скачивание, кэш и локальные prerequisites
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-003
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-021, HIM-029; PROMPT: § 14, 21, 26.
 Готово, когда: Работают проверяемый cache, ограниченные retries и resume при поддержке источника,
 локальный пакет, ошибки proxy/TLS/диска. Проверка сертификатов не отключается; ни один пакет не
 исполняется до обязательной проверки подписи/hash.
 Доказательство / ограничения / следующий шаг: Загрузчик exact size/SHA256/HTTPS allowlist/cache/offline/Range+ETag/retry/cancel, symlink/hardlink guards; 56focused tests с prerequisites. Реальные downloads и bootstrap wiring проходят отдельно.
-Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+Дополнение CP-008: Signed coordinator подключает проверенный DownloadManager/local artifact flow; полные pins и лицензии сверяются до runner. Retry сохраняет историю попыток, status/recheck не исполняют установщик. Live downloads/production registry/bootstrap отдельно не приняты.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-030. Реализовать нативные зависимости и БД продукта
 Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
@@ -437,32 +446,32 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-031. Реализовать подготовку Docker на Windows
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-021, HIM-027, HIM-028, HIM-029, HIM-033; PROMPT: § 6, 9, 21.
 Готово, когда: Проверяются поддержанные Desktop/backend, WSL, виртуализация и Compose; после выбора
 пользователя работает официальная установка и ожидание Docker API. Учтены отдельные условия Desktop;
 лишние дистрибутивы не создаются, существующие данные сохраняются.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: Есть фиксированный source adapter официального Desktop per-user/WSL2 с signed artifact pins и обязательным publisher provider. Настоящие Windows UAC/Authenticode/ACL, виртуализация, установка и ожидание Docker API не приняты; production catalogue отсутствует.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-032. Реализовать подготовку Docker на Linux
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-021, HIM-027, HIM-028, HIM-029, HIM-033; PROMPT: § 9, 21.
 Готово, когда: Для выбранного distro используются проверенные официальные пакеты/репозитории.
 Engine/CLI/Compose, сервис и доступ пользователя проверены; rootless и обычный Engine имеют явные
 profiles; конфликтующие чужие пакеты не удаляются скрыто.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: Есть фиксированный Ubuntu adapter для пяти exact .deb через доверенный dpkg runner, отдельные согласия и receipts. Реальная установка Engine/CLI/Compose, privileged host bridge, rootless/conflicts и live daemon acceptance остаются открыты.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-034. Реализовать reboot/relogin и повторный preflight
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-018, HIM-022, HIM-028, HIM-029; PROMPT: § 21, 24, 28.
 Готово, когда: Состояния REBOOT_REQUIRED/RELOGIN_REQUIRED сохраняются вне temp; есть выбор
 «Сейчас/Позже». Продолжается та же операция с закреплёнными версиями и проверенными receipts.
 Существенно устаревший план даёт PLAN_STALE: строится новый план оставшихся действий с нужными
 согласиями.
-Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+Доказательство / ограничения / следующий шаг: Durable REBOOT_REQUIRED/RELOGIN_REQUIRED, now/later, system_changes_started false/unknown/true, те же operation ID/pins и PLAN_STALE/replan проверены source. Linux markers реальны; Windows provider и настоящее reboot/relogin/возвращение bootstrap ещё не приняты.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-035. Реализовать общий и покомпонентный прогресс
 Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
@@ -483,13 +492,14 @@ Maintenance дополняется при HIM-059.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-036. Связать fresh-транзакцию с реальными adapters
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-003
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-018, HIM-019, HIM-020, HIM-021, HIM-028, HIM-030; PROMPT: § 3, 12, 21, 28.
 Готово, когда: Работают реальные prepare/apply/verify и допустимые компенсации. Fresh создаёт только
 собственные ресурсы; lock и журнал используются при изменениях; cancel/failure не удаляют shared
 dependencies или чужие данные.
 Доказательство / ограничения / следующий шаг: Frozen Linux GUI: реальный signed runtime, wheel/site-packages, SQLite migration, readiness, кнопка рабочего webapp. Первые ru/en/de экраны проверены в Chromium; все другие targets не приняты.
-Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+Дополнение CP-008: Docker install добавлен в существующий executor: конкретный reviewed provisioning_spec, exact preloaded images, --pull=never, INTENT до RPC, inspect до receipt, signed recovery copy до create. Live acceptance и abort/compensation failed install открыты.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-037. Собрать платформенный Windows Setup с выбором native/Docker
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -514,14 +524,13 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-039. Подключить реальный Docker adapter к общему ядру
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-007
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-018, HIM-019, HIM-020, HIM-021, HIM-029, HIM-036; PROMPT: § 9–12.
 Готово, когда: Compose создаёт все объявленные компоненты с ownership labels, отдельными volumes/secrets
 и проверенной последовательностью. Host-порты локальные, bind внутри контейнера корректен; нет
 глобальной очистки Docker или присвоения чужих ресурсов.
-Доказательство / ограничения / следующий шаг: Исходный DockerCLI/contract/controller проверен для start/stop/backup уже подготовленных owned containers: 163 scoped PASS +10subtests, реальные crypto/files/synthetic ELF и моделируемый daemon. Полные install/provisioning/update/restore/rollback не реализованы, auto GUI backend selection и live Docker acceptance открыты. См. docs/DOCKER_ENGINE.md.
-Дополнение CP-007: Явная регистрация DockerEngine подключена к общему API/CLI/GUI через BackendRouter. Отдельные signed payload/options/terms для Docker; без pinned config и artifact bindings нет обещанной установки. Provisioning в независимом worktree ещё не интегрирован; live acceptance не выполнена.
-Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-007); предыдущий CP-006 SYNC_CONFIRMED.
+Доказательство / ограничения / следующий шаг: Docker install/uninstall/start/stop/encrypted backup интегрированы с прежним execute/resume и BackendRouter. Полный file-map SHA, retained signed recovery после потери cache, kind-qualified intents и foreign namespace guards проверены. Compose, image transport, update/restore/rollback/repair/reinstall и live Docker отсутствуют; non-root host attestation требует trusted host adapter/приёмки.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-040. Реализовать полную проверку результата и открытие приложения
 Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
@@ -533,13 +542,14 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-007);
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-041. Сделать базовое удаление с сохранением данных
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-019, HIM-020, HIM-036; PROMPT: § 25.
 Готово, когда: Fresh-установка удаляется через мастер/системную точку входа без удаления
 пользовательских данных, секретов, чужих зависимостей и recovery metadata. Сохранённое состояние имеет
 реальный путь последующего подключения/восстановления.
 Доказательство / ограничения / следующий шаг: Frozen bundle05 GUI uninstall(de) сохранил пользовательский файл; restore(ru) вернул сайт и SQLite. Source проверки чужих файлов/ownership и recovery сохранены. Windows/Docker/full matrix ещё открыты.
-Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+Дополнение CP-008: Docker uninstall сохраняет данные, images и recovery, удаляет только owned IDs после проверки чужих network/namespace consumers. Systemd uninstall сохраняет DataHome/release. Tombstones с pending reload ещё блокируют native/user; live uninstall/reinstall matrix не принята.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-042. Принять reference: Windows native
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -579,34 +589,37 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-046. Проверить мастер при отмене, ручном пути и повторном запуске
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-007
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-029, HIM-033, HIM-034, HIM-035, HIM-042, HIM-043, HIM-044, HIM-045; PROMPT: § 21–23.
 Готово, когда: Проверены отсутствующая/несовместимая зависимость, manual/recheck, отказ UAC/root,
 недоступная виртуализация, refresh/close/reopen браузера и два установщика. Нет false SUCCESS/100% и
 повторного опасного действия.
 Доказательство / ограничения / следующий шаг: Настоящий frozen process-kill→новый browser→explicit resume проверен; inactive attempt cancel→новый reviewed plan и maintenance ru/en/de PASS. CAS защищает concurrent resume от delayed cancel; GUI продолжает polling при ответе RUNNING. Отказ UAC/root, manual OS prerequisite path, virtualization и полная target matrix открыты.
 Дополнение CP-007: Wizard tests проверяют смену режима, разные signed terms и запрет browser bootstrap/artifact injection. Backend recovery при недоступном Docker не вызывает native. Full manual/reboot/Windows matrix остаётся открытой.
-Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-007); предыдущий CP-006 SYNC_CONFIRMED.
+Дополнение CP-008: Исправлены action gating/reset review в настоящем wizard JS (Node DOM/response contract), service/native race и prerequisites manual/recheck/cancel/replan. Новый SDK READY не выдаётся за product SUCCESS; UAC/GUI auto prerequisites/full platform matrix ещё открыты.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-047. Проверить пользователей, пути и владение процессами
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-007
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-019, HIM-020, HIM-042, HIM-043, HIM-044, HIM-045; PROMPT: § 10–11, 16, 20, 24.
 Готово, когда: Проверены пробелы/кириллица, обычный пользователь, две OS-учётные записи, занятый чужой
 порт, повторный start и отдельный service profile, если заявлен. Нет чужого process kill, доступа к
 чужому DataHome или второго scheduler.
 Доказательство / ограничения / следующий шаг: CP-006: baseline на Python 3.12.14 выявил 41 FAIL Windows text renderer; совместимый reserved-name validator исправлен, focused 97 PASS +10 subtests. Windows installed acceptance не выполнялась. Linux path/ownership, stale PID, foreign process/listener, orphan launch и child-writer quiescence покрыты реальными integration tests. Windows users/ACL/reparse/service scenarios остаются открыты.
 Дополнение CP-007: Повтор на Python 3.12.14: full source 1659 PASS/1 skip/+10 subtests; real Linux integration 47 PASS/+5 subtests. Исправлен CLI envelope последним отдельным focused прогоном 65 PASS. Для process tests проверено совпадение PID/proc вне sandbox; внутри sandbox mismatch, это не положительный installed evidence.
-Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-007); предыдущий CP-006 SYNC_CONFIRMED.
+Дополнение CP-008: Полный root suite 1856 PASS, 1 skip, 10 subtests; real synthetic Linux integration 49 PASS, 5 subtests. Service registration после reviewed backup/uninstall блокирует исполнение до stop/data effects. Systemd runner проверен с собственным child и private D-Bus, без настоящего systemd manager.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-048. Проверить полноту preflight и безопасные отказы
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-016, HIM-017, HIM-028, HIM-034, HIM-042, HIM-043, HIM-044, HIM-045; PROMPT: § 21, 24,
 26.
 Готово, когда: Проверены effective variables разных scopes, executable resolution, права, место,
 носитель, proxy/TLS и повторное обнаружение после изменения среды. Отчёт объясняет блокирующее условие и
 не раскрывает секреты.
 Доказательство / ограничения / следующий шаг: Безопасные отказы trust/paths/ports/secret/capability и readonly prerequisites проверены source/integration suite; fixture extra files отказали до исполнения. Полная OS prerequisite install/reboot matrix не принята.
-Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+Дополнение CP-008: Повторно подписанные изменённые payload больше не принимают старый Docker/service план. Проверки идут под общим lifecycle lock; fresh service rejection не создаёт ложный recovery fence. Неизвестные receipts/effects остаются fail-closed. Windows/полная OS preflight matrix открыты.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-105. Проверить три языка в четырёх вариантах установки
 Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
@@ -632,14 +645,15 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 ========================================================================
 
 [ ] HIM-050. Реализовать согласованный зашифрованный полный backup
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-015, HIM-018, HIM-019, HIM-020, HIM-040, HIM-041; PROMPT: § 11–13.
 Готово, когда: Backup включает согласованную БД, документы, конфигурацию, историю, нужные секреты/ключи
 и сведения о совместимом payload/runtime. Продуктовые writers корректно остановлены/quiesced. Проверены
 целостность и расшифровка синтетической копии. Начинать можно на проверенном fresh-пути доступного
 target, не ожидая недоступного runner другой ОС.
 Доказательство / ограничения / следующий шаг: AES-GCM/scrypt full snapshot, stopped writers и recovery payload. Frozen GUI backup(en) + restore(ru) PASS. Product DB adapters и все четыре targets остаются открыты.
-Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+Дополнение CP-008: Linux update/rollback evidence сохранены. Новые Docker install/uninstall не предоставляют update/restore/rollback: эти actions явно unsupported, потребуется отдельная реализация поверх того же journal и product contracts.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-051. Проверить безопасность форматов архива и распаковки
 Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
@@ -687,13 +701,14 @@ release/runtime/metadata. Поздний rollback учитывает новые 
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005); предыдущий CP-004 SYNC_CONFIRMED.
 
 [ ] HIM-056. Реализовать и проверить resume после прерывания
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-005
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-018, HIM-034, HIM-054, HIM-055; PROMPT: § 12, 16, 28.
 Готово, когда: Реальный process-kill на существенных границах позволяет продолжить или восстановить
 согласованное состояние. Проверяются уже произошедшие эффекты hooks; нет второй миграции/внешнего
 действия. Process-kill не объявлен испытанием отключения питания.
 Доказательство / ограничения / следующий шаг: Настоящий frozen controller SIGKILL на stage и новый браузер нашли прежний operation_id; explicit resume завершил установку без automatic replay. Source tests покрывают effect boundaries. Сохранён также FAIL немедленного первого наблюдения RUNNING после kill; точные повторные результаты и область — receipt CP-005. Это не испытание отключения питания или reboot.
-Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005); предыдущий CP-004 SYNC_CONFIRMED.
+Дополнение CP-008: Проверены Docker неизвестные create/remove outcomes, потеря исходного cache и retained signed recovery; prerequisites attempts/reconciliation; service pending journal. Исправлены full-payload review binding и ложный native fence после отклонённого service apply. Source interruption не равен power-loss/reboot.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-057. Проверить переключение active release и аварийные состояния
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -723,13 +738,14 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005);
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005); предыдущий CP-004 SYNC_CONFIRMED.
 
 [ ] HIM-060. Завершить безопасную деинсталляцию и recovery после неё
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-041, HIM-050, HIM-052, HIM-058, HIM-059; PROMPT: § 25.
 Готово, когда: Удаляются только owned code/processes/службы/правила; данные, ключи, архивы и пригодный
 recovery-путь сохранены. Недоступный DataHome имеет отдельный сценарий с честным ограничением, без
 фиктивного backup или удаления shared prerequisites.
 Доказательство / ограничения / следующий шаг: Linux frozen GUI uninstall сохранил data/config/recovery; восстановление и сайт PASS. Общие runtime/prerequisite ownership и Windows/Docker removal acceptance ещё открыты.
-Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+Дополнение CP-008: Новые Docker и systemd source uninstall сохраняют data/recovery/shared dependencies. Отдельного Docker abort/compensation и повторной установки поверх retained DataHome пока нет; полный end-user путь удаления/возврата ещё открыт.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-061. Проверить перенос данных между поддержанными средами
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -741,7 +757,7 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-062. Завершить общий API всех lifecycle actions
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-013, HIM-014, HIM-015, HIM-054, HIM-055, HIM-056, HIM-058, HIM-059, HIM-060, HIM-061;
 PROMPT: § 5, 28.
 Готово, когда: Заявленные
@@ -749,16 +765,18 @@ build/install/update/modify/repair/uninstall/backup/restore/rollback/start/stop 
 через единый фасад. SDK, CLI JSON/NDJSON и локальный HTTP согласованы; OpenAPI соответствует handlers;
 нет arbitrary elevated shell/signing endpoint.
 Доказательство / ограничения / следующий шаг: SDK/CLI facade и HTTP contract созданы; поддержанные Linux действия проверены. Build/modify/doctor/platform backends требуют завершения.
-Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+Дополнение CP-008: Prerequisite SDK facade использует тот же явно зарегистрированный coordinator: events/attempt history/status/resume/recheck с product/owner/target identity и sanitization. Синхронный контракт не объявляет HTTP/GUI auto-flow готовым.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-063. Проверить идемпотентность, события и совместимость API
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-017, HIM-018, HIM-022, HIM-035, HIM-062; PROMPT: § 28.3–28.4.
 Готово, когда: Проверены same-key/same-request, конфликт содержимого, PLAN_STALE, consent refs,
 cancel_pending, cursor replay/dedup и snapshot. Reboot/awaiting-user не SUCCESS; поддержанные старые
 клиенты сохраняют контракт, breaking change версионирован.
 Доказательство / ограничения / следующий шаг: Idempotency/conflict/consent/stale plan/replay и API→Native lifecycle tests; installed/platform compatibility ещё не принята.
-Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+Дополнение CP-008: Prerequisite cancel сохраняется при занятом controller и исполняется на границе шага; OS installer не убивается, unknown effect требует reconciliation. Через SDK plan replacement не запускает установщик и требует новых consent refs.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-064. Сделать scaffold и инструменты подключения продукта
 Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
@@ -971,13 +989,14 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 ========================================================================
 
 [ ] HIM-086. Завершить воспроизводимые локальные и CI-сборки
-Статус: BLOCKED | Проверки: BLOCKED | checkpoint_id: CP-20261025-005
+Статус: BLOCKED | Проверки: BLOCKED | checkpoint_id: CP-20261025-008
 Зависимости: HIM-085; PROMPT: § 7–8, 14.
 Готово, когда: Windows/Linux сборки имеют проверенные локальные команды и закреплённые
 tools/dependencies; CI использует те же процедуры. Отсутствующие минуты/runner отражены отдельно от
 результата тестов; побитовая воспроизводимость заявляется только после её проверки.
 Доказательство / ограничения / следующий шаг: Exact build pins/22 wheel hashes, Linux build и установленный SDK проверены. Source CI CP-004 run40170554823 создал Linux/Windows jobs, но завершился failure при runner_id=0 и steps=[]; тесты там не исполнялись, причина через доступный API неизвестна. См. github-ci-20261025-cp004.json. Bit-reproducibility/production artifacts не доказаны.
-Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005); предыдущий CP-004 SYNC_CONFIRMED.
+Дополнение CP-008: CP007 push/PR runs 40186123426 и 40186125750 завершились failure; у Linux и Windows jobs runner_id=0, steps=[]. Это отсутствие выполнения CI, причина доступным API не установлена. Local source/integration PASS не заменяет GitHub CI. github-ci-20261025-cp007.json.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-087. Сформировать полные online/offline поставки
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -1026,13 +1045,14 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-092. Завершить документацию разработчика и пользователя
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-005
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-062, HIM-064, HIM-070, HIM-085, HIM-087, HIM-091; PROMPT: § 18, 28–30.
 Готово, когда: Есть проверенный путь подключения нового продукта, схемы/версии/API, пользовательские
 инструкции установки/обслуживания/переноса/удаления и офлайн-справка. Примеры соответствуют
 поставляемому пакету, UI и --help.
 Доказательство / ограничения / следующий шаг: README/API/integration/build/lifecycle/Docker/diagnostics/checkpoint docs, оба основных документа и handoff актуализированы. Есть настоящие screenshots ru/en/de и exact acceptance receipts. Полные platform user guides остаются открыты.
-Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005); предыдущий CP-004 SYNC_CONFIRMED.
+Дополнение CP-008: Добавлены актуальные PRODUCT_AUDIT, TARGET_MATRIX, ARCHITECTURE, SERVICE_MANAGER, DOCKER_PROVISIONING и расширенные PREREQUISITES/API docs; историческая frozen acceptance отделена от нового source/SDK scope.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-093. Закрыть недостающие критические installed-сценарии
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -1044,13 +1064,14 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005);
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-094. Проверить защиту секретов, прав и локальных интерфейсов
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-028, HIM-063, HIM-067, HIM-068, HIM-069, HIM-089; PROMPT: § 11, 20, 24, 26, 28, 30.
 Готово, когда: На синтетических секретах проверены SDK/CLI/GUI/events/logs/DB/export/Git, loopback
 session protection и отсутствие arbitrary elevated commands. App owner сохранён при elevation;
 user/service scopes не дают доступа к чужим данным.
 Доказательство / ограничения / следующий шаг: Loopback token/Host/Origin/CSP/body bounds, product-bound operations/export, private refs, no shell; GUI секреты сериализованы с submit/resume. Negative source+HTTP tests PASS. UAC/service ACL/production penetration и dependency vulnerability gates открыты.
-Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+Дополнение CP-008: Независимый review выявил и закрыл три Docker defects и два service review/recovery defects; реальные native boundary regressions и capability JS tests проходят. Точные before/after и scopes — review-20261025-cp008.json. Это не завершённый security/platform audit.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-095. Проверить финальную восстановимость после удаления
 Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-005
@@ -1072,13 +1093,14 @@ artifact не выдан за постоянный архив.
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-097. Опубликовать в документации честную матрицу возможностей
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-005
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
 Зависимости: HIM-085, HIM-096; PROMPT: § 2, 14–16, 19, 28.
 Готово, когда: Поддержанные targets/actions/продукты согласованы с фактической приёмкой. Непроверенное
 не обозначено ready; FAIL/BLOCKED и ограничения видны. Оценки скорости/надёжности не выдуманы, release
 readiness отделена от разработки с test keys.
 Доказательство / ограничения / следующий шаг: README/IMPLEMENTATION_STATUS/runtime capabilities разделяют source, installed SDK, frozen Linux user-session и непринятые platforms/services. CI без выполненных steps обозначен BLOCKED. Скриншоты ru/en/de и receipts сохранены; production_ready=false, все G0–G5 OPEN.
-Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005); предыдущий CP-004 SYNC_CONFIRMED.
+Дополнение CP-008: README, IMPLEMENTATION_STATUS, канонический ToDo, WORK_LOG, RESUME/state и CP008 receipts согласованы. 7 DONE / 63 IN_PROGRESS / 4 BLOCKED / 32 TODO; production_ready=false, G0–G5 OPEN.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-098. Обновить финальный ToDo, RESUME и сохранение в Git
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —

@@ -1,10 +1,11 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-007",
+  "checkpoint_id": "CP-20261025-008",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "active_tasks": [
+    "HIM-008",
     "HIM-071",
     "HIM-011",
     "HIM-012",
@@ -27,6 +28,9 @@
     "HIM-029",
     "HIM-033",
     "HIM-030",
+    "HIM-031",
+    "HIM-032",
+    "HIM-034",
     "HIM-035",
     "HIM-102",
     "HIM-036",
@@ -70,6 +74,8 @@
     "HIM-002",
     "HIM-004",
     "HIM-005",
+    "HIM-006",
+    "HIM-007",
     "HIM-009"
   ],
   "blocked_tasks": {
@@ -82,18 +88,18 @@
     "cloud_git": "SYNC_PENDING",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261025-006",
+    "last_confirmed_checkpoint": "CP-20261025-007",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
-  "next_step": "Integrate independent tested systemd platform port, durable prerequisites and Docker provisioning; audit current product contracts; retain unavailable platform acceptance gates",
+  "next_step": "Integrate service port into the shared engine; complete Docker host attestation/image transport/update/restore/rollback/abort; implement Windows and production prerequisite bootstrap; then thin product adapters and live target acceptance",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
     "windows_docker": "BLOCKED",
     "linux_native": "PARTIAL: frozen x64 user-session lifecycle/updates/rollback/repair/crash-resume PASS in scoped receipts; OS service/reboot/full matrix open",
-    "linux_docker": "NOT RUN: start/stop/backup source controller tested with modeled daemon only; full provisioning/lifecycle not implemented"
+    "linux_docker": "NOT RUN/BLOCKED live daemon: source install/uninstall/start/stop/backup tested with modeled daemon; images/host attestation/full lifecycle remain open"
   },
-  "last_confirmed_github_sha": "ae70b7ae30902259e62ea6323c5f001573b96251",
+  "last_confirmed_github_sha": "4fa7cc26bc4fb8fa8ae2ddca3a531a9a2afe5625",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -101,7 +107,11 @@
     "packaging/acceptance-evidence/github-ci-20261025-cp004.json",
     "packaging/acceptance-evidence/restart-20261025-cp006.json",
     "packaging/acceptance-evidence/source-20261025-cp007.json",
-    "packaging/acceptance-evidence/sdk-installed-20261025-cp007.json"
+    "packaging/acceptance-evidence/sdk-installed-20261025-cp007.json",
+    "packaging/acceptance-evidence/source-20261025-cp008.json",
+    "packaging/acceptance-evidence/sdk-installed-20261025-cp008.json",
+    "packaging/acceptance-evidence/review-20261025-cp008.json",
+    "packaging/acceptance-evidence/github-ci-20261025-cp007.json"
   ],
   "environment": {
     "os": "linux",
@@ -112,5 +122,20 @@
     "systemd_pid1": false,
     "windows": false,
     "sandbox_pid_proc_identity": "MISMATCH; process acceptance ran outside sandbox with matched identity"
+  },
+  "task_counts": {
+    "DONE": 7,
+    "BLOCKED": 4,
+    "IN_PROGRESS": 63,
+    "TODO": 32
+  },
+  "source_verification": {
+    "source_passed": 1856,
+    "source_skipped": 1,
+    "source_subtests": 10,
+    "integration_passed": 49,
+    "integration_subtests": 5,
+    "sdk_python_files": 44,
+    "sdk_resources": 18
   }
 }

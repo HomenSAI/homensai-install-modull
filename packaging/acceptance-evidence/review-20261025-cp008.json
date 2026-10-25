@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-008",
+  "scope": "Independent source review and cross-boundary regression",
+  "findings": [
+    {
+      "id": "docker-full-payload-pin",
+      "before": "A newly signed changed inventory with unchanged release/descriptor could pass old review",
+      "after": "Full canonical file-map SHA pinned in plan, journal and schema-2 resource receipt; rechecked under lifecycle lock",
+      "status": "FIXED"
+    },
+    {
+      "id": "docker-kind-qualified-intent",
+      "before": "Component ID network collided with infrastructure create/remove journal keys",
+      "after": "Intent keys include resource kind and name",
+      "status": "FIXED"
+    },
+    {
+      "id": "docker-foreign-namespace-reference",
+      "before": "Foreign namespace consumers using container name or short ID were overlooked",
+      "after": "Bounded exact/prefix/name resolver before stop/removal; unresolved references fail closed",
+      "status": "FIXED"
+    },
+    {
+      "id": "service-full-payload-pin",
+      "before": "Four fresh/resume regressions accepted re-signed runtime or added notice; 4 tests failed before fix",
+      "after": "Full file-map SHA in reviewed service plan and expected service receipts",
+      "status": "FIXED"
+    },
+    {
+      "id": "service-no-effect-false-recovery",
+      "before": "PLAN_STALE created service-manager/lock without state.json and fenced NativeEngine despite no manager effect",
+      "after": "Read-only identity/state/payload checks under common root lease before creating service lock directory; fresh and interrupted paths covered",
+      "status": "FIXED"
+    },
+    {
+      "id": "native-service-race",
+      "before": "A reviewed native backup/uninstall needed protection if service registration appeared before execute",
+      "after": "Common root lifecycle lock plus valid service journal fence; real synthetic integration preserves process and data before refusal",
+      "status": "FIXED"
+    },
+    {
+      "id": "wizard-per-action-capabilities",
+      "before": "Mode choice depended on install support, hiding available maintenance actions",
+      "after": "Mode enabled when any action is supported; selected action separately gates Next; review resets on mode/action change",
+      "status": "FIXED"
+    },
+    {
+      "id": "linux-tests-windows-collection",
+      "before": "Linux service test decorators read /proc at module import even on other OS",
+      "after": "Early module-level platform skip before project imports or /proc reads; synthetic win32 import guards and final Linux scoped suite pass",
+      "status": "FIXED"
+    }
+  ],
+  "focused_scopes": [
+    {
+      "scope": "Independent Docker external reproducers",
+      "passed": 6
+    },
+    {
+      "scope": "Independent focused Docker repository regressions",
+      "passed": 11
+    },
+    {
+      "scope": "Agent Docker repository suite",
+      "passed": 212,
+      "duration_seconds": 30.31
+    },
+    {
+      "scope": "Service manager/contracts/native boundary/backend router after no-effect rejection fix",
+      "passed": 100,
+      "duration_seconds": 3.32
+    }
+  ],
+  "limits": [
+    "Independent reproducer counts are not additional repository tests",
+    "No remaining blockers found in the reviewed scope is not proof of full product or platform readiness"
+  ],
+  "production_ready": false
+}

@@ -1,8 +1,8 @@
 # HomenS.AI · © 2026 Serhii Khomenko
-"""Подписанный узкий contract уже подготовленных Linux containers.
+"""Подписанный узкий contract собственных Linux containers.
 
 Здесь нет pull/build/create и нет запуска Python хоста. Чистый resource plan
-предназначен для review и будущего provisioning adapter. Его наличие не
+предназначен для review и provisioning фаз DockerEngine. Его наличие не
 подтверждает фактическую установку Docker или пригодность image license.
 """
 from __future__ import annotations
@@ -102,6 +102,11 @@ class VerifiedDockerContract:
     release: str
     files: tuple[tuple[str, str], ...]
     contract_sha256: str
+
+    @property
+    def payload_sha256(self):
+        """Закрепляет полный проверенный map path→SHA-256, не только descriptor."""
+        return hashlib.sha256(canonical_bytes(dict(self.files))).hexdigest()
 
     @property
     def manifest(self):
@@ -231,7 +236,7 @@ def resource_name(installation_id, component="network"):
 
 
 def resource_plan(contract, *, install_root, installation_id, modes):
-    """Immutable inputs for a future provisioner; never create/adopt resources."""
+    """Immutable inputs для DockerEngine; pure review не создаёт ресурсы."""
     if not isinstance(contract, VerifiedDockerContract):
         _fail("verified_docker_contract_required", "INTEGRITY_FAILED")
     manifest, document = contract.manifest, contract.document
@@ -275,7 +280,8 @@ def resource_plan(contract, *, install_root, installation_id, modes):
                           LABEL_PREFIX + "spec": hashlib.sha256(canonical_bytes(spec)).hexdigest()}
         components[name] = spec
     return {"schema_version": 1, "backend": "docker-managed", "manifest_sha256": hash_manifest(manifest),
-            "contract_sha256": contract.contract_sha256, "order": list(order), "network": network,
-            "components": components, "execution_supported": False, "provisioning_implemented": False,
+            "contract_sha256": contract.contract_sha256, "payload_sha256": contract.payload_sha256,
+            "order": list(order), "network": network,
+            "components": components, "execution_supported": False, "provisioning_implemented": True,
             "production_ready": False, "requires": ["trusted_local_daemon", "private_owned_receipt",
                 "image_license_review", "all_writers_managed", "live_docker_acceptance"]}

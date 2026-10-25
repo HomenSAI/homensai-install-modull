@@ -138,6 +138,51 @@ GUI дополнительно требует `--docker-payload-options`: лок
 согласие UI. Без этих artifact bindings мастер не предлагает Docker install.
 Это подключение backend; live Docker/Windows acceptance описывается отдельно.
 
+### Подготовка зависимостей через тот же SDK
+
+Доверенный bootstrap может передать
+`InstallerAPI(state_dir, prerequisites=coordinator)`, где `coordinator` —
+`PrerequisiteCoordinator` с `SignedPrerequisiteCatalog`, фиксированными platform
+adapters, downloader и read-only discover. Произвольный dict/callback вместо
+coordinator не принимается. По умолчанию автоматический установщик зависимостей
+не создаётся: нужны настоящие pins, тексты условий, publisher/platform policy.
+
+```python
+api = InstallerAPI(state_dir, engine=engine, prerequisites=coordinator)
+capabilities = api.prerequisites_capabilities()
+identity = api.prerequisites_identity()  # product/target/catalog/owner/manifest digest
+terms = api.prerequisites_license(component_id)
+plan = api.prerequisites_plan(choices, locale="ru", offline=True,
+                              local_artifacts=verified_local_files)
+# Host UI показывает plan и связанные условия. accepted_refs берутся из
+# явных действий пользователя, а не из одного наличия plan_digest.
+state = api.prerequisites_start(operation_id, plan, consent_refs=accepted_refs)
+```
+
+`operation_id` соответствует общему API ID: `[a-z][a-z0-9_-]{0,79}`.
+Повтор `start` с тем же ID и планом читает сохранённый результат; другая операция
+не обходит активный claim. Выполнение синхронное: это фасад существующего
+coordinator, дополнительный executor и второй журнал эффектов не создаются.
+
+| Метод | Поведение |
+| --- | --- |
+| `prerequisites_status(id)` | Историческое состояние без команд/discover |
+| `prerequisites_events(id, after_sequence=0, limit=100)` | События и snapshot |
+| `prerequisites_attempts(id, component_id, after=0, limit=100)` | Сохранённые pins и результаты прежних попыток |
+| `prerequisites_recheck(id)` | Только probes и journal; ни download, ни installer |
+| `prerequisites_resume(id, consent_refs=None)` | Явное продолжение допустимых pending действий |
+| `prerequisites_choose_boundary(id, "now" / "later")` | Запись выбора reboot/relogin; сам host переход не выполняется |
+| `prerequisites_cancel(id)` | Запрос отмены на безопасной границе |
+| `prerequisites_replace_plan(id, new_plan, consent_refs)` | Новый review при изменившихся условиях; неизвестный эффект не стирается |
+
+`READY` означает готовность выбранных prerequisites данной операции, а не
+установленное приложение. Перед product install bootstrap повторяет discover
+и строит новый reviewed product plan. GUI auto-flow, его неблокирующая host
+интеграция, Windows elevation/session providers и production catalog остаются
+отдельными непринятыми работами. Эти новые методы сейчас доступны SDK;
+standalone CLI/HTTP не принимают команды, adapters или каталог из запросов.
+Полный platform contract и ограничения: `docs/PREREQUISITES.md`.
+
 `engine` и `trust` — bootstrap integration API версии разработки; продуктовый
 adapter не должен обращаться к их внутренним классам. Обычный потребитель
 получает уже настроенный экземпляр facade. Без доверенного verifier выполнение

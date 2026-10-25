@@ -91,12 +91,19 @@ class InstallerAPI:
     метаданные, не выполняя установку или продуктовые hooks.
     """
 
-    def __init__(self, state_dir: str | Path, *, engine=None, locale: str = "ru", diagnostics=None):
+    def __init__(self, state_dir: str | Path, *, engine=None, locale: str = "ru", diagnostics=None,
+                 prerequisites=None):
         self.state_dir = Path(state_dir).absolute()
         self._engine_instance = engine
         self.locale = locale
         self._diagnostic_instance = diagnostics
         self._diagnostic_unavailable = False
+        if prerequisites is not None:
+            # Lazy: coordinator itself imports the model/journal package.
+            from homensai_install.prerequisite_execution import PrerequisiteCoordinator
+            if not isinstance(prerequisites, PrerequisiteCoordinator):
+                fail("INVALID_REQUEST", details={"reason": "explicit_prerequisite_coordinator_required"})
+        self._prerequisite_instance = prerequisites
 
     def _engine(self):
         if self._engine_instance is None:
@@ -139,9 +146,17 @@ class InstallerAPI:
                          "registration": "explicit_bootstrap", "default": "native:user",
                          "selection": "reviewed_target", "implicit_fallback": False,
                          "availability": "capabilities_for_exact_target"},
+            "prerequisites": {"registration": "explicit_sdk", "execution": "synchronous",
+                              "automatic_default_factory": False, "gui_auto_flow": False,
+                              "readiness": "source_contract", "production_ready": False},
             "operations": ["describe", "capabilities", "validate", "discover", "plan", "submit",
                            "operations.list", "status", "events", "cancel", "resume", "errors.describe", "errors.search",
-                           "diagnostics.get", "diagnostics.export", "statistics.query"],
+                           "diagnostics.get", "diagnostics.export", "statistics.query",
+                           "prerequisites.capabilities", "prerequisites.identity", "prerequisites.license",
+                           "prerequisites.plan", "prerequisites.start", "prerequisites.status",
+                           "prerequisites.events", "prerequisites.attempts", "prerequisites.recheck",
+                           "prerequisites.resume", "prerequisites.cancel", "prerequisites.choose_boundary",
+                           "prerequisites.replace_plan"],
             "schemas": {"manifest": "shared/manifest.schema.json", "request": "api/schemas/request.schema.json",
                         "plan": "api/schemas/plan.schema.json", "operation": "api/schemas/operation.schema.json",
                         "event": "api/schemas/event.schema.json"},
@@ -156,6 +171,87 @@ class InstallerAPI:
         if type(result) is not dict:
             fail("UNEXPECTED_ERROR")
         return {"api_version": API_VERSION, "target": target, **result}
+
+    def _prerequisite_call(self, method, *args, **kwargs):
+        """Transport facade only: the registered coordinator owns every effect.
+
+        These synchronous SDK calls do not launch an additional worker or claim
+        product installation success. GUI bootstrap must supply its own reviewed
+        catalogue and nonblocking host integration before exposing an auto flow.
+        """
+        if self._prerequisite_instance is None:
+            fail("CAPABILITY_UNSUPPORTED", details={"reason": "prerequisites_not_configured"})
+        from homensai_install.errors import InstallerError, redact
+        try:
+            port = self._prerequisite_instance
+            function = port.catalog.license_text if method == "license_text" else getattr(port, method)
+            return bounded_json(function(*args, **kwargs))
+        except InstallerError:
+            raise
+        except Exception as error:
+            code = getattr(error, "code", "UNEXPECTED_ERROR")
+            if type(code) is not str or not code or len(code) > 80 or not all(c.isupper() or c.isdigit() or c == "_" for c in code):
+                code = "UNEXPECTED_ERROR"
+            fail(code, details=redact(getattr(error, "details", {})))
+
+    @staticmethod
+    def _prerequisite_consents(values):
+        if not isinstance(values, (list, tuple)):
+            fail("INVALID_REQUEST")
+        return bounded_json(list(values))
+
+    def prerequisites_identity(self) -> dict:
+        value = self._prerequisite_call("identity")
+        return {**value, "manifest_digest": digest(self._prerequisite_instance.catalog.manifest)}
+
+    def prerequisites_capabilities(self) -> dict:
+        if self._prerequisite_instance is None:
+            return {"api_version": API_VERSION, "configured": False, "automatic_component_ids": [],
+                    "manual_recheck": False, "durable_resume": False, "production_ready": False}
+        return {"api_version": API_VERSION, "configured": True,
+                **self._prerequisite_call("capabilities"), "production_ready": False}
+
+    def prerequisites_license(self, component_id: str) -> dict:
+        if type(component_id) is not str or len(component_id) > 128:
+            fail("INVALID_REQUEST")
+        return self._prerequisite_call("license_text", component_id)
+
+    def prerequisites_plan(self, choices: dict | None = None, *, locale: str | None = None,
+                           offline: bool = False, local_artifacts: dict | None = None) -> dict:
+        return self._prerequisite_call("plan", bounded_json(choices), locale=self.locale if locale is None else locale,
+                                       offline=offline, local_artifacts=bounded_json(local_artifacts))
+
+    def prerequisites_start(self, operation_id: str, plan: dict, consent_refs=()) -> dict:
+        return self._prerequisite_call("start", checked_id(operation_id), bounded_json(plan),
+                                       consents=self._prerequisite_consents(consent_refs))
+
+    def prerequisites_status(self, operation_id: str) -> dict:
+        return self._prerequisite_call("status", checked_id(operation_id))
+
+    def prerequisites_events(self, operation_id: str, *, after_sequence: int = 0, limit: int = 100) -> dict:
+        events = self._prerequisite_call("events", checked_id(operation_id), after=after_sequence, limit=limit)
+        return {"events": events, "snapshot": self.prerequisites_status(operation_id)}
+
+    def prerequisites_attempts(self, operation_id: str, component_id: str, *, after: int = 0, limit: int = 100) -> dict:
+        return {"attempts": self._prerequisite_call("attempts", checked_id(operation_id), component_id,
+                                                  after=after, limit=limit)}
+
+    def prerequisites_recheck(self, operation_id: str) -> dict:
+        return self._prerequisite_call("recheck", checked_id(operation_id))
+
+    def prerequisites_resume(self, operation_id: str, consent_refs=None) -> dict:
+        consents = self._prerequisite_consents(consent_refs) if consent_refs is not None else None
+        return self._prerequisite_call("resume", checked_id(operation_id), consents=consents)
+
+    def prerequisites_cancel(self, operation_id: str) -> dict:
+        return self._prerequisite_call("cancel", checked_id(operation_id))
+
+    def prerequisites_choose_boundary(self, operation_id: str, when: str) -> dict:
+        return self._prerequisite_call("choose_boundary", checked_id(operation_id), when)
+
+    def prerequisites_replace_plan(self, operation_id: str, plan: dict, consent_refs=()) -> dict:
+        return self._prerequisite_call("replace_plan", checked_id(operation_id), bounded_json(plan),
+                                       consents=self._prerequisite_consents(consent_refs))
 
     def schema(self, name: str) -> dict:
         if name not in {"manifest", "request", "plan", "operation", "event", "normalized"}:

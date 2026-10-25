@@ -31,7 +31,20 @@
     "errors.search",
     "diagnostics.get",
     "diagnostics.export",
-    "statistics.query"
+    "statistics.query",
+    "prerequisites.capabilities",
+    "prerequisites.identity",
+    "prerequisites.license",
+    "prerequisites.plan",
+    "prerequisites.start",
+    "prerequisites.status",
+    "prerequisites.events",
+    "prerequisites.attempts",
+    "prerequisites.recheck",
+    "prerequisites.resume",
+    "prerequisites.cancel",
+    "prerequisites.choose_boundary",
+    "prerequisites.replace_plan"
   ],
   "schemas": {
     "manifest": "shared/manifest.schema.json",
@@ -76,5 +89,13 @@
     "selection": "reviewed_target",
     "implicit_fallback": false,
     "availability": "capabilities_for_exact_target"
+  },
+  "prerequisites": {
+    "registration": "explicit_sdk",
+    "execution": "synchronous",
+    "automatic_default_factory": false,
+    "gui_auto_flow": false,
+    "readiness": "source_contract",
+    "production_ready": false
   }
 }

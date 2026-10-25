@@ -28,6 +28,7 @@ import sys
 import time
 
 from shared.datahome import DataHomeError, checked_path
+from .docker_commands import provisioning_arguments
 from .engine import EngineError
 
 
@@ -124,7 +125,7 @@ def _private_config(value):
 def _arguments(args):
     if isinstance(args, (str, bytes, bytearray)) or not isinstance(args, Sequence):
         _fail("INVALID_REQUEST", "docker_argv_sequence_required")
-    if not 1 <= len(args) <= 128:
+    if not 1 <= len(args) <= 256:
         _fail("INVALID_REQUEST", "docker_argv_limit")
     values = tuple(args)
     total = 0
@@ -147,6 +148,10 @@ def _arguments(args):
         allowed = bool(_HEX.fullmatch(identity[len("sha256:"):])) if values[0] == "image" and identity.startswith("sha256:") else bool(values[0] != "image" and _HEX.fullmatch(identity))
     if (len(values) == 6 and values[:5] == ("container", "ls", "--all", "--no-trunc", "--format")):
         allowed = True
+    if len(values) == 5 and values[:4] == ("network", "ls", "--no-trunc", "--format"):
+        allowed = True
+    if len(values) == 4 and values[0] in {"container", "network"} and values[1:3] == ("rm", "--"):
+        allowed = bool(_HEX.fullmatch(values[3]))
     if len(values) == 4 and values[:3] == ("container", "start", "--"):
         allowed = bool(_HEX.fullmatch(values[3]))
     if len(values) == 5 and values[:4] == ("container", "kill", "--signal=SIGTERM", "--"):
@@ -154,6 +159,8 @@ def _arguments(args):
     if (len(values) >= 5 and values[:3] == ("container", "exec", "--")
             and _HEX.fullmatch(values[3]) and not values[4].startswith("-")):
         allowed = True
+    if values[:2] in {("container", "create"), ("network", "create")}:
+        allowed = provisioning_arguments(values)
     if not allowed:
         _fail("INVALID_REQUEST", "docker_command_not_permitted")
     return values

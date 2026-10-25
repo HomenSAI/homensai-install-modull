@@ -29,7 +29,7 @@ import uuid
 
 from shared import archive_crypto
 from shared.adapters_fs import FilesystemPorts, ReleaseSource, _copy_file, _tree
-from shared.datahome import checked_path, contains, resolve_datahome
+from shared.datahome import DataHomeError, checked_path, contains, resolve_datahome
 from shared.manifest import validate_manifest
 from shared.services import component_order
 from shared.update_plan import UpdatePlan, _atomic_write, operation_lock
@@ -300,7 +300,43 @@ class NativeEngine:
                 or owner.get("owner") != _owner_id() or owner.get("mode") != "native"
                 or not re.fullmatch(r"[0-9a-f]{32}", owner.get("installation_id", ""))):
             raise EngineError("OPERATION_CONFLICT", "Установка принадлежит другой identity или продукту")
+        self._user_session_scope(ctx, owner)
         return owner
+
+    def _user_session_scope(self, ctx, owner):
+        """Service receipts fence user-session effects until complete removal.
+
+        A stopped/disabled unit can still be started by its manager. The port
+        writes removed before daemon-reload, so tombstones alone are not enough.
+        Its apply uses this engine's root lock; this check is repeated under it.
+        """
+        directory = ctx["control"] / "service-manager"
+        if not directory.exists() and not directory.is_symlink():
+            return
+        try:
+            directory = checked_path(directory)
+            path = checked_path(directory / "state.json")
+            folder, file = directory.stat(), path.stat()
+            if not stat.S_ISDIR(folder.st_mode) or not stat.S_ISREG(file.st_mode) or file.st_nlink != 1:
+                raise ValueError("unsafe_service_metadata")
+            if os.name != "nt" and (folder.st_uid != os.getuid() or file.st_uid != os.getuid()
+                                     or folder.st_mode & 0o022 or file.st_mode & 0o022):
+                raise ValueError("foreign_service_metadata")
+            state = _read(path)
+            binding = {key: owner[key] for key in ("product_id", "installation_id", "owner", "mode")}
+            if (type(state) is not dict or type(state.get("schema_version")) is not int
+                    or state["schema_version"] != 1 or state.get("binding") != binding
+                    or type(state.get("services")) is not dict or type(state.get("operations")) is not dict
+                    or type(state.get("revision")) is not int or state["revision"] < 0
+                    or any(type(item) is not dict for item in (*state["services"].values(), *state["operations"].values()))):
+                raise ValueError("invalid_service_metadata")
+        except (OSError, ValueError, TypeError, KeyError, DataHomeError, EngineError):
+            raise EngineError("RECOVERY_REQUIRED", "Журнал служб недоступен или повреждён") from None
+        if (any(item.get("status") != "done" for item in state["operations"].values())
+                or any(item.get("removed") is not True or item.get("enabled") is not False
+                       or item.get("start_uncertain") is not False for item in state["services"].values())):
+            raise EngineError("OPERATION_CONFLICT", "Установка обслуживается через зарегистрированные службы",
+                              details={"reason": "registered_or_unfinished_service_lifecycle"})
 
     def _pointer(self, ctx):
         path = ctx["home"].roots["services"] / ctx["manifest"]["update"]["pointer_file"]

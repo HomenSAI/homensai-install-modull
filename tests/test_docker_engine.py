@@ -40,7 +40,8 @@ class SyntheticDaemon:
         self.manifest, self.contract, self.spec, self.owner = manifest, contract, spec, owner
         self.calls, self.effects, self.foreign = [], [], {}
         self.info = {"ID": "fixture-daemon-id", "OSType": "linux", "Architecture": "x86_64",
-            "MemoryLimit": True, "PidsLimit": True, "SecurityOptions": ["name=seccomp,profile=builtin"]}
+            "MemoryLimit": True, "PidsLimit": True, "SecurityOptions": ["name=seccomp,profile=builtin"],
+            "ServerVersion": "28.0.0-fixture"}
         self.network = {"Id": owner["network"]["id"], "Name": spec["network"]["name"], "Driver": "bridge",
             "Internal": True, "Scope": "local", "Options": {}, "Labels": spec["network"]["labels"], "Containers": {}}
         self.images, self.containers = {}, {}
@@ -243,7 +244,7 @@ def test_no_runner_means_no_docker_or_host_python_execution():
 def test_signed_contract_and_static_resource_review_do_not_provision(docker_bundle):
     b = docker_bundle
     assert b.daemon.calls == []
-    assert b.spec["provisioning_implemented"] is False and b.spec["execution_supported"] is False
+    assert b.spec["provisioning_implemented"] is True and b.spec["execution_supported"] is False
     assert b.spec["components"]["web"]["ports"] == {"8080/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8820"}]}
     assert b.spec["components"]["web"]["argv"] == ["/app/bin/web", "--foreground"]
     assert b.spec["components"]["web"]["read_only_root"] is True
@@ -297,7 +298,7 @@ def test_unsafe_signed_contract_is_rejected_too(docker_bundle, change):
 def test_capabilities_are_development_only_and_do_not_claim_missing_lifecycle(docker_bundle):
     b = docker_bundle
     caps = b.engine.capabilities(b.target)
-    assert {name for name, item in caps["actions"].items() if item["supported"]} == {"start", "stop", "backup"}
+    assert {name for name, item in caps["actions"].items() if item["supported"]} == {"install", "start", "stop", "backup", "uninstall"}
     assert caps["production_ready"] is False and caps["live_acceptance"] == "REQUIRED"
     b.daemon.calls.clear()
     for target in (b.target | {"os": "windows"}, b.target | {"arch": "arm64"}, b.target | {"mode": "native"}):
@@ -375,7 +376,7 @@ def test_identity_and_container_configuration_drift_prevent_effects(docker_bundl
 def test_refuses_adoption_from_labels_without_private_receipt(docker_bundle):
     b = docker_bundle
     b.receipt.unlink()
-    check_error(lambda: b.engine.discover(b.manifest, b.target, b.options), "RECOVERY_REQUIRED")
+    check_error(lambda: b.engine.discover(b.manifest, b.target, b.options), "OPERATION_CONFLICT")
     assert b.daemon.calls == []
 
 
@@ -686,7 +687,7 @@ def test_install_root_lock_covers_independent_api_instances(docker_bundle):
     assert b.daemon.effects == []
 
 
-@pytest.mark.parametrize("action", ["install", "update", "restore", "rollback", "repair", "reinstall", "uninstall"])
+@pytest.mark.parametrize("action", ["update", "restore", "rollback", "repair", "reinstall"])
 def test_missing_provisioning_lifecycle_is_explicitly_unsupported(docker_bundle, action):
     b = docker_bundle
     check_error(lambda: b.engine.execute({"action": action}), "CAPABILITY_UNSUPPORTED")

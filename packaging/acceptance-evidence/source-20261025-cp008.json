@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-008",
+  "python": "3.12.14",
+  "platform": "Ubuntu 24.04.3 LTS x86_64",
+  "commands": {
+    "source": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -B -m pytest -q -p no:cacheprovider tests",
+    "integration": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -B -m pytest -q -p no:cacheprovider integration_tests"
+  },
+  "source": {
+    "passed": 1856,
+    "skipped": 1,
+    "subtests_passed": 10,
+    "duration_seconds": 70.24,
+    "skip": "tests/test_datahome.py::test_foreign_posix_path_on_windows: Windows-only path check on POSIX",
+    "scope": "Full source suite after integration of Docker provisioning, service port/fence and prerequisite SDK facade; network denied in source fixtures"
+  },
+  "integration": {
+    "passed": 49,
+    "subtests_passed": 5,
+    "duration_seconds": 43.23,
+    "scope": "Real synthetic Linux subprocess/loopback/SQLite; shared public SDK/router/native lifecycle; reviewed backup/uninstall stopped before effects when a service receipt appears"
+  },
+  "environment": {
+    "pid_proc_identity": "Matched outside isolated PID sandbox",
+    "docker_daemon": false,
+    "systemd_manager": false,
+    "windows": false
+  },
+  "limits": [
+    "Modeled Docker daemon and modeled systemd manager are source coverage, not installed-platform acceptance",
+    "Systemd runner additionally tested with real private D-Bus and owned child processes; no live systemd service registration",
+    "Prerequisite OS packages were not installed; safe synthetic subprocess and injected adapters only",
+    "No new frozen installer or visual browser acceptance in CP-008; JS behavior contract ran in Node",
+    "No real reboot, relogin, power loss or production product data",
+    "Subtests and separate focused scopes are not added to the full-test count"
+  ],
+  "production_ready": false,
+  "final_test_only_changes": {
+    "description": "Linux-only service modules skip before POSIX imports/decorators on other OS; Windows symlink fixture skips only when OS denies link creation",
+    "source_code_changed_after_full_suite": false,
+    "focused_passed": 70,
+    "focused_duration_seconds": 3.38,
+    "scope": "tests/test_service_manager.py tests/test_service_systemd.py tests/test_service_native_boundary.py",
+    "simulated_win32_collection_guards_passed": 2,
+    "real_windows_execution": false
+  }
+}

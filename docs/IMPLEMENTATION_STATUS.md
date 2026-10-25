@@ -1,7 +1,31 @@
 # Фактическое состояние реализации
 
-Дата: 25.10.2026. Ветка `codex/universal-installer-20261025`.
+Дата: 25.10.2026. Checkpoint: **CP-20261025-008**.
+Ветка `codex/universal-installer-20261025`. **`production_ready=false`.**
 Исходный commit: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
+
+## Текущие проверки CP-008
+
+В общий checkout интегрированы Docker install/uninstall, systemd user platform
+port с защитой границы native/user и prerequisite coordinator через общий SDK.
+Проверки выполнены на Linux x64 / Python 3.12.14:
+
+| Область | Результат | Что подтверждает |
+|---|---|---|
+| Полный root source suite | **1856 PASS, 1 skip, 10 subtests**, 70.24 s | Интегрированные исходники и контракты; моделируемые Docker/service ответы не являются live acceptance |
+| Отдельные Linux integration tests | **49 PASS, 5 subtests**, 43.23 s | Собственные реальные процессы, loopback HTTP и синтетические данные в согласованном PID/proc namespace |
+| SDK wheel вне checkout | **44 Python files, 18 resources**, 5 CLI вызовов, 0 network attempts | Совпадение package bytes, импорт новых модулей и офлайн-контракты; lifecycle установленного продукта этим не проверяется |
+
+Это разные области проверки; их counts не складываются. Точные команды и scope
+полного прогона — в [source receipt CP-008](../packaging/acceptance-evidence/source-20261025-cp008.json)
+и [WORK_LOG.md](WORK_LOG.md). Независимый review и отдельные regressions записаны
+в [review receipt CP-008](../packaging/acceptance-evidence/review-20261025-cp008.json).
+[Installed SDK receipt CP-008](../packaging/acceptance-evidence/sdk-installed-20261025-cp008.json)
+содержит wheel SHA-256
+`c4d862c6c0ea9c49b9126e0cae630fd70ef1b172e285d2f508606a68b6189268`,
+хеши 44 Python files и 18 resources; новые state-файлы при этой проверке не создавались.
+Исторические frozen/SDK результаты ниже относятся к своим прежним artifacts.
+Новая frozen CP-008 сборка и полная platform acceptance этими прогонами не приняты.
 
 ## Что сохранено и как используется
 
@@ -12,18 +36,21 @@
 | `shared/update_plan.py` | Сохранить, интегрировать | Последовательность update/rollback; новый фасад дополняет durable recovery и согласиями. |
 | `shared/adapters_fs.py` | Сохранить, интегрировать | Проверка полного дерева и staging; NativeEngine связывает с реальным процессом и health. |
 | `shared/archive.py`, `archive_crypto.py` | Сохранить, интегрировать | Проверяемые полные архивы, AES-GCM/scrypt; пароль через отдельный provider. |
-| `shared/adapters_docker.py` | Сохранить; требуется подключение | Существующая реализация не выдаётся за принятый Docker backend нового API. |
-| `shared/services.py`, Linux/Windows generators | Сохранить; требуется подключение | Генерация service scripts сама по себе не доказывает зарегистрированную службу. |
+| `shared/adapters_docker.py` | Сохранить legacy Compose интерфейс | Общий API использует отдельный DockerEngine через BackendRouter; legacy adapter не получает его гарантии автоматически. |
+| `shared/services.py`, Linux/Windows generators | Сохранить contracts и generators | Добавлен исполняемый SystemdUserManager; native/service orchestration и Windows SCM ещё не подключены. |
 | `shared/ctl.py`, doctor | Сохранить совместимость | Новый `hinstall` — публичный фасад; прежние команды остаются доступными. |
 | Пакет и discovery | Добавить | `pyproject.toml`, SDK, CLI, schemas, OpenAPI, `INSTALLER_API.md`; проверка установленного wheel вне checkout. |
 | Подпись поставки | Добавить | Ed25519 + SHA-256, manifest/target/runtime binding; production trust root ещё не выпущен. |
 | Диагностика и три языка | Добавить | SQLite + ограниченный fallback, 43 codes, ru/en/de, local statistics/export. |
-| GUI и end-user bootstrap | Реализован DEV Linux профиль | ru/en/de; frozen install/backup/uninstall/restore и browser export проверены; остальные платформы открыты. |
+| GUI и end-user bootstrap | Реализован DEV Linux профиль | ru/en/de; frozen install/backup/uninstall/restore и browser export проверены на исторических CP-004/005 artifacts; остальные платформы и новая frozen сборка открыты. |
 
 ## Проверяемое покрытие
 
 Доступен Linux x64 в изолированной облачной среде. Для исходных тестов
-в CP-006/007 используется Python 3.12.14; исторический CP-005 — Python 3.14.3. Это не компьютер владельца и не его Docker.
+в CP-006/007/008 используется Python 3.12.14; исторический CP-005 — Python 3.14.3.
+Это не компьютер владельца и не его Docker. Обычная sandbox shell имеет
+несовпадающие PID/proc namespaces; положительные process tests выполнялись
+отдельно там, где это соответствие проверено.
 
 NativeEngine реализует Linux **user-session**: установку, запуск/остановку,
 readiness по идентичности продукта/установки/релиза, update и автоматический
@@ -37,19 +64,103 @@ cancel/resume, неоднозначное завершение migration, вла
 
 Windows native, Docker на обеих ОС и службы уровня ОС ещё не приняты. API
 возвращает capability ограничения; результат unit tests не заменяет эти проверки.
-Начальные targets: Windows 11/Server с совместимым runtime и Linux Debian/Ubuntu
-с glibc; точные версии и архитектуры разрешаются только после отдельной сборки
-и проверки. ARM64 не объявлен принятым. Linux headless должен использовать CLI
-или безопасный доступ к мастеру по SSH; открывать мастер на внешнем интерфейсе нельзя.
+Начальные targets по [TARGET_MATRIX.md](TARGET_MATRIX.md): **Windows 11 x64** и
+**Ubuntu 24.04 LTS x86_64 с glibc**, для каждой ОС native/Docker и ru/en/de.
+Публичный начальный scope — `user`. Windows Server, другие дистрибутивы,
+ARM64, musl и macOS не входят в первую матрицу. Наличие target в плане разработки
+не означает принятую поддержку. Linux headless должен использовать CLI или
+безопасный доступ к мастеру по SSH; открывать мастер на внешнем интерфейсе нельзя.
+
+## Интегрированные platform ports CP-008
+
+### Docker install/uninstall
+
+`DockerEngine` через BackendRouter выполняет fresh install, start/stop, health,
+encrypted backup и uninstall с сохранением данных. Install создаёт только
+собственные network/container по reviewed plan; полный signed payload закреплён
+в плане и ownership receipt. Перед каждым effect сохраняется intent; неизвестный
+RPC требует сверки фактического ресурса и explicit resume, без слепого повтора.
+Verified payload, inventory и signature сохраняются до первого create RPC.
+Если исходный cache исчез, resume может использовать повторно проверенные owned
+recovery bytes. Uninstall проверяет foreign network/namespace consumers до stop
+и сохраняет DataHome, images и recovery metadata.
+
+Исполняемый профиль ограничен локальным rootful Linux daemon в тех же
+mount/network namespaces, проверенным endpoint и совпадающим non-root UID:GID
+установщика/контейнера. Install/start/backup требуют Engine >= 28.0.0. Проверка
+host identity через `/proc` остаётся реальным условием допуска: доступ к Docker
+socket или членство в docker group не гарантируют чтение root-owned dockerd.
+При недоступной проверке backend отказывает; trusted host adapter и live
+проверка обычного пользователя ещё требуются.
+
+Каждый image должен уже присутствовать с полным RepoDigest и image ID;
+используется `--pull=never`. Получение/import образов и полный offline image
+bundle не реализованы; образы не входят в recovery/data archive. Update,
+restore, rollback, repair, reinstall, migration/product-secret hooks и отдельная
+compensation failed install ещё не поддерживаются. Автозапуск после reboot
+не предоставляется (`restart=no`). Windows Desktop/WSL, VM, remote и rootless
+требуют отдельных adapters. Live Docker acceptance в текущей среде BLOCKED.
+Контракт: [DOCKER_ENGINE.md](DOCKER_ENGINE.md), проверки и ограничения:
+[DOCKER_PROVISIONING.md](DOCKER_PROVISIONING.md).
+
+### Systemd user port и граница native/user
+
+`SystemdUserManager` и доверенный runner реализуют register, enable/disable,
+start/stop/status/uninstall принадлежащих установке units. Проверяются весь
+installed signed release, effective unit/argv/environment, PID/cgroup и
+отсутствие чужих overrides. Port использует общий root lifecycle lock,
+durable pending/done receipts и explicit resume. Неизвестный stop или живой
+writer не дают разрешения на snapshot. DataHome, releases и recovery сохраняются.
+
+Native/user дополнительно отказывает при зарегистрированных units, pending
+операции или недостоверном service journal; параллельного управления данными
+двумя execution scopes не допускается. Это integration guard, а общий
+`native/service` backend ещё unavailable. Встраивание port в NativeEngine требует
+разделения существующего lock lease и полного lifecycle orchestration.
+Windows WinSW остаётся signed renderer, SCM adapter отсутствует. Настоящие
+systemd/product lifecycle, restart policy, logout/login, reboot/autostart и ACL
+не приняты. Private D-Bus и моделируемый manager не заменяют эти проверки.
+Подробности: [SERVICE_MANAGER.md](SERVICE_MANAGER.md).
+
+### Prerequisites через явную SDK registration
+
+`SignedPrerequisiteCatalog` и `PrerequisiteCoordinator` используют существующие
+trust/download primitives: полный payload binding, exact artifact pins и
+licence text, dependency order, отдельные согласия и fixed adapters без shell.
+Есть auto/manual/use/skip в допустимых границах, ручной recheck без download/exec,
+история попыток, сохранённые reboot/relogin states, now/later и explicit resume.
+Новый PID или повторное окно не заменяют смену boot/session marker; неизвестный
+исход не разрешает повтор installer.
+
+`InstallerAPI(prerequisites=coordinator)` делегирует тот же coordinator без
+второго executor. Регистрация приходит только от trusted bootstrap; production
+registry с настоящими версиями, hashes, условиями и publisher policy автоматически
+не создаётся. `READY` означает готовность prerequisites; перед product install
+нужны fresh discover и новый reviewed product plan. SDK facade готов в source;
+GUI auto-flow, неблокирующая host integration, Windows elevation/Authenticode/
+ACL/session providers, реальные OS package installs и reboot/relogin acceptance
+остаются открытыми. Эти методы не превращены в произвольный CLI/HTTP installer.
+Подробности: [PREREQUISITES.md](PREREQUISITES.md) и
+[INSTALLER_API.md](../INSTALLER_API.md).
 
 ## Что требуется для выпуска
 
 1. Принять reference через GUI во всех четырёх сочетаниях ОС/режима и трёх языках.
-2. Подключить/проверить Windows service и Docker backend, prerequisites и reboot.
-3. Принять реальные JobPilot/Rent, отдельные миграции и полное восстановление.
-4. Закрепить полный dependency inventory, лицензии и сборки всех платформ.
-5. Предоставить production publisher key/certificate и утверждённые юридические тексты.
-6. Подключить Git владельца в Docker и подтвердить оба remotes.
+2. Интегрировать systemd port в общий service lifecycle, реализовать Windows SCM
+   и принять реальные stop/restart/logout/reboot/autostart сценарии.
+3. Довести Docker host attestation, получение/offline transport images и оставшиеся
+   lifecycle actions; принять их на настоящем daemon и соответствующих Windows adapters.
+4. Завершить Windows native bootstrap, production prerequisite catalogue и GUI
+   auto-flow; принять elevation, ручной путь и настоящий reboot/relogin.
+5. Подключить и принять реальные JobPilot/Rent, отдельные миграции и полное
+   восстановление. [Аудит исходников](PRODUCT_AUDIT_20261025.md) закрывает HIM-006,
+   но не product acceptance; JobPilot build2 rollback FAIL остаётся открытым.
+6. Закрепить полный dependency inventory, лицензии и сборки всех платформ,
+   обязательный production licence checker, publisher key/certificate и юридические тексты.
+7. Диагностировать CI: [наблюдавшиеся runs CP-007](../packaging/acceptance-evidence/github-ci-20261025-cp007.json)
+   завершились до выделения runner/steps, source tests там не исполнялись;
+   точная причина доступным API не установлена.
+8. Подключить Git владельца в Docker и подтвердить оба remotes. Все G0–G5 остаются OPEN.
 
 Нельзя обещать абсолютную защиту от вирусов или криптографически доказать
 безопасность программы одной контрольной суммой. Проверка подписи устанавливает
@@ -58,7 +169,11 @@ Windows native, Docker на обеих ОС и службы уровня ОС е
 при каждой установке или принимать ключ из неподписанного скачивания.
 
 
-## Дополнение CP-004: выполненные проверки
+## Исторические проверки CP-004
+
+Этот и следующие исторические разделы описывают прежние исходники и artifacts.
+Их counts, hashes и receipts сохранены отдельно; они не являются новой
+проверкой CP-008 или доказательством live Docker/systemd/Windows acceptance.
 
 Полный source suite на Python 3.14.3: **1493 passed, 1 skipped, 10 subtests**, 35.41 s.
 Предшествовавший прогон выявил два пропуска диагностической проекции при пустой
@@ -94,7 +209,7 @@ Production лицензии остаются BLOCKED: удалены ненуж�
 фактический HTTP сайт v3.0.0/SQLite3 ready=true и user file сохранены.
 
 
-## Доказательства, добавленные после CP-004
+## Исторические доказательства CP-005 после CP-004
 
 - Настоящий frozen controller был SIGKILL во время stage. Новый process и новый
   browser context нашли прежний operation_id в RECOVERY_REQUIRED; автоматического
@@ -103,10 +218,10 @@ Production лицензии остаются BLOCKED: удалены ненуж�
   зашифрованный snapshot перед поздним откатом: внутри SQLite schema3, после
   восстановления рабочая БД schema2. Это доказательство сохранения состояния
   перед заменой, а не только проверки файлового расширения архива.
-- DockerCLI/contract/controller реализован для start/stop/backup уже подготовленных
+- На CP-005 DockerCLI/contract/controller был реализован для start/stop/backup уже подготовленных
   owned containers. Scoped163PASS+10subtests: реальные crypto/files/syntheticELF,
-  моделируемый daemon. Полный provisioning/update/restore не реализован, реального
-  Docker acceptance нет. См. DOCKER_ENGINE.md.
+  моделируемый daemon. Provisioning/update/restore на этом checkpoint ещё не были
+  реализованы, реального Docker acceptance не было. Текущая реализация описана выше.
 - GitHub CI наCP004 создал Linux/Windows jobs и завершился failure до runner/steps.
   Проверки там не исполнялись; scopeCI BLOCKED. Причина в доступном ответе неизвестна.
 
@@ -130,7 +245,7 @@ Source interleavings и отдельный browser response-contract прове�
 18 packaged resources, 17 guarded CLI invocations, 0 socket attempts; state не
 создан. Wheel/исходный snapshot и точные границы находятся в sdk-installed receipt.
 
-Точные последние test counts, artifact hashes, успешные сценарии и сохранённые
+Точные исторические test counts, artifact hashes, успешные сценарии и сохранённые
 исторические FAIL: packaging/acceptance-evidence/source-20261025-cp005.json,
 linux-frozen-20261025-cp005.json и sdk-installed-20261025.json. Отдельный final
 crash-run сначала увидел RUNNING немедленно после SIGKILL; позже owner уже отсутствовал.
@@ -153,11 +268,12 @@ package resources повторно проверены по точным bytes.
 fixtures сохранены. Точный executable/inventory hash — CP-005 frozen receipt.
 
 
-## Дополнение CP-007
+## Историческое дополнение CP-007
 
 BackendRouter связывает общий API/CLI/GUI с явными native/Docker backend; отдельные
 signed payload/terms выбранного режима и симметричный ownership guard проверены.
 Full source 1659 PASS, real Linux integration 47 PASS; последний focused 65 PASS.
 Точные scopes/subtests/bytes — CP-007 receipts. Installed wheel проверен вне
-checkout: 36 Python files, 18 resources, offline CLI без сети. Docker provisioning,
-OS services и prerequisites пока разрабатываются отдельно; live gates открыты.
+checkout: 36 Python files, 18 resources, offline CLI без сети. На этом checkpoint
+Docker provisioning, systemd port и prerequisites ещё разрабатывались отдельно.
+Они интегрированы в CP-008 в пределах, описанных выше; live gates остаются открытыми.

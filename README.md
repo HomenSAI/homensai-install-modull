@@ -3,10 +3,12 @@
 Общий подключаемый модуль установки и обслуживания веб-приложений.
 Автор: Serhii Khomenko / HomenS.AI. SDK `0.1.0`, API `1.0`.
 
-**Статус: версия разработки.** На Linux x64 проверен настоящий frozen DEV
-установщик с собственным Python runtime и эталонным веб-приложением с SQLite.
-Windows native, полный Docker lifecycle и автоматический запуск через службу ОС
-пока не приняты. Production release не готов.
+**Статус: версия разработки, CP-20261025-008; `production_ready=false`.**
+В общий SDK интегрированы Docker install/uninstall, исполняемый systemd user port
+и coordinator подготовки зависимостей. Их source-проверки пройдены; настоящая
+приёмка Docker, OS services и Windows остаётся открытой. Frozen DEV-установщик
+Linux с собственным Python и reference SQLite-приложением проверен на
+исторических artifacts CP-004/005; эти результаты не переносятся на новую сборку.
 
 ## Два основных документа
 
@@ -35,6 +37,27 @@ hinstall init-adapter --help
 Scaffold без настоящих artifacts/hashes создаёт явный DRAFT/BLOCKED, а не
 подставляет фиктивные пригодные к выпуску значения.
 
+## Targets и текущие проверки
+
+Первая матрица разработки — **Windows 11 x64** и **Ubuntu 24.04 LTS x86_64**,
+на каждой ОС native и Docker, во всех четырёх вариантах ru/en/de. Начальный
+публичный scope — `user`; отдельные service profiles требуют собственной
+интеграции и приёмки. Windows Server, другие дистрибутивы и ARM64 не входят
+в первую матрицу. Подробности и доступные среды: [TARGET_MATRIX.md](docs/TARGET_MATRIX.md).
+
+Проверки CP-008 на Linux / Python 3.12.14:
+
+| Область | Результат |
+|---|---|
+| [Полный source suite](packaging/acceptance-evidence/source-20261025-cp008.json) | **1856 PASS, 1 skip, 10 subtests**, 70.24 s |
+| Реальные Linux integration tests | **49 PASS, 5 subtests**, 43.23 s |
+| SDK wheel, установленный вне checkout | **44 Python files, 18 resources**, 5 offline CLI вызовов, 0 network attempts |
+
+Эти проверки имеют разный scope. Они не заменяют clean-host, frozen CP-008,
+Windows, live Docker или systemd acceptance. Точные границы и исторические
+результаты — в [IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md);
+побайтовая проверка SDK — в [receipt CP-008](packaging/acceptance-evidence/sdk-installed-20261025-cp008.json).
+
 ## Что реализовано
 
 - Публичные SDK/CLI/API, строгие manifests, plan digest, согласия, журнал операций,
@@ -48,10 +71,23 @@ Scaffold без настоящих artifacts/hashes создаёт явный DR
 - Согласованные зашифрованные архивы AES-GCM/scrypt, сохранное удаление,
   проверка recovery payload и восстановление на принятом Linux сценарии.
 - Каталог из 43 ошибок на трёх языках, SQLite diagnostics и ограниченный fallback.
-- Безопасный downloader с hashes/size/host policy, offline cache; readonly
-  prerequisites/manual recheck. Автоматическая установка ОС-зависимостей ещё открыта.
-- Docker controller для запуска, остановки и encrypted backup заранее подготовленных
-  owned containers; source tests выполнены, полноценный provisioning и live acceptance открыты.
+- [Prerequisite coordinator](docs/PREREQUISITES.md): signed catalogue, dependency
+  order, отдельные согласия, auto/manual/recheck, проверенный downloader/cache и
+  фиксированные adapters без shell; durable reboot/relogin и explicit resume.
+  Он подключается явно через тот же SDK. Production registry, GUI auto-flow,
+  реальные OS package installs и reboot/relogin acceptance ещё не завершены.
+- [DockerEngine](docs/DOCKER_ENGINE.md) через общий BackendRouter: fresh install
+  из заранее имеющихся pinned images, start/stop, encrypted backup и uninstall
+  с сохранением данных, образов и signed recovery. Неизвестный RPC требует
+  reconciliation; чужие ресурсы не присваиваются. Профиль ограничен локальным
+  rootful Linux daemon и проверкой host/process identity; доступа к socket или
+  членства в docker group недостаточно для её подтверждения. Получение/import
+  образов, update/restore/rollback/repair/reinstall и live acceptance открыты.
+- [Systemd user port](docs/SERVICE_MANAGER.md): регистрация, enable/disable,
+  start/stop/status/uninstall собственных units, общий lifecycle lock и durable
+  receipts. Native/user отказывает при зарегистрированных или незавершённых
+  service resources. Общий `native/service` backend, Windows SCM и настоящие
+  logout/reboot/autostart проверки пока не реализованы или не приняты.
 - Подписанный executable ProductAdapter protocol, генератор тонкого подключения,
   Git checkpoint/resume tooling, точные build locks и отдельный fail-closed
   checker `tools/check_licenses.py`. Его обязательное включение в production pipeline
@@ -64,7 +100,7 @@ Scaffold без настоящих artifacts/hashes создаёт явный DR
 
 ## Интерфейс на трёх языках
 
-Настоящие снимки Linux DEV-мастера: [русский](docs/screenshots/wizard-ru.png),
+Исторические снимки Linux DEV-мастера CP-004/005: [русский](docs/screenshots/wizard-ru.png),
 [English](docs/screenshots/wizard-en.png), [Deutsch](docs/screenshots/wizard-de.png).
 Это результаты проверенных действий с эталонным приложением; они не означают
 завершённую приёмку Windows или Docker.

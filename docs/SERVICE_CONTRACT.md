@@ -5,9 +5,12 @@
 конкретные тексты конфигураций и receipts владения. Он **не устанавливает службы**,
 не вызывает SCM/systemctl и возвращает `execution_supported=false`.
 
-Этим сохраняется различие между проверенным source renderer и работающим
-Windows/Linux service adapter. NativeEngine остаётся Linux user-session backend
-до выполнения live-host gates.
+Linux SDK apply теперь реализован в отдельном
+[`SystemdUserManager`](SERVICE_MANAGER.md): exact consent, installed-release
+reverification, effective manager ownership, durable effects и explicit resume.
+Сам renderer по-прежнему не вызывает ОС. NativeEngine service integration и
+live-host acceptance остаются отдельными gates; наличие исполняемого port
+не делает полный Windows/Linux service lifecycle готовым.
 
 ## Файл внутри signed payload
 
@@ -116,6 +119,9 @@ specifiers; отдельный `;` сохраняется как аргумен�
 обрабатываются по их собственным правилам. Shell не добавляется. User unit
 использует `Type=exec`, `WantedBy=default.target`, `NoNewPrivileges=true`,
 `UMask=0077` и ограниченную политику рестартов из манифеста.
+Linux receipt также содержит точный технический environment, stop timeout и
+restart параметры для проверки effective manager configuration. PATH фиксирован;
+start/stop timeout failure mode задан явно. Тексты product secrets запрещены.
 
 WinSW XML создаётся XML serializer. Аргументы экранируются по Windows CRT rules.
 Percent expansion в пользовательских путях/argv запрещена: `%NAME%` у WinSW

@@ -131,6 +131,9 @@ def test_real_synthetic_process_has_explicit_flags_and_arguments(setup_cli):
     ("container", "inspect", "--format", FORMAT, "--", CID),
     ("network", "inspect", "--format", FORMAT, "--", CID),
     ("container", "ls", "--all", "--no-trunc", "--format", "{{.ID}}"),
+    ("network", "ls", "--no-trunc", "--format", "{{.ID}}"),
+    ("container", "rm", "--", CID),
+    ("network", "rm", "--", CID),
     ("container", "start", "--", CID),
     ("container", "kill", "--signal=SIGTERM", "--", CID),
     ("container", "exec", "--", CID, "/app/probe", "--host", "ordinary-product-argument"),
@@ -141,7 +144,8 @@ def test_controller_command_grammar_is_supported(setup_cli, args):
 
 @pytest.mark.parametrize("args", [
     "info", [], ["pull", "image:latest"], ["container", "create", "image"],
-    ["container", "rm", "--force", CID], ["build", "."],
+    ["container", "rm", "--force", CID], ["network", "rm", "--force", CID],
+    ["container", "rm", "--volumes", "--", CID], ["network", "rm", "--", "bridge"], ["build", "."],
     ["info", "--host", "tcp://remote:2375"], ["info", "--format", FORMAT, "--context", "other"],
     ["container", "start", "--host", "tcp://remote:2375", CID],
     ["container", "start", "--", "container-name"], ["container", "kill", "--signal=SIGKILL", "--", CID],

@@ -1,9 +1,9 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261025-007`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261025-008`; ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый GitHub/local до создания CP-007:
-`ae70b7ae30902259e62ea6323c5f001573b96251` (CP-006).
+Последний подтверждённый local/GitHub до создания CP-008:
+`4fa7cc26bc4fb8fa8ae2ddca3a531a9a2afe5625` (CP-007).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
@@ -14,98 +14,129 @@ IMPLEMENTATION_STATUS.md, WORK_LOG.md и INSTALLER_API.md. Проверить br
 dirty/staged files и активные процессы. Не сбрасывать чужие изменения и не
 завершать произвольный PID. Частичный PASS не означает готовность выпуска.
 
+106 задач: 7 DONE, 63 IN_PROGRESS, 4 BLOCKED, 32 TODO. HIM-006/007 закрыты
+только как source audit и design target matrix. Все G0–G5 OPEN.
+Список задач только в HomenSAI_Universal_Installer_TODO_RU.txt.
+
 ## Среда и сохранение
 
-Облачный Linux x64. В возобновлённой сессии Python 3.12.14; исторические CP-005
-receipts используют Python 3.14.3. Не смешивать результаты этих сред.
-Это не Windows владельца и не его Docker/Forgejo. Cloud Git не заменяет локальный
-Git владельца. GitHub доступен через connector; shell HTTPS credentials отсутствуют.
-Канонические commit/tree/parent/ref проверяются после каждого push. Транспорт
-connector сохраняет draft checkpoint ref и затем импортирует точный remote commit.
-В обычной среде используйте tools/checkpoint.py и docs/CHECKPOINTS.md.
+Cloud Ubuntu 24.04.3 LTS x64, Python 3.12.14. Исторические CP-005 receipts
+относятся к Python 3.14.3; результаты сред не смешивать. Начальная target matrix:
+Windows 11 x64 и Ubuntu 24.04 LTS x86_64, четыре native/Docker пути, ru/en/de.
+Это не Windows владельца и не его Docker/Forgejo. Docker CLI/socket и настоящий
+systemd manager здесь отсутствуют; Windows runner не подключён.
 
-## Возобновлённая сессия CP-006
+Sandbox PID не совпадает с mounted /proc. Реальные process tests выполнены
+за этой изоляцией после проверки совпадения PID/proc, только с собственными
+синтетическими процессами и loopback. Это не clean-host acceptance.
 
-Восстановление 205 blobs/точного commit/tree завершено. В Python 3.12.14
-исправлены 41 baseline failures Windows renderer через существующий совместимый
-reserved-name validator; focused 97 PASS +10 subtests. Полный повтор после интеграции.
-Активны независимые worktree Docker, services и prerequisites; их незакоммиченные
-изменения не удалять и не считать интегрированными до проверки root commit.
+GitHub доступен через connector; shell HTTPS credentials отсутствуют. Точный
+commit/tree/parent/ref проверять после push. Connector может назначить свои
+commit metadata: импортировать точный remote commit только при совпадении tree,
+не переписывать рабочие файлы и сохранять локальный checkpoint ref. В обычной
+среде использовать tools/checkpoint.py и docs/CHECKPOINTS.md.
+Cloud Git не заменяет отдельный Git владельца в Docker: он SYNC_BLOCKED.
 
-## Проверенное дополнение CP-007
+## Что возобновлено и интегрировано
 
-BackendRouter подключён к SDK/CLI/GUI: явный target, без implicit fallback,
-reviewed backend binding и совместимость старых native/user plans. Docker CLI
-принимается только из pinned локального bootstrap config; Docker terms и payload
-в мастере отделены от native и повторно проверяются. Ownership root защищён
-симметрично от native/Docker overlap. См. docs/BACKEND_ROUTING.md.
+CP-006 восстановил точные 205 blobs/commit/tree CP-005. Python 3.12 baseline
+выявил 41 Windows renderer failure: ntpath.isreserved заменён существующим
+совместимым строгим validator. CP-007 добавил BackendRouter с reviewed target,
+явным trusted Docker bootstrap и отдельными signed payload/terms выбранного
+режима. Неподдержанный backend не заменяется другим автоматически.
 
-Full source: 1659 PASS, 1 skip, 10 subtests; real Linux integration: 47 PASS,
-5 subtests. Последняя поправка CLI error envelope проверена focused 65 PASS.
-SDK установлен вне checkout: 36 Python files/18 resources, 5 offline CLI calls,
-0 network attempts. PID/proc внутри sandbox не совпадает; реальные process tests
-выполнены вне этой изоляции с проверенным совпадением. Windows/Docker/service
-приёмка этим не доказана. Все точные scopes — в CP-007 receipts.
+CP-008 объединяет независимые source units в общем root checkpoint:
 
-## Что не нужно выполнять заново без изменения соответствующего кода
+- DockerEngine install/uninstall-preserve в прежнем executor/journal, exact
+  preloaded images, --pull=never, ownership/inspect/reconcile, signed retained
+  recovery при потере cache, полный payload pin. Исправлены intent collision
+  для component network и чужие namespace references по name/short ID.
+- SystemdUserManager и trusted fixed runner: register/start/stop/enable/disable/
+  uninstall, typed D-Bus, effective config, cgroup/process identity, durable
+  receipts. Общий native root lock и native/user fence исключают параллельное
+  управление registered/pending service writers. Полный payload закреплён
+  в review; отклонённый fresh apply не создаёт ложный recovery fence.
+- Signed PrerequisiteCoordinator: graph, auto/manual/recheck, отдельные terms,
+  fixed adapters, durable attempts, cancel/resume/replan и reboot/relogin states.
+  InstallerAPI делегирует тот же coordinator; READY не означает product SUCCESS.
+  Это explicit synchronous SDK, без production registry и готового GUI auto-flow.
+- Wizard action capabilities: режим доступен, если доступно хотя бы одно действие;
+  выбранное неподдержанное действие блокируется, смена action/mode сбрасывает review.
+- Актуальные product audit, target matrix и architecture boundaries сохранены.
+  JobPilot dev 43d079c477d3e6489c1960e59a84c4f539d8d37b; Rent main
+  a456f69480006b3a67558485368609b2d05874be. Продуктовые процессы не запускались.
 
-- Source suite и реальные Native/API/HTTP integration прошли; точные последние
-  counts, scope и timings — packaging/acceptance-evidence/source-20261025-cp005.json.
-- Frozen Linux user-session: install/backup/uninstall-preserve/restore/stop;
-  v1→v2→v3; bad-health update→FAILED_ROLLED_BACK; repair; late rollback→v2.
-  Before-rollback архив действительно содержит SQLite schema3, live после rollback — schema2.
-- Новый bootstrap обслуживает проверенную старую active release: stop(de),
-  start(en), backup(ru), stop(en). План раскрывает effective_active и повторно
-  сверяется под lifecycle lock. Incoming runtime/commands/secret refs не подменяют active.
-- Restore/late rollback сохраняет архивные credential refs; отсутствующий старый
-  secret блокирует операцию до остановки текущего продукта.
-- Inactive cancel освобождает API claim без утверждения undo. Задержанный owner
-  check использует snapshot CAS и не перезаписывает новый resumed worker.
-  При RUNNING после cancel GUI продолжает polling; отдельный browser contract PASS.
-- Linux liveness: actual owned unreaped zombie больше не считается живым;
-  read/permission failures остаются консервативными. 12 новых cases входят
-  в отдельные integration tests, запущенные в совпадающем PID/proc namespace.
-- Реальный frozen SIGKILL→new process/browser→explicit resume принят в указанных
-  receipts. Исторический FAIL немедленного наблюдения RUNNING также сохранён.
-  Process kill не равен отключению питания или reboot.
-- SDK wheel установлен вне checkout: 9 групп, 35 Python files/18 ресурсов,
-  ru/en/de, offline schemas/OpenAPI/docs, DRAFT scaffold exit2, 0 socket attempts.
-  Точный SHA — sdk-installed-20261025.json; lifecycle этим не доказывается.
-- DockerCLI/contract/controller: start/stop/encrypted backup подготовленных owned
-  containers; 163 scoped tests +10subtests. Daemon моделируемый, live Docker не было.
-- Exact build lock, licence checker, ProductAdapter/scaffold и checkpoint tooling
-  сохранены. Gates лицензий 04/05 BLOCKED, production_ready=false.
+Изменения worktree уже включены в CP-008. Не cherry-pick их повторно вслепую;
+сначала проверить root tree/history. Главная очередь — канонический ToDo.
 
-## Следующий инженерный этап
+## Последняя проверка
 
-1. Проверить фактический SHA CP-007 и оба доступных Git refs; Docker Git владельца
-   подключать отдельно по реальной схеме доступа, не считать cloud loopback его хостом.
-2. Диагностировать GitHub CI: CP-004 run40170554823 завершился failure до выделения
-   runner/steps. Это не падение source tests. Доступный API не раскрывает причину.
-3. Реализовать регистрацию/жизненный цикл системных служб Linux/Windows и принять
-   reboot/autostart/restart. Генераторы unit/WinSW config уже есть, принятия служб нет.
-4. Довести Docker provisioning, pinned images/Compose, install/update/restore/
-   rollback/uninstall, явный backend selection; принять на настоящем daemon.
-5. Завершить Windows native bootstrap, UAC/ACL, полный prerequisites auto-install,
-   ручной/recheck путь, relogin/reboot и обе Windows ветки.
-6. Принять clean-host/cross-target recovery и реальные JobPilot/Rent по свежим
-   исходникам. Общий модуль не должен содержать особые ветки конкретных продуктов.
-7. Закрыть точный runtime/frozen licence inventory/notices, current security baseline,
-   production publisher keys/certificates и утверждённые юридические тексты.
+Полный source: 1856 PASS, 1 Windows-only path skip, 10 subtests, 70.24s.
+Real Linux integration: 49 PASS, 5 subtests, 43.23s. Включены новые случаи:
+служба регистрируется после reviewed backup/uninstall → отказ до stop/data effects.
+Тесты используют synthetic app; рабочие JobPilot/Rent и их порты не затронуты.
 
-Это инженерные работы и отдельные внешние блокировки; не называть весь остаток
-только отсутствием доступа. 106 задач: все критерии проверять по карточкам;
-Windows/Docker/system services и все G0–G5 не закрыты.
+SDK wheel построен и установлен вне checkout: 44 Python files/18 resources
+сверены побайтно с исходниками и wheel, 5 CLI calls, ru/en/de, 0 network attempts,
+state при offline discovery не создан. SHA-256:
+`c4d862c6c0ea9c49b9126e0cae630fd70ef1b172e285d2f508606a68b6189268`.
+Это SDK, не новый frozen installer. JS проверен в Node DOM/response contract,
+новая визуальная browser acceptance CP-008 не выполнялась.
 
-## Сохранённые ограничения и расследования
+Точные scopes и поздние test-only platform guards находятся в receipts:
+source-20261025-cp008.json, sdk-installed-20261025-cp008.json,
+review-20261025-cp008.json. Modeled Docker/systemd не являются live acceptance;
+private D-Bus и собственный child подтверждают только узкий runner boundary.
+
+Исторические CP-005 frozen receipts сохраняют Linux GUI install, backup,
+uninstall-preserve, restore, v1→v2→v3, bad-health automatic rollback, repair,
+late rollback и SIGKILL→new controller/browser→explicit resume. Старый FAIL
+мгновенного чтения RUNNING после SIGKILL сохранён. Этот результат не переносится
+на новые CP-008 bytes; повтор нужен при выпуске нового frozen artifact.
+
+## Следующие инженерные шаги
+
+1. Проверить текущий CP-008 local/GitHub ref/tree и результат нового CI run.
+   Последние наблюдённые CP-007 runs40186123426/40186125750 completed/failure
+   до runner allocation: runner_id=0, steps=[]. Причина через API неизвестна.
+   Не менять workflow/платёжные настройки по догадке; HIM-086 BLOCKED.
+2. Подключить systemd platform port к общему NativeEngine service lifecycle.
+   Сейчас native/service unavailable. Затем принять реальный systemd user
+   manager, logout/relogin/reboot, restart policy и product quiescence.
+   Windows SCM/WinSW, UAC/ACL/secret loader — отдельная незавершённая реализация.
+3. Docker: реализовать trusted host attestation для обычного пользователя;
+   docker group не гарантирует чтение root dockerd /proc. Нужны approved image
+   transport/import/offline bundle, update/restore/rollback/repair/reinstall и
+   явный abort/compensation failed install. Retained recovery не содержит образы,
+   restart=no, установка поверх оставшихся данных не допускается автоматически.
+4. Завершить Windows native bootstrap и узкое повышение прав. Подготовить
+   production signed prerequisite catalogue с реальными pins/licence decisions,
+   host providers, publisher checks, Windows boot/login markers и общий GUI/CLI
+   auto/manual flow. READY должен запускать fresh product preflight; реальный
+   reboot/logoff требует принятой host integration, coordinator их не выполняет.
+5. Интегрировать thin product adapters JobPilot/Rent по source audit без
+   product-specific веток общего ядра. JobPilot native worktree недоступны,
+   build2 rollback FAIL остаётся. Новый Rent payload требует приёмки миграции0036;
+   существующий business archive не равен полному DataHome/secrets archive.
+6. Выполнить clean-host reference и product acceptance по точным artifacts:
+   четыре targets × три языка, users/paths/ports, offline, migrations, recovery,
+   retained data, service profiles и аппаратные reboot/power-loss boundaries.
+7. Закрыть exact runtime/frozen/image licences/notices, обязательный release
+   checker, production publisher keys/certificates и утверждённые legal texts.
+   Production ready=false; ключи и решения не заменять фиктивными approvals.
+
+Это реальные инженерные работы плюс внешние блокировки; весь остаток нельзя
+объяснять только отсутствием доступа. Docker Git владельца подключать отдельно
+по установленной схеме; cloud loopback не является его Forgejo.
+
+## Сохранённые ограничения
 
 В прежних workspace large-bundle fixtures обнаружены лишние временные файлы с
 неустановленным источником; один update остановился на backup:0. Failed fixtures
-сохранены. Не удалять неизвестные файлы и не ослаблять inventory ради PASS.
-Последовательные проверки в новом /tmp прошли; это не устанавливает старую причину.
-Временные /tmp fixtures не заменяют переносимые receipts/commands в Git.
+не удалять и inventory ради PASS не ослаблять. Последующие прогоны в новом /tmp
+прошли, что не устанавливает прежнюю причину.
 
-Private publisher key, архивные пароли, product secrets, launch URL tokens не
-добавлять в repo/logs. Не открывать мастер на внешнем интерфейсе. Main/release
+Private publisher key, архивные пароли, product secrets и launch URL tokens
+не добавлять в Git/logs. Не открывать мастер на внешнем интерфейсе. Main/release
 не публиковать без соответствующего разрешения. Продолжать независимую работу,
-если заблокирован отдельный runner/remote; не объявлять код готовым выпуском.
+если заблокирован отдельный runner/remote; не выдавать source PASS за выпуск.

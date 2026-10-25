@@ -1,7 +1,8 @@
-"""Read-only preflight и честный manual/recheck план зависимостей.
+"""Read-only preflight и совместимый manual/recheck план зависимостей.
 
-Автоустановка системных пакетов не заявлена: без проверенного платформенного
-адаптера она отклоняется. Никаких sudo/apt/WSL install/curl|shell здесь нет.
+Эти функции не исполняют системные installers. Подписанный каталог, fixed argv
+и durable execution coordinator находятся в prerequisite_catalog/runner/
+execution. Без их явной доверенной регистрации automatic здесь отклоняется.
 """
 from __future__ import annotations
 

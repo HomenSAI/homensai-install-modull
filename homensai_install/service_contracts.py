@@ -1,8 +1,8 @@
 # HomenS.AI · © 2026 Serhii Khomenko
 """Подписанный contract служб и чистые renders; SCM/systemd не вызываются.
 
-Это вход для будущего привилегированного adapter, а не evidence установки.
-Перед live apply adapter обязан снова проверить trust, ownership и consent.
+Linux apply реализован отдельным service_manager platform port. Сам renderer
+не является evidence установки или приёмки системного manager.
 """
 from __future__ import annotations
 
@@ -196,6 +196,7 @@ def render_service_plan(contract, *, install_root, installation_id, modes):
     if not isinstance(contract, VerifiedServiceContract):
         _fail("INTEGRITY_FAILED", "verified_service_contract_required")
     manifest, document = contract.manifest, contract.document
+    payload_sha256 = hashlib.sha256(canonical_bytes(dict(contract.files))).hexdigest()
     if manifest["secrets"]:
         _fail("CAPABILITY_UNSUPPORTED", "service_credential_loader_required")
     order = component_order(manifest, tuple(modes))
@@ -222,12 +223,18 @@ def render_service_plan(contract, *, install_root, installation_id, modes):
                        "HOMENSAI_WEB_HOST": "127.0.0.1", "HOMENSAI_WEB_PORT": str(manifest["web"]["port"]),
                        "HOMENSAI_MAINTENANCE": "1", "PYTHONNOUSERSITE": "1",
                        "PYTHONDONTWRITEBYTECODE": "1", "PYTHONUNBUFFERED": "1"}
+        if document["backend"] == "systemd-user":
+            environment["PATH"] = "/usr/bin:/bin"
         receipt = {"schema_version": 1, "product_id": manifest["product_id"],
                    "installation_id": installation_id, "component_id": name,
                    "service_id": sid, "backend": document["backend"],
                    "contract_sha256": contract.contract_sha256, "executable": start_argv[0],
+                   "payload_sha256": payload_sha256,
                    "working_directory": str(release), "automatic_adoption": False,
                    "start_argv": start_argv, "stop_argv": stop_argv,
+                   "environment": environment,
+                   "stop_timeout_seconds": stop["stop_timeout_seconds"],
+                   "restart": dict(item["restart"]),
                    "environment_sha256": hashlib.sha256(canonical_bytes(environment)).hexdigest()}
         if document["backend"] == "systemd-user":
             deps = " ".join(identity[dep] + ".service" for dep in item["after"])
@@ -239,6 +246,8 @@ def render_service_plan(contract, *, install_root, installation_id, modes):
                      "ExecStart=" + command(start_argv),
                      "WorkingDirectory=" + _unit_arg(str(release)).replace("$$", "$"),
                      "KillMode=control-group", "KillSignal=SIGTERM", "SendSIGKILL=no",
+                     "TimeoutStopFailureMode=terminate", "TimeoutStartFailureMode=terminate",
+                     "TimeoutStartSec=" + str(stop["stop_timeout_seconds"]),
                      "TimeoutStopSec=" + str(stop["stop_timeout_seconds"]), "UMask=0077",
                      "NoNewPrivileges=true", "Restart=on-failure", "RestartSec=" + str(item["restart"]["delay"]),
                      "UnsetEnvironment=PYTHONPATH PYTHONHOME LD_PRELOAD LD_LIBRARY_PATH",
@@ -292,6 +301,7 @@ def render_service_plan(contract, *, install_root, installation_id, modes):
         files[filename] = text
         services.append(receipt)
     return {"schema_version": 1, "kind": "service-render-plan", "backend": document["backend"],
+            "payload_sha256": payload_sha256,
             "files": files, "services": services, "start_order": [identity[name] for name in order],
             "stop_order": [identity[name] for name in reversed(order)],
             "execution_supported": False, "production_ready": False,

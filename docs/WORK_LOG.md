@@ -229,3 +229,89 @@ Receipts: source-20261025-cp007.json, sdk-installed-20261025-cp007.json. Это�
 Перед созданием CP-007 проверены local/GitHub CP-006 ae70b7ae30902259e62ea6323c5f001573b96251.
 Текущая синхронизация фиксируется только после commit/ref/tree verification;
 Docker Git владельца отдельно SYNC_BLOCKED. Main и release не изменены.
+
+
+## CP-20261025-008 — интеграция Docker, services, prerequisites и свежий аудит
+
+Предыдущий CP-007 4fa7cc26bc4fb8fa8ae2ddca3a531a9a2afe5625 подтверждён
+local/GitHub. По поручению владельца продолжен весь доступный инженерный цикл:
+исходники восстановлены, обязательный остаток сверён, независимые worktrees
+объединены без потери root изменений. Main и production release не изменялись.
+
+Docker install/uninstall-preserve включены в прежний DockerEngine executor:
+конкретный reviewed provisioning spec, exact preloaded images, --pull=never,
+INTENT перед RPC, inspect перед receipt, приватные fsync files и retained signed
+recovery до первого create. Source cache loss не меняет binding старого плана.
+Независимый review выявил три дефекта: новый signed payload под прежним release
+сохранял старое согласие; component network конфликтовал с infrastructure intent;
+foreign namespace consumers по name/short ID не учитывались. Все три исправлены.
+Repository Docker suite: 212 PASS, 30.31 s; независимые 6 reproducers и 11 focused repository cases — PASS.
+Эти числа не складываются с полным root suite. Live Docker не запускался.
+
+SystemdUserManager/Runner выполняет отдельный platform contract register/start/
+stop/enable/disable/uninstall. Typed D-Bus, fixed trusted binaries/environment,
+effective configuration, cgroup/process ownership, quiescence и durable receipts
+проверены. Порт использует общий lifecycle root lock. Native user-session
+отказывает при registered или pending service journal, в том числе после remove
+до завершения reload. Два реальных integration cases сохраняют работающий
+synthetic процесс и данные, если receipt появляется после reviewed backup/uninstall.
+
+На service границе full-payload pin сначала отсутствовал: четыре новых теста
+с действительной повторной подписью runtime/new notice воспроизвели FAIL.
+Full file-map SHA добавлен в review и service receipts, fresh/resume теперь
+PLAN_STALE без нового manager эффекта. Независимый review обнаружил следующий
+blocker: отклонённый fresh apply создавал lock directory без state.json и
+блокировал NativeEngine как RECOVERY_REQUIRED. Read-only validation перенесена
+под общий root lock до создания service directory; после service lock состояние
+проверяется ещё раз. Fresh rejection не оставляет fence; interrupted journal
+сохраняет fail-closed поведение. Focused: 100 PASS, 3.32 s; reviewer подтвердил fix.
+
+Signed prerequisite catalogue/coordinator: graph, individual licence/plan
+consents, pinned downloads/local artifacts, fixed adapters без shell, single
+active claim, durable intents/attempt history, explicit resume/recheck/replan,
+cancel на безопасной границе, boot/login markers и known/unknown system changes.
+Общий SDK делегирует тот же coordinator. READY не создаёт product operation и
+требует последующего fresh preflight. Реальные OS packages не устанавливались;
+production registry, Windows host providers и GUI auto-flow ещё не подключены.
+
+Wizard JS теперь отдельно учитывает mode и выбранный action: maintenance
+доступен при unavailable install; Next блокирует неподдержанный action; смена
+mode/action сбрасывает review. Проверен настоящий script в Node с моделируемыми
+DOM/response; это не новая визуальная browser/frozen acceptance.
+
+Аудит 26 source blobs: JobPilot dev 43d079c477d3e6489c1960e59a84c4f539d8d37b,
+Rent main во время проверки продвинулся к a456f69480006b3a67558485368609b2d05874be.
+Новая Rent migration 0036 требует нового payload acceptance. JobPilot native
+worktree недоступны, build2 rollback FAIL не закрыт. Различия data/archive/secrets/
+service contracts зафиксированы; продуктовые процессы и реальные данные не трогали.
+HIM-006 DONE как audit; HIM-007 DONE как target matrix design. Архитектура HIM-008,
+Windows/Linux Docker prerequisites HIM-031/032 и reboot/relogin HIM-034 IN_PROGRESS.
+Итого 106: 7 DONE / 63 IN_PROGRESS / 4 BLOCKED / 32 TODO. G0–G5 OPEN, production_ready=false.
+
+Финальный full root source на Python 3.12.14: 1856 PASS, 1 Windows-only path skip,
+10 subtests, 70.24 s. Отдельно real synthetic Linux integration 49 PASS, 5 subtests,
+43.23 s; PID/proc совпадают вне обычной sandbox. Поздняя проверка portability
+исправила import-time /proc обращение Linux-only test modules на Windows:
+ранний module skip, отдельно simulated win32 boundary с запрещёнными project
+imports/readlink. Windows symlink fixture при отсутствии прав явно пропускается.
+Продуктовый код после полного прогона не менялся; targeted source результат
+после test-only guards записан в source receipt. Windows execution не заявляется.
+
+Новый SDK wheel установлен вне checkout: 44 Python files / 18 resources exact bytes,
+5 offline CLI calls, 3 локали, 0 network attempts, нет нового state. SHA256
+c4d862c6c0ea9c49b9126e0cae630fd70ef1b172e285d2f508606a68b6189268.
+Первые два запуска временного verification harness остановились на его собственных
+ошибках (socket monkeypatch до ssl import и сравнение discovery без учёта поля
+documentation); harness исправлен, финальные проверки PASS без изменения SDK.
+Source/SDK/review receipts сохранены; исторический frozen CP005 не перезаписан.
+
+CP007 GitHub push/PR runs 40186123426 / 40186125750 снова completed/failure до
+runner allocation: runner_id=0, steps=[]. CI BLOCKED, точная причина неизвестна;
+это не падение исполненных тестов. Windows, live Docker/systemd, reboot/power-loss,
+полная image transport/lifecycle, service engine integration, production registry,
+product acceptance, licences/signing/approved legal и Docker Git владельца открыты.
+
+Канонический ToDo/RESUME/state и текущая документация обновлены вместе с кодом.
+CP008 sync считается подтверждённым только после независимой проверки remote
+ref/commit/tree; до этого tracked state SYNC_PENDING. Собственный SHA не
+записывается рекурсивным commit, результат push сохраняется внешней квитанцией.

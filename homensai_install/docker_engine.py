@@ -1,9 +1,8 @@
 # HomenS.AI · © 2026 Serhii Khomenko
-"""Контроллер уже подготовленных принадлежащих установке Docker resources.
+"""Docker backend общего SDK: provisioning и lifecycle собственных ресурсов.
 
-Реальные CLI операции: inspect/start/SIGTERM/exec health. Pull/create/remove,
-provisioning, update и restore здесь не реализованы и не объявляются доступными.
-По умолчанию нет runner/verifier: ни implicit context, ни host Python fallback.
+Install использует уже проверенные локальные образы, без pull. Все действия
+проходят через один durable executor; production readiness требует live gates.
 """
 from __future__ import annotations
 
@@ -23,10 +22,10 @@ import time
 import urllib.error
 import urllib.request
 
-from .docker_contract import (CONTRACT_FILE, LABEL_PREFIX, load_verified_docker_contract,
-                              resource_plan)
-from .engine import EngineError, _digest, _file_digest, _owner_id, _read, _write
-from .trust import canonical_bytes, hash_manifest
+from .docker_contract import LABEL_PREFIX, resource_plan
+from .engine import EngineError, _digest, _file_digest, _owner_id, _read
+from .trust import hash_manifest
+from .docker_lifecycle import DockerLifecycle, _identity, _sync
 from shared import archive_crypto
 from shared.archive import _inventory as archive_inventory
 from shared.datahome import checked_path, contains, resolve_datahome
@@ -38,7 +37,8 @@ def _projection(fields):
 
 
 INFO_FORMAT = _projection({"ID": ".ID", "OSType": ".OSType", "Architecture": ".Architecture",
-    "SecurityOptions": ".SecurityOptions", "MemoryLimit": ".MemoryLimit", "PidsLimit": ".PidsLimit"})
+    "SecurityOptions": ".SecurityOptions", "MemoryLimit": ".MemoryLimit", "PidsLimit": ".PidsLimit",
+    "ServerVersion": ".ServerVersion"})
 IMAGE_FORMAT = _projection({"Id": ".Id", "RepoDigests": ".RepoDigests", "Os": ".Os",
                            "Architecture": ".Architecture", "Config": ".Config"})
 CONTAINER_FORMAT = _projection({"Id": ".Id", "Name": ".Name", "Image": ".Image", "Config": ".Config",
@@ -208,7 +208,7 @@ class _Canceled(BaseException):
     pass
 
 
-class DockerEngine:
+class DockerEngine(DockerLifecycle):
     """Inject trusted DockerCLI, verifier и secret provider из SDK/bootstrap.
 
     Linux local Unix socket — единственный исполняемый профиль этого выпуска.
@@ -217,7 +217,10 @@ class DockerEngine:
     """
     ACTIONS = ("install", "start", "stop", "backup", "restore", "update", "rollback",
                "repair", "reinstall", "uninstall")
-    EXECUTABLE_ACTIONS = {"start", "stop", "backup"}
+    EXECUTABLE_ACTIONS = {"install", "start", "stop", "backup", "uninstall"}
+    _private_path = staticmethod(_private_existing)
+    _decode = staticmethod(_json)
+    _network_format = NETWORK_FORMAT
 
     def __init__(self, verifier=None, runner=None, secret_provider=None, *, fetcher=None, host_probe=None):
         self.verifier = verifier
@@ -280,23 +283,30 @@ class DockerEngine:
         return info | {"host_namespaces": binding}
 
     def capabilities(self, target):
-        available, reason = False, "PREREQUISITE_MISSING"
+        available, network_supported, reason = False, False, "PREREQUISITE_MISSING"
         if not self._host_supported(target):
             reason = "CAPABILITY_UNSUPPORTED"
         else:
             try:
-                self._daemon(target)
+                info = self._daemon(target)
+                network_supported = self._loopback_engine_supported(info)
                 available = self.verifier is not None
             except Exception as error:
                 reason = getattr(error, "code", "PREREQUISITE_MISSING")
         actions = {}
         for action in self.ACTIONS:
             supported = available and action in self.EXECUTABLE_ACTIONS and (action != "backup" or self.secret_provider is not None)
+            if action not in {"stop", "uninstall"} and not network_supported:
+                supported = False
+            unsupported = ("CAPABILITY_UNSUPPORTED" if available and not network_supported and action not in {"stop", "uninstall"}
+                           else reason if action in self.EXECUTABLE_ACTIONS else "CAPABILITY_UNSUPPORTED")
             actions[action] = {"supported": supported, "readiness": "development",
-                               "reason": None if supported else reason if action in self.EXECUTABLE_ACTIONS else "CAPABILITY_UNSUPPORTED"}
+                               "reason": None if supported else unsupported}
         return {"target": dict(target), "actions": actions, "production_ready": False,
-            "execution_scope": "managed-container-controller", "manifest_schemas": [2],
-            "provisioning_implemented": False, "automatic_install": False,
+            "execution_scope": "managed-container-lifecycle", "manifest_schemas": [2],
+            "provisioning_implemented": True, "automatic_install": False,
+            "install_profile": "preloaded_verified_images_no_pull", "uninstall_policy": "preserve_data_and_images",
+            "minimum_loopback_engine_version": "28.0.0",
             "backup_strategy": "filesystem_quiesced", "backup_contains_images": False,
             "product_backup_hooks_supported": False, "restart_supervision": False,
             "health_model": "owned_container_binding_and_private_challenge_probe",
@@ -304,11 +314,32 @@ class DockerEngine:
                 "nonroot_containers", "internal_bridge", "loopback_publish", "all_writers_managed"],
             "live_acceptance": "REQUIRED", "docker_was_probed": self._host_supported(target)}
 
-    def _context(self, manifest, target, options):
+    def _layout_context(self, manifest, target, options):
         if not self._host_supported(target):
             _fail("CAPABILITY_UNSUPPORTED", "unsupported_local_docker_host")
-        contract = load_verified_docker_contract(manifest, target, options, verifier=self.verifier)
+        contract, verification_options = self._load_contract_source(manifest, target, options)
         root = checked_path(options.get("install_root", ""))
+        if root == Path(root.anchor):
+            _fail("INVALID_MANIFEST", "invalid_install_root")
+        control = checked_path(root / ".hinstall")
+        home = resolve_datahome(contract.manifest, root)
+        work = checked_path(options.get("work_dir", str(root.parent / ("." + root.name + "-docker-recovery"))))
+        if work == Path(work.anchor) or contains(root, work) or contains(work, root):
+            _fail("INVALID_MANIFEST", "backup_work_must_be_outside_installation")
+        mounts = _mount_table()
+        managed = [home.app, home.releases, *home.roots.values(), control]
+        for index, path in enumerate(managed):
+            if any(_regions_overlap(_regions(path, mounts), _regions(other, mounts)) for other in managed[index + 1:]):
+                _fail("INVALID_MANIFEST", "managed_paths_alias_same_host_data")
+        if _regions_overlap(_regions(work, mounts), _regions(root, mounts)):
+            _fail("INVALID_MANIFEST", "backup_work_aliases_installation")
+        return {"manifest": contract.manifest, "target": dict(target), "options": dict(options),
+            "root": root, "control": control, "home": home, "contract": contract, "work": work,
+            "verification_options": verification_options}
+
+    def _context(self, manifest, target, options, *, allow_missing_data=False):
+        ctx = self._layout_context(manifest, target, options)
+        root, control, contract, home = (ctx[key] for key in ("root", "control", "contract", "home"))
         if not root.is_dir() or root == Path(root.anchor):
             _fail("RECOVERY_REQUIRED", "provisioned_install_root_required")
         info = root.stat()
@@ -321,8 +352,12 @@ class DockerEngine:
         owner = _read(receipt_path)
         required = {"schema_version", "mode", "product_id", "installation_id", "owner", "daemon_id", "endpoint_sha256",
                     "release", "manifest_sha256", "contract_sha256", "modes", "containers", "network"}
+        if type(owner) is dict and owner.get("schema_version") == 2:
+            required.add("payload_sha256")
+            if owner.get("payload_sha256") != contract.payload_sha256:
+                _fail("INTEGRITY_FAILED", "installed_full_payload_pin_mismatch")
         if (type(owner) is not dict or set(owner) != required or type(owner["schema_version"]) is not int
-                or owner["schema_version"] != 1 or owner["mode"] != "docker" or owner["owner"] != _owner_id()
+                or owner["schema_version"] not in {1, 2} or owner["mode"] != "docker" or owner["owner"] != _owner_id()
                 or owner["product_id"] != contract.manifest["product_id"] or owner["release"] != contract.release
                 or owner["manifest_sha256"] != hash_manifest(contract.manifest)
                 or owner["contract_sha256"] != contract.contract_sha256
@@ -342,30 +377,18 @@ class DockerEngine:
         if (type(network) is not dict or set(network) != {"id", "name"} or type(network["id"]) is not str
                 or _HEX.fullmatch(network["id"]) is None or network["name"] != spec["network"]["name"]):
             _fail("RECOVERY_REQUIRED", "invalid_owned_network_id")
-        home = resolve_datahome(contract.manifest, root)
         for path in home.roots.values():
-            if not checked_path(path).is_dir():
+            if not allow_missing_data and not checked_path(path).is_dir():
                 _fail("RECOVERY_REQUIRED", "managed_data_root_missing")
-        work = checked_path(options.get("work_dir", str(root.parent / ("." + root.name + "-docker-recovery"))))
-        if work == Path(work.anchor) or contains(root, work) or contains(work, root):
-            _fail("INVALID_MANIFEST", "backup_work_must_be_outside_installation")
-        mounts = _mount_table()
-        managed = [home.app, home.releases, *home.roots.values(), control]
-        for index, path in enumerate(managed):
-            if any(_regions_overlap(_regions(path, mounts), _regions(other, mounts)) for other in managed[index + 1:]):
-                _fail("INVALID_MANIFEST", "managed_paths_alias_same_host_data")
-        if _regions_overlap(_regions(work, mounts), _regions(root, mounts)):
-            _fail("INVALID_MANIFEST", "backup_work_aliases_installation")
-        return {"manifest": contract.manifest, "target": dict(target), "options": dict(options),
-            "root": root, "control": control, "home": home, "contract": contract, "owner": owner,
-            "receipt_digest": _file_digest(receipt_path), "spec": spec, "work": work}
+        return ctx | {"owner": owner, "receipt_digest": _file_digest(receipt_path), "spec": spec,
+                      "_uninstall": allow_missing_data}
 
     def _image(self, ctx, spec):
         image = _json(self._ctx_run(ctx, ("image", "inspect", "--format", IMAGE_FORMAT, "--", spec["image_id"])))
         digests = image.get("RepoDigests")
         if (image.get("Id") != spec["image_id"] or image.get("Os") != "linux"
                 or image.get("Architecture") != spec["platform"].split("/")[1]
-                or type(digests) is not list or not any(type(x) is str and x.endswith("@" + spec["image"].rsplit("@", 1)[1]) for x in digests)
+                or type(digests) is not list or spec["image"] not in digests
                 or type(image.get("Config")) is not dict):
             _fail("INTEGRITY_FAILED", "immutable_image_identity_mismatch")
         return image
@@ -373,7 +396,7 @@ class DockerEngine:
     def _container(self, ctx, name):
         spec = ctx["spec"]["components"][name]
         cid = ctx["owner"]["containers"][name]
-        image = self._image(ctx, spec)
+        image = None if ctx.get("_uninstall") else self._image(ctx, spec)
         value = _json(self._ctx_run(ctx, ("container", "inspect", "--format", CONTAINER_FORMAT, "--", cid)))
         config, host = value.get("Config"), value.get("HostConfig")
         if (value.get("Id") != cid or value.get("Name") != "/" + spec["name"] or value.get("Image") != spec["image_id"]
@@ -384,11 +407,15 @@ class DockerEngine:
             _fail("OPERATION_CONFLICT", "container_owner_labels_mismatch")
         if any(key.startswith(LABEL_PREFIX) and key not in spec["labels"] for key in labels):
             _fail("OPERATION_CONFLICT", "unexpected_owner_label")
-        expected_env = {**_env(image["Config"].get("Env")), **spec["environment"]}
+        # Удалению доказанно собственного container не нужен доступный image
+        # store. ID, private receipt, labels, argv, mounts и isolation остаются
+        # обязательными; environment образа не используется для запуска.
+        image_config = image["Config"] if image else config
+        expected_env = {**_env(image_config.get("Env")), **spec["environment"]}
         if (config.get("Image") != spec["image"] or config.get("User") != spec["user"]
                 or config.get("Entrypoint") != spec["argv"][:1] or (config.get("Cmd") or []) != spec["argv"][1:]
-                or _env(config.get("Env")) != expected_env or config.get("WorkingDir", "") != image["Config"].get("WorkingDir", "")
-                or config.get("Healthcheck") != image["Config"].get("Healthcheck") or config.get("OpenStdin") is not False
+                or _env(config.get("Env")) != expected_env or config.get("WorkingDir", "") != image_config.get("WorkingDir", "")
+                or config.get("Healthcheck") != image_config.get("Healthcheck") or config.get("OpenStdin") is not False
                 or config.get("Tty") is not False):
             _fail("INTEGRITY_FAILED", "container_configuration_mismatch")
         # Нельзя обходить readonly root и ограничения namespaces через host options.
@@ -421,7 +448,9 @@ class DockerEngine:
         networks = value.get("Networks")
         if (type(networks) is not dict or set(networks) != {ctx["spec"]["network"]["name"]}
                 or type(next(iter(networks.values()))) is not dict
-                or next(iter(networks.values())).get("NetworkID") != ctx["owner"]["network"]["id"]):
+                or (next(iter(networks.values())).get("NetworkID") != ctx["owner"]["network"]["id"]
+                    and not (value.get("Status") == "created" and value.get("Running") is False
+                        and next(iter(networks.values())).get("NetworkID") == ""))):
             _fail("INTEGRITY_FAILED", "container_network_mismatch")
         if any(type(value.get(key)) is not bool for key in ("Running", "OOMKilled", "Paused", "Restarting", "Dead")):
             _fail("RECOVERY_REQUIRED", "invalid_container_state")
@@ -483,15 +512,7 @@ class DockerEngine:
                         conflicts.append({"container_id": cid, "root": name})
         return conflicts
 
-    def _snapshot(self, ctx):
-        # Callable re-verifies signed bytes on every mutation boundary; ownership
-        # is never inferred merely from a container name or one label.
-        verified = load_verified_docker_contract(ctx["manifest"], ctx["target"], ctx["options"], verifier=self.verifier)
-        if verified != ctx["contract"] or _file_digest(ctx["control"] / "docker-installation.json") != ctx["receipt_digest"]:
-            _fail("PLAN_STALE", "signed_contract_or_local_receipt_changed")
-        daemon = self._daemon(ctx["target"], ctx)
-        if daemon["ID"] != ctx["owner"]["daemon_id"]:
-            _fail("OPERATION_CONFLICT", "docker_daemon_identity_changed")
+    def _network(self, ctx):
         network = _json(self._ctx_run(ctx, ("network", "inspect", "--format", NETWORK_FORMAT, "--", ctx["owner"]["network"]["id"])))
         expected = ctx["spec"]["network"]
         labels, members = network.get("Labels") or {}, network.get("Containers") or {}
@@ -502,6 +523,26 @@ class DockerEngine:
                 or any(key.startswith(LABEL_PREFIX) and key not in expected["labels"] for key in labels)
                 or type(members) is not dict or set(members) - set(ctx["owner"]["containers"].values())):
             _fail("OPERATION_CONFLICT", "network_ownership_or_isolation_mismatch")
+        return network
+
+    def _snapshot(self, ctx):
+        if ctx.get("_partial_snapshot"):
+            return self._lifecycle_snapshot(ctx, ctx["_state"])
+        if ctx.get("_state", {}).get("action") == "install":
+            self._lifecycle_binding(ctx, ctx["_state"])
+        # Callable re-verifies signed bytes on every mutation boundary; ownership
+        # is never inferred merely from a container name or one label.
+        verified, source_options = self._load_contract_source(ctx["manifest"], ctx["target"], ctx["options"])
+        if verified != ctx["contract"] or _file_digest(ctx["control"] / "docker-installation.json") != ctx["receipt_digest"]:
+            _fail("PLAN_STALE", "signed_contract_or_local_receipt_changed")
+        ctx["verification_options"] = source_options
+        daemon = self._daemon(ctx["target"], ctx)
+        if ctx.get("action") in {"install", "start", "backup"}:
+            self._require_loopback_engine(daemon)
+        if daemon["ID"] != ctx["owner"]["daemon_id"]:
+            _fail("OPERATION_CONFLICT", "docker_daemon_identity_changed")
+        network = self._network(ctx)
+        members = network.get("Containers") or {}
         values = {name: self._container(ctx, name) for name in ctx["spec"]["order"]}
         for name, value in values.items():
             if value["Running"] and ctx["owner"]["containers"][name] not in members:
@@ -513,6 +554,7 @@ class DockerEngine:
             for name, value in values.items()}
         fingerprint = {"root": str(ctx["root"]), "owner": _owner_id(), "receipt_sha256": ctx["receipt_digest"],
             "manifest_sha256": hash_manifest(ctx["manifest"]), "contract_sha256": ctx["contract"].contract_sha256,
+            "payload_sha256": ctx["contract"].payload_sha256,
             "daemon_id": daemon["ID"], "endpoint_sha256": ctx["owner"]["endpoint_sha256"],
             "host_namespaces": daemon["host_namespaces"],
             "components": public, "foreign_writers": conflicts}
@@ -520,42 +562,129 @@ class DockerEngine:
                 "foreign_writers": conflicts, "daemon_id": daemon["ID"]}
 
     def discover(self, manifest, target, options):
-        ctx = self._context(manifest, target, options)
-        snapshot = self._snapshot(ctx)
+        root = checked_path(options.get("install_root", ""))
+        control = checked_path(root / ".hinstall")
         pending = []
-        folder = ctx["control"] / "docker-operations"
+        records = {}
+        integrity_state, integrity_scope = "VERIFIED", "signed_descriptor_and_daemon_attested_images"
+        folder = control / "docker-operations"
         if folder.exists():
             _private_existing(folder, directory=True)
             for file in sorted(folder.glob("*.json")):
                 _private_existing(file, directory=False)
                 record = _read(file)
+                records[file.stem] = record
                 if record.get("status") != "SUCCEEDED":
                     pending.append({"operation": file.stem, "action": record.get("action"), "status": record.get("status"), "phase": record.get("phase")})
+        receipt = control / "docker-installation.json"
+        if not receipt.exists():
+            if pending:
+                if len(pending) != 1 or pending[0]["action"] != "install":
+                    _fail("RECOVERY_REQUIRED", "missing_receipt_requires_install_resume")
+                record = records[pending[0]["operation"]]
+                owner = record.get("owner", {})
+                ctx = self._install_context(manifest, target, options, owner.get("installation_id"))
+                ctx["owner"] = owner
+                snapshot = self._lifecycle_snapshot(ctx, record)
+                integrity_state, integrity_scope = "INCOMPLETE", "durable_partial_provisioning"
+                installation = {"installation_id": owner["installation_id"], "release": ctx["contract"].release,
+                                "mode": "docker", "state": "INSTALLING"}
+            else:
+                ctx = self._install_context(manifest, target, options)
+                snapshot = self._fresh_snapshot(ctx)
+                installation = None
+        else:
+            uninstalled = control / "docker-uninstalled.json"
+            uninstall_pending = next((item for item in pending if item["action"] == "uninstall"), None)
+            maintenance = uninstalled.exists() or bool(uninstall_pending)
+            try:
+                ctx = self._context(manifest, target, options, allow_missing_data=maintenance)
+            except EngineError as error:
+                if error.details.get("reason") != "managed_data_root_missing":
+                    raise
+                ctx = self._context(manifest, target, options, allow_missing_data=True)
+                integrity_state, integrity_scope = "OWNERSHIP_ONLY", "data_unavailable_uninstall_preserves_paths"
+            if uninstalled.exists():
+                tombstone = _read(_private_existing(uninstalled, directory=False))
+                record = records.get(tombstone.get("operation"), {})
+                if (tombstone.get("receipt_sha256") != ctx["receipt_digest"]
+                        or tombstone.get("binding") != record.get("binding") or record.get("action") != "uninstall"):
+                    _fail("RECOVERY_REQUIRED", "uninstall_receipt_not_bound_to_durable_operation")
+                snapshot = self._lifecycle_snapshot(ctx, record)
+                if snapshot["raw"] or snapshot["present_network"]:
+                    _fail("OPERATION_CONFLICT", "uninstalled_resources_reappeared")
+                lifecycle = "UNINSTALLED"
+            elif uninstall_pending:
+                snapshot = self._lifecycle_snapshot(ctx, records[uninstall_pending["operation"]])
+                lifecycle = "UNINSTALLING"
+            else:
+                try:
+                    snapshot = self._snapshot(ctx)
+                except EngineError as error:
+                    if error.code != "RECOVERY_REQUIRED" or error.details.get("reason") not in {"docker_command_unavailable", "docker_command_failed"}:
+                        raise
+                    # Отсутствующий image store не запрещает удалить доказанно
+                    # собственный container. Повторная проверка всё ещё обязана
+                    # подтвердить ID/labels/argv/mounts/isolation каждого ресурса.
+                    ctx["_uninstall"] = True
+                    snapshot = self._snapshot(ctx)
+                    integrity_state, integrity_scope = "OWNERSHIP_ONLY", "image_store_unavailable_uninstall_only"
+                lifecycle = "INSTALLED" if not pending else "RECOVERY_REQUIRED"
+            if maintenance:
+                integrity_state, integrity_scope = "OWNERSHIP_ONLY", "owned_removal_and_preserved_recovery"
+            installation = {"installation_id": ctx["owner"]["installation_id"], "release": ctx["contract"].release,
+                            "mode": "docker", "state": lifecycle, "provisioning_external": not bool(records)}
         return {key: value for key, value in snapshot.items() if key != "raw"} | {
-            "installation": {"installation_id": ctx["owner"]["installation_id"], "release": ctx["contract"].release,
-                             "mode": "docker", "provisioning_external": True},
-            "integrity": {"state": "VERIFIED", "scope": "signed_descriptor_and_daemon_attested_images"},
+            "installation": installation,
+            "integrity": {"state": integrity_state, "scope": integrity_scope},
             "unfinished_operations": pending, "read_only": True, "production_ready": False}
 
     status = discover
 
     def plan(self, action, manifest, target, inventory, options):
-        ctx = self._context(manifest, target, options)
         if action not in self.EXECUTABLE_ACTIONS:
             _fail("CAPABILITY_UNSUPPORTED", "docker_provisioning_lifecycle_not_implemented")
-        if action != "stop" and inventory.get("foreign_writers"):
+        if inventory.get("unfinished_operations"):
+            _fail("OPERATION_CONFLICT", "unfinished_docker_operation_requires_resume")
+        if action not in {"stop", "uninstall"} and inventory.get("integrity", {}).get("state") != "VERIFIED":
+            _fail("RECOVERY_REQUIRED", "verified_runtime_required_for_requested_action")
+        if action == "install":
+            if inventory.get("installation") is not None:
+                _fail("OPERATION_CONFLICT", "install_requires_fresh_root")
+            ctx = self._install_context(manifest, target, options, secrets.token_hex(16))
+            self._install_inputs(ctx)
+        else:
+            ctx = self._context(manifest, target, options, allow_missing_data=action == "uninstall")
+            if (inventory.get("installation") or {}).get("state") == "UNINSTALLED":
+                _fail("CAPABILITY_UNSUPPORTED", "removed_installation_requires_explicit_reinstall_adapter")
+        if action not in {"stop", "uninstall"} and inventory.get("foreign_writers"):
             _fail("OPERATION_CONFLICT", "foreign_data_writers_present")
         if action == "backup":
             self._password_reference(ctx)
+        if action in {"start", "backup"}:
+            self._require_loopback_engine(self._daemon(target, ctx))
         phases = {"start": ["verify", "start", "health"], "stop": ["verify", "stop"],
-                  "backup": ["verify", "stop", "backup", "start", "health"]}[action]
-        return {"steps": [{"id": phase, "component_id": "product", "weight": 1} for phase in phases],
-            "resources": [str(ctx["root"]), "docker-daemon:" + ctx["owner"]["daemon_id"], str(ctx["work"])],
-            "required_consents": ["action:" + action], "scope": "managed-container-controller",
+            "backup": ["verify", "stop", "backup", "start", "health"],
+            "install": ["verify", "prepare", "retain_release", "provision", "publish_receipt", "start", "health"],
+            "uninstall": ["verify", "preserve_recovery", "stop", "remove_owned", "uninstall_receipt"]}[action]
+        consents = ["action:" + action]
+        if action == "install":
+            consents.append("terms:" + options["eula_digest"])
+        result = {"steps": [{"id": phase, "component_id": "product", "weight": 1} for phase in phases],
+            "resources": [str(ctx["root"]), "docker-daemon:" + inventory["daemon_id"], str(ctx["work"])],
+            "required_consents": consents, "scope": "managed-container-lifecycle",
             "resource_fingerprint": _digest(inventory["fingerprint_data"]),
+            "payload_sha256": ctx["contract"].payload_sha256,
             "preserves_user_data": True, "backup_strategy": "filesystem_quiesced", "backup_contains_images": False,
-            "provisioning_implemented": False, "production_ready": False,
+            "provisioning_implemented": True, "production_ready": False,
             "legacy_commands_not_executed": ["backup.cmd", "restore.cmd", "migrations.cmd"]}
+        if action == "install":
+            result.update(installation_id=ctx["owner"]["installation_id"], provisioning_spec=ctx["spec"],
+                          image_acquisition="preloaded_only_no_pull")
+        if action == "uninstall":
+            result.update(removes=["owned_container_layers", "owned_empty_network"],
+                          retains=["all_data_roots", "verified_payload", "images", "ownership_receipts"])
+        return result
 
     def _password_reference(self, ctx):
         ref = ctx["options"].get("backup_password_ref")
@@ -574,7 +703,7 @@ class DockerEngine:
         return lambda: password
 
     def _save(self, ctx, state):
-        _write(ctx["journal"], state)
+        self._durable_json(ctx["journal"], state)
 
     def _cleanly_stopped(self, value):
         if value["Running"] or value["OOMKilled"] or value.get("Error") or value["ExitCode"] != 0:
@@ -710,7 +839,8 @@ class DockerEngine:
                 _fail("OPERATION_CONFLICT", "backup_work_owned_by_another_installation")
         else:
             work.mkdir(mode=0o700)
-            _write(marker, identity)
+            _sync(work.parent)
+            self._durable_json(marker, identity)
         return work
 
     def _backup_preflight(self, ctx, state):
@@ -792,22 +922,50 @@ class DockerEngine:
         action = plan.get("action")
         if action not in self.EXECUTABLE_ACTIONS:
             _fail("CAPABILITY_UNSUPPORTED", "docker_provisioning_lifecycle_not_implemented")
-        ctx = self._context(plan["source_manifest"], plan["target"], plan["options"])
-        password = self._password(ctx) if action == "backup" else None
         plan_id = plan.get("plan_id")
         if type(plan_id) is not str or not 1 <= len(plan_id) <= 256:
             _fail("INVALID_MANIFEST", "durable_plan_id_required")
         token = hashlib.sha256(plan_id.encode()).hexdigest()
+        if action == "install":
+            installation_id = plan.get("engine_plan", {}).get("installation_id")
+            if type(installation_id) is not str or re.fullmatch(r"[0-9a-f]{32}", installation_id) is None:
+                _fail("INVALID_MANIFEST", "reviewed_installation_id_required")
+            ctx = self._install_context(plan["source_manifest"], plan["target"], plan["options"], installation_id)
+            if plan["engine_plan"].get("provisioning_spec") != ctx["spec"]:
+                _fail("PLAN_STALE", "reviewed_provisioning_spec_changed")
+            if plan["engine_plan"].get("payload_sha256") != ctx["contract"].payload_sha256:
+                _fail("PLAN_STALE", "reviewed_full_payload_pin_changed")
+            self._install_inputs(ctx)
+            journal = ctx["control"] / "docker-operations" / (token + ".json")
+            if not journal.exists():
+                initial = self._fresh_snapshot(ctx)
+                if plan["engine_plan"].get("resource_fingerprint") != _digest(initial["fingerprint_data"]):
+                    _fail("PLAN_STALE", "docker_resource_state_changed")
+                if initial["foreign_writers"]:
+                    _fail("OPERATION_CONFLICT", "foreign_data_writers_present")
+                if cancel_requested():
+                    return {"status": "CANCELED", "resume_required": False, "production_ready": False}
+                self._bootstrap_install(ctx)
+        else:
+            ctx = self._context(plan["source_manifest"], plan["target"], plan["options"], allow_missing_data=action == "uninstall")
+        if plan.get("engine_plan", {}).get("payload_sha256") != ctx["contract"].payload_sha256:
+            _fail("PLAN_STALE", "reviewed_full_payload_pin_changed")
+        password = self._password(ctx) if action == "backup" else None
         ctx["token"] = token
         lock = checked_path(ctx["control"] / "docker.lock")
         with operation_lock(lock):
             # Root lock is independent of the public API's state directory.
-            ctx = self._context(plan["source_manifest"], plan["target"], plan["options"]) | {"token": token, "emit": emit}
+            ctx = (self._install_context(plan["source_manifest"], plan["target"], plan["options"], installation_id)
+                if action == "install" else self._context(plan["source_manifest"], plan["target"], plan["options"],
+                    allow_missing_data=action == "uninstall")) | {"token": token, "emit": emit, "action": action}
+            if plan.get("engine_plan", {}).get("payload_sha256") != ctx["contract"].payload_sha256:
+                _fail("PLAN_STALE", "reviewed_full_payload_pin_changed")
             folder = ctx["control"] / "docker-operations"
             if folder.exists():
                 _private_existing(folder, directory=True)
             else:
                 folder.mkdir(mode=0o700)
+                _sync(folder.parent)
             ctx["journal"] = folder / (token + ".json")
             binding = _digest({"action": action, "manifest": hash_manifest(ctx["manifest"]),
                 "target": ctx["target"], "options": ctx["options"], "receipt": ctx["receipt_digest"],
@@ -816,30 +974,65 @@ class DockerEngine:
                 _private_existing(file, directory=False)
                 if file != ctx["journal"] and _read(file).get("status") != "SUCCEEDED":
                     _fail("OPERATION_CONFLICT", "unfinished_docker_operation_requires_resume")
-            snapshot = self._snapshot(ctx)
             if ctx["journal"].exists():
                 state = _read(_private_existing(ctx["journal"], directory=False))
                 if state.get("binding") != binding or state.get("action") != action:
                     _fail("OPERATION_CONFLICT", "durable_docker_plan_mismatch")
+                if action == "install":
+                    owner = state.get("owner")
+                    if (type(owner) is not dict or set(owner) != set(ctx["owner"])
+                            or any(owner[key] != value for key, value in ctx["owner"].items() if key not in {"daemon_id", "network", "containers"})
+                            or type(owner["containers"]) is not dict or set(owner["containers"]) - set(ctx["spec"]["components"])
+                            or any(type(cid) is not str or _HEX.fullmatch(cid) is None for cid in owner["containers"].values())
+                            or len(set(owner["containers"].values())) != len(owner["containers"])
+                            or type(owner["network"]) is not dict or set(owner["network"]) != {"id", "name"}
+                            or owner["network"]["name"] != ctx["spec"]["network"]["name"]
+                            or (owner["network"]["id"] is not None and (type(owner["network"]["id"]) is not str or not _HEX.fullmatch(owner["network"]["id"])))):
+                        _fail("RECOVERY_REQUIRED", "invalid_partial_ownership_receipt")
+                    ctx["owner"] = owner
+                    self._reconcile_install(ctx, state)
+                if action in {"install", "uninstall"}:
+                    ctx.update(_partial_snapshot=True, _state=state)
+                snapshot = self._snapshot(ctx)
                 if state.get("host_namespaces") != snapshot["fingerprint_data"]["host_namespaces"]:
                     _fail("RECOVERY_REQUIRED", "host_namespace_changed_during_operation")
                 if state.get("status") == "SUCCEEDED":
                     if action == "backup":
                         self._verify_completed_backup(ctx, state, password)
+                    elif action == "install":
+                        ctx["receipt_digest"] = _file_digest(ctx["control"] / "docker-installation.json")
+                        ctx["_partial_snapshot"] = False
+                        self._stage_recovery(ctx, state)
+                        self._health(ctx)
+                    elif action == "uninstall":
+                        if snapshot["raw"] or snapshot["present_network"]:
+                            _fail("OPERATION_CONFLICT", "uninstalled_resources_reappeared")
+                        self._stage_recovery(ctx, state)
                     return state["result"]
             else:
+                # Повторная проверка после lock: другой install мог завершиться
+                # между read-only preflight и захватом root lock.
+                snapshot = self._fresh_snapshot(ctx) if action == "install" else self._snapshot(ctx)
                 if plan.get("engine_plan", {}).get("resource_fingerprint") != _digest(snapshot["fingerprint_data"]):
                     _fail("PLAN_STALE", "docker_resource_state_changed")
-                if action != "stop" and snapshot["foreign_writers"]:
+                if action not in {"stop", "uninstall"} and snapshot["foreign_writers"]:
                     _fail("OPERATION_CONFLICT", "foreign_data_writers_present")
                 state = {"schema_version": 1, "action": action, "binding": binding, "status": "RUNNING", "effects": {},
                     "completed": [], "results": {}, "initially_running": [n for n, v in snapshot["raw"].items() if v["Running"]],
+                    "payload_sha256": ctx["contract"].payload_sha256,
                     "host_namespaces": snapshot["fingerprint_data"]["host_namespaces"]}
+                if action in {"install", "uninstall"}:
+                    state["directories"] = {relative: {"status": "CONFIRMED", **_identity(path)}
+                        for relative, path in ((".", ctx["root"]), (".hinstall", ctx["control"]))}
+                    if action == "install":
+                        ctx["owner"]["daemon_id"] = snapshot["daemon_id"]
+                        state["owner"] = ctx["owner"]
+                    ctx.update(_partial_snapshot=True, _state=state)
                 self._save(ctx, state)
 
             def phase(name, function):
                 completed = name in state["completed"]
-                if completed and name != "health":
+                if completed and name not in {"health", "retain_release", "preserve_recovery"}:
                     return state["results"].get(name)
                 if cancel_requested():
                     raise _Canceled()
@@ -858,14 +1051,28 @@ class DockerEngine:
             try:
                 if action == "backup":
                     self._backup_preflight(ctx, state)
+                if action == "uninstall":
+                    # Namespace donor нельзя остановить, пока им пользуется
+                    # чужой container; проверка нужна до первого SIGTERM.
+                    self._no_foreign_network_consumers(ctx)
                 phase("verify", lambda: None)
-                if action in {"stop", "backup"}:
+                recovery = None
+                if action == "install":
+                    phase("prepare", lambda: self._prepare_data(ctx, state))
+                    recovery = phase("retain_release", lambda: self._stage_recovery(ctx, state))
+                    phase("provision", lambda: self._provision(ctx, state))
+                    phase("publish_receipt", lambda: self._publish_installation(ctx, state))
+                    ctx["receipt_digest"] = _file_digest(ctx["control"] / "docker-installation.json")
+                    ctx["_partial_snapshot"] = False
+                elif action == "uninstall":
+                    recovery = phase("preserve_recovery", lambda: self._stage_recovery(ctx, state))
+                if action in {"stop", "backup", "uninstall"}:
                     phase("stop", lambda: self._stop(ctx, state))
                 archive = phase("backup", lambda: self._backup(ctx, state, password)) if action == "backup" else None
                 if archive:
                     self._verify_completed_backup(ctx, state, password)
-                if action in {"start", "backup"}:
-                    names = ctx["spec"]["order"] if action == "start" else state["initially_running"]
+                if action in {"install", "start", "backup"}:
+                    names = ctx["spec"]["order"] if action in {"install", "start"} else state["initially_running"]
                     phase("start", lambda: self._start(ctx, state, names))
                     if ctx["contract"].document["web"]["component"] in names:
                         health = phase("health", lambda: self._health(ctx))
@@ -873,10 +1080,14 @@ class DockerEngine:
                         health = phase("health", lambda: {"status": "NOT_RUNNING", "initial_state_restored": True})
                 else:
                     health = {"status": "STOPPED"}
+                if action == "uninstall":
+                    phase("remove_owned", lambda: self._remove_owned(ctx, state))
+                    phase("uninstall_receipt", lambda: self._uninstall_receipt(ctx, state))
+                    health = {"status": "UNINSTALLED"}
                 # Durable completion records an observation, not a guarantee
                 # that old cached process/health state survived a host crash.
                 observed = self._snapshot(ctx)
-                expected_running = (set(ctx["spec"]["order"]) if action == "start" else
+                expected_running = (set(ctx["spec"]["order"]) if action in {"install", "start"} else
                                     set(state["initially_running"]) if action == "backup" else set())
                 if {name for name, value in observed["raw"].items() if value["Running"]} != expected_running:
                     _fail("RECOVERY_REQUIRED", "final_container_state_differs_from_operation")
@@ -891,6 +1102,14 @@ class DockerEngine:
                     "production_ready": False, "backup_strategy": "filesystem_quiesced", "preserves_user_data": True}
                 if archive:
                     result["backup"] = archive
+                if recovery:
+                    result["recovery"] = recovery
+                if action in {"install", "uninstall"}:
+                    result["installation_id"] = ctx["owner"]["installation_id"]
+                if action == "uninstall":
+                    if observed["raw"] or observed["present_network"]:
+                        _fail("RECOVERY_REQUIRED", "owned_resources_remain_after_uninstall")
+                    result.update(images_retained=True, data_available=all(path.is_dir() for path in ctx["home"].roots.values()))
                 if health and health.get("url"):
                     result["url"] = health["url"]
                 state.update(status="SUCCEEDED", result=result)

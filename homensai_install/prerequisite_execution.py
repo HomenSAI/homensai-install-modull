@@ -7,6 +7,7 @@ select only catalogue component IDs and auto/manual/use/skip strategies.
 from __future__ import annotations
 
 from copy import deepcopy
+from contextlib import contextmanager
 import os
 from pathlib import Path
 
@@ -50,7 +51,8 @@ class PrerequisiteCoordinator:
     owner_id and the authoritative user journal do not change to the helper UID.
     """
     def __init__(self, catalog, *, state_dir, owner_id, downloads, adapters, discover,
-                 product_consent_refs, markers=system_markers, event_callback=None, reconcile=None):
+                 product_consent_refs, markers=system_markers, event_callback=None, reconcile=None,
+                 execution_domain=None):
         if not isinstance(catalog, SignedPrerequisiteCatalog) or not isinstance(downloads, DownloadManager):
             fail("INTEGRITY_FAILED", "prerequisite_trust_ports_required")
         if not identifier(owner_id) or not callable(discover) or not callable(markers):
@@ -67,6 +69,13 @@ class PrerequisiteCoordinator:
             fail("INVALID_REQUEST", "prerequisite_product_consent_limit")
         self.event_callback, self.reconcile = event_callback, reconcile
         self.store = PrerequisiteStore(state_dir)
+        from .execution_lease import ExecutionDomain
+        if execution_domain is not None and (not isinstance(execution_domain, ExecutionDomain)
+                                            or execution_domain.owner_id != owner_id):
+            fail("INVALID_REQUEST", "prerequisite_execution_domain_owner")
+        self.execution_domain = (execution_domain if execution_domain is not None
+                                 else ExecutionDomain(self.store.directory / "execution-domain", owner_id=owner_id))
+        self.execution_domain.register_participant("prerequisite", self.store.directory)
 
     def identity(self):
         """Stable registration identity, without a system probe or execution."""
@@ -291,9 +300,56 @@ class PrerequisiteCoordinator:
         """Conservative read-only guard for this store, including hidden claims.
 
         No operation identity is disclosed across catalogue/product bindings.
-        This observation is not an atomic lease shared with a product executor.
+        Mutations acquire the common domain separately; observing busy does not
+        itself grant ownership. Foreign operation IDs/tokens remain private.
         """
-        return self.store.has_claim() or self.store.controller_busy() is not False
+        return (self.store.has_claim() or self.store.controller_busy() is not False
+                or self.execution_domain.prerequisites_busy() is not False)
+
+    def _lease_binding(self, operation_id):
+        return digest({"journal": os.path.normcase(str(self.store.directory)),
+                       "owner_id": self.owner_id, "operation_id": operation_id})
+
+    def _reserve_lease(self, operation_id, *, plan=None, resume=False):
+        return self.execution_domain.reserve("prerequisite", operation_id, self._lease_binding(operation_id),
+            request_digest=plan["plan_digest"] if plan is not None else None, resume=resume,
+            participant=self.store.directory)
+
+    def _finish_lease(self, lease):
+        release = False
+        try:
+            operation = self.store.get(lease.operation_id)
+            if operation is None:
+                # RESERVED precedes publication; the protocol permits no effect
+                # before the operation exists and the claim reaches QUEUED.
+                release = lease.phase == "RESERVED" and not lease.uncertain
+            else:
+                release = (operation["status"] in _TERMINAL and not any(
+                    step["state"] in _UNCERTAIN | {"WAITING_REBOOT", "WAITING_RELOGIN"}
+                    for step in operation["steps"].values()))
+        finally:
+            lease.close(release=release)
+
+    @contextmanager
+    def _execution_pass(self, operation_id, *, plan=None, resume=False):
+        lease = self._reserve_lease(operation_id, plan=plan, resume=resume)
+        try:
+            yield lease
+        finally:
+            # Read the latest committed cancel/result after all final observers.
+            self._finish_lease(lease)
+
+    def _release_canceled_lease(self, operation_id):
+        """Cancel never waits for an active controller or clears unknown work."""
+        if self.execution_domain.pending("prerequisite", operation_id, self._lease_binding(operation_id)) is not True:
+            return
+        try:
+            lease = self._reserve_lease(operation_id, resume=True)
+        except InstallerError as error:
+            if error.code == "OPERATION_CONFLICT":
+                return  # The owning worker observes sticky cancel at its boundary.
+            raise
+        self._finish_lease(lease)
 
     def operations_list(self, *, unfinished_only=True, limit=100, after_id=None):
         """Read-only recovery index for this exact owner/product/target/catalogue."""
@@ -340,13 +396,19 @@ class PrerequisiteCoordinator:
         if not identifier(operation_id):
             fail("INVALID_REQUEST", "prerequisite_operation_id")
         plan, consents = self._validate_plan(plan, consents)
-        with self.store.lock():
-            old = self._existing_start(operation_id, plan)
-            if old is not None:
-                return self._public(old)
-            operation = self._prepare_start(operation_id, plan, consents)
-            operation = self._save(operation, "prerequisite_operation_created", create=True)
-            return self._public(self._drive(operation, execute=True))
+        old = self._existing_start(operation_id, plan)
+        if old is not None:
+            return self._public(old)
+        with self._execution_pass(operation_id, plan=plan) as lease:
+            with self.store.lock():
+                old = self._existing_start(operation_id, plan)
+                if old is not None:
+                    return self._public(old)
+                operation = self._prepare_start(operation_id, plan, consents)
+                operation = self._save(operation, "prerequisite_operation_created", create=True)
+                lease.queued()
+                lease.active()
+                return self._public(self._drive(operation, execute=True))
 
     def start_background(self, operation_id, plan, *, consents):
         from .prerequisite_async import start
@@ -612,25 +674,43 @@ class PrerequisiteCoordinator:
 
     def recheck(self, operation_id):
         """Read-only probes plus journal; no downloads, commands or host restart."""
-        with self.store.lock():
-            operation = self._get(operation_id)
-            if "_dispatch" in operation and operation["status"] not in _TERMINAL:
-                del operation["_dispatch"]
-                operation = self._save(operation, "prerequisite_synchronous_recheck")
-            self._drive(operation, execute=False)
-            # A final observer may have persisted cancellation after the probe's
-            # commit. Report the latest durable revision, not its stale input.
-            return self._public(self._get(operation_id))
+        self._get(operation_id)
+        with self._execution_pass(operation_id, resume=True) as lease:
+            with self.store.lock():
+                operation = self._get(operation_id)
+                if "_dispatch" in operation and operation["status"] not in _TERMINAL:
+                    del operation["_dispatch"]
+                    operation = self._save(operation, "prerequisite_synchronous_recheck")
+                lease.queued()
+                lease.active()
+                self._reconcile_canceled_boundary(operation)
+                self._drive(operation, execute=False)
+                # A final observer may have persisted cancellation after the probe's
+                # commit. Report the latest durable revision, not its stale input.
+                return self._public(self._get(operation_id))
+
+    def _reconcile_canceled_boundary(self, operation):
+        if operation["status"] == "CANCELED" and any(step["state"] in {"WAITING_REBOOT", "WAITING_RELOGIN"}
+                                                    for step in operation["steps"].values()):
+            entries, inventory = self._validated_context(operation)
+            self._refresh(operation, entries, inventory)
+            return self._save(self._settle(operation), "prerequisite_canceled_boundary_rechecked")
+        return operation
 
     def resume(self, operation_id, *, consents=None):
-        with self.store.lock():
-            operation = self._get(operation_id)
-            if consents is not None:
-                _, operation["consents"] = self._validate_plan(operation["plan"], consents)
-            if "_dispatch" in operation and operation["status"] not in _TERMINAL:
-                del operation["_dispatch"]
-                operation = self._save(operation, "prerequisite_synchronous_resume")
-            return self._public(self._drive(operation, execute=True))
+        self._get(operation_id)
+        with self._execution_pass(operation_id, resume=True) as lease:
+            with self.store.lock():
+                operation = self._get(operation_id)
+                if consents is not None:
+                    _, operation["consents"] = self._validate_plan(operation["plan"], consents)
+                if "_dispatch" in operation and operation["status"] not in _TERMINAL:
+                    del operation["_dispatch"]
+                    operation = self._save(operation, "prerequisite_synchronous_resume")
+                lease.queued()
+                lease.active()
+                operation = self._reconcile_canceled_boundary(operation)
+                return self._public(self._drive(operation, execute=True))
 
     def choose_boundary(self, operation_id, when):
         """Record now/later intent. A trusted host UI performs the actual action.
@@ -657,17 +737,20 @@ class PrerequisiteCoordinator:
             with self.store.lock():
                 operation = self._get(operation_id)
                 if operation["status"] in _TERMINAL:
-                    return self._public(operation)
-                operation["cancel_requested"] = True
-                # Does not uninstall shared prerequisites or kill an unknown process.
-                return self._public(self._save(self._settle(operation), "prerequisite_cancel_requested"))
+                    result = operation
+                else:
+                    operation["cancel_requested"] = True
+                    # Does not uninstall shared prerequisites or kill an unknown process.
+                    result = self._save(self._settle(operation), "prerequisite_cancel_requested")
         except InstallerError as error:
             if error.code != "OPERATION_CONFLICT" or error.context.get("details", {}).get("reason") != "prerequisite_controller_busy":
                 raise
             operation, event = self.store.request_cancel(operation_id)
             if event is not None:
                 self._emit(event)
-            return self._public(operation)
+            result = operation
+        self._release_canceled_lease(operation_id)
+        return self._public(result)
 
     def replace_plan(self, operation_id, plan, *, consents):
         """Renew stale context/choices under the same operation and fresh consent.

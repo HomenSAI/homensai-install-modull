@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "prepared_at": "2026-10-25T19:18:06.626498+00:00",
+  "source_commit": "90993c42252c39477ec3b849606933c253b22b1c",
+  "parent_commit": "fd2bec921b5712c69b7b52f57739d63e88b5db43",
+  "root_checkpoint_base": "4814ae6238c2dbec569a5a462dccb39c7a3b456b",
+  "changed_files_sha256": {
+    "homensai_install/api/journal.py": "e7e0e71fb6576847639871dbf1ac7bb7b7842c0be2a886460250afec5914c801",
+    "homensai_install/api/v1.py": "265b17562cb84544848615eb7f34462799445b103bd48b4515f8c8caca462054",
+    "homensai_install/execution_lease.py": "63f4cc3a0bcdeebc2c02d93dc3dcca928ed93e4ba9f762ad1e027e7d9c2dc835",
+    "homensai_install/prerequisite_async.py": "acc27592d3dea208043938067518e9d6054421d4036b6c3ad7569a80403e168a",
+    "homensai_install/prerequisite_execution.py": "8f59255a2c8a96c9f61c5d6d772e624c0b0fccfc811de9bee92e4a1f48ce4577",
+    "tests/test_execution_domain.py": "0208238faa65beeba8a9d7eaa03571d811b7d1e3e827bffd1502c9a498ad1bbf",
+    "tests/test_execution_lease_wizard.py": "d4c5074f9baad3a2d769a6f02e17b7e79b4c717e7fba474580a2ae5dd04ea552",
+    "tests/test_prerequisites_cli.py": "45aa98fa3cc8079546a958432646fd6dcc37cef21f5d2430909ec234e26a6630"
+  },
+  "final_command": "PYTHONPATH=/workspace/scratch/04f3380d60c8/installer-lease:/workspace/scratch/04f3380d60c8/installer-lease/tests PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -p no:cacheprovider tests/test_public_api.py tests/test_prerequisites_execution.py tests/test_prerequisites_async.py tests/test_prerequisites_recheck_cancel.py tests/test_prerequisites_api.py tests/test_wizard_prerequisites.py tests/test_prerequisites_cli.py tests/test_execution_domain.py tests/test_execution_lease_http.py /workspace/scratch/04f3380d60c8/homensai-install-modull/tests/test_execution_lease_upgrade.py /workspace/scratch/04f3380d60c8/installer-lease-tests/tests/test_execution_lease_upgrade_registry.py --junitxml=/workspace/scratch/04f3380d60c8/recovery-evidence/cp017-lease-focused-final-registry.xml -q",
+  "test_rename_note": "After successful focused run, source unit tests/test_execution_lease_http.py was renamed byte-for-byte to tests/test_execution_lease_wizard.py to avoid basename collision with independent integration_tests/test_execution_lease_http.py. Runtime unchanged. Root full suite uses final paths.",
+  "checks": [
+    {
+      "id": "cp017-legacy-upgrade-before3",
+      "meaning": "6 FAIL against fd2bec9: legacy unresolved journals incorrectly allowed opposing execution; includes final positive-control test source",
+      "log": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp017-legacy-upgrade-before3.log",
+      "log_sha256": "042e2446ce763c465778697f1ec33e2ff93517ce5b40bbd74e366c08d6a5b8ec",
+      "xml": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp017-legacy-upgrade-before3.xml",
+      "xml_sha256": "2988bee530e22cc11e446d31c1a4262430f51a70c88454c155895455b5635dd8",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "6",
+          "skipped": "0",
+          "tests": "6",
+          "time": "1.125",
+          "timestamp": "2026-10-25T20:13:48.682235+01:00",
+          "hostname": "063b995bf262"
+        }
+      ]
+    },
+    {
+      "id": "cp017-registry-guards-before",
+      "meaning": "4 FAIL,4 PASS: missing status/invalid steps and journal replacement between observation and SQL",
+      "log": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp017-registry-guards-before.log",
+      "log_sha256": "325b4963ac18690d1f41ebd29663959ce85468edb28f0ee74058766412a15e41",
+      "xml": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp017-registry-guards-before.xml",
+      "xml_sha256": "28f6cf52462833b8608199c5cb187613296baa89eef0b6df64a5ea79f08e1cec",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "4",
+          "skipped": "0",
+          "tests": "8",
+          "time": "1.656",
+          "timestamp": "2026-10-25T20:12:02.869310+01:00",
+          "hostname": "063b995bf262"
+        }
+      ]
+    },
+    {
+      "id": "cp017-registry-guards-after1",
+      "meaning": "8 PASS after strict minimal validation and pre/post file identity checks",
+      "log": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp017-registry-guards-after1.log",
+      "log_sha256": "7140c44a99b6e5d70f0b24fda79b17cabcec2b38c46672d98f5340d780a1ebd5",
+      "xml": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp017-registry-guards-after1.xml",
+      "xml_sha256": "5132ab9f0a0b86808879ade56774ea2aceabddb9cd0ed1b1e03cd76e7a61b1b6",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "8",
+          "time": "1.453",
+          "timestamp": "2026-10-25T20:13:51.767179+01:00",
+          "hostname": "063b995bf262"
+        }
+      ]
+    },
+    {
+      "id": "cp017-own-product-gate-before",
+      "meaning": "1 collection ERROR: reserved pytest parameter request; test harness corrected before any runtime change",
+      "log": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp017-own-product-gate-before.log",
+      "log_sha256": "e3acaa030f86148ce2f9ea846681eaab83c20590441c9b9b0fecb577850752b3",
+      "xml": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp017-own-product-gate-before.xml",
+      "xml_sha256": "2fccc1d1874a474e56c04dbe28b25a902ffdcf28c2ac29ed05db392d4643e7d7",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "1",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "1",
+          "time": "0.288",
+          "timestamp": "2026-10-25T20:13:45.163208+01:00",
+          "hostname": "063b995bf262"
+        }
+      ]
+    },
+    {
+      "id": "cp017-own-product-gate-before2",
+      "meaning": "2 FAIL: product own common claim blocks HTTP duplicate ACK and explicit resume",
+      "log": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp017-own-product-gate-before2.log",
+      "log_sha256": "be07512878894ef25e35ed45cbe39d8b4be438c5d56fd5383246dd4b72c5de1e",
+      "xml": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp017-own-product-gate-before2.xml",
+      "xml_sha256": "e8467f5c8d15b9ca853933e4adbd940db0d1f3ecde1fb530444e68d2d979cb78",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "2",
+          "skipped": "0",
+          "tests": "2",
+          "time": "0.604",
+          "timestamp": "2026-10-25T20:14:06.309530+01:00",
+          "hostname": "063b995bf262"
+        }
+      ]
+    },
+    {
+      "id": "cp017-own-product-gate-after",
+      "meaning": "2 PASS after prerequisite-specific read-only gate",
+      "log": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp017-own-product-gate-after.log",
+      "log_sha256": "2f86d6e00fe040f161a2957fe1080a435069dbb1158c2975c3b86c577069cdf2",
+      "xml": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp017-own-product-gate-after.xml",
+      "xml_sha256": "3e54a5cc7b25a5b98fd4b4ca7ae50eb5846d4aad80f4de5dc0ac9a588e0e93a7",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "2",
+          "time": "0.534",
+          "timestamp": "2026-10-25T20:14:39.481208+01:00",
+          "hostname": "063b995bf262"
+        }
+      ]
+    },
+    {
+      "id": "cp017-lease-focused-final-registry",
+      "meaning": "190 PASS in 25.70s: focused integration including root upgrade and independent registry tests",
+      "log": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp017-lease-focused-final-registry.log",
+      "log_sha256": "afdeea9e0ec23c01391f3b5f2965b5e53201741dc34b82c83b30eaacd8589e6d",
+      "xml": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp017-lease-focused-final-registry.xml",
+      "xml_sha256": "4d61a2b161681cf571124847fa039fecfc368af5f15c9b0a21d63a9840d85d86",
+      "suites": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "190",
+          "time": "25.662",
+          "timestamp": "2026-10-25T20:15:15.499532+01:00",
+          "hostname": "063b995bf262"
+        }
+      ]
+    }
+  ],
+  "counts_note": "190 focused cases overlap root full suite and independent source suite; do not add them as distinct tests. Initial failing expectations and harness errors are retained.",
+  "registry_contract": {
+    "maximum_participants": 256,
+    "registration": "trusted memory-only register_participant(kind,directory); API/coordinator auto-register their journals",
+    "persistence": "under acquired common OS lease, even when old unfinished journal refuses operation",
+    "preflight": "all known journals checked read-only outside domain SQLite transaction before enqueue; explicit resume excludes only its exact operation in its own journal",
+    "file_binding": "previously observed st_dev/st_ino; pre/post SQL revalidation; missing/replaced/private-file violations fail closed",
+    "unknown_roots": "not searched or implicitly protected",
+    "quiescence": "unsafe legacy status, product resume_required or non-quiescent failure/cancel, prerequisite unknown/reboot/relogin steps retain exclusion",
+    "busy": "ExecutionDomain.busy is all-domain; prerequisites_busy filters prerequisite claim/known prerequisite journals so product ACK/resume can reach authoritative SDK"
+  },
+  "not_run": [
+    "actual Windows locks/ACL/UAC",
+    "real package installers or reboot/relogin",
+    "real hardware power loss",
+    "automatic relocation/restoration of registered control journals with new file identity",
+    "concurrent legacy binaries that bypass common protocol",
+    "automatically discovering arbitrary unregistered legacy roots"
+  ],
+  "scope": "Synthetic source checks. No installed/platform acceptance claimed by this receipt."
+}

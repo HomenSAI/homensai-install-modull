@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "checkpoint": "CP-20261025-017",
+  "author": "Serhii Khomenko",
+  "status": "PASS_SCOPED_NOT_PRODUCTION_ACCEPTANCE",
+  "production_ready": false,
+  "source_parent": "4814ae6238c2dbec569a5a462dccb39c7a3b456b",
+  "implementation_commits": [
+    "fd2bec921b5712c69b7b52f57739d63e88b5db43",
+    "90993c42252c39477ec3b849606933c253b22b1c"
+  ],
+  "independent_test_commits": [
+    "82f40e0c754bf4ac0c76403be88c4f801d2f8183",
+    "6e3a6e0ba0076282851bc7bfa957640c866802e0",
+    "cad8ff7c11a53cb61b1c82978d636645fb26fee4"
+  ],
+  "root_owned_tests": [
+    "tests/test_execution_lease_upgrade.py",
+    "tests/test_prerequisites_projection.py"
+  ],
+  "full_source_and_integration": {
+    "passed": 2097,
+    "subtests_passed": 15,
+    "skipped": 1,
+    "junit": {
+      "tests": 2113,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    "elapsed_seconds": 148.508,
+    "argv": [
+      "/workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python",
+      "-B",
+      "-m",
+      "pytest",
+      "-q",
+      "-rs",
+      "-p",
+      "no:cacheprovider",
+      "--basetemp=/tmp/hinstall-cp017-focused-final2-04f338",
+      "--junitxml=/workspace/scratch/04f3380d60c8/recovery-evidence/cp017-focused-final2.xml",
+      "tests",
+      "integration_tests"
+    ],
+    "input_file_count": 176,
+    "input_manifest_sha256": "9b8e00236fead17151bc33c4124bd0e522c7fb1d7d22abbef14914e1a9cb3135",
+    "input_files_unchanged": true,
+    "receipt": "packaging/acceptance-evidence/source-20261025-cp017.json",
+    "skips": [
+      {
+        "class": "tests.test_datahome",
+        "name": "test_foreign_posix_path_on_windows",
+        "reason": "Проверка пути POSIX на Windows"
+      }
+    ]
+  },
+  "installed": {
+    "status": "PASS",
+    "clients": 10,
+    "cli_commands": 11,
+    "wheel": {
+      "name": "homensai_install_module-0.1.0-py3-none-any.whl",
+      "sha256": "43ece1cdf845d72bba24de245d0faaac7041ca0c054fb1f971026cab22b852f0",
+      "exact_files_checked": 64
+    },
+    "package_file_count": 64,
+    "elapsed_seconds": 7.109043,
+    "exact_bytes_unchanged": true,
+    "scope": "Fresh isolated wheel; signed synthetic prerequisite SDK/CLI, no real OS installers",
+    "receipt": "packaging/acceptance-evidence/installed-prerequisites-20261025-cp017.json"
+  },
+  "independent": {
+    "source_passed": 57,
+    "actual_http_passed": 1,
+    "counts_overlap_full_suite": true,
+    "receipt": "packaging/acceptance-evidence/execution-lease-independent-20261025-cp017.json"
+  },
+  "preserved_findings": [
+    {
+      "case": "Synchronous product submit/resume blocked status/cancel",
+      "before": "2 FAIL on CP016",
+      "after": "PASS"
+    },
+    {
+      "case": "Known pre-lease v1 journals and canceled unresolved boundaries were bypassed",
+      "before": "6 FAIL on fd2bec9",
+      "after": "PASS, includes safe cancellation/recovery positive controls"
+    },
+    {
+      "case": "Malformed registry journal fields and observe/read inode replacement",
+      "before": "4 FAIL",
+      "after": "PASS"
+    },
+    {
+      "case": "GUI own product claim blocked duplicate ACK/resume",
+      "before": "2 FAIL",
+      "after": "PASS"
+    },
+    {
+      "case": "Old interrupted synchronous CLI duplicate expected an artificial self-lock unknown state",
+      "before": "1 legacy expectation FAIL",
+      "after": "Contract clarified: actual RECOVERY_REQUIRED/exit1, no replay"
+    },
+    {
+      "case": "Full root test fixture dropped Python reservation but kept new OS handle open",
+      "before": "2096 PASS,1 FAIL,1 skip,15 subtests",
+      "after": "Fixture closes live handle without releasing durable claim; full suite repeated"
+    },
+    {
+      "case": "Independent helper observed _JOBS removal before final lease close",
+      "before": "56 PASS,1 harness FAIL",
+      "after": "Join the created worker;57 PASS, runtime unchanged"
+    },
+    {
+      "case": "Independent final2 inputs changed during run",
+      "before": "57 PASS output, invalidated input manifest",
+      "after": "Not accepted; replaced by stable final4"
+    }
+  ],
+  "raw_evidence": {
+    "path": "packaging/acceptance-evidence/execution-lease-raw-evidence-20261025-cp017.json",
+    "sha256": "67d4c46d2ef66450e0b9b4c5c333c4183b0ff3fac704a29746a1aa73b0d7b15d",
+    "entries": 74
+  },
+  "scope": {
+    "guarantee": "Participating SDK/coordinator in one trusted original-owner domain, including registered known old journals",
+    "outside_guarantee": [
+      "Never registered arbitrary old state roots",
+      "Live old binaries/direct engines outside protocol"
+    ],
+    "not_implemented": [
+      "Automatic trusted relocation/restoration of control journals with a new file identity"
+    ],
+    "not_run": [
+      "Actual browser/frozen current GUI",
+      "Windows ACL/UAC",
+      "Live Docker/system services",
+      "Real OS installers/reboot/relogin",
+      "Hardware power-loss",
+      "Full JobPilot/Rent acceptance"
+    ],
+    "ci": "Previous CP016 jobs runner_id0/steps[]; exact cause unknown, tests did not run"
+  }
+}

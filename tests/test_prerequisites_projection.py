@@ -111,10 +111,16 @@ def test_pending_v1_plan_resumes_unchanged_after_requirements_projection(bundle,
     accepted = deepcopy(legacy["required_consents"])
     # Моделируется потеря controller между durable queue и запуском worker.
     # Настоящий process-kill этим source тестом не заявляется.
+    def abandoned_controller(worker):
+        # Process death closes its OS handle but keeps the durable claim.
+        # Dropping only the Python reservation no longer models that boundary.
+        worker.lease.close(release=False)
+        worker.release()
     with monkeypatch.context() as patch:
-        patch.setattr(background._Worker, "launch", lambda worker: worker.release())
+        patch.setattr(background._Worker, "launch", abandoned_controller)
         ack = api.prerequisites_start("pending_projection", legacy, accepted, background=True)
     assert ack["execution"]["state"] == "recovery_required"
+    assert subject.execution_domain.busy() is True
     assert subject.store.get("pending_projection")["_initial_validation_pending"] is True
 
     restarted = coordinator(bundle)

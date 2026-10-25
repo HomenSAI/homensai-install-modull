@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-016",
+  "checkpoint_id": "CP-20261025-017",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -89,10 +89,10 @@
     "cloud_git": "SYNC_PENDING",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261025-015",
+    "last_confirmed_checkpoint": "CP-20261025-016",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
-  "next_step": "Реализовать общий атомарный product/prerequisite execution lease для доверенно зарегистрированного execution domain: durable ownership/fencing, handoff до enqueue/worker и independent-process crash/cancel tests. Затем durable measured byte progress с обязательным storage writer и truthful verification semantics. Проект следующего шага: docs/PREREQUISITES_NEXT_CORE_STEPS.md; implementation/tests пока NOT IMPLEMENTED/NOT RUN. Actual browser/OS/platform acceptance обязательна.",
+  "next_step": "После независимого подтверждения CP017 в GitHub объединить durable measured download progress: обязательный storage writer, свежая projection/event без потери cancel, retry fencing, 100% только после staged hash verification; подключить UI ru/en/de и API schema. Повторить combined source/integration и расширенный installed synthetic harness на новых bytes. Actual browser/OS/platform acceptance остаётся обязательной.",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
@@ -100,7 +100,7 @@
     "linux_native": "PARTIAL: frozen x64 user-session lifecycle/updates/rollback/repair/crash-resume PASS in scoped receipts; OS service/reboot/full matrix open",
     "linux_docker": "NOT RUN/BLOCKED live daemon: source install/uninstall/start/stop/backup tested with modeled daemon; images/host attestation/full lifecycle remain open"
   },
-  "last_confirmed_github_sha": "fde526435a7061cf9037251bfeb87bcc04bbe3f1",
+  "last_confirmed_github_sha": "4814ae6238c2dbec569a5a462dccb39c7a3b456b",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -135,7 +135,14 @@
     "packaging/acceptance-evidence/github-ci-20261025-cp014.json",
     "packaging/acceptance-evidence/installed-prerequisites-summary-20261025-cp016.json",
     "packaging/acceptance-evidence/installed-prerequisites-20261025-cp016.json",
-    "packaging/acceptance-evidence/github-ci-20261025-cp015.json"
+    "packaging/acceptance-evidence/github-ci-20261025-cp015.json",
+    "packaging/acceptance-evidence/execution-lease-20261025-cp017.json",
+    "packaging/acceptance-evidence/source-20261025-cp017.json",
+    "packaging/acceptance-evidence/execution-lease-independent-20261025-cp017.json",
+    "packaging/acceptance-evidence/execution-lease-implementation-20261025-cp017.json",
+    "packaging/acceptance-evidence/installed-prerequisites-20261025-cp017.json",
+    "packaging/acceptance-evidence/execution-lease-raw-evidence-20261025-cp017.json",
+    "packaging/acceptance-evidence/github-ci-20261025-cp016.json"
   ],
   "environment": {
     "os": "linux",
@@ -154,37 +161,35 @@
     "TODO": 31
   },
   "source_verification": {
-    "source_passed": 1856,
-    "source_skipped": 1,
-    "source_subtests": 10,
-    "integration_passed": 49,
-    "integration_subtests": 5,
-    "sdk_python_files": 44,
-    "sdk_resources": 18,
-    "checkpoint_id": "CP-20261025-008",
-    "scope": "Исторический полный прогон; не PASS текущих изменённых bytes. Текущие проверки в latest_scoped_verification."
+    "checkpoint_id": "CP-20261025-017",
+    "source_and_integration_passed": 2097,
+    "skipped": 1,
+    "subtests_passed": 15,
+    "elapsed_seconds": 148.508,
+    "scope": "Combined source and synthetic integration; Windows-only test skipped; not full platform/product acceptance",
+    "receipt": "packaging/acceptance-evidence/source-20261025-cp017.json"
   },
   "verification_backlog": "docs/verification-status.json",
   "verification_instruction": "Обязательно выполнить NOT RUN/BLOCKED/FAIL при доступной среде; отсутствие harness явно NOT IMPLEMENTED. Непроверенное НЕ ГОТОВО.",
   "checkpoint_policy": "После каждого проверенного шага TODO+RESUME+код в одном checkpoint, GitHub ref/tree подтверждён до следующего шага.",
   "latest_scoped_verification": [
     {
-      "id": "CP016-installed-signed-prerequisites",
+      "id": "cp017-source-integration",
       "status": "PASS",
-      "scope": "Current wheel,10 independent isolated clients/11CLI;63module+161dependency exact bytes, no checkout/network/subprocess attempts in ordinary phases; synthetic installers only.",
-      "receipt": "packaging/acceptance-evidence/installed-prerequisites-20261025-cp016.json"
+      "scope": "2097 passed, 1 Windows-only skipped, 15 subtests; exact source + own synthetic Linux process/HTTP/D-Bus",
+      "receipt": "packaging/acceptance-evidence/source-20261025-cp017.json"
     },
     {
-      "id": "CP016-source-input-identity",
+      "id": "cp017-installed-prerequisites",
       "status": "PASS",
-      "scope": "142 runtime/API/test input hashes match CP015 source manifest; full pytest not rerun inCP016. New installed harness separately executed.",
-      "receipt": "packaging/acceptance-evidence/installed-prerequisites-summary-20261025-cp016.json"
+      "scope": "Current wheel: 10 isolated synthetic clients,11 CLI calls,64 package/161 dependency files unchanged; no real installers",
+      "receipt": "packaging/acceptance-evidence/installed-prerequisites-20261025-cp017.json"
     },
     {
-      "id": "CP016-browser-ci-platform",
-      "status": "BLOCKED",
-      "scope": "Actual browser/Windows/liveDocker/realOS acceptance NOT RUN; CP015CI4jobs runner0/steps[].",
-      "receipt": "packaging/acceptance-evidence/github-ci-20261025-cp015.json"
+      "id": "cp017-independent-lease",
+      "status": "PASS",
+      "scope": "57 source and 1 real loopback HTTP; overlap full suite; original failures retained",
+      "receipt": "packaging/acceptance-evidence/execution-lease-independent-20261025-cp017.json"
     }
   ]
 }

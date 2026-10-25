@@ -170,10 +170,14 @@ def test_interrupted_synchronous_cli_keeps_intent_and_never_implicitly_replays(b
     assert status["result"]["steps"]["base"]["state"] == "INSTALLING"
     code, listing = invoke(capsys, "operations", api=restored)
     assert code == 0 and listing["result"]["operations"][0]["operation_id"] == "interrupted"
-    # Idempotent synchronous start reads while holding the controller lock.
-    # It cannot prove interruption in that snapshot and reports nonready/unknown.
+    # Idempotent synchronous start is a read-only ACK lookup. It no longer
+    # holds its own controller lock and mistakes that read for a live worker.
     code, duplicate = invoke(capsys, "start", "interrupted", "--plan", path, *consents(plan), api=restored)
-    assert code == 3 and duplicate["result"]["execution"]["state"] == "unknown"
+    assert code == 1 and duplicate["result"]["status"] == "RECOVERY_REQUIRED"
+    assert duplicate["result"]["execution"]["state"] == "recovery_required"
+    assert duplicate["result"]["execution"]["active"] is False
+    assert duplicate["result"]["operation_id"] == "interrupted"
+    assert duplicate["result"]["steps"]["base"]["state"] == "INSTALLING"
     assert invoke(capsys, "resume", "interrupted", api=restored)[0] == 1
     assert bundle["calls"] == ["base"]
 

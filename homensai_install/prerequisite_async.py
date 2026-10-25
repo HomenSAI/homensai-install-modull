@@ -57,14 +57,21 @@ def execution_status(coordinator, operation):
 
 
 class _Worker:
-    def __init__(self, coordinator, operation_id):
+    def __init__(self, coordinator, operation_id, lease):
         self.coordinator, self.operation_id = coordinator, operation_id
         self.token, self.revision, self.queued_event = uuid.uuid4().hex, None, None
+        self.lease = lease
 
     def release(self):
         with _WORKERS_LOCK:
             if _WORKERS.get(_key(self.coordinator)) is self:
                 del _WORKERS[_key(self.coordinator)]
+
+    def finish(self):
+        try:
+            self.coordinator._finish_lease(self.lease)
+        finally:
+            self.release()
 
     def failed_locked(self, reason):
         """Preserve the latest durable intent, including concurrent cancel."""
@@ -106,6 +113,7 @@ class _Worker:
                                     operation = coordinator._settle(operation)
                                 coordinator._save(operation, "prerequisite_background_superseded")
                                 return
+                            self.lease.active()
                             dispatch["state"] = "RUNNING"
                             operation = coordinator._save(operation, "prerequisite_background_started")
                             operation = coordinator._drive(operation, execute=True)
@@ -127,7 +135,7 @@ class _Worker:
             # exposed as recovery-required once the controller is known idle.
             pass
         finally:
-            self.release()
+            self.finish()
 
     def launch(self):
         try:
@@ -137,14 +145,14 @@ class _Worker:
                 with self.coordinator.store.lock():
                     self.failed_locked("prerequisite_background_start_failed")
             finally:
-                self.release()
+                self.finish()
             if not isinstance(error, Exception):
                 raise
 
 
-def _queue_locked(coordinator, operation, *, create=False):
+def _queue_locked(coordinator, operation, *, lease, create=False):
     """Reserve before releasing the prepare lock; persist before Thread.start."""
-    worker = _Worker(coordinator, operation["operation_id"])
+    worker = _Worker(coordinator, operation["operation_id"], lease)
     with _WORKERS_LOCK:
         if _key(coordinator) in _WORKERS:
             fail("OPERATION_CONFLICT", "prerequisite_background_worker_active")
@@ -154,6 +162,7 @@ def _queue_locked(coordinator, operation, *, create=False):
         # Queue observers run in the worker, so a slow observer cannot delay
         # the durable ACK or hold the registration lock on the calling thread.
         operation, worker.queued_event = coordinator.store.save(operation, "prerequisite_background_queued", create=create)
+        lease.queued()
         worker.revision = operation["revision"]
     except BaseException:
         worker.release()
@@ -170,23 +179,40 @@ def start(coordinator, operation_id, plan, *, consents):
     old = coordinator._existing_start(operation_id, plan)
     if old is not None:
         return coordinator._public(old)
-    with coordinator.store.lock():
-        old = coordinator._existing_start(operation_id, plan)
-        if old is not None:
-            return coordinator._public(old)
-        operation = coordinator._prepare_start(operation_id, plan, consents, defer_validation=True)
-        worker = _queue_locked(coordinator, operation, create=True)
-    worker.launch()
+    lease = coordinator._reserve_lease(operation_id, plan=plan)
+    transferred = False
+    try:
+        with coordinator.store.lock():
+            old = coordinator._existing_start(operation_id, plan)
+            if old is not None:
+                return coordinator._public(old)
+            operation = coordinator._prepare_start(operation_id, plan, consents, defer_validation=True)
+            worker = _queue_locked(coordinator, operation, lease=lease, create=True)
+        transferred = True
+        worker.launch()
+    finally:
+        if not transferred:
+            coordinator._finish_lease(lease)
     return coordinator.status(operation_id)
 
 
 def resume(coordinator, operation_id, *, consents=None):
-    with coordinator.store.lock():
-        operation = coordinator._get(operation_id)
-        if consents is not None:
-            _, operation["consents"] = coordinator._validate_plan(operation["plan"], consents)
-        if operation["status"] in _TERMINAL:
-            return coordinator._public(operation)
-        worker = _queue_locked(coordinator, operation)
-    worker.launch()
+    operation = coordinator._get(operation_id)
+    if operation["status"] in _TERMINAL:
+        # Explicit recovery may finish a terminal journal whose old controller
+        # died before releasing its common claim. No duplicate start does so.
+        return coordinator.resume(operation_id, consents=consents)
+    lease = coordinator._reserve_lease(operation_id, resume=True)
+    transferred = False
+    try:
+        with coordinator.store.lock():
+            operation = coordinator._get(operation_id)
+            if consents is not None:
+                _, operation["consents"] = coordinator._validate_plan(operation["plan"], consents)
+            worker = _queue_locked(coordinator, operation, lease=lease)
+        transferred = True
+        worker.launch()
+    finally:
+        if not transferred:
+            coordinator._finish_lease(lease)
     return coordinator.status(operation_id)

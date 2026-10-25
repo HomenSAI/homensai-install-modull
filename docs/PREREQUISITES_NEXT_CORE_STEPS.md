@@ -1,15 +1,23 @@
 # Следующие core-шаги prerequisites
 
-Автор: Serhii Khomenko. Подготовлено при CP-20261025-016 по исходникам CP-015.
-**Это разбор и проект следующего изменения. Оба механизма NOT IMPLEMENTED;
-перечисленные ниже новые concurrency/progress tests NOT RUN.**
+Автор: Serhii Khomenko. Первоначальный разбор CP-20261025-016 по исходникам CP-015; статус обновлён в CP-017.
+
+**Общий lease реализован в CP017.** Актуальный контракт — [EXECUTION_LEASE.md](EXECUTION_LEASE.md),
+результаты — `packaging/acceptance-evidence/execution-lease-20261025-cp017.json`.
+Full source/integration: 2097 PASS, 1 Windows-only skip, 15 subtests; installed synthetic SDK/CLI PASS.
+Ни один scoped PASS не закрывает реальные OS/browser/product gates. Неизвестные
+незарегистрированные старые journals и binaries вне протокола не покрываются;
+автоматический перенос control journal на новую файловую identity NOT IMPLEMENTED.
+
+**Durable byte progress в CP017 ещё NOT IMPLEMENTED.** Ниже сохранён исходный
+проект требований; описания кода в историческом разделе 1 относятся к CP015.
 
 Installed synthetic SDK/CLI receipt CP-016 не закрывает эти требования.
 Задачи остаются в каноническом ToDo: HIM-020/HIM-063 и HIM-035. После каждого
 отдельного реализованного шага: тесты, evidence, TODO/RESUME, commit и GitHub
 с независимым подтверждением ref/tree.
 
-## 1. Общий execution lease
+## 1. Общий execution lease — исторический проект до CP017
 
 ### Подтверждённое чтением кода
 
@@ -142,4 +150,5 @@ local/offline, Range/ETag/reset/retry, несколько artifacts, stale callb
 bounds/redaction и прежний queued v1 plan. Затем расширяется installed synthetic
 harness и отдельно GUI byte display/Node/actual browser acceptance.
 
-Ни один из этих будущих тестов не включён в PASS CP-015/016.
+Ни один из перечисленных progress tests не включён в PASS CP-015/016/017.
+Lease regressions приняты в ограниченной области CP017 по отдельной квитанции.

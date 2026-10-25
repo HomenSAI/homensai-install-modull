@@ -41,6 +41,13 @@ def run_product_cli(coordinator, *, state_dir, trust_config, argv=None):
 или произвольный adapter. Каждое новое обращение оболочки подключает тот же
 original owner/coordinator state directory и нужную версию подписанного каталога.
 
+Этот SDK наследует общий execution domain coordinator; отдельные trusted stores
+могут быть явно объединены bootstrap. Domain не задаётся аргументами CLI.
+Подробности: [`EXECUTION_LEASE.md`](EXECUTION_LEASE.md). Duplicate start только
+читает ту же operation. Для прерванного synchronous start актуальная проекция
+`RECOVERY_REQUIRED` даёт exit code `1`, как status: собственный lock чтения больше
+не создаёт искусственный `unknown` и code `3`. Неявного resume нет.
+
 При переданном `api` флаги `--state-dir`, `--trust-config`,
 `--development-runtime`, `--allow-development`, `--docker-cli-config`
 отклоняются с `INVALID_REQUEST`. Конфигурация переданного SDK не подменяется

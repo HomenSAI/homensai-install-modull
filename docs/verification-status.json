@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-016",
+  "checkpoint_id": "CP-20261025-017",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
@@ -277,6 +277,24 @@
       "status": "BLOCKED",
       "scope": "Actual browser/Windows/liveDocker/realOS acceptance NOT RUN; CP015CI4jobs runner0/steps[].",
       "receipt": "packaging/acceptance-evidence/github-ci-20261025-cp015.json"
+    },
+    {
+      "id": "cp017-source-integration",
+      "status": "PASS",
+      "scope": "2097 passed, 1 Windows-only skipped, 15 subtests; exact source + own synthetic Linux process/HTTP/D-Bus",
+      "receipt": "packaging/acceptance-evidence/source-20261025-cp017.json"
+    },
+    {
+      "id": "cp017-installed-prerequisites",
+      "status": "PASS",
+      "scope": "Current wheel: 10 isolated synthetic clients,11 CLI calls,64 package/161 dependency files unchanged; no real installers",
+      "receipt": "packaging/acceptance-evidence/installed-prerequisites-20261025-cp017.json"
+    },
+    {
+      "id": "cp017-independent-lease",
+      "status": "PASS",
+      "scope": "57 source and 1 real loopback HTTP; overlap full suite; original failures retained",
+      "receipt": "packaging/acceptance-evidence/execution-lease-independent-20261025-cp017.json"
     }
   ],
   "historical_evidence": [
@@ -488,9 +506,10 @@
         "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json",
         "packaging/acceptance-evidence/environment-20261025-cp012.json",
         "packaging/acceptance-evidence/recovery-20261025-cp013.json",
-        "packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json"
+        "packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json",
+        "packaging/acceptance-evidence/execution-lease-20261025-cp017.json"
       ],
-      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-015: Условный GUI реализован, actual JS response contract PASS; настоящий browser/installed/OS scenario остаётся NOT RUN/BLOCKED и обязателен."
+      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-017: Общий lease и старые известные журналы проверены в source/synthetic independent-process/HTTP сценариях; installed synthetic SDK/CLI PASS. Полная platform/browser/product приёмка не выполнена."
     },
     {
       "scenario_id": "ACC-09",
@@ -543,8 +562,10 @@
         "packaging/check_reference_restart.cjs"
       ],
       "next_executor_action": "Реальный SIGKILL только своего controller на каждой опасной границе journal/stage/migration/pointer/restore/readiness; после restart проверить тот же operation_id и отсутствие двойных эффектов. Существующий harness покрывает узкую staging boundary.",
-      "current_artifact_evidence": [],
-      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+      "current_artifact_evidence": [
+        "packaging/acceptance-evidence/execution-lease-20261025-cp017.json"
+      ],
+      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-017: Общий lease и старые известные журналы проверены в source/synthetic independent-process/HTTP сценариях; installed synthetic SDK/CLI PASS. Полная platform/browser/product приёмка не выполнена."
     },
     {
       "scenario_id": "ACC-13",
@@ -619,9 +640,10 @@
         "packaging/acceptance-evidence/environment-20261025-cp012.json",
         "packaging/acceptance-evidence/recovery-20261025-cp013.json",
         "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json",
-        "packaging/acceptance-evidence/installed-prerequisites-summary-20261025-cp016.json"
+        "packaging/acceptance-evidence/installed-prerequisites-summary-20261025-cp016.json",
+        "packaging/acceptance-evidence/execution-lease-20261025-cp017.json"
       ],
-      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-016: installed signed synthetic SDK/CLI проверил tampered signature refusal, отсутствующие согласия, idempotency/events/cursor и восстановление. Это не настоящий OS installer, browser accessibility или полный platform/product scenario."
+      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-017: Общий lease и старые известные журналы проверены в source/synthetic independent-process/HTTP сценариях; installed synthetic SDK/CLI PASS. Полная platform/browser/product приёмка не выполнена."
     },
     {
       "scenario_id": "ACC-17",
@@ -728,18 +750,21 @@
         "HIM-020",
         "HIM-063"
       ],
-      "implementation": "NOT IMPLEMENTED",
-      "test_code": "NOT IMPLEMENTED",
-      "acceptance_status": "NOT RUN",
+      "implementation": "IMPLEMENTED: trusted shared execution domain, durable claim, registered legacy journals",
+      "test_code": "IMPLEMENTED: source, independent processes, crash/cancel/registry faults and HTTP",
+      "acceptance_status": "PARTIAL: source/integration and installed synthetic PASS; real platforms NOT RUN",
       "ready": false,
-      "note": "Current busy() is a conservative read-only probe, not an atomic common lease across product/prerequisite executors.",
-      "next_executor_action": "Implement durable shared lease and synthetic independent-process tests for simultaneous starts, unknown effects, interruption and safe release. Never infer global exclusion from HTTP source PASS. See docs/PREREQUISITES_NEXT_CORE_STEPS.md; design is not implementation or acceptance.",
+      "note": "CP017: common lease before enqueue through final callbacks; fail-closed unknown effects and malformed/replaced known journals. Scope excludes never registered roots and old binaries outside protocol. New-inode trusted journal relocation remains NOT IMPLEMENTED.",
+      "next_executor_action": "Preserve CP017 regressions when merging durable progress. Run actual platform/ACL/installer/reboot acceptance on exact artifacts; implement explicit trusted journal relocation before claiming it supported.",
       "design_review": {
         "checkpoint": "CP-20261025-016",
         "document": "docs/PREREQUISITES_NEXT_CORE_STEPS.md",
         "scope": "Read-only source analysis and proposed protocol",
         "new_concurrency_progress_tests": "NOT RUN"
-      }
+      },
+      "evidence": [
+        "packaging/acceptance-evidence/execution-lease-20261025-cp017.json"
+      ]
     },
     {
       "id": "prerequisite-gui-flow",

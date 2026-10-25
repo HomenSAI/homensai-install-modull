@@ -1,12 +1,18 @@
 # Фактическое состояние реализации
 
-Дата: 25.10.2026. Checkpoint: **CP-20261025-016**.
+Дата: 25.10.2026. Checkpoint: **CP-20261025-017**.
 Ветка `codex/universal-installer-20261025`. **`production_ready=false`.**
 Исходный commit: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
 
 
 
 ## Последний выполненный шаг
+
+CP-20261025-017: Реализован общий product/prerequisite execution lease в доверенном original-owner domain: постоянный OS lock, durable claim/fencing и передача владения от reserve до завершения worker. Старые незавершённые v1 операции учитываются через проверяемый реестр известных журналов; новый API state_dir, отмена неизвестного эффекта и повреждённый/подменённый журнал не обходят блокировку. Синхронное исполнение больше не удерживает общий Python lock во время долгого engine; status/cancel доступны. Исправлена блокировка duplicate ACK/resume собственной product claim.
+
+Точный combined source+integration на Python 3.14.3: 2097 PASS, 1 Windows-only skip, 15 subtests (148.508 s, включая runner); 176 входных файлов не менялись. Новый installed wheel: 10 clients/11 CLI calls PASS (7.109 s), 64 package и 161 dependency files неизменны. Независимые 57 source + 1 actual loopback HTTP PASS пересекаются с full suite и не суммируются. Исходные 2 sync-lock, 6 legacy-bypass, 4 malformed/inode и 2 GUI FAIL сохранены вместе с исправлениями, harness failures и непринятым прогоном с изменявшимися inputs. Windows/ACL/UAC, actual browser/frozen, реальные installers/reboot/relogin, live Docker/services, hardware power-loss и полная product acceptance NOT RUN; CI CP016: четыре jobs без runner/steps. Автоматическое восстановление control journal с новой файловой identity NOT IMPLEMENTED; неизвестные ранее незарегистрированные roots и старые binaries вне протокола не покрываются. Все G0–G5 OPEN, production_ready=false.
+
+## Исторический шаг CP-20261025-016
 
 CP-20261025-016: Добавлен воспроизводимый offline installed harness: новый wheel, чистый venv, pinned security closure с require-hashes, внешние isolated clients без checkout/network/subprocess. Проверены manual→READY, dependency-order auto с postconditions, потерянный ACK/idempotent replay, cancel/restore, подпись/согласия, events/attempts/redaction и настоящий CLI parser с trusted injection. Сохранён read-only разбор общего execution lease и durable progress; эти механизмы не реализованы.
 

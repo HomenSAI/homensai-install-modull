@@ -10,7 +10,7 @@ import sqlite3
 import stat
 import uuid
 
-from .model import canonical, checked_id, checked_product_id, fail, parse_json
+from .model import canonical, checked_id, checked_product_id, digest, fail, parse_json
 
 
 def now() -> str:
@@ -120,6 +120,19 @@ class Journal:
         with self.connection() as db:
             row = db.execute("SELECT request_digest,body FROM operations WHERE idempotency_key=?", (key,)).fetchone()
         return {"request_digest": row[0], "operation": parse_json(row[1])} if row else None
+
+    def lease_binding(self, key: str, request_digest: str) -> str:
+        return digest({"journal": os.path.normcase(str(self.directory)),
+                       "idempotency_key": key, "request_digest": request_digest})
+
+    def operation_lease_binding(self, operation_id: str) -> str:
+        checked_id(operation_id, field="operation_id")
+        with self.connection() as db:
+            row = db.execute("SELECT idempotency_key,request_digest FROM operations WHERE operation_id=?",
+                             (operation_id,)).fetchone()
+        if row is None:
+            fail("OPERATION_NOT_FOUND")
+        return self.lease_binding(*row)
 
     def create_operation(self, operation: dict, key: str, request_digest: str, resource_key: str) -> tuple[dict, bool]:
         with self.connection(write=True) as db:

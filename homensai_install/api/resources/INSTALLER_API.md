@@ -193,6 +193,14 @@ coordinator не принимается. По умолчанию автомат�
 `InstallerAPI.from_bootstrap(state_dir, prerequisites=coordinator, ...)`;
 это доверенная настройка приложения-хоста, не поле HTTP/manifest/options.
 
+Зарегистрированный SDK наследует общий `ExecutionDomain` coordinator. Он
+исключает конфликтующее product/prerequisite исполнение до enqueue и сохраняет
+незавершённое владение после исчезновения процесса. Несколько trusted stores
+могут получить один явный `execution_domain`; разные product API state directories
+не обходят его. Настройка, границы гарантии и recovery-контракт:
+[`docs/EXECUTION_LEASE.md`](docs/EXECUTION_LEASE.md). У SDK без регистрации/domain
+остаются прежние локальные product claims.
+
 ```python
 api = InstallerAPI(state_dir, engine=engine, prerequisites=coordinator)
 capabilities = api.prerequisites_capabilities()
@@ -334,8 +342,11 @@ Guard сначала вызывает read-only `prerequisites_busy()`: стар
 После READY нужен новый product plan и новое подтверждение; transport не
 вызывает product submit автоматически. Это сессионный gate; глобальная
 координация с произвольными внешними контроллерами им не объявляется.
-Промежуток между probe и product submit не защищён общим межпроцессным lease;
-такой lease остаётся отдельной незавершённой задачей.
+Для зарегистрированного domain SDK дополнительно захватывает общую durable
+execution lease до enqueue и повторно сверяет reviewed inventory после захвата.
+Это закрывает промежуток между сессионным probe и исполнением для участников
+того же domain. Неизвестный внешний effect после обрыва сохраняет владение;
+отмена сама по себе не служит доказательством безопасного завершения.
 
 Events содержат сохранённые фазы/состояния; callback с download bytes пока
 не сохранён как durable progress. Нельзя выдумывать проценты из этих событий.

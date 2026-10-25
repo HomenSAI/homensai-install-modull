@@ -1,9 +1,9 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261025-016`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261025-017`; ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый local/GitHub до создания CP-20261025-016:
-`fde526435a7061cf9037251bfeb87bcc04bbe3f1` (CP-20261025-015).
+Последний подтверждённый local/GitHub до создания CP-20261025-017:
+`4814ae6238c2dbec569a5a462dccb39c7a3b456b` (CP-20261025-016).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
@@ -81,6 +81,15 @@ CP-008 объединяет независимые source units в общем ro
 
 ## Последний выполненный шаг
 
+CP-20261025-017: Реализован общий product/prerequisite execution lease в доверенном original-owner domain: постоянный OS lock, durable claim/fencing и передача владения от reserve до завершения worker. Старые незавершённые v1 операции учитываются через проверяемый реестр известных журналов; новый API state_dir, отмена неизвестного эффекта и повреждённый/подменённый журнал не обходят блокировку. Синхронное исполнение больше не удерживает общий Python lock во время долгого engine; status/cancel доступны. Исправлена блокировка duplicate ACK/resume собственной product claim.
+
+Точный combined source+integration на Python 3.14.3: 2097 PASS, 1 Windows-only skip, 15 subtests (148.508 s, включая runner); 176 входных файлов не менялись. Новый installed wheel: 10 clients/11 CLI calls PASS (7.109 s), 64 package и 161 dependency files неизменны. Независимые 57 source + 1 actual loopback HTTP PASS пересекаются с full suite и не суммируются. Исходные 2 sync-lock, 6 legacy-bypass, 4 malformed/inode и 2 GUI FAIL сохранены вместе с исправлениями, harness failures и непринятым прогоном с изменявшимися inputs. Windows/ACL/UAC, actual browser/frozen, реальные installers/reboot/relogin, live Docker/services, hardware power-loss и полная product acceptance NOT RUN; CI CP016: четыре jobs без runner/steps. Автоматическое восстановление control journal с новой файловой identity NOT IMPLEMENTED; неизвестные ранее незарегистрированные roots и старые binaries вне протокола не покрываются. Все G0–G5 OPEN, production_ready=false.
+
+Receipt: `packaging/acceptance-evidence/execution-lease-20261025-cp017.json`.
+Следующий шаг: После независимого подтверждения CP017 в GitHub объединить durable measured download progress: обязательный storage writer, свежая projection/event без потери cancel, retry fencing, 100% только после staged hash verification; подключить UI ru/en/de и API schema. Повторить combined source/integration и расширенный installed synthetic harness на новых bytes. Actual browser/OS/platform acceptance остаётся обязательной.
+
+## Исторический шаг CP-20261025-016
+
 CP-20261025-016: Добавлен воспроизводимый offline installed harness: новый wheel, чистый venv, pinned security closure с require-hashes, внешние isolated clients без checkout/network/subprocess. Проверены manual→READY, dependency-order auto с postconditions, потерянный ACK/idempotent replay, cancel/restore, подпись/согласия, events/attempts/redaction и настоящий CLI parser с trusted injection. Сохранён read-only разбор общего execution lease и durable progress; эти механизмы не реализованы.
 
 Root current wheel: 10 независимых clients/11 CLI calls PASS (7.362 s), 63 package и 161 dependency files побайтно совпали до/после, ordinary denied attempts=0; отдельный guard self-test блокирует checkout/DNS/subprocess. Wheel 7cdf5f5e73054f3ccfbd2b7f6622cb390e114c1d21efb68b907553ce66a5a507. Два начальных agent harness FAIL и промежуточные PASS сохранены; ошибочно ожидалась CLI version1 вместо1.0. Все142 runtime/API/test inputs идентичны CP015; новый full pytest вCP016 не запускался, исходный scoped результат CP0151974PASS/3skips/10subtests +processHTTP5PASS не расширяется. Actual OS installers/process-kill/full product/frozen/browser/Windows/Docker NOT RUN. CI CP015 четыре jobs без runner/steps; full G1–G5 и production acceptance НЕ ГОТОВО.
@@ -151,14 +160,14 @@ late rollback и SIGKILL→new controller/browser→explicit resume. Стары�
 ## Следующие инженерные шаги
 
 1. Проверить текущий checkpoint по GitHub ref/tree и local receipt. После каждого следующего шага обновить canonical TODO/RESUME/реестр, сохранить и подтвердить GitHub до продолжения.
-2. Реализовать общий атомарный product/prerequisite execution lease: trusted domain, durable claim/fencing, handoff до enqueue/worker, независимые process/crash/cancel tests. Текущий busy probe не закрывает cross-executor race. Чтение кода и предложенный протокол: docs/PREREQUISITES_NEXT_CORE_STEPS.md; реализация и новые race tests пока NOT IMPLEMENTED/NOT RUN.
-3. Реализовать durable measured byte progress: обязательная запись отдельно от best-effort callback, свежий snapshot без потери cancel, retry/verification и отсутствие ложного100%. CP016 installed synthetic SDK/CLI уже PASS; после core изменений повторить его на новом wheel. Production signed catalogue/pins/licences/host providers и browser local artifact selection ещё НЕ ГОТОВО. Current actual browser остаётся BLOCKED; Node не принимает вёрстку/focus/keyboard/OS installation.
+2. Общий lease реализован и проверен в CP017; контракт и пределы — docs/EXECUTION_LEASE.md. Сохранить fail-closed для неизвестных эффектов и известных старых журналов. Автоматическое восстановление control journal с новой identity пока не реализовано; реальные Windows/ACL/installer/reboot проверки остаются открытыми.
+3. Объединить durable measured byte progress с UI ru/en/de и публичным API: обязательная запись отдельно от best-effort callback, свежий snapshot без потери cancel, retry/verification и отсутствие ложного 100%. Повторить full source/integration и расширенный installed SDK/CLI harness на новых package bytes. Production catalogue/pins/licences/host providers и browser local artifact selection ещё НЕ ГОТОВО. Current actual browser BLOCKED; Node не принимает вёрстку/focus/keyboard/OS installation.
 4. Подключить подписанный ExecutableProductAdapter к NativeEngine: reviewed descriptor binding и fresh readiness observation, затем migration contract с настоящими backup receipts и fresh-empty precondition. Добавить независимый reference через публичный установленный пакет. Не заменять UNKNOWN автоматическим rollback.
 5. Docker: explicit abort/compensation interrupted install, trusted host attestation и image transport/import/offline bundle, update/restore/rollback/repair/reinstall. Live daemon в текущей среде BLOCKED.
 6. Windows native bootstrap и narrow elevation; Windows Docker/WSL2; systemd service integration с общим lock lease/execution ownership. Отсутствие runner не означает, что реализация закончена.
 7. Portable/legacy/multi-root recovery, modify_components, build/doctor facade, signed maintenance catalogue и mandatory production licence gate; затем thin product adapters JobPilot/Rent по pinned source audit. Исторический build2 FAIL не закрывать без исходных scenarios.
 8. Актуальные DEV artifacts и полная reference/product acceptance на четырёх targets × ru/en/de, offline, migration/rollback/restore, reboot/power loss. Каждый NOT RUN/BLOCKED/FAIL из verification-status.json должен быть выполнен следующим ИИ при доступности реализации/среды. NOT IMPLEMENTED означает сначала реализовать недостающий механизм/тест.
-9. Production signing/approved legal/licence decisions и отдельный Docker Git владельца остаются BLOCKED до реального подключения/решения. GitHub CI CP-015: четыре jobs без runner/steps; источник проблемы не доказан. Не менять billing/workflow по догадке.
+9. Production signing/approved legal/licence decisions и отдельный Docker Git владельца остаются BLOCKED до реального подключения/решения. GitHub CI CP-016: четыре jobs без runner/steps; источник проблемы не доказан. Не менять billing/workflow по догадке.
 
 Все G0–G5 OPEN; production_ready=false. Это инженерная очередь и конкретные внешние блокировки; отдельные source PASS не заменяют приёмку.
 

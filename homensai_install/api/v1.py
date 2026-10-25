@@ -92,7 +92,7 @@ class InstallerAPI:
     """
 
     def __init__(self, state_dir: str | Path, *, engine=None, locale: str = "ru", diagnostics=None,
-                 prerequisites=None):
+                 prerequisites=None, execution_domain=None):
         self.state_dir = Path(state_dir).absolute()
         self._engine_instance = engine
         self.locale = locale
@@ -104,12 +104,24 @@ class InstallerAPI:
             if not isinstance(prerequisites, PrerequisiteCoordinator):
                 fail("INVALID_REQUEST", details={"reason": "explicit_prerequisite_coordinator_required"})
         self._prerequisite_instance = prerequisites
+        from homensai_install.execution_lease import ExecutionDomain
+        if execution_domain is not None and not isinstance(execution_domain, ExecutionDomain):
+            fail("INVALID_REQUEST", details={"reason": "trusted_execution_domain_required"})
+        if prerequisites is not None:
+            if execution_domain is not None and not prerequisites.execution_domain.same_domain(execution_domain):
+                fail("INVALID_REQUEST", details={"reason": "prerequisite_execution_domain_mismatch"})
+            execution_domain = prerequisites.execution_domain
+        # Unregistered legacy APIs retain their existing per-product claims.
+        # Cross-controller exclusion requires the trusted common domain port.
+        self.execution_domain = execution_domain
+        if execution_domain is not None:
+            execution_domain.register_participant("product", self.state_dir)
 
     @classmethod
     def from_bootstrap(cls, state_dir: str | Path, *, trust_config: str | Path | None = None,
                        allow_development: bool = False, development_runtime: str | Path | None = None,
                        docker_cli_config: str | Path | None = None, secret_provider=None,
-                       locale: str = "ru", prerequisites=None) -> "InstallerAPI":
+                       locale: str = "ru", prerequisites=None, execution_domain=None) -> "InstallerAPI":
         """Создать общий router из доверенных локальных настроек bootstrap.
 
         Эти настройки задаёт приложение-хост, не manifest/options/HTTP body.
@@ -134,7 +146,8 @@ class InstallerAPI:
                                          docker_cli_config=docker_cli_config)
         except EngineError as error:
             raise InstallerError(error.code, details=error.details) from None
-        return cls(state_dir, engine=engine, locale=locale, prerequisites=prerequisites)
+        return cls(state_dir, engine=engine, locale=locale, prerequisites=prerequisites,
+                   execution_domain=execution_domain)
 
     def _engine(self):
         if self._engine_instance is None:
@@ -422,9 +435,6 @@ class InstallerAPI:
                 fail("OPERATION_CONFLICT")
             return self.status(old["operation"]["operation_id"])
         self._supported(plan["action"], plan["target"])
-        current = self.discover(plan["source_manifest"], plan["target"], plan["options"])
-        if not hmac.compare_digest(current["fingerprint"], plan["inventory_fingerprint"]):
-            fail("PLAN_STALE")
         root = plan["options"].get("install_root", plan["source_manifest"]["product_id"])
         resource_key = digest({"root": os.path.normcase(os.path.abspath(root)), "scope": plan["target"]["scope"]})
         operation = {"api_version": API_VERSION, "operation_id": "op_" + uuid.uuid4().hex,
@@ -432,12 +442,47 @@ class InstallerAPI:
                      "status": "QUEUED", "cancel_requested": False, "last_sequence": 0,
                      "created_at": now(), "updated_at": now(), "owner": _owner(),
                      "consent_refs": consents, "attempt": 0, "result": None, "error": None}
-        # Не оставляем окно, где status в этом же процессе увидит QUEUED без
-        # зарегистрированного worker и ошибочно объявит interruption.
-        with _JOBS_LOCK:
-            operation, created = journal.create_operation(operation, idempotency_key, request_digest, resource_key)
-            if created:
-                self._launch(operation["operation_id"], plan, background=background, resume=False)
+        lease, run = None, None
+        if self.execution_domain is not None:
+            try:
+                lease = self.execution_domain.reserve("product", operation["operation_id"],
+                    journal.lease_binding(idempotency_key, request_digest), participant=self.state_dir)
+                operation["operation_id"] = lease.operation_id
+            except Exception:
+                # A concurrent exact submit may already have published its ACK.
+                old = journal.by_key(idempotency_key)
+                if old and old["request_digest"] == request_digest:
+                    return self.status(old["operation"]["operation_id"])
+                raise
+        try:
+            # The final reviewed-inventory check belongs inside shared
+            # ownership, before publication. A prerequisite may have completed
+            # between an earlier GUI probe and acquisition of this domain.
+            try:
+                current = self.discover(plan["source_manifest"], plan["target"], plan["options"])
+                if not hmac.compare_digest(current["fingerprint"], plan["inventory_fingerprint"]):
+                    fail("PLAN_STALE")
+            except BaseException:
+                if lease is not None:
+                    lease.close(release=not lease.uncertain)
+                raise
+            # Register under a short lock; synchronous engine/callback work is
+            # deliberately outside it so status and cancel stay responsive.
+            with _JOBS_LOCK:
+                operation, created = journal.create_operation(operation, idempotency_key, request_digest, resource_key)
+                if created:
+                    if lease is not None:
+                        lease.queued()
+                    run = self._launch(operation["operation_id"], plan, background=background,
+                                       resume=False, lease=lease)
+                elif lease is not None:
+                    lease.close(release=not lease.uncertain)
+            if run is not None:
+                run()
+        except BaseException:
+            if lease is not None:
+                lease.close()
+            raise
         return self.status(operation["operation_id"])
 
     def _diagnostics(self, method: str, *args, _strict: bool = False, **kwargs):
@@ -467,11 +512,11 @@ class InstallerAPI:
         event = self._journal().append_event(operation_id, safe)
         self._diagnostics("record_event", operation_id, event)
 
-    def _launch(self, operation_id: str, plan: dict, *, background: bool, resume: bool, decisions=None):
+    def _launch(self, operation_id: str, plan: dict, *, background: bool, resume: bool, decisions=None, lease=None):
         key = (str(self.state_dir), operation_id)
         if background:
             worker = threading.Thread(target=self._run, args=(operation_id, plan),
-                                      kwargs={"resume": resume, "decisions": decisions},
+                                      kwargs={"resume": resume, "decisions": decisions, "lease": lease},
                                       name="hinstall-" + operation_id, daemon=True)
             with _JOBS_LOCK:
                 if key in _JOBS and _JOBS[key].is_alive():
@@ -481,18 +526,25 @@ class InstallerAPI:
         else:
             with _JOBS_LOCK:
                 _JOBS[key] = threading.current_thread()
-            self._run(operation_id, plan, resume=resume, decisions=decisions)
+            return lambda: self._run(operation_id, plan, resume=resume, decisions=decisions, lease=lease)
 
-    def _run(self, operation_id: str, plan: dict, *, resume: bool, decisions=None):
+    def _run(self, operation_id: str, plan: dict, *, resume: bool, decisions=None, lease=None):
         started = time.monotonic()
         attempt_id = None
+        release_lease = False
+        previous = {}
         try:
             journal = self._journal()
             previous = journal.operation(operation_id)
             if previous.get("cancel_requested"):
-                journal.update(operation_id, {"status": "CANCELED"},
+                safe = lease is None or not lease.uncertain
+                journal.update(operation_id, {"status": "CANCELED", "result": {
+                                   "status": "CANCELED", "execution_quiescent": safe, "resume_required": not safe}},
                                {"type": "operation.canceled", "status": "CANCELED"}, release=True)
+                release_lease = safe
                 return
+            if lease is not None:
+                lease.active()
             operation = journal.update(operation_id, {"status": "RUNNING", "owner": _owner(),
                                                       "attempt": previous.get("attempt", 0) + 1},
                                        {"type": "operation.started", "status": "RUNNING"})
@@ -517,6 +569,7 @@ class InstallerAPI:
             status = result.get("status", "SUCCEEDED")
             if status not in TERMINAL | RESUMABLE:
                 fail("UNEXPECTED_ERROR")
+            result.setdefault("status", status)
             attempt_duration = round((time.monotonic() - started) * 1000)
             prior_duration = previous.get("duration_ms", 0 if previous.get("attempt", 0) == 0 else None)
             cumulative_duration = (prior_duration + attempt_duration) if prior_duration is not None else None
@@ -528,6 +581,11 @@ class InstallerAPI:
             if attempt_id:
                 self._diagnostics("finish_attempt", attempt_id, status, duration_ms=attempt_duration)
             self._diagnostics("finish_operation", operation_id, status, duration_ms=updates["duration_ms"])
+            # Only authoritative completion releases generic engine ownership.
+            # CANCELED/FAILED alone do not prove absence of an external child.
+            release_lease = (not result.get("resume_required", False) and
+                (status in {"SUCCEEDED", "FAILED_ROLLED_BACK"}
+                 or (status in {"CANCELED", "FAILED"} and result.get("execution_quiescent") is True)))
         except Exception as error:
             # Нельзя считать произвольный сбой engine безопасно откатанным.
             try:
@@ -554,6 +612,19 @@ class InstallerAPI:
                 key = (str(self.state_dir), operation_id)
                 if _JOBS.get(key) is threading.current_thread():
                     _JOBS.pop(key, None)
+            if lease is not None:
+                try:
+                    lease.close(release=release_lease)
+                except Exception:
+                    # A terminal engine receipt must not erase a failed durable
+                    # lease release. Preserve its result for explicit recovery.
+                    try:
+                        self._journal().update(operation_id, {"status": "RECOVERY_REQUIRED",
+                            "execution_lease_recovery_required": True},
+                            {"type": "operation.failed", "status": "RECOVERY_REQUIRED",
+                             "error": {"code": "STATE_STORAGE_UNAVAILABLE"}})
+                    except Exception:
+                        pass
 
     def status(self, operation_id: str) -> dict:
         journal = self._journal()
@@ -623,15 +694,48 @@ class InstallerAPI:
         if type(decisions) is not dict:
             fail("INVALID_REQUEST")
         operation = self.status(operation_id)
+        journal = self._journal()
+        binding = journal.operation_lease_binding(operation_id) if self.execution_domain is not None else None
+        result = operation.get("result") or {}
+        terminal_status = (result.get("status") if operation.get("execution_lease_recovery_required")
+                           else operation["status"])
+        terminal_proven = (not result.get("resume_required", False) and
+            (terminal_status in {"SUCCEEDED", "FAILED_ROLLED_BACK"}
+             or (terminal_status in {"CANCELED", "FAILED"} and result.get("execution_quiescent") is True)))
+        if (terminal_proven and self.execution_domain is not None
+                and self.execution_domain.pending("product", operation_id, binding) is True):
+            # Journal committed before a final observer/crash/release failure.
+            # Explicit resume clears only this proven completed intent; no
+            # engine execution is repeated by constructor/status/duplicate ACK.
+            lease = self.execution_domain.reserve("product", operation_id, binding, resume=True,
+                                                  participant=self.state_dir)
+            lease.close(release=True)
+            if operation.get("execution_lease_recovery_required"):
+                journal.update(operation_id, {"status": terminal_status, "execution_lease_recovery_required": False},
+                    {"type": "operation.lease_recovered", "status": terminal_status}, release=True)
+            return self.status(operation_id)
         if operation["status"] not in RESUMABLE or not callable(getattr(self._engine(), "resume", None)):
             fail("RECOVERY_REQUIRED")
         plan = self.get_plan(operation["plan_id"])
-        with _JOBS_LOCK:
-            worker = _JOBS.get((str(self.state_dir), operation_id))
-            if worker is not None and worker.is_alive():
-                fail("OPERATION_CONFLICT")
-            self._journal().claim_for_resume(operation_id, owner=_owner())
-            self._launch(operation_id, plan, background=background, resume=True, decisions=decisions)
+        lease = (self.execution_domain.reserve("product", operation_id, binding, resume=True,
+                                               participant=self.state_dir)
+                 if self.execution_domain is not None else None)
+        try:
+            with _JOBS_LOCK:
+                worker = _JOBS.get((str(self.state_dir), operation_id))
+                if worker is not None and worker.is_alive():
+                    fail("OPERATION_CONFLICT")
+                journal.claim_for_resume(operation_id, owner=_owner())
+                if lease is not None:
+                    lease.queued()
+                run = self._launch(operation_id, plan, background=background, resume=True,
+                                   decisions=decisions, lease=lease)
+            if run is not None:
+                run()
+        except BaseException:
+            if lease is not None:
+                lease.close()
+            raise
         return self.status(operation_id)
 
     def errors_describe(self, code: str) -> dict:

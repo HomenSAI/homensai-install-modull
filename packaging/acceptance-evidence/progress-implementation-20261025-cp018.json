@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "author": "Serhii Khomenko",
+  "task_ids": [
+    "HIM-035",
+    "HIM-063"
+  ],
+  "base_commit": "4814ae6238c2dbec569a5a462dccb39c7a3b456b",
+  "commit": "1cd049760c092c2093073f695a767fcc8931bf0c",
+  "tree": "ccf9f76aaa064c120970bce5691d2f7793ad46c3",
+  "worktree": "/workspace/scratch/04f3380d60c8/installer-progress",
+  "branch": "work/cp018-progress",
+  "files_sha256": {
+    "homensai_install/downloads.py": "a2775a7e9fd8c3d1c23ed167d7104310f068095901843fe1c0567d3da1936bba",
+    "homensai_install/prerequisite_execution.py": "0716de7d36821db7d52a4ddf3593e943173c3ddf11f47898756d0433ee4f2125",
+    "homensai_install/prerequisite_progress.py": "a6f04e2260d6ad9c42198b712bcfffd1e1b0cc86d0125b6f12664904d7922b85",
+    "homensai_install/prerequisite_state.py": "1db1d3dbf31c59389036390584eda55d640b6e6b4c649072438fc5aec426d253",
+    "tests/test_prerequisites_progress.py": "ebb20d20319a26350e75e1a9cbb5069a257ed880bf2def9081241f510e487813"
+  },
+  "final_focused": "/workspace/scratch/04f3380d60c8/recovery-evidence/progress-agent-final.json",
+  "format_after_test": "/workspace/scratch/04f3380d60c8/recovery-evidence/progress-agent-format.json",
+  "historical_overlapping_checks": {
+    "initial-legacy": {
+      "file": "/workspace/scratch/04f3380d60c8/recovery-evidence/progress-agent-initial-legacy.xml",
+      "sha256": "5cc588126443faf470d86991f8115f2a5e2424b8eea10fd28ea75b1b2ceb1ddd",
+      "junit": {
+        "tests": 59,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "new-33": {
+      "file": "/workspace/scratch/04f3380d60c8/recovery-evidence/progress-agent-new-33.xml",
+      "sha256": "51ba073581d089497395bbe137d53c59ded9153e830595cb6cb1416a0438911a",
+      "junit": {
+        "tests": 33,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "new-38": {
+      "file": "/workspace/scratch/04f3380d60c8/recovery-evidence/progress-agent-new-38.xml",
+      "sha256": "eed74450c44992a29105eb29bd4aec77fc605cf7eed0a2c7fc7621f88c394fd7",
+      "junit": {
+        "tests": 38,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "new-43": {
+      "file": "/workspace/scratch/04f3380d60c8/recovery-evidence/progress-agent-new-43.xml",
+      "sha256": "11f000c456251941e3b32219f9f729180bbd72b24fcdd139c9611f85e548cdb9",
+      "junit": {
+        "tests": 43,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "focused-sandbox-fail": {
+      "file": "/workspace/scratch/04f3380d60c8/recovery-evidence/progress-agent-focused-sandbox-fail.xml",
+      "sha256": "c2796961d0a6072acf3469e8f2e003a717d3498d086914068950289475079db6",
+      "junit": {
+        "tests": 219,
+        "failures": 2,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "http-outside": {
+      "file": "/workspace/scratch/04f3380d60c8/recovery-evidence/progress-agent-http-outside.xml",
+      "sha256": "14c7863260b993343b8df3d47880b5e9f183d78036326cf28780aa97c3cc690c",
+      "junit": {
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "focused-before-review": {
+      "file": "/workspace/scratch/04f3380d60c8/recovery-evidence/progress-agent-focused-before-review.xml",
+      "sha256": "e377bd865a25189acba23b80b0f6bc74869a896027ecf52043e595c76183c933",
+      "junit": {
+        "tests": 224,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "throttle-before1": {
+      "file": "/workspace/scratch/04f3380d60c8/recovery-evidence/progress-agent-throttle-before1.xml",
+      "sha256": "72a0a2d912b0f08fb14c76f71d347f25daca31cbf5f80eeabdfc6e22425dbe72",
+      "junit": {
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "throttle-before2": {
+      "file": "/workspace/scratch/04f3380d60c8/recovery-evidence/progress-agent-throttle-before2.xml",
+      "sha256": "5fe523c0713c8f4e850731c68e9f90ad862d6f74bcf144796382ac7d031c12ee",
+      "junit": {
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "review-fixed-47": {
+      "file": "/workspace/scratch/04f3380d60c8/recovery-evidence/progress-agent-review-fixed-47.xml",
+      "sha256": "7dd9ef6e4b74936b9a9e5eadb7f46d2eb2d4606140ce7765eb1f3f8300d19c08",
+      "junit": {
+        "tests": 47,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "replan-before": {
+      "file": "/workspace/scratch/04f3380d60c8/recovery-evidence/progress-agent-replan-before.xml",
+      "sha256": "e6209d0cc3c18a0d4acfd0ec84ba6c6d2998a3e0a7919ecc138ea654407f4e99",
+      "junit": {
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "new-48": {
+      "file": "/workspace/scratch/04f3380d60c8/recovery-evidence/progress-agent-new-48.xml",
+      "sha256": "8b2cce6ad919ef72a15744651f57bb30ee12da1a28505a9a9cea022098fb928c",
+      "junit": {
+        "tests": 48,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    }
+  },
+  "confirmed_findings": [
+    {
+      "finding": "Mandatory writer failure was masked by cleanup OSError and converted into network retry/success",
+      "before": "cp018-progress-cleanup-before.xml",
+      "after_independent": "cp018-progress-cleanup-after.xml",
+      "after_root": "cp018-progress-cleanup-root-after.json",
+      "before_full_source_hash": "NOT CAPTURED; do not invent it",
+      "fix": "Sticky original progress failure survives response/file/lock cleanup and is rethrown before retry; coordinator tests prove installer is not called"
+    },
+    {
+      "finding": "Early timer updates exhausted 256-byte-event lifetime budget and froze later progress",
+      "before": "progress-agent-throttle-before2.xml",
+      "before_module": "progress-agent-before-throttle.py",
+      "before_module_sha256": "29d7096b5e682cfa05c742bbbf5d3a549baefcf565d8dd7a9a9e954d6ac155a0",
+      "fix": "256 buckets distributed over signed artifact size; first chunk and final verification boundary persisted"
+    },
+    {
+      "finding": "Identical-digest explicit replan retained obsolete current download projection",
+      "before": "progress-agent-replan-before.xml",
+      "fix": "Explicit reset_progress internal flag clears projection even with unchanged plan digest; events retained"
+    },
+    {
+      "finding": "Sandbox refused creation of HTTP sockets before the two integration tests",
+      "before": "progress-agent-focused-sandbox-fail.xml",
+      "after": "progress-agent-http-outside.xml",
+      "classification": "Environment denial; same tests passed with bounded own loopback outside sandbox"
+    }
+  ],
+  "public_contract": {
+    "field": "download_progress",
+    "events": "prerequisite_download with matching sequence and nested snapshot",
+    "percent": "0..99 only measured transferring;100 only staged verified artifact;null preparing/verifying/retrying/failed/canceled",
+    "readiness": "Artifact percent never implies prerequisite READY or product success",
+    "fencing": "Plan/component/artifact/transfer/attempt binding; obsolete callback ignored",
+    "recovery": "Recorded bytes are observations before fsync, not trusted resume offsets. Actual owned SIGKILL test records1024 while partialfile0; explicit resume requests no Range and fake installer runs once",
+    "throttle": "At most256 intermediate byte checkpoints per network attempt, uniformly distributed over signed size; first chunk immediate; granularity ceil(size/256), up to256MiB at maximum64GiB. No timer-based updates or ETA claim"
+  },
+  "integration_notes": [
+    "Root owns GUI/API/discovery/OpenAPI/documentation/canonical checkpoint integration and final GitHub push",
+    "Coordinator capability durable_byte_progress=true; global/API/GUI capability toggles remain for root",
+    "New _save/save reset_progress keyword and replace_plan call may overlap lease integration; preserve explicit reset",
+    "Plan v1 schema/digest/consents unchanged",
+    "48 new progress test cases included within229 scoped tests, never sum overlapping runs"
+  ],
+  "not_run": [
+    "Full repository suite after this branch change",
+    "Installed current wheel lifecycle; root owns integration harness",
+    "Real TLS/proxy/network fault transport",
+    "Actual browser rendering, Windows/Docker/OS installer acceptance",
+    "Physical power loss and fsync/device guarantee",
+    "Production signing/legal/licensing/release acceptance"
+  ],
+  "production_ready": false
+}

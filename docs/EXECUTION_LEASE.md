@@ -139,6 +139,14 @@ claim не блокирует read-only duplicate ACK или явный product 
 известных journals выполняется под lock при reserve и может отказать после
 предшествующего `busy() == False`.
 
+CP018 устраняет ложную storage error/unknown при чтении domain одновременно с
+SQLite commit другого владельца: временный `-journal` может исчезнуть перед
+проверкой открытого файла. ENOENT допускается только для transient sidecars;
+проверки владельца, прав и ссылок сохраняются. Основная БД может отсутствовать
+лишь при доказанном создании нового lock inode. Если lock уже существовал,
+reserve отказывает при отсутствующем main; `mode=rw/ro` не пересоздаёт его после
+проверки. Потеря authoritative journal не заменяется пустым claim/registry.
+
 Для prerequisites `READY`/`CANCELED` освобождают domain только при отсутствии
 `INSTALLING`, `UNKNOWN`, `WAITING_REBOOT` и `WAITING_RELOGIN` в шагах. Отмена
 на reboot/relogin boundary сохраняет claim. Явный recheck/resume проверяет

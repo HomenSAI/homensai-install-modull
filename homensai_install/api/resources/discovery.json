@@ -106,7 +106,7 @@
     "http_plan_input": "server_plan_id",
     "cli_transport": "explicit_trusted_sdk",
     "cli_execution": "synchronous",
-    "durable_byte_progress": false,
+    "durable_byte_progress": true,
     "busy_probe": "registered_store_claim_or_controller"
   }
 }

@@ -14,6 +14,7 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import ssl  # Инициализация stdlib до audit hook; socket остаётся настоящим.
 import sys
 import traceback
@@ -74,6 +75,7 @@ class Host:
         from homensai_install.trust import SignedPayloadVerifier
 
         self.config, self.root = config, Path(config["work"]) / "cases" / case
+        self.operation_id = "installed_" + case
         self.ledger_path, self.inventory_path = self.root / "ledger.json", self.root / "inventory.json"
         self.artifacts = {name: (spec["url"], base64.b64decode(spec["content_base64"]))
                           for name, spec in config["artifacts"].items()}
@@ -105,6 +107,14 @@ class Host:
                         assert tuple(argv) in allowed_commands and not elevated
                         assert executable_hashes == {str(executable): executable_hash}
                         assert Path(argv[-1]).read_bytes() == host.artifacts[component][1]
+                        state = host.api.prerequisites_status(host.operation_id)
+                        progress = host.check_progress(state, component=component, verified=True)
+                        assert state["status"] == "RUNNING" and state["ready"] is False
+                        assert state["steps"][component]["state"] == "INSTALLING"
+                        host.record("progress_checks", {"component_id": component,
+                            "artifact_sha256": progress["artifact_sha256"], "sequence": progress["sequence"],
+                            "transfer_id": progress["transfer_id"], "verified_before_installer": True,
+                            "operation_ready_before_installer": state["ready"]})
                         inventory = read_json(host.inventory_path)
                         if component == "client":
                             assert inventory["components"]["base"]["status"] == "present", "Нарушен dependency order"
@@ -127,7 +137,7 @@ class Host:
 
     def record(self, field, value):
         ledger = read_json(self.ledger_path)
-        ledger[field].append(value)
+        ledger.setdefault(field, []).append(value)
         write_json(self.ledger_path, ledger)
 
     def discover(self):
@@ -149,11 +159,52 @@ class Host:
         write_json(self.root / "reviewed-plan.json", plan)
 
     def saved_plan(self):
-        return read_json(self.root / "reviewed-plan.json")
+        value = read_json(self.root / "reviewed-plan.json")
+        return value.get("result", value)  # CLI сохраняет публичный envelope.
 
     def redaction(self, *values):
         public = json.dumps(values)
         assert self.config["redaction_sentinel"] not in public, "Synthetic secret попал в public result"
+
+    def check_progress(self, state, *, component=None, verified=False):
+        """Проверка публичного контракта без чтения внутренних journal/classes."""
+        progress = state["download_progress"]
+        assert set(progress) == {"schema_version", "plan_digest", "component_id", "artifact_id",
+            "artifact_sha256", "transfer_id", "attempt", "state", "completed", "total", "unit",
+            "source", "resumed", "verified", "percent", "sequence", "updated_at"}
+        assert progress["schema_version"] == 1
+        component = component or progress["component_id"]
+        assert component in self.artifacts and progress["component_id"] == component
+        expected = self.artifacts[component][1]
+        plan = self.saved_plan()
+        assert progress["plan_digest"] == state["plan_digest"] == plan["plan_digest"]
+        item, = [item for item in plan["components"] if item["component_id"] == component]
+        artifact, = item["artifacts"]
+        assert progress["artifact_id"] == artifact["artifact_id"] == component + "-package"
+        assert progress["artifact_sha256"] == artifact["sha256"] == sha(expected)
+        assert type(progress["total"]) is int and progress["total"] == artifact["size"] == len(expected)
+        assert type(progress["completed"]) is int and 0 <= progress["completed"] <= progress["total"]
+        assert type(progress["sequence"]) is int and 0 < progress["sequence"] <= state["revision"]
+        assert type(progress["attempt"]) is int and 0 <= progress["attempt"] <= 7
+        assert re.fullmatch(r"[0-9a-f]{32}", progress["transfer_id"])
+        assert progress["unit"] == "bytes" and isinstance(progress["updated_at"], str)
+        assert type(progress["resumed"]) is bool and type(progress["verified"]) is bool
+        assert progress["source"] in {"unknown", "network", "cache", "partial", "local"}
+        assert progress["state"] in {"preparing", "transferring", "verifying", "retrying", "verified", "failed", "canceled"}
+        if progress["state"] == "verified":
+            assert progress["verified"] and progress["completed"] == progress["total"] and progress["percent"] == 100
+        elif progress["state"] == "transferring":
+            assert not progress["verified"] and progress["completed"] < progress["total"]
+            assert type(progress["percent"]) is int and progress["percent"] == progress["completed"] * 100 // progress["total"]
+        else:
+            assert not progress["verified"] and progress["percent"] is None
+        if verified:
+            assert progress["state"] == "verified" and progress["source"] == "network"
+        public = json.dumps(progress)
+        for value in (self.config["work"], self.config["checkout"], self.config["redaction_sentinel"],
+                      *[source for source, _ in self.artifacts.values()]):
+            assert value not in public, "URL/path/sentinel попал в download_progress"
+        return progress
 
 
 def expect_error(code, function):
@@ -175,18 +226,51 @@ def observation(host, operation_id):
     first = api.prerequisites_events(operation_id, after_sequence=0, limit=1)
     assert len(first["events"]) == 1
     assert api.prerequisites_events(operation_id, after_sequence=0, limit=1)["events"] == first["events"]
-    following = api.prerequisites_events(operation_id, after_sequence=first["events"][0]["sequence"], limit=1000)
-    events = first["events"] + following["events"]
+    events, cursor, pages = list(first["events"]), first["events"][-1]["sequence"], 1
+    while True:
+        following = api.prerequisites_events(operation_id, after_sequence=cursor, limit=3)
+        if not following["events"]:
+            break
+        assert following["events"][0]["sequence"] > cursor
+        events.extend(following["events"])
+        cursor = following["events"][-1]["sequence"]  # Никогда не перескакивать по snapshot.revision.
+        assert following["snapshot"]["revision"] >= cursor
+        pages += 1
     sequences = [item["sequence"] for item in events]
     assert sequences == list(range(1, len(sequences) + 1))
+    assert sequences[-1] == state["revision"]
     assert not api.prerequisites_events(operation_id, after_sequence=sequences[-1])["events"]
     attempts = {name: api.prerequisites_attempts(operation_id, name)["attempts"] for name in ("base", "client")}
     host.redaction(state, listing, events, attempts)
     assert all(key not in json.dumps((state, listing)) for key in ('"plan"', '"consents"', '"_dispatch"'))
+    progress_events = [event for event in events if event["type"] == "prerequisite_download"]
+    verified_artifacts = []
+    for event in progress_events:
+        progress = host.check_progress({**state, "revision": event["sequence"], "download_progress": event["download_progress"]})
+        assert progress["sequence"] == event["sequence"] and progress["component_id"] == event["component_id"]
+        if progress["verified"]:
+            verified_artifacts.append(progress["artifact_id"])
+    if progress_events:
+        progress = host.check_progress(state, component="client", verified=True)
+        assert state["download_progress"] == progress_events[-1]["download_progress"]
+        assert verified_artifacts == ["base-package", "client-package"] and pages > 2
+        proofs = host.counts()["progress_checks"]
+        assert [item["component_id"] for item in proofs] == ["base", "client"]
+        assert len({item["transfer_id"] for item in proofs}) == 2
+        assert all(item["verified_before_installer"] and not item["operation_ready_before_installer"] for item in proofs)
+    else:
+        assert "download_progress" not in state and all("download_progress" not in item for item in listing["operations"])
+        assert not host.counts().get("progress_checks")
+    public = json.dumps((state, listing, events, attempts))
+    assert host.config["work"] not in public and host.config["checkout"] not in public
+    assert all(source not in public for source, _ in host.artifacts.values())
     return {"operation_id": operation_id, "status": state["status"], "ready": state["ready"],
             "plan_digest": state["plan_digest"], "event_count": len(events),
             "attempt_counts": {name: len(items) for name, items in attempts.items()},
-            "redaction_checked": True, "cursor_replay_checked": True}
+            "redaction_checked": True, "cursor_replay_checked": True, "event_pages": pages,
+            "download_event_count": len(progress_events), "verified_artifacts": verified_artifacts,
+            "legacy_no_progress_compatible": not progress_events,
+            "progress_before_installer_checks": len(host.counts().get("progress_checks", []))}
 
 
 def lifecycle(config, phase):
@@ -211,8 +295,10 @@ def lifecycle(config, phase):
             api.prerequisites_start(operation_id, plan, plan["required_consents"])
             assert host.counts()["installer_calls"] == ["base", "client"]
             assert host.counts()["download_calls"] == ["base", "client"]
+            assert len(host.counts()["progress_checks"]) == 2
             return {"operation_id": operation_id, "ack_transferred_to_next_client": False,
-                    "missing_consent_refused": True, "fake_dependency_order": ["base", "client"]}
+                    "missing_consent_refused": True, "fake_dependency_order": ["base", "client"],
+                    "progress_before_installer_checks": 2}
         state = api.prerequisites_start(operation_id, plan, plan["required_consents"])
         assert state["status"] == "AWAITING_USER" and not state["ready"]
         if case == "cancel":
@@ -281,22 +367,32 @@ def cli_lifecycle(config, phase):
         plan = envelope["result"]
     else:
         plan = read_json(plan_file)["result"]
-        assert invoke("status", "installed_cli")["result"]["status"] == "READY"
+        state = invoke("status", "installed_cli")["result"]
+        assert state["status"] == "READY"
+        host.check_progress(state, component="client", verified=True)
     consent_args = [value for ref in plan["required_consents"] for value in ("--consent-ref", ref)]
     before = host.counts()
     started = invoke("start", "installed_cli", "--plan", plan_file, *consent_args)["result"]
     assert started["status"] == "READY" and started["ready"]
     assert started["plan_digest"] == plan["plan_digest"]
+    progress = host.check_progress(started, component="client", verified=True)
     assert host.counts()["installer_calls"] == ["base", "client"]
     if phase == "cli_restore":
         assert invoke("resume", "installed_cli")["result"]["status"] == "READY"
         assert len(invoke("operations", "--all")["result"]["operations"]) == 1
-        assert invoke("events", "installed_cli", "--limit", "1")["result"]["events"]
+        page = invoke("events", "installed_cli", "--after-sequence", progress["sequence"] - 1, "--limit", "1")["result"]
+        assert len(page["events"]) == 1 and page["events"][0]["sequence"] == progress["sequence"]
+        assert page["events"][0]["download_progress"] == progress
+        host.check_progress(page["snapshot"], component="client", verified=True)
         assert len(invoke("attempts", "installed_cli", "base")["result"]["attempts"]) == 1
+        restored = observation(host, "installed_cli")
+        assert restored["verified_artifacts"] == ["base-package", "client-package"]
         assert host.counts() == before
     return {"commands": commands, "status": "READY", "trusted_injection": True,
             "fake_dependency_order": host.counts()["installer_calls"],
-            "independent_process_restoration": phase == "cli_restore"}
+            "independent_process_restoration": phase == "cli_restore",
+            "progress_before_installer_checks": len(host.counts()["progress_checks"]),
+            "progress_status_checked": True, "progress_event_and_replay_checked": phase == "cli_restore"}
 
 
 def check_origins(installed):

@@ -1,6 +1,6 @@
 # Следующие core-шаги prerequisites
 
-Автор: Serhii Khomenko. Первоначальный разбор CP-20261025-016 по исходникам CP-015; статус обновлён в CP-017.
+Автор: Serhii Khomenko. Первоначальный разбор CP-20261025-016 по исходникам CP-015; статус обновлён в CP-018.
 
 **Общий lease реализован в CP017.** Актуальный контракт — [EXECUTION_LEASE.md](EXECUTION_LEASE.md),
 результаты — `packaging/acceptance-evidence/execution-lease-20261025-cp017.json`.
@@ -9,8 +9,10 @@ Full source/integration: 2097 PASS, 1 Windows-only skip, 15 subtests; installed 
 незарегистрированные старые journals и binaries вне протокола не покрываются;
 автоматический перенос control journal на новую файловую identity NOT IMPLEMENTED.
 
-**Durable byte progress в CP017 ещё NOT IMPLEMENTED.** Ниже сохранён исходный
-проект требований; описания кода в историческом разделе 1 относятся к CP015.
+**Durable byte progress реализован в CP018.** Контракт — [PREREQUISITES_PROGRESS.md](PREREQUISITES_PROGRESS.md),
+результаты — `packaging/acceptance-evidence/progress-20261025-cp018.json`.
+Ниже сохранён исходный проект требований; описания прежнего кода относятся к CP015.
+Новые source/synthetic/installed/Node PASS не заменяют реальную platform/browser acceptance.
 
 Installed synthetic SDK/CLI receipt CP-016 не закрывает эти требования.
 Задачи остаются в каноническом ToDo: HIM-020/HIM-063 и HIM-035. После каждого
@@ -94,7 +96,7 @@ symlink/hardlink/owner refusal; неизменность прежних v1 plan 
 не получают его гарантий. Windows ACL/UAC/live installers остаются отдельной
 непринятой областью, даже после Linux synthetic PASS.
 
-## 2. Durable measured download progress
+## 2. Durable measured download progress — исторический проект до CP018
 
 ### Подтверждённое чтением кода
 
@@ -152,3 +154,4 @@ harness и отдельно GUI byte display/Node/actual browser acceptance.
 
 Ни один из перечисленных progress tests не включён в PASS CP-015/016/017.
 Lease regressions приняты в ограниченной области CP017 по отдельной квитанции.
+Progress regressions впервые приняты в ограниченной области CP018; actual browser/OS gates остаются открытыми.

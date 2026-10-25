@@ -348,8 +348,11 @@ execution lease до enqueue и повторно сверяет reviewed invento
 того же domain. Неизвестный внешний effect после обрыва сохраняет владение;
 отмена сама по себе не служит доказательством безопасного завершения.
 
-Events содержат сохранённые фазы/состояния; callback с download bytes пока
-не сохранён как durable progress. Нельзя выдумывать проценты из этих событий.
+При `durable_byte_progress=true` snapshot может содержать `download_progress`:
+измеренные байты и событие `prerequisite_download` сохраняются атомарно.
+100% подтверждает SHA-256 подготовленного файла, а не dependency READY.
+Сохранённые байты не являются offset для resume; курсор events продвигается
+по последнему полученному событию. Контракт: `docs/PREREQUISITES_PROGRESS.md`.
 `gui_auto_flow=true` в discovery описывает реализованный условный JavaScript-flow.
 HTTP capabilities подтверждают его только для явно зарегистрированного target;
 без coordinator или для другого mode возвращается `gui_auto_flow=false`.

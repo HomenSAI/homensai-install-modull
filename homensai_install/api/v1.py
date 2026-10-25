@@ -196,7 +196,7 @@ class InstallerAPI:
                               "http_transport": "explicit_wizard_session", "http_plan_input": "server_plan_id",
                               "cli_transport": "explicit_trusted_sdk", "cli_execution": "synchronous",
                               "busy_probe": "registered_store_claim_or_controller",
-                              "durable_byte_progress": False,
+                              "durable_byte_progress": True,
                               "automatic_default_factory": False, "gui_auto_flow": True,
                               "readiness": "source_contract", "production_ready": False},
             "operations": ["describe", "capabilities", "validate", "discover", "plan", "submit",

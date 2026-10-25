@@ -99,7 +99,7 @@ def test_exact_payload_binding_and_identical_relocation(bundle):
     session, _ = wizard(bundle)
     configured = session.route("GET", "/prerequisites/capabilities", {}, {})
     assert configured["configured"] is True and configured["gui_auto_flow"] is True
-    assert configured["production_ready"] is False and configured["durable_byte_progress"] is False
+    assert configured["production_ready"] is False and configured["durable_byte_progress"] is True
     unavailable = session.route("GET", "/prerequisites/capabilities", {"mode": ["docker"]}, {})
     assert unavailable["configured"] is False and unavailable["gui_auto_flow"] is False
     original = session.api.prerequisites_identity()["payload_binding"]
@@ -492,4 +492,4 @@ def test_published_http_contract_and_paired_resources_match_transport(tmp_path):
     published = json.loads((root / "api/discovery.json").read_text())["prerequisites"]
     assert published == InstallerAPI(tmp_path / "none").describe()["prerequisites"]
     assert published["http_plan_input"] == "server_plan_id" and published["gui_auto_flow"] is True
-    assert published["durable_byte_progress"] is False
+    assert published["durable_byte_progress"] is True

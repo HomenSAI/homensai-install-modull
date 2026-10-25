@@ -124,6 +124,13 @@ function reviewed(changes = {}) {const components = ["base", "client", "metrics"
       product_consent_refs: ["terms:terms-digest"], required_consents: ["prerequisites:review:fixture", ...components.filter(row => row.required).map(row => "prerequisite-license:" + row.component_id + ":" + digest(row.license)), "terms:terms-digest"], offline: false}, ...changes};}
 function snapshot(changes = {}) {return {...copy(identity), operation_id: "prep_fixture", plan_digest: "plan-digest", revision: 1, status: "AWAITING_USER", ready: false,
   required_action: "manual_install", cancel_requested: false, checks: [], steps: {}, events: [], execution: {mode: "background", state: "finished", active: false}, ...changes};}
+function download(changes = {}) {return {schema_version: 1, plan_digest: "plan-digest", component_id: "base",
+  artifact_id: "base-installer", artifact_sha256: "c".repeat(64), transfer_id: "e".repeat(32), attempt: 0,
+  state: "transferring", completed: 512, total: 1024, unit: "bytes", source: "network", resumed: false,
+  verified: false, percent: 50, sequence: 8, updated_at: "2026-10-25T17:00:00Z", ...changes};}
+function downloading(changes = {}) {return snapshot({status: "RUNNING", revision: 8,
+  required_action: null, steps: {base: {state: "DOWNLOADING", attempt: 0}},
+  execution: {mode: "background", state: "running", active: true}, download_progress: download(), ...changes});}
 
 class Harness {
   constructor(options = {}) {
@@ -170,7 +177,11 @@ class Harness {
       return {operations: operations.map(row => {const {steps, checks, events, ...summary} = row; return copy(summary);}), next_cursor: null};
     }
     if (route.startsWith("/prerequisites/licenses/")) {const component = route.split("/").at(-1); return {...copy(this.review.plan.components.find(row => row.component_id === component).license), component_id: component, text: "Separate terms " + component};}
-    if (route.endsWith("/events") && route.startsWith("/prerequisites/")) return this.eventQueue.shift() || {events: [], snapshot: copy(this.current)};
+    if (route.endsWith("/events") && route.startsWith("/prerequisites/")) {
+      const after = Number(url.searchParams.get("after_sequence") || 0);
+      return this.eventQueue.shift() || {events: Array.from({length: Math.max(0, Math.min(100, this.current.revision - after))},
+        (_, index) => ({sequence: after + index + 1, status: this.current.status, message_code: "saved-state"})), snapshot: copy(this.current)};
+    }
     if (route.startsWith("/prerequisites/operations/")) return copy(this.current);
     if (route.startsWith("/errors/")) return {title: route.split("/").at(-1), description: "Contract rejection", remediation: []};
     throw new Error("Unexpected HTTP request: " + request.method + " " + request.path);
@@ -471,6 +482,145 @@ async function main() {
     for (const link of ui.el("prereq-section").querySelectorAll("a")) assert.ok(!String(link.href || "").startsWith("javascript:"));
     assert.ok(!ui.el("prereq-section").textContent.includes("100%"));
     for (const progress of ui.el("prereq-section").querySelectorAll("progress")) assert.ok(!progress.hasAttribute("value") || Number(progress.value) < 100);
+    assert.equal(ui.mutating().length, 0);
+  });
+  await test("settled controller drains saved event pages without skipping to snapshot revision", async () => {
+    const current = snapshot({revision: 150});
+    const ui = new Harness({current, operations: [current]});
+    const events = Array.from({length: 150}, (_, index) => ({sequence: index + 1,
+      status: "AWAITING_USER", message_code: "saved-progress-" + (index + 1)}));
+    ui.eventQueue.push({events: events.slice(0, 100), snapshot: current},
+      {events: events.slice(100), snapshot: current});
+    await ui.flush();
+    assert.equal(ui.run("prereq.cursor"), 100, "Snapshot revision is not an event cursor");
+    assert.ok(ui.timers.length > 0, "A settled controller still needs to deliver the remaining event page");
+    await ui.tick();
+    assert.equal(ui.run("prereq.cursor"), 150);
+    assert.ok(ui.el("prereq-events").textContent.includes("saved-progress-150"));
+    assert.ok(ui.calls.some(call => call.path.includes("after_sequence=100&")));
+    assert.equal(ui.mutating().length, 0);
+  });
+  await test("measured bytes restore without turning file progress into component readiness", async () => {
+    const current = downloading(), storage = {"hinstall-prerequisite-operation": JSON.stringify({schema_version: 1,
+      operation_id: current.operation_id, ...copy(identity)})};
+    const ui = new Harness({current, storage}); await ui.flush();
+    assert.equal(ui.el("prereq-download").hidden, false);
+    assert.equal(Number(ui.el("prereq-download-progress").value), 50);
+    assert.ok(ui.el("prereq-download").textContent.includes("512 / 1,024 bytes"));
+    assert.ok(ui.el("prereq-download").textContent.includes("base-installer"));
+    assert.equal(ui.el("prereq-progress").hasAttribute("value"), false);
+    assert.equal(ui.el("prereq-proceed").hidden, true);
+    assert.equal(ui.mutating().length, 0);
+  });
+  await test("full but unverified bytes remain indeterminate and verified file stays separate", async () => {
+    for (const state of ["verifying", "verified"]) {
+      const current = downloading({download_progress: download({state, completed: 1024,
+        verified: state === "verified", percent: state === "verified" ? 100 : null})});
+      const ui = new Harness({current, operations: [current]}); await ui.flush();
+      assert.equal(ui.el("prereq-download-progress").hasAttribute("value"), state === "verified");
+      assert.equal(ui.el("prereq-download").textContent.includes("100%"), state === "verified");
+      assert.equal(ui.el("prereq-progress").hasAttribute("value"), false);
+      assert.equal(ui.el("prereq-proceed").hidden, true);
+      assert.ok(ui.el("prereq-download").textContent.includes(translations.en.prereq_transfer_help));
+      assert.equal(ui.mutating().length, 0);
+    }
+  });
+  await test("verified progress with unknown source cannot render 100 percent", async () => {
+    const current = downloading({download_progress: download({state: "verified", completed: 1024,
+      verified: true, percent: 100, source: "unknown"})});
+    const ui = new Harness({current, operations: [current]}); await ui.flush();
+    assert.equal(ui.el("prereq-download-progress").hasAttribute("value"), false,
+      "Verified download with unknown source must remain indeterminate");
+    assert.ok(ui.el("prereq-download").textContent.includes(translations.en.prereq_transfer_unknown));
+    assert.ok(!ui.el("prereq-download").textContent.includes("100%"));
+    assert.equal(ui.mutating().length, 0);
+  });
+  await test("retry and next artifact reset measured bytes and ignore older snapshots", async () => {
+    const current = downloading(), ui = new Harness({current, operations: [current]}); await ui.flush();
+    ui.current = downloading({revision: 9, download_progress: download({sequence: 9, state: "retrying", attempt: 1,
+      completed: 128, percent: null})});
+    await ui.click("prereq-refresh");
+    assert.equal(ui.el("prereq-download-progress").hasAttribute("value"), false);
+    assert.ok(ui.el("prereq-download").textContent.includes("128 / 1,024 bytes"));
+    ui.eventQueue.push({events: [], snapshot: current}); await ui.tick();
+    assert.equal(ui.run("prereq.revision"), 9);
+    assert.ok(!ui.el("prereq-download").textContent.includes("512 / 1,024 bytes"));
+    ui.current = downloading({revision: 10, steps: {base: {state: "READY"}, client: {state: "DOWNLOADING"}},
+      download_progress: download({sequence: 10, transfer_id: "f".repeat(32), component_id: "client",
+        artifact_id: "client-installer", completed: 0, percent: 0})});
+    await ui.click("prereq-refresh");
+    assert.equal(Number(ui.el("prereq-download-progress").value), 0);
+    assert.ok(ui.el("prereq-download").textContent.includes("client-installer"));
+    assert.ok(!ui.el("prereq-download").textContent.includes("base-installer"));
+    assert.equal(ui.mutating().length, 0);
+  });
+  await test("invalid progress bindings or counters cannot render a measured or completed bar", async () => {
+    const invalid = [{completed: true}, {completed: -1}, {completed: 1.5}, {completed: 1025}, {total: 0},
+      {total: 64 * 1024**3 + 1}, {total: Number.MAX_SAFE_INTEGER + 1}, {percent: 100}, {verified: true},
+      {percent: 49}, {plan_digest: "another-plan"}, {component_id: "unbound"}, {sequence: 9}, {sequence: false},
+      {state: "unknown"}, {source: "secret-url"}, {resumed: "yes"}, {attempt: 8}, {attempt: false},
+      {transfer_id: "bad"}, {artifact_sha256: "bad"}, {artifact_id: "<img src=x onerror=alert(1)>"},
+      {state: "verified", completed: 512, percent: 100, verified: true},
+      {state: "transferring", completed: 1024, percent: 99}];
+    for (const changes of invalid) {
+      const current = downloading({download_progress: download(changes)});
+      const ui = new Harness({current, operations: [current]}); await ui.flush();
+      assert.equal(ui.el("prereq-download-progress").hasAttribute("value"), false, JSON.stringify(changes));
+      assert.ok(ui.el("prereq-download").textContent.includes(translations.en.prereq_transfer_unknown));
+      assert.ok(!ui.el("prereq-download").textContent.includes("100%"));
+      assert.equal(ui.el("prereq-download").querySelectorAll("img").length, 0);
+      assert.equal(ui.mutating().length, 0);
+    }
+  });
+  await test("legacy snapshots hide download data and cancellation keeps partial bytes honest", async () => {
+    const legacy = new Harness({current: snapshot(), operations: [snapshot()]}); await legacy.flush();
+    assert.equal(legacy.el("prereq-download").hidden, true);
+    for (const state of ["failed", "canceled"]) {
+      const current = downloading({status: state === "failed" ? "RECOVERY_REQUIRED" : "CANCELED",
+        execution: {mode: "background", state: "finished", active: false},
+        download_progress: download({state, percent: null})});
+      const storage = {"hinstall-prerequisite-operation": JSON.stringify({schema_version: 1,
+        operation_id: current.operation_id, ...copy(identity)})};
+      const ui = new Harness({current, storage}); await ui.flush();
+      assert.equal(ui.el("prereq-download-progress").hasAttribute("value"), false);
+      assert.ok(ui.el("prereq-download").textContent.includes("512 / 1,024 bytes"));
+      assert.ok(ui.el("prereq-download").textContent.includes(translations.en["prereq_transfer_" + state]));
+      assert.equal(ui.mutating().length, 0);
+    }
+  });
+  await test("disconnect labels saved measurements and cannot expose private download fields", async () => {
+    const current = downloading({download_progress: download({url: "https://secret.invalid/?token=private",
+      local_path: "/private/secret", etag: "secret-etag"})});
+    const ui = new Harness({current, operations: [current]});
+    ui.overrides.push({matches: request => request.path.includes("/events?"), handle: () => {throw new Error("Synthetic disconnect");}});
+    await ui.flush();
+    assert.ok(ui.el("prereq-download").textContent.includes(translations.en.prereq_transfer_saved));
+    assert.equal(Number(ui.el("prereq-download-progress").value), 50);
+    assert.ok(!ui.el("prereq-section").textContent.includes("secret"));
+    assert.equal(ui.mutating().length, 0);
+  });
+  await test("restored download status follows each selected language without resuming", async () => {
+    const current = downloading(), ui = new Harness({current, operations: [current]}); await ui.flush();
+    for (const lang of ["ru", "de", "en"]) {
+      await ui.change("language", lang);
+      assert.ok(ui.el("prereq-download").textContent.includes(translations[lang].prereq_transfer_title));
+      assert.ok(ui.el("prereq-download").textContent.includes(translations[lang].prereq_transfer_transferring));
+      assert.equal(ui.el("prereq-download-progress").getAttribute("aria-label"), translations[lang].prereq_transfer_title);
+      assert.equal(Number(ui.el("prereq-download-progress").value), 50);
+    }
+    assert.equal(ui.mutating().length, 0);
+  });
+  await test("duplicate event page keeps the received cursor while a newer snapshot is visible", async () => {
+    const current = downloading({revision: 120, execution: {mode: "background", state: "finished", active: false},
+      status: "AWAITING_USER", download_progress: download({sequence: 119})});
+    const ui = new Harness({current, operations: [current]});
+    const events = Array.from({length: 120}, (_, index) => ({sequence: index + 1, message_code: "saved-event"}));
+    ui.eventQueue.push({events: events.slice(0, 100), snapshot: current},
+      {events: events.slice(0, 100), snapshot: current}, {events: events.slice(100), snapshot: current});
+    await ui.flush(); assert.equal(ui.run("prereq.cursor"), 100);
+    assert.equal(Number(ui.el("prereq-download-progress").value), 50);
+    await ui.tick(); assert.equal(ui.run("prereq.cursor"), 100);
+    await ui.tick(); assert.equal(ui.run("prereq.cursor"), 120);
     assert.equal(ui.mutating().length, 0);
   });
   const assets = Object.fromEntries(["app.js", "index.html", "locales.json"].map(name => [name,

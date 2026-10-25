@@ -457,10 +457,53 @@ function acceptPrerequisiteSnapshot(value) {
   if(changed){invalidateProductForPrerequisites();if(value.status==="READY"&&value.ready===true)prereq.afterReady=true;}
   savePrerequisiteReference();renderPrerequisiteStatus();return true;
 }
+function prerequisiteDownload(value) {
+  const data=value?.download_progress;
+  const identifier=text=>typeof text==="string"&&/^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\s\S])/.test(text);
+  if(!data||typeof data!=="object"||Array.isArray(data)||data.schema_version!==1||
+    data.plan_digest!==value.plan_digest||!identifier(data.component_id)||!identifier(data.artifact_id)||
+    !Object.prototype.hasOwnProperty.call(value.steps||{},data.component_id)||
+    typeof data.artifact_sha256!=="string"||!/^[0-9a-f]{64}$(?![\s\S])/.test(data.artifact_sha256)||
+    typeof data.transfer_id!=="string"||!/^[0-9a-f]{32}$(?![\s\S])/.test(data.transfer_id)||
+    !Number.isSafeInteger(data.sequence)||data.sequence<1||data.sequence>value.revision||
+    !Number.isSafeInteger(data.attempt)||data.attempt<0||data.attempt>7||
+    !Number.isSafeInteger(data.total)||data.total<=0||data.total>64*1024**3||
+    !Number.isSafeInteger(data.completed)||data.completed<0||data.completed>data.total||
+    data.unit!=="bytes"||typeof data.resumed!=="boolean"||typeof data.verified!=="boolean"||
+    !["unknown","network","cache","partial","local"].includes(data.source)||
+    !["preparing","transferring","verifying","retrying","verified","failed","canceled"].includes(data.state))return null;
+  if(data.state==="verified")return data.verified&&data.source!=="unknown"&&data.completed===data.total&&data.percent===100?data:null;
+  if(data.verified)return null;
+  const measured=data.state==="transferring"&&data.completed<data.total;
+  const percent=measured?Math.min(99,Math.floor(100*data.completed/data.total)):null;
+  if(data.percent!==percent||data.state==="transferring"&&data.completed===data.total)return null;
+  return data;
+}
+function renderPrerequisiteDownload(value) {
+  const box=$("prereq-download");box.replaceChildren();box.hidden=!value?.download_progress;
+  if(box.hidden)return;
+  box.append(prepNode("strong",tr("prereq_transfer_title")));
+  const bar=prepNode("progress");bar.id="prereq-download-progress";bar.max=100;
+  bar.setAttribute("aria-label",tr("prereq_transfer_title"));
+  const data=prerequisiteDownload(value);
+  if(!data){box.append(bar,prepNode("p",tr("prereq_transfer_unknown")));return;}
+  box.append(prepNode("p",data.component_id+" · "+data.artifact_id));
+  if(data.percent!==null)bar.value=data.percent;
+  box.append(bar);
+  const numbers=new Intl.NumberFormat(locale,{maximumFractionDigits:0});
+  box.append(prepNode("p",prepText("prereq_transfer_bytes",{
+    done:numbers.format(data.completed),total:numbers.format(data.total)})+
+    (data.percent!==null?" · "+data.percent+"%":"")));
+  box.append(prepNode("p",tr("prereq_transfer_"+data.state)));
+  box.append(prepNode("p",tr("prereq_transfer_help"),"muted"));
+  if(prereq.connectionLost||prereq.startUncertain)
+    box.append(prepNode("p",tr("prereq_transfer_saved"),"muted"));
+}
 function renderPrerequisiteStatus() {
   if(!prereq.initialized)return;
   $("prereq-section").hidden=!(prereq.caps?.configured||prereq.discoveryUnknown||prereq.operationId||prereq.operations.length||prereq.nextCursor);
   const value=prereq.snapshot;
+  renderPrerequisiteDownload(value);
   $("prereq-operation").hidden=!prereq.operationId;
   if(prereq.connectionLost||prereq.startUncertain)$("prereq-status").textContent=tr("prereq_connection_lost");
   else if(prereq.discoveryUnknown)$("prereq-status").textContent=tr("prereq_checking");
@@ -529,19 +572,27 @@ function updatePrerequisiteControls() {
 async function pollPrerequisites() {
   if(prereq.polling||!prereq.operationId)return;
   const operationId=prereq.operationId,epoch=++prereq.pollEpoch;prereq.polling=true;
+  let emptyPages=0;
   try {
     while(prereq.operationId===operationId&&epoch===prereq.pollEpoch) {
       const observation=prereq.observationEpoch;
       const result=await api("/prerequisites/operations/"+encodeURIComponent(operationId)+"/events?after_sequence="+prereq.cursor+"&limit=100");
       if(prereq.operationId!==operationId||epoch!==prereq.pollEpoch)return;
       if(observation===prereq.observationEpoch){
-        for(const event of result.events||[])if(Number.isInteger(event.sequence)&&event.sequence>prereq.cursor){
+        const previousCursor=prereq.cursor;
+        for(const event of result.events||[])if(Number.isSafeInteger(event.sequence)&&event.sequence>prereq.cursor){
           prereq.cursor=event.sequence;
           prereq.eventLines.push(JSON.stringify({sequence:event.sequence,component_id:event.component_id,phase:event.phase,status:event.status,message_code:event.message_code}));
         }
         prereq.eventLines=prereq.eventLines.slice(-100);acceptPrerequisiteSnapshot(result.snapshot);
+        emptyPages=prereq.cursor>previousCursor?0:emptyPages+1;
         if(prerequisiteControllerFree()&&!prereq.changePending&&!prereq.startPending&&!prereq.cancelPending){
-          if(prerequisiteSettled()){await loadPrerequisiteOperations();renderPrerequisiteStatus();}break;
+          // Status may be newer than this event page. Drain saved pages before
+          // stopping, and never turn snapshot.revision into an event cursor.
+          if(prereq.cursor>=prereq.revision){
+            if(prerequisiteSettled()){await loadPrerequisiteOperations();renderPrerequisiteStatus();}break;
+          }
+          if(emptyPages>=3)throw{code:"INTEGRITY_FAILED"};
         }
       }
       await new Promise(resolve=>setTimeout(resolve,700));

@@ -69,7 +69,7 @@ def test_prerequisite_http_auth_origin_and_strict_input(bundle):
             assert request(path, headers=headers)[0] == 403
         code, value = request(path)
         assert code == 200 and value["result"]["configured"] is True
-        assert value["result"]["durable_byte_progress"] is False
+        assert value["result"]["durable_byte_progress"] is True
         assert session.token not in json.dumps(value)
         assert request(path + "?mode=native&mode=docker")[0] == 400
         assert request(path + "?mode=native&mode=")[0] == 400
@@ -130,3 +130,65 @@ def test_http_lost_ack_server_recreation_and_cancel_while_installer_waits(bundle
             deadline = time.monotonic() + 5
             while time.monotonic() < deadline and first.api.prerequisites_status(operation_id)["execution"]["active"] is not False:
                 threading.Event().wait(.01)
+
+
+def test_http_auto_snapshot_and_paged_events_match_published_response_schemas(bundle):
+    from integration_tests.prerequisites_progress_contract import (
+        assert_binding, assert_private_values_absent, assert_schema, collect_pages, response_schema)
+
+    session = session_for(bundle)
+
+    def settled(session, operation_id):
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            snapshot = session.api.prerequisites_status(operation_id)
+            if snapshot["execution"]["active"] is False:
+                return snapshot
+            threading.Event().wait(.01)
+        pytest.fail("Prerequisite worker did not settle")
+    entered, release = threading.Event(), threading.Event()
+
+    def installer():
+        entered.set()
+        assert release.wait(10)
+        _fixtures.present(bundle, "base")
+
+    bundle["effects"]["base"] = installer
+    operation_id = None
+    try:
+        with serving(session) as request:
+            code, planned = request("/prerequisites/plans", body={"mode": "native", "locale": "en",
+                "choices": {"base": "auto", "client": "auto"}})
+            assert code == 200
+            operation_id, plan = planned["result"]["operation_id"], planned["result"]["plan"]
+            reviewed = planned["result"]
+            accepted = {"plan_id": reviewed["plan_id"], "plan_digest": reviewed["plan_digest"],
+                        "terms_digest": reviewed["terms_digest"], "accepted_plan": True,
+                        "accepted_terms": True, "consent_refs": plan["required_consents"]}
+            assert request("/prerequisites/operations", body=accepted)[0] == 200
+            assert entered.wait(3)
+            code, waiting = request("/prerequisites/operations/" + operation_id)
+            assert code == 200
+            assert_schema(waiting, response_schema(""))
+            snapshot = waiting["result"]
+            assert_binding(snapshot["download_progress"], plan, snapshot, bundle)
+            assert snapshot["status"] == "RUNNING" and snapshot["ready"] is False
+            assert snapshot["download_progress"]["percent"] == 100
+            assert_private_values_absent(waiting, bundle)
+            assert session.token not in json.dumps(waiting)
+            release.set()
+            assert settled(session, operation_id)["status"] == "READY"
+
+            def page(cursor):
+                code, response = request("/prerequisites/operations/" + operation_id
+                                         + "/events?after_sequence=" + str(cursor) + "&limit=3")
+                assert code == 200
+                assert_schema(response, response_schema("/events"))
+                assert session.token not in json.dumps(response)
+                return response["result"]
+
+            collect_pages(page, plan, bundle)
+    finally:
+        release.set()
+        if operation_id is not None:
+            settled(session, operation_id)

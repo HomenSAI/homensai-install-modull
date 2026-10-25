@@ -1,6 +1,6 @@
 # Невыполненные проверки — обязательное задание следующему ИИ
 
-Автор: Serhii Khomenko. CP-20261025-017.
+Автор: Serhii Khomenko. CP-20261025-018.
 
 **Полная приёмка НЕ ГОТОВА; production_ready=false.** Этот документ и
 `verification-status.json` описывают проверки. Единственный список реализации —
@@ -27,6 +27,8 @@
 ранних попыток сохранять в истории, новый успех записывать отдельной квитанцией.
 
 ## Что подтверждено сейчас
+
+- CP-20261025-018: Combined source+integration Python 3.14.3: 2192 PASS, 1 Windows-only skip, 15 subtests (156.754 s, включая runner), 182 inputs неизменны. Текущий installed wheel: 10 isolated clients/11 CLI calls PASS (6.958 s), 65 package и 161 dependency files неизменны. Public SDK подтверждает verified100 до synthetic installer при RUNNING/notREADY; новый процесс дочитывает все events страницами limit 3. Shipped JS: 29 Node групп, ru/en/de по 227 ключей; Node входит в pytest wrapper. Сохранены исходные FAIL: mandatory writer/cleanup, early progress throttle, same-digest replan, UI pagination/unknown verified source и обе SQLite races, а также harness/environment отказы. Пересекающиеся focused/agent/Node counts не суммируются. Current actual browser/frozen, Windows/ACL/UAC, live Docker/services, реальные OS installers/reboot/relogin, hardware power-loss и полная product acceptance NOT RUN; CI CP017 четыре jobs без runner/steps. Все G0–G5 OPEN, production_ready=false. Receipt: `packaging/acceptance-evidence/progress-20261025-cp018.json`.
 
 - CP-20261025-017: Точный combined source+integration на Python 3.14.3: 2097 PASS, 1 Windows-only skip, 15 subtests (148.508 s, включая runner); 176 входных файлов не менялись. Новый installed wheel: 10 clients/11 CLI calls PASS (7.109 s), 64 package и 161 dependency files неизменны. Независимые 57 source + 1 actual loopback HTTP PASS пересекаются с full suite и не суммируются. Исходные 2 sync-lock, 6 legacy-bypass, 4 malformed/inode и 2 GUI FAIL сохранены вместе с исправлениями, harness failures и непринятым прогоном с изменявшимися inputs. Windows/ACL/UAC, actual browser/frozen, реальные installers/reboot/relogin, live Docker/services, hardware power-loss и полная product acceptance NOT RUN; CI CP016: четыре jobs без runner/steps. Автоматическое восстановление control journal с новой файловой identity NOT IMPLEMENTED; неизвестные ранее незарегистрированные roots и старые binaries вне протокола не покрываются. Все G0–G5 OPEN, production_ready=false. Receipt: `packaging/acceptance-evidence/execution-lease-20261025-cp017.json`.
 
@@ -68,7 +70,7 @@
 прочитать и адаптировать к проверенному test fixture. Никаких реальных
 email/Telegram, пользовательских баз, чужих процессов или ports 8810/8811/8812.
 
-## Конкретные незавершённые механизмы — состояние CP-017
+## Конкретные незавершённые механизмы — состояние CP-018
 
 Наличие прошедших transport/source тестов не закрывает эти требования.
 Каждый пункт также записан в `verification-status.json` → `implementation_gaps`.
@@ -76,20 +78,20 @@ email/Telegram, пользовательских баз, чужих процес
 | Механизм | Реализация / тест | Что должен сделать следующий исполнитель |
 |---|---|---|
 | Общая атомарная блокировка product/prerequisite executors | Source IMPLEMENTED; independent process/HTTP и installed synthetic PASS | Принять реальные платформы и installers. Гарантия ограничена trusted domain и известными зарегистрированными journals; автоматический перенос control journal на новую файловую identity не реализован. Контракт: `EXECUTION_LEASE.md`. |
-| GUI auto/manual/terms/progress/recovery | Source IMPLEMENTED; Node contract PASS; browser NOT RUN/BLOCKED | Выполнить actual browser rendering/focus/keyboard/localization и installed/platform acceptance на новых bytes. 19 новых и 6 прежних Node групп не заменяют браузер. |
-| Installed prerequisite SDK/CLI lifecycle | Synthetic installed profile PASS; real OS NOT RUN | Профиль CP017 повторять после изменения package bytes; настоящие installers/product lifecycle/platform scenarios принять отдельно. |
-| Durable progress скачанных байтов | NOT IMPLEMENTED / NOT RUN | Сохранять измеренные события с порядком/cursor; проверить reconnect/retry/повторы без ложного100%. |
+| GUI auto/manual/terms/progress/recovery | Source IMPLEMENTED; Node contract PASS; browser NOT RUN/BLOCKED | Выполнить actual browser rendering/focus/keyboard/localization и installed/platform acceptance на новых bytes. 29 progress/prerequisite и 6 capability Node групп не заменяют браузер. |
+| Installed prerequisite SDK/CLI lifecycle | Synthetic installed profile PASS; real OS NOT RUN | Профиль CP018 повторять после изменения package bytes; настоящие installers/product lifecycle/platform scenarios принять отдельно. |
+| Durable progress скачанных байтов | Source/API/UI IMPLEMENTED; synthetic source/HTTP/installed PASS | Выполнить actual browser/OS и реальные network fault acceptance. Snapshot хранит observed bytes, не durable offset; 100% относится только к staged artifact. `PREREQUISITES_PROGRESS.md`. |
 | Выбор локального prerequisite installer через браузер | NOT IMPLEMENTED / NOT RUN | Добавить безопасный явный выбор с проверкой signed pins; произвольные browser paths по-прежнему запрещены. |
 
 Текущая browser acceptance BLOCKED: официальный альтернативный архив получен
 и ZIP CRC проверен, но executable и `--version` падают с SIGSEGV; причина неизвестна.
-CI CP-016 также BLOCKED: четыре задания без runner/steps, тесты не запускались.
+CI CP-017 также BLOCKED: четыре задания без runner/steps, тесты не запускались.
 Факты и последующие действия: `packaging/acceptance-evidence/environment-20261025-cp012.json`
-и `packaging/acceptance-evidence/github-ci-20261025-cp016.json`.
+и `packaging/acceptance-evidence/github-ci-20261025-cp017.json`.
 
 Первоначальный разбор двух core-шагов сохранён в
 `docs/PREREQUISITES_NEXT_CORE_STEPS.md`. Lease реализован в CP017 с отдельной
-квитанцией; durable progress ещё не интегрирован в этот checkpoint.
+квитанцией; progress реализован в CP018 с отдельными исходными FAIL и итоговыми проверками.
 
 ## Полные сценарии, которые ещё НЕ ГОТОВЫ
 

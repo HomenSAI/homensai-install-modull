@@ -1,9 +1,9 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261025-017`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261025-018`; ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый local/GitHub до создания CP-20261025-017:
-`4814ae6238c2dbec569a5a462dccb39c7a3b456b` (CP-20261025-016).
+Последний подтверждённый local/GitHub до создания CP-20261025-018:
+`588efbcf3f43bc6b634e281ad899cd3ba63a0a65` (CP-20261025-017).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
@@ -80,6 +80,15 @@ CP-008 объединяет независимые source units в общем ro
 
 
 ## Последний выполненный шаг
+
+CP-20261025-018: Добавлен сохраняемый measured download_progress и согласованный SDK/CLI/HTTP/OpenAPI контракт: 17 полей с signed plan/artifact binding, одна транзакция snapshot/event, обязательный writer, защита от stale transfer/attempt и сохранение cancellation. 100% разрешены только после SHA-256 staged-файла, не означают READY. Replan очищает проекцию даже при прежнем digest; восстановление использует фактический partial offset, не сохранённый byte counter. Мастер ru/en/de показывает отдельную загрузку, потерю связи и дочитывает страницы events по полученным sequence. Исправлены воспроизведённые SQLite sidecar races в prerequisite store и execution domain; чтение/запись через connection уже созданного prerequisite store не пересоздаёт исчезнувшую основную БД. Fresh constructor сохраняет отдельное явное создание новой БД.
+
+Combined source+integration Python 3.14.3: 2192 PASS, 1 Windows-only skip, 15 subtests (156.754 s, включая runner), 182 inputs неизменны. Текущий installed wheel: 10 isolated clients/11 CLI calls PASS (6.958 s), 65 package и 161 dependency files неизменны. Public SDK подтверждает verified100 до synthetic installer при RUNNING/notREADY; новый процесс дочитывает все events страницами limit 3. Shipped JS: 29 Node групп, ru/en/de по 227 ключей; Node входит в pytest wrapper. Сохранены исходные FAIL: mandatory writer/cleanup, early progress throttle, same-digest replan, UI pagination/unknown verified source и обе SQLite races, а также harness/environment отказы. Пересекающиеся focused/agent/Node counts не суммируются. Current actual browser/frozen, Windows/ACL/UAC, live Docker/services, реальные OS installers/reboot/relogin, hardware power-loss и полная product acceptance NOT RUN; CI CP017 четыре jobs без runner/steps. Все G0–G5 OPEN, production_ready=false.
+
+Receipt: `packaging/acceptance-evidence/progress-20261025-cp018.json`.
+Следующий шаг: Подтвердить CP018 GitHub ref/tree, затем безопасный явный выбор локального prerequisite artifact в мастере с signed pins и bounded handling; сохранить source и installed проверки. Обязательна actual browser/platform acceptance текущих artifacts при доступной среде. Параллельная core очередь: ExecutableProductAdapter/NativeEngine, migration backup contract и независимый reference через установленный публичный SDK; production catalog/signing/legal gates открыты.
+
+## Исторический шаг CP-20261025-017
 
 CP-20261025-017: Реализован общий product/prerequisite execution lease в доверенном original-owner domain: постоянный OS lock, durable claim/fencing и передача владения от reserve до завершения worker. Старые незавершённые v1 операции учитываются через проверяемый реестр известных журналов; новый API state_dir, отмена неизвестного эффекта и повреждённый/подменённый журнал не обходят блокировку. Синхронное исполнение больше не удерживает общий Python lock во время долгого engine; status/cancel доступны. Исправлена блокировка duplicate ACK/resume собственной product claim.
 
@@ -161,13 +170,13 @@ late rollback и SIGKILL→new controller/browser→explicit resume. Стары�
 
 1. Проверить текущий checkpoint по GitHub ref/tree и local receipt. После каждого следующего шага обновить canonical TODO/RESUME/реестр, сохранить и подтвердить GitHub до продолжения.
 2. Общий lease реализован и проверен в CP017; контракт и пределы — docs/EXECUTION_LEASE.md. Сохранить fail-closed для неизвестных эффектов и известных старых журналов. Автоматическое восстановление control journal с новой identity пока не реализовано; реальные Windows/ACL/installer/reboot проверки остаются открытыми.
-3. Объединить durable measured byte progress с UI ru/en/de и публичным API: обязательная запись отдельно от best-effort callback, свежий snapshot без потери cancel, retry/verification и отсутствие ложного 100%. Повторить full source/integration и расширенный installed SDK/CLI harness на новых package bytes. Production catalogue/pins/licences/host providers и browser local artifact selection ещё НЕ ГОТОВО. Current actual browser BLOCKED; Node не принимает вёрстку/focus/keyboard/OS installation.
+3. Durable measured progress реализован в CP018: docs/PREREQUISITES_PROGRESS.md. Дальше безопасный явный local artifact selection с signed pins, bounded handling и отдельными GUI/SDK/HTTP проверками. Повторять installed harness после изменения package bytes. Production catalogue/pins/licences/host providers ещё НЕ ГОТОВО. Actual browser BLOCKED; 29 Node групп не принимают вёрстку/focus/keyboard/OS installation.
 4. Подключить подписанный ExecutableProductAdapter к NativeEngine: reviewed descriptor binding и fresh readiness observation, затем migration contract с настоящими backup receipts и fresh-empty precondition. Добавить независимый reference через публичный установленный пакет. Не заменять UNKNOWN автоматическим rollback.
 5. Docker: explicit abort/compensation interrupted install, trusted host attestation и image transport/import/offline bundle, update/restore/rollback/repair/reinstall. Live daemon в текущей среде BLOCKED.
 6. Windows native bootstrap и narrow elevation; Windows Docker/WSL2; systemd service integration с общим lock lease/execution ownership. Отсутствие runner не означает, что реализация закончена.
 7. Portable/legacy/multi-root recovery, modify_components, build/doctor facade, signed maintenance catalogue и mandatory production licence gate; затем thin product adapters JobPilot/Rent по pinned source audit. Исторический build2 FAIL не закрывать без исходных scenarios.
 8. Актуальные DEV artifacts и полная reference/product acceptance на четырёх targets × ru/en/de, offline, migration/rollback/restore, reboot/power loss. Каждый NOT RUN/BLOCKED/FAIL из verification-status.json должен быть выполнен следующим ИИ при доступности реализации/среды. NOT IMPLEMENTED означает сначала реализовать недостающий механизм/тест.
-9. Production signing/approved legal/licence decisions и отдельный Docker Git владельца остаются BLOCKED до реального подключения/решения. GitHub CI CP-016: четыре jobs без runner/steps; источник проблемы не доказан. Не менять billing/workflow по догадке.
+9. Production signing/approved legal/licence decisions и отдельный Docker Git владельца остаются BLOCKED до реального подключения/решения. GitHub CI CP-017: четыре jobs без runner/steps; источник проблемы не доказан. Не менять billing/workflow по догадке.
 
 Все G0–G5 OPEN; production_ready=false. Это инженерная очередь и конкретные внешние блокировки; отдельные source PASS не заменяют приёмку.
 

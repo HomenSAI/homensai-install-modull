@@ -273,7 +273,15 @@ class DownloadManager:
         return total == spec.size and hmac.compare_digest(digest.hexdigest(), spec.sha256)
 
     @staticmethod
-    def _notify(progress, event):
+    def _notify(progress, event, *, persist_progress=None):
+        if persist_progress is not None:
+            try:
+                persist_progress(dict(event))
+            except Exception:
+                # This writer is part of the execution contract. In particular
+                # an OSError here must never be mistaken for a network retry.
+                raise InstallerError("STATE_STORAGE_UNAVAILABLE", phase="download",
+                                     details={"reason": "download_progress_unavailable"}) from None
         if progress is not None:
             try:
                 progress(dict(event))
@@ -341,7 +349,7 @@ class DownloadManager:
             self._remove_partial(partial, metadata)
             return 0, None
 
-    def _attempt(self, spec, allowed, partial, metadata, progress, canceled):
+    def _attempt(self, spec, allowed, partial, metadata, notify, canceled):
         offset, etag = self._partial(spec, partial, metadata)
         headers = {"Accept-Encoding": "identity", "User-Agent": "HomenSAI-Installer/1"}
         if offset:
@@ -385,7 +393,7 @@ class DownloadManager:
             descriptor = _open(partial, os.O_WRONLY | os.O_CREAT | (os.O_APPEND if offset else os.O_TRUNC))
             with os.fdopen(descriptor, "ab" if offset else "wb") as output:
                 completed = offset
-                self._notify(progress, {"type": "download.started", "component_id": spec.artifact_id, "completed": completed, "total": spec.size, "unit": "bytes", "resumed": resumed})
+                notify({"type": "download.started", "completed": completed, "resumed": resumed})
                 try:
                     while True:
                         if canceled is not None and canceled():
@@ -399,7 +407,7 @@ class DownloadManager:
                             raise InstallerError("INTEGRITY_FAILED", phase="download", details={"reason": "oversized_response"})
                         output.write(chunk)
                         completed += len(chunk)
-                        self._notify(progress, {"type": "download.bytes", "component_id": spec.artifact_id, "bytes_delta": len(chunk), "completed": completed, "total": spec.size, "unit": "bytes"})
+                        notify({"type": "download.bytes", "bytes_delta": len(chunk), "completed": completed})
                 finally:
                     output.flush()
                     os.fsync(output.fileno())
@@ -413,55 +421,90 @@ class DownloadManager:
         finally:
             response.close()
 
-    def fetch(self, spec, *, progress=None, cancel_requested=None, offline=False):
+    def fetch(self, spec, *, progress=None, persist_progress=None, cancel_requested=None, offline=False):
         spec, allowed = self._approve(spec)
         if type(offline) is not bool:
             raise ValueError("offline must be boolean")
-        with self._lock(spec):
-            final = self.cache_dir / (spec.sha256 + ".artifact")
-            partial = self.cache_dir / (spec.sha256 + ".part")
-            metadata = self.cache_dir / (spec.sha256 + ".part.json")
-            if self.verify(spec, final):
-                self._notify(progress, {"type": "download.cache_hit", "component_id": spec.artifact_id, "completed": spec.size, "total": spec.size, "unit": "bytes"})
-                return {"path": str(final), "sha256": spec.sha256, "size": spec.size, "cache_hit": True, "resumed": False, "verified": True}
-            if final.exists():
-                final.unlink()  # Only this owned digest cache entry; never user data.
-            # A previous process may have died after receiving all bytes.
-            if self.verify(spec, partial):
+        if persist_progress is not None and not callable(persist_progress):
+            raise ValueError("persist_progress must be a trusted callable")
+        observed = {"attempt": 0, "completed": 0, "source": "unknown", "resumed": False}
+        progress_failure = None
+
+        def notify(event):
+            nonlocal progress_failure
+            if progress_failure is not None:
+                raise progress_failure from None
+            observed.update({key: event[key] for key in observed if key in event})
+            try:
+                self._notify(progress, {**observed, **event, "component_id": spec.artifact_id,
+                                       "total": spec.size, "unit": "bytes"},
+                             persist_progress=persist_progress)
+            except BaseException as error:
+                progress_failure = error
+                raise
+
+        try:
+            with self._lock(spec):
+                return self._fetch_locked(spec, allowed, notify, cancel_requested, offline)
+        except BaseException as error:
+            # Cleanup (flush/fsync/response.close/lock release) can replace an
+            # exception raised by the writer. Keep the mandatory failure sticky
+            # across those boundaries and before every possible network retry.
+            if progress_failure is not None:
+                raise progress_failure from None
+            if isinstance(error, InstallerError) and error.code != "STATE_STORAGE_UNAVAILABLE":
+                notify({"type": "download.canceled" if error.code == "OPERATION_CANCELED" else "download.failed"})
+            elif isinstance(error, OSError):
+                notify({"type": "download.failed"})
+            raise
+
+    def _fetch_locked(self, spec, allowed, notify, cancel_requested, offline):
+        final = self.cache_dir / (spec.sha256 + ".artifact")
+        partial = self.cache_dir / (spec.sha256 + ".part")
+        metadata = self.cache_dir / (spec.sha256 + ".part.json")
+        if self.verify(spec, final):
+            notify({"type": "download.cache_hit", "completed": spec.size, "source": "cache"})
+            return {"path": str(final), "sha256": spec.sha256, "size": spec.size, "cache_hit": True, "resumed": False, "verified": True}
+        if final.exists():
+            final.unlink()  # Only this owned digest cache entry; never user data.
+        # A previous process may have died after receiving all bytes.
+        if self.verify(spec, partial):
+            os.replace(partial, final)
+            metadata.unlink(missing_ok=True)
+            notify({"type": "download.verified", "completed": spec.size, "source": "partial", "resumed": True})
+            return {"path": str(final), "sha256": spec.sha256, "size": spec.size, "cache_hit": True, "resumed": True, "verified": True}
+        if offline:
+            raise InstallerError("PREREQUISITE_MISSING", phase="download", component_id=spec.artifact_id,
+                                 details={"reason": "verified_offline_artifact_missing"})
+        restarts = 0
+        for attempt in range(self.retries + 2):
+            if cancel_requested is not None and cancel_requested():
+                raise InstallerError("OPERATION_CANCELED", phase="download", component_id=spec.artifact_id)
+            notify({"type": "download.attempt", "attempt": attempt + 1, "source": "network", "resumed": False})
+            try:
+                resumed = self._attempt(spec, allowed, partial, metadata, notify, cancel_requested)
                 os.replace(partial, final)
                 metadata.unlink(missing_ok=True)
-                return {"path": str(final), "sha256": spec.sha256, "size": spec.size, "cache_hit": True, "resumed": True, "verified": True}
-            if offline:
-                raise InstallerError("PREREQUISITE_MISSING", phase="download", component_id=spec.artifact_id,
-                                     details={"reason": "verified_offline_artifact_missing"})
-            restarts = 0
-            for attempt in range(self.retries + 2):
-                if cancel_requested is not None and cancel_requested():
-                    raise InstallerError("OPERATION_CANCELED", phase="download", component_id=spec.artifact_id)
-                try:
-                    resumed = self._attempt(spec, allowed, partial, metadata, progress, cancel_requested)
-                    os.replace(partial, final)
-                    metadata.unlink(missing_ok=True)
-                    _atomic_json(self.cache_dir / (spec.sha256 + ".verified.json"), {"schema_version": 1, **spec.public_metadata()})
-                    self._notify(progress, {"type": "download.verified", "component_id": spec.artifact_id, "completed": spec.size, "total": spec.size, "unit": "bytes"})
-                    return {"path": str(final), "sha256": spec.sha256, "size": spec.size, "cache_hit": False, "resumed": resumed, "verified": True}
-                except _RestartDownload:
-                    restarts += 1
-                    if restarts > 1:
-                        raise InstallerError("DOWNLOAD_FAILED", phase="download", details={"reason": "invalid_range_response"})
-                except urllib.error.URLError as exc:
-                    if isinstance(exc.reason, ssl.SSLCertVerificationError):
-                        raise InstallerError("TLS_VERIFICATION_FAILED", phase="download", component_id=spec.artifact_id) from exc
-                    if attempt - restarts >= self.retries:
-                        raise InstallerError("DOWNLOAD_FAILED", phase="download", component_id=spec.artifact_id) from exc
-                except ssl.SSLCertVerificationError as exc:
+                _atomic_json(self.cache_dir / (spec.sha256 + ".verified.json"), {"schema_version": 1, **spec.public_metadata()})
+                notify({"type": "download.verified", "completed": spec.size})
+                return {"path": str(final), "sha256": spec.sha256, "size": spec.size, "cache_hit": False, "resumed": resumed, "verified": True}
+            except _RestartDownload:
+                restarts += 1
+                if restarts > 1:
+                    raise InstallerError("DOWNLOAD_FAILED", phase="download", details={"reason": "invalid_range_response"})
+            except urllib.error.URLError as exc:
+                if isinstance(exc.reason, ssl.SSLCertVerificationError):
                     raise InstallerError("TLS_VERIFICATION_FAILED", phase="download", component_id=spec.artifact_id) from exc
-                except InstallerError as exc:
-                    if exc.code == "INTEGRITY_FAILED":
-                        self._remove_partial(partial, metadata)
-                    raise
-                except (TimeoutError, OSError) as exc:
-                    if attempt - restarts >= self.retries:
-                        raise InstallerError("DOWNLOAD_FAILED", phase="download", component_id=spec.artifact_id) from exc
-                self._notify(progress, {"type": "download.retry", "component_id": spec.artifact_id})
-            raise InstallerError("DOWNLOAD_FAILED", phase="download", component_id=spec.artifact_id)
+                if attempt - restarts >= self.retries:
+                    raise InstallerError("DOWNLOAD_FAILED", phase="download", component_id=spec.artifact_id) from exc
+            except ssl.SSLCertVerificationError as exc:
+                raise InstallerError("TLS_VERIFICATION_FAILED", phase="download", component_id=spec.artifact_id) from exc
+            except InstallerError as exc:
+                if exc.code == "INTEGRITY_FAILED":
+                    self._remove_partial(partial, metadata)
+                raise
+            except (TimeoutError, OSError) as exc:
+                if attempt - restarts >= self.retries:
+                    raise InstallerError("DOWNLOAD_FAILED", phase="download", component_id=spec.artifact_id) from exc
+            notify({"type": "download.retry"})
+        raise InstallerError("DOWNLOAD_FAILED", phase="download", component_id=spec.artifact_id)

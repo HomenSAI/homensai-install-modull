@@ -17,6 +17,7 @@ from .api.model import bounded_json, canonical, parse_json
 from .downloads import _open
 from .errors import InstallerError, utcnow
 from .prerequisite_catalog import fail, identifier
+from .prerequisite_progress import project_progress
 
 
 class PrerequisiteStore:
@@ -46,11 +47,19 @@ class PrerequisiteStore:
 
     def _check_files(self):
         for path in (self.path, Path(str(self.path) + "-journal"), Path(str(self.path) + "-wal"), Path(str(self.path) + "-shm")):
-            if path.exists() or path.is_symlink():
+            try:
                 info = path.lstat()
-                if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
-                        or (os.name != "nt" and (info.st_uid != os.geteuid() or info.st_mode & 0o077))):
-                    fail("STATE_STORAGE_UNAVAILABLE", "prerequisite_journal_not_private")
+            except FileNotFoundError:
+                # SQLite removes transient sidecars during normal commit. Main
+                # is created explicitly by __init__ before its first connection.
+                if path != self.path:
+                    continue
+                fail("STATE_STORAGE_UNAVAILABLE", "prerequisite_journal_unavailable")
+            except OSError:
+                fail("STATE_STORAGE_UNAVAILABLE", "prerequisite_journal_unavailable")
+            if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
+                    or (os.name != "nt" and (info.st_uid != os.geteuid() or info.st_mode & 0o077))):
+                fail("STATE_STORAGE_UNAVAILABLE", "prerequisite_journal_not_private")
 
     @contextmanager
     def lock(self):
@@ -145,7 +154,8 @@ class PrerequisiteStore:
         db = None
         try:
             self._check_files()
-            db = sqlite3.connect(str(self.path), timeout=5, isolation_level=None)
+            # Do not recreate main if it disappears after the metadata check.
+            db = sqlite3.connect(self.path.as_uri() + "?mode=rw", uri=True, timeout=5, isolation_level=None)
             db.execute("PRAGMA synchronous=FULL")
             db.execute("PRAGMA busy_timeout=5000")
             db.execute("BEGIN IMMEDIATE" if write else "BEGIN")
@@ -221,7 +231,7 @@ class PrerequisiteStore:
         operation["status"] = "RECOVERY_REQUIRED" if uncertain else "CANCELED"
         operation["required_action"] = "reconcile_installer" if uncertain else None
 
-    def save(self, operation, message_code, *, create=False):
+    def save(self, operation, message_code, *, create=False, reset_progress=False):
         operation = dict(operation)
         with self.connection(write=True) as db:
             row = db.execute("SELECT body FROM operations WHERE id=?", (operation["operation_id"],)).fetchone()
@@ -230,11 +240,18 @@ class PrerequisiteStore:
                 fail("OPERATION_CONFLICT", "prerequisite_operation_exists")
             if not create and previous is None:
                 fail("OPERATION_NOT_FOUND", "prerequisite_operation_missing")
-            # A concurrent cancel is the only write allowed without controller
-            # lock. Merge it monotonically; stale controller snapshots cannot
-            # erase the request or reuse its event sequence.
+            # Cancel and download observations can advance the durable record
+            # while the controller still owns an older snapshot. Preserve both
+            # without copying state transitions from an unrelated/replaced plan.
             if previous:
                 operation["cancel_requested"] = operation["cancel_requested"] or previous["cancel_requested"]
+                if not reset_progress and previous["plan_digest"] == operation["plan_digest"]:
+                    if "download_progress" in previous:
+                        operation["download_progress"] = previous["download_progress"]
+                    else:
+                        operation.pop("download_progress", None)
+                else:
+                    operation.pop("download_progress", None)
             self._settle_cancel_at_boundary(operation, previous_status=previous["status"] if previous else None)
             operation["revision"] = (previous["revision"] if previous else 0) + 1
             operation["updated_at"] = utcnow()
@@ -263,6 +280,38 @@ class PrerequisiteStore:
                     db.execute("INSERT OR REPLACE INTO attempts VALUES (?,?,?,?)",
                                (operation["operation_id"], name, step["attempt"], canonical(record)))
         return operation, event
+
+    def record_progress(self, operation_id, *, plan_digest, component_id, artifact_id,
+                        transfer_id, event, start=False, previous_transfer_id=None):
+        """Commit one bounded observation and its cursor atomically.
+
+        This does not publish installer intent, change readiness, or release a
+        claim. It is deliberately separate from best-effort UI notifications.
+        """
+        if not identifier(operation_id):
+            fail("INVALID_REQUEST", "prerequisite_operation_id")
+        with self.connection(write=True) as db:
+            row = db.execute("SELECT body FROM operations WHERE id=?", (operation_id,)).fetchone()
+            if row is None:
+                fail("OPERATION_NOT_FOUND", "prerequisite_operation_missing")
+            operation = parse_json(row[0], error_code="INTEGRITY_FAILED")
+            snapshot = project_progress(operation, plan_digest=plan_digest, component_id=component_id,
+                                        artifact_id=artifact_id, transfer_id=transfer_id, event=event,
+                                        start=start, previous_transfer_id=previous_transfer_id)
+            if snapshot is None:
+                return None, None
+            operation["revision"] += 1
+            operation["updated_at"] = utcnow()
+            snapshot.update(sequence=operation["revision"], updated_at=operation["updated_at"])
+            operation["download_progress"] = snapshot
+            durable_event = {"type": "prerequisite_download", "phase": "prerequisites",
+                "message_code": "prerequisite_download_progress", "operation_id": operation_id,
+                "component_id": component_id, "sequence": operation["revision"],
+                "timestamp": operation["updated_at"], "download_progress": snapshot}
+            bounded_json(operation)
+            db.execute("UPDATE operations SET body=? WHERE id=?", (canonical(operation), operation_id))
+            db.execute("INSERT INTO events VALUES (?,?,?)", (operation_id, operation["revision"], canonical(durable_event)))
+        return snapshot, durable_event
 
     def request_cancel(self, operation_id):
         """Persist cancel without waiting for a controller; settle safe pauses."""

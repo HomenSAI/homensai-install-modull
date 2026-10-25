@@ -1,12 +1,18 @@
 # Фактическое состояние реализации
 
-Дата: 25.10.2026. Checkpoint: **CP-20261025-017**.
+Дата: 25.10.2026. Checkpoint: **CP-20261025-018**.
 Ветка `codex/universal-installer-20261025`. **`production_ready=false`.**
 Исходный commit: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
 
 
 
 ## Последний выполненный шаг
+
+CP-20261025-018: Добавлен сохраняемый measured download_progress и согласованный SDK/CLI/HTTP/OpenAPI контракт: 17 полей с signed plan/artifact binding, одна транзакция snapshot/event, обязательный writer, защита от stale transfer/attempt и сохранение cancellation. 100% разрешены только после SHA-256 staged-файла, не означают READY. Replan очищает проекцию даже при прежнем digest; восстановление использует фактический partial offset, не сохранённый byte counter. Мастер ru/en/de показывает отдельную загрузку, потерю связи и дочитывает страницы events по полученным sequence. Исправлены воспроизведённые SQLite sidecar races в prerequisite store и execution domain; чтение/запись через connection уже созданного prerequisite store не пересоздаёт исчезнувшую основную БД. Fresh constructor сохраняет отдельное явное создание новой БД.
+
+Combined source+integration Python 3.14.3: 2192 PASS, 1 Windows-only skip, 15 subtests (156.754 s, включая runner), 182 inputs неизменны. Текущий installed wheel: 10 isolated clients/11 CLI calls PASS (6.958 s), 65 package и 161 dependency files неизменны. Public SDK подтверждает verified100 до synthetic installer при RUNNING/notREADY; новый процесс дочитывает все events страницами limit 3. Shipped JS: 29 Node групп, ru/en/de по 227 ключей; Node входит в pytest wrapper. Сохранены исходные FAIL: mandatory writer/cleanup, early progress throttle, same-digest replan, UI pagination/unknown verified source и обе SQLite races, а также harness/environment отказы. Пересекающиеся focused/agent/Node counts не суммируются. Current actual browser/frozen, Windows/ACL/UAC, live Docker/services, реальные OS installers/reboot/relogin, hardware power-loss и полная product acceptance NOT RUN; CI CP017 четыре jobs без runner/steps. Все G0–G5 OPEN, production_ready=false.
+
+## Исторический шаг CP-20261025-017
 
 CP-20261025-017: Реализован общий product/prerequisite execution lease в доверенном original-owner domain: постоянный OS lock, durable claim/fencing и передача владения от reserve до завершения worker. Старые незавершённые v1 операции учитываются через проверяемый реестр известных журналов; новый API state_dir, отмена неизвестного эффекта и повреждённый/подменённый журнал не обходят блокировку. Синхронное исполнение больше не удерживает общий Python lock во время долгого engine; status/cancel доступны. Исправлена блокировка duplicate ACK/resume собственной product claim.
 

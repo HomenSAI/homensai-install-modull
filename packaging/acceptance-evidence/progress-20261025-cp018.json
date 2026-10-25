@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "checkpoint": "CP-20261025-018",
+  "author": "Serhii Khomenko",
+  "status": "PASS_SCOPED_NOT_PRODUCTION_ACCEPTANCE",
+  "production_ready": false,
+  "source_parent": "588efbcf3f43bc6b634e281ad899cd3ba63a0a65",
+  "implementation_commits": [
+    "1cd049760c092c2093073f695a767fcc8931bf0c",
+    "617aa402b13bbc07717e42aa664d7fffa432b099",
+    "484f8eae9cb0868f50662786d8e3e600e895cb20",
+    "bf1d3801ca7b3fd754ac201a0bd93532d3c3ecd9",
+    "ab0a892f6d966d8392b1867a7f23d2406ff236c7",
+    "3670cdb5a5b505758a4001b8e7cf4bd6af8e54dd",
+    "5cc688ed8d036c95199e8862f5dc7a7cd646662c"
+  ],
+  "full_source_and_integration": {
+    "passed": 2192,
+    "subtests_passed": 15,
+    "skipped": 1,
+    "junit": {
+      "tests": 2208,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    "elapsed_seconds": 156.754,
+    "argv": [
+      "/workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python",
+      "-B",
+      "-m",
+      "pytest",
+      "-q",
+      "-rs",
+      "-p",
+      "no:cacheprovider",
+      "--basetemp=/tmp/hinstall-cp018-focused-final-04f338",
+      "--junitxml=/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-focused-final.xml",
+      "tests",
+      "integration_tests"
+    ],
+    "input_file_count": 182,
+    "input_manifest_sha256": "4d6823cc7221f2672d081808fa24697738e4f02533be6559b4dd5d454402e7a8",
+    "input_files_unchanged": true,
+    "receipt": "packaging/acceptance-evidence/source-20261025-cp018.json",
+    "skips": [
+      {
+        "class": "tests.test_datahome",
+        "name": "test_foreign_posix_path_on_windows",
+        "reason": "Проверка пути POSIX на Windows"
+      }
+    ]
+  },
+  "installed": {
+    "status": "PASS",
+    "clients": 10,
+    "cli_commands": 11,
+    "wheel": {
+      "name": "homensai_install_module-0.1.0-py3-none-any.whl",
+      "sha256": "66ea30d6e79bc6fd60e90c805ed9d86d9d28451131831ad666371c8f3b47065a",
+      "exact_files_checked": 65
+    },
+    "package_file_count": 65,
+    "dependency_file_count": 161,
+    "elapsed_seconds": 6.957605,
+    "exact_bytes_unchanged": true,
+    "scope": "Fresh isolated wheel with merged CP017 lease and CP018 progress/UI/API; signed synthetic SDK/CLI and fake installers",
+    "proof": [
+      "Public SDK staged verified100 before each fake installer while operation remains RUNNING and not READY",
+      "New process reads persisted projection and paginates all events at limit3; cursor follows last received event",
+      "Public CLI status/events carry the same measured progress; manual/canceled-before-download old shape remains valid"
+    ],
+    "receipt": "packaging/acceptance-evidence/installed-prerequisites-20261025-cp018.json"
+  },
+  "contract": {
+    "snapshot": "Optional download_progress; exactly17 public fields; matching transactional event sequence",
+    "percent": "0..99 only measured transferring;100 only staged SHA256 verified file; otherwise null",
+    "readiness": "File verification never declares dependency READY or product success",
+    "recovery": "Stored completed is an observed count, not a trusted fsynced resume offset",
+    "throttle": "At most256 intermediate byte checkpoints per network attempt distributed over signed artifact size",
+    "privacy": "No transport URL/query/ETag/path or raw exception in public progress fields",
+    "compatibility": "Plan v1, digest and consent binding unchanged; explicit replan clears current progress even at same digest"
+  },
+  "ui": {
+    "node_groups": 29,
+    "counts_overlap_full_suite": true,
+    "locales": {
+      "ru": 227,
+      "en": 227,
+      "de": 227
+    },
+    "scope": "Real shipped JavaScript with injected DOM/HTTP in Node; actual browser NOT RUN/BLOCKED",
+    "behavior": "Validate bound progress; separate download indicator; reconnect shows saved observation; event pages drained without advancing cursor from snapshot revision"
+  },
+  "preserved_findings": [
+    {
+      "case": "Mandatory progress writer error masked by response.close/fsync cleanup and retried",
+      "before": "2 FAIL",
+      "after": "same2 PASS independently and at root; integrated tests included"
+    },
+    {
+      "case": "Early timed progress exhausted event budget and froze later measured bytes",
+      "before": "FAIL; saved256 while callback3072",
+      "after": "256 signed-size buckets; PASS"
+    },
+    {
+      "case": "Same-digest explicit replan retained obsolete current projection",
+      "before": "FAIL",
+      "after": "explicit reset; PASS, history retained"
+    },
+    {
+      "case": "UI stopped after first event page while a newer snapshot revision remained ahead",
+      "before": "FAIL on CP016 shipped app.js",
+      "after": "drain pages by received events; PASS"
+    },
+    {
+      "case": "UI accepted verified100 with source=unknown against published schema",
+      "before": "deterministic Node FAIL on484f8ea",
+      "after": "strict verified source; PASS"
+    },
+    {
+      "case": "Prerequisite status observed a disappearing SQLite sidecar; expected main could be recreated after check",
+      "before": "expanded233:232 PASS/1 FAIL; deterministic before3:7 FAIL/30 PASS",
+      "after": "single lstat sidecar-only ENOENT + main mode=rw;37 cases PASS;270 focused PASS"
+    },
+    {
+      "case": "ExecutionDomain read-only pending/busy raced with another holder committing its journal",
+      "before": "2 deterministic FAIL",
+      "after": "sidecar-only ENOENT handling; integrated verification"
+    },
+    {
+      "case": "Actual HTTP test initially placed under tests/ socket-denying fixture",
+      "before": "3 PASS/1 harness FAIL before HTTP runtime",
+      "after": "real loopback moved to integration_tests; guard unchanged;6 PASS"
+    },
+    {
+      "case": "Sandbox refused two own loopback sockets",
+      "before": "2 environment FAIL",
+      "after": "same tests outside sandbox PASS"
+    }
+  ],
+  "agent_checks": {
+    "overlap_full_suite": true,
+    "progress_focused": "229 PASS before API and state race additions",
+    "api_and_state_focused": "270 PASS after prerequisite state race fix; independent of merged lease",
+    "historical_receipts": [
+      "source-20261025-cp018.json",
+      "source-20261025-cp018.log",
+      "installed-prerequisites-20261025-cp018.json",
+      "progress-implementation-20261025-cp018.json",
+      "progress-contract-20261025-cp018.json",
+      "prerequisite-state-race-20261025-cp018.json",
+      "progress-independent-20261025-cp018.json",
+      "execution-domain-sidecars-20261025-cp018.json"
+    ]
+  },
+  "raw_evidence": {
+    "path": "packaging/acceptance-evidence/progress-raw-evidence-20261025-cp018.json",
+    "sha256": "d32020d464160b2592a2b07e3469a234613bdb75cbaf8bc1c6be05bf1bc5385a",
+    "entries": 82
+  },
+  "scope": {
+    "not_run": [
+      "Actual browser/frozen current GUI",
+      "Windows ACL/UAC",
+      "Live Docker/system services",
+      "Real OS installers/reboot/relogin",
+      "Hardware power-loss",
+      "Full JobPilot/Rent acceptance"
+    ],
+    "not_implemented": [
+      "Browser local prerequisite artifact selection",
+      "Automatic trusted relocation of control journals with new identity"
+    ],
+    "ci": "CP017 four failed jobs runner_id0/steps[]; exact cause unknown; tests did not execute"
+  }
+}

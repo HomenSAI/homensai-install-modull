@@ -16,7 +16,7 @@ def test_prerequisite_wizard_response_contract():
     assert result.returncode == 0, result.stderr
     evidence = json.loads(result.stdout)
     assert evidence["status"] == "PASS"
-    assert evidence["cases"] >= 19
+    assert evidence["cases"] >= 28
     assert evidence["scope"] == "actual wizard JavaScript with injected DOM/HTTP; not browser acceptance"
     assert set(evidence["assets_sha256"]) == {"app.js", "index.html", "locales.json"}
     assert all(len(value) == 64 for value in evidence["assets_sha256"].values())

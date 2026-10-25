@@ -1,0 +1,150 @@
+{
+  "commit": "ab0a892f6d966d8392b1867a7f23d2406ff236c7",
+  "parent": "bf1d3801ca7b3fd754ac201a0bd93532d3c3ecd9",
+  "tree": "df61df43fe00a366a2bf07ca7c05bc7f822721ac",
+  "author": "Serhii Khomenko | HomenS.AI <info@homensai.com>",
+  "clean_worktree": true,
+  "changed_files": [
+    "homensai_install/prerequisite_state.py",
+    "tests/test_prerequisites_state_files.py"
+  ],
+  "final_commit_matches_tested_bytes": true,
+  "checks": {
+    "progress-state-race-before": {
+      "returncode": 1,
+      "duration_seconds": 1.016489002002345,
+      "inputs_unchanged": true,
+      "junit": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "5",
+        "skipped": "0",
+        "tests": "34",
+        "time": "0.811",
+        "timestamp": "2026-10-25T20:30:14.920711+01:00",
+        "hostname": "063b995bf262"
+      }
+    },
+    "progress-state-race-before2": {
+      "returncode": 1,
+      "duration_seconds": 1.167613137004082,
+      "inputs_unchanged": true,
+      "junit": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "8",
+        "skipped": "0",
+        "tests": "37",
+        "time": "0.900",
+        "timestamp": "2026-10-25T20:30:57.653604+01:00",
+        "hostname": "063b995bf262"
+      }
+    },
+    "progress-state-race-before3": {
+      "returncode": 1,
+      "duration_seconds": 1.0670925500016892,
+      "inputs_unchanged": true,
+      "junit": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "7",
+        "skipped": "0",
+        "tests": "37",
+        "time": "0.812",
+        "timestamp": "2026-10-25T20:31:13.764157+01:00",
+        "hostname": "063b995bf262"
+      }
+    },
+    "progress-state-race-after": {
+      "returncode": 0,
+      "duration_seconds": 0.9161365159961861,
+      "inputs_unchanged": true,
+      "junit": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "37",
+        "time": "0.701",
+        "timestamp": "2026-10-25T20:31:32.114444+01:00",
+        "hostname": "063b995bf262"
+      }
+    },
+    "progress-state-race-final": {
+      "returncode": 0,
+      "duration_seconds": 33.32177918800153,
+      "inputs_unchanged": true,
+      "junit": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "270",
+        "time": "33.061",
+        "timestamp": "2026-10-25T20:31:53.696863+01:00",
+        "hostname": "063b995bf262"
+      }
+    }
+  },
+  "exact_before_after": {
+    "before": "progress-state-race-before3.json",
+    "after": "progress-state-race-after.json",
+    "test_sha256": "a73936c64053ac0194c4710c9b800187df534f33eb2643369faf50f9b4b13bcc",
+    "test_bytes_identical": true,
+    "runtime_before_sha256": "1db1d3dbf31c59389036390584eda55d640b6e6b4c649072438fc5aec426d253",
+    "runtime_after_sha256": "d26a5b83f332a9633e9037ad909092691e5d8889f1da6075d5f0f00dce4f5789",
+    "scope": "7 FAIL/30 PASS on old runtime; the same 37 tests PASS after fix. Three normal transient removals, main removal at/before metadata read, and two main removals between check/connect; guards and constructor cases remain covered."
+  },
+  "fix": [
+    "Use one lstat per known path; tolerate only FileNotFoundError for -journal/-wal/-shm.",
+    "Expected main missing and other OSError return STATE_STORAGE_UNAVAILABLE. Existing owner/permission/regular-file/link checks remain.",
+    "SQLite connection uses URI mode=rw to prevent automatic main recreation after successful metadata check; explicit constructor still creates new main before connecting."
+  ],
+  "preserved_failures": [
+    {
+      "receipt": "progress-contract-final.json",
+      "result": "232 PASS / 1 FAIL",
+      "cause": "Real async status race between exists and lstat for disappearing -journal. Resolved in this commit; same async test is included in final 270 PASS."
+    },
+    {
+      "receipt": "progress-state-race-before.json",
+      "result": "5 FAIL / 29 PASS",
+      "cause": "Initial 34-case reproducer before adding the check-to-connect gap and URI filename cases."
+    },
+    {
+      "receipt": "progress-state-race-before2.json",
+      "result": "8 FAIL / 29 PASS",
+      "cause": "Six runtime failures plus two fixture failures: ? is forbidden by existing checked_path. Fixture changed to permitted space/#/%/Unicode; production path restrictions unchanged."
+    },
+    {
+      "receipt": "progress-state-race-before3.json",
+      "result": "7 FAIL / 30 PASS",
+      "cause": "Final corrected test file on unchanged old runtime; exact comparison for after receipt."
+    }
+  ],
+  "final_scope": "270 source tests: prior 233 download/prerequisite/API/CLI/wizard/progress/real owned loopback HTTP cases plus 37 state-file regressions; signed synthetic artifacts and installers. 0 skip. Own controlled process-kill scenario remains in progress tests. No real OS installer or production acceptance.",
+  "limitations": [
+    "This worktree remains based on CP016 plus progress/harness/contract/fix commits; CP017 lease and new GUI assets are integrated and tested by root separately.",
+    "Does not claim to prevent all database inode replacement or path races after metadata validation, or to fix other journals/lease stores.",
+    "Windows ACL/UAC, real OS installers, browser and physical power-loss acceptance are not run.",
+    "Installed wheel including combined lease/UI/API/fix is not run here; root performs that integration check."
+  ],
+  "production_ready": false,
+  "receipts_sha256": {
+    "progress-state-race-before.json": "691545efcc62b78ff006348ffcc3199b41d867c5e393bac852693d1b6416c81d",
+    "progress-state-race-before.log": "c2963d35c5840700d741ce8eb22e9d7e3d6e4c4422b92976d269a6c30231b946",
+    "progress-state-race-before.xml": "950be13219f1986eeca99c478f8bab71e99e6b07726562963a1e560a85c79b70",
+    "progress-state-race-before2.json": "626ab8db2a1c9f3897886b799c084bd2b6ce91760804bec65a08dc410737d5f9",
+    "progress-state-race-before2.log": "911b0419ee540bc594149c043564c7e61b759266ba15c9dcff4329d14ea5bb1d",
+    "progress-state-race-before2.xml": "9405a3417afa5d1fd6a7ec12476eb1830f258fc34eb15f2ed25948f90f0bc0db",
+    "progress-state-race-before3.json": "aef6ce62913c5ba22ce7358e4f9b1c720ebde15a91b2b8854135d0dd159f57cc",
+    "progress-state-race-before3.log": "81227e746bcb45962ecf707e218b6a1262db788413c7fdadb4c83ae46b5b3299",
+    "progress-state-race-before3.xml": "60fb2eb5c09215b041c8b5cf3fcaf22c8446cc7af212294d42b58bbb5d8af1e0",
+    "progress-state-race-after.json": "4d8e7c87fd7979f973d31b630a732d443d25f2ab4346e7d3801a2fb242cc5890",
+    "progress-state-race-after.log": "6b79e50904b90515468bd7fa34e91a65223e0cf116f4f0c876d7d5202c90acab",
+    "progress-state-race-after.xml": "7c5250415eb6ecb41ceb62d993387c0c6191323619769ad4ba0942aabeb82fc0",
+    "progress-state-race-final.json": "80dd24aa7f4e88fbb68ba9aec3fb6df08954760a0c61c92d02e95a5706e625b4",
+    "progress-state-race-final.log": "52d00292bba10e55652e3b5ed3499106dfe6ab727ec6a83c5e41dfe20e927c1a",
+    "progress-state-race-final.xml": "dcab11ce960e4e9ddd5152b912714c210edfd0d3d5b0217148684bd50f46210f"
+  }
+}

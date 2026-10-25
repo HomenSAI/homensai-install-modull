@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-017",
+  "checkpoint_id": "CP-20261025-018",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -89,10 +89,10 @@
     "cloud_git": "SYNC_PENDING",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261025-016",
+    "last_confirmed_checkpoint": "CP-20261025-017",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
-  "next_step": "После независимого подтверждения CP017 в GitHub объединить durable measured download progress: обязательный storage writer, свежая projection/event без потери cancel, retry fencing, 100% только после staged hash verification; подключить UI ru/en/de и API schema. Повторить combined source/integration и расширенный installed synthetic harness на новых bytes. Actual browser/OS/platform acceptance остаётся обязательной.",
+  "next_step": "Подтвердить CP018 GitHub ref/tree, затем безопасный явный выбор локального prerequisite artifact в мастере с signed pins и bounded handling; сохранить source и installed проверки. Обязательна actual browser/platform acceptance текущих artifacts при доступной среде. Параллельная core очередь: ExecutableProductAdapter/NativeEngine, migration backup contract и независимый reference через установленный публичный SDK; production catalog/signing/legal gates открыты.",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
@@ -100,7 +100,7 @@
     "linux_native": "PARTIAL: frozen x64 user-session lifecycle/updates/rollback/repair/crash-resume PASS in scoped receipts; OS service/reboot/full matrix open",
     "linux_docker": "NOT RUN/BLOCKED live daemon: source install/uninstall/start/stop/backup tested with modeled daemon; images/host attestation/full lifecycle remain open"
   },
-  "last_confirmed_github_sha": "4814ae6238c2dbec569a5a462dccb39c7a3b456b",
+  "last_confirmed_github_sha": "588efbcf3f43bc6b634e281ad899cd3ba63a0a65",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -142,7 +142,17 @@
     "packaging/acceptance-evidence/execution-lease-implementation-20261025-cp017.json",
     "packaging/acceptance-evidence/installed-prerequisites-20261025-cp017.json",
     "packaging/acceptance-evidence/execution-lease-raw-evidence-20261025-cp017.json",
-    "packaging/acceptance-evidence/github-ci-20261025-cp016.json"
+    "packaging/acceptance-evidence/github-ci-20261025-cp016.json",
+    "packaging/acceptance-evidence/progress-20261025-cp018.json",
+    "packaging/acceptance-evidence/source-20261025-cp018.json",
+    "packaging/acceptance-evidence/installed-prerequisites-20261025-cp018.json",
+    "packaging/acceptance-evidence/progress-implementation-20261025-cp018.json",
+    "packaging/acceptance-evidence/progress-contract-20261025-cp018.json",
+    "packaging/acceptance-evidence/progress-independent-20261025-cp018.json",
+    "packaging/acceptance-evidence/prerequisite-state-race-20261025-cp018.json",
+    "packaging/acceptance-evidence/execution-domain-sidecars-20261025-cp018.json",
+    "packaging/acceptance-evidence/progress-raw-evidence-20261025-cp018.json",
+    "packaging/acceptance-evidence/github-ci-20261025-cp017.json"
   ],
   "environment": {
     "os": "linux",
@@ -161,35 +171,35 @@
     "TODO": 31
   },
   "source_verification": {
-    "checkpoint_id": "CP-20261025-017",
-    "source_and_integration_passed": 2097,
+    "checkpoint_id": "CP-20261025-018",
+    "source_and_integration_passed": 2192,
     "skipped": 1,
     "subtests_passed": 15,
-    "elapsed_seconds": 148.508,
+    "elapsed_seconds": 156.754,
     "scope": "Combined source and synthetic integration; Windows-only test skipped; not full platform/product acceptance",
-    "receipt": "packaging/acceptance-evidence/source-20261025-cp017.json"
+    "receipt": "packaging/acceptance-evidence/source-20261025-cp018.json"
   },
   "verification_backlog": "docs/verification-status.json",
   "verification_instruction": "Обязательно выполнить NOT RUN/BLOCKED/FAIL при доступной среде; отсутствие harness явно NOT IMPLEMENTED. Непроверенное НЕ ГОТОВО.",
   "checkpoint_policy": "После каждого проверенного шага TODO+RESUME+код в одном checkpoint, GitHub ref/tree подтверждён до следующего шага.",
   "latest_scoped_verification": [
     {
-      "id": "cp017-source-integration",
+      "id": "cp018-source-integration",
       "status": "PASS",
-      "scope": "2097 passed, 1 Windows-only skipped, 15 subtests; exact source + own synthetic Linux process/HTTP/D-Bus",
-      "receipt": "packaging/acceptance-evidence/source-20261025-cp017.json"
+      "scope": "2192 passed, 1 Windows-only skipped, 15 subtests; exact merged source and synthetic Linux process/HTTP/D-Bus",
+      "receipt": "packaging/acceptance-evidence/source-20261025-cp018.json"
     },
     {
-      "id": "cp017-installed-prerequisites",
+      "id": "cp018-installed-progress",
       "status": "PASS",
-      "scope": "Current wheel: 10 isolated synthetic clients,11 CLI calls,64 package/161 dependency files unchanged; no real installers",
-      "receipt": "packaging/acceptance-evidence/installed-prerequisites-20261025-cp017.json"
+      "scope": "Current wheel: 10 isolated synthetic clients, 11 CLI calls, 65 package/161 dependency files unchanged; staged verification and persisted paginated progress",
+      "receipt": "packaging/acceptance-evidence/installed-prerequisites-20261025-cp018.json"
     },
     {
-      "id": "cp017-independent-lease",
+      "id": "cp018-ui-contract",
       "status": "PASS",
-      "scope": "57 source and 1 real loopback HTTP; overlap full suite; original failures retained",
-      "receipt": "packaging/acceptance-evidence/execution-lease-independent-20261025-cp017.json"
+      "scope": "29 Node groups under injected DOM/HTTP; overlaps full suite; actual browser NOT RUN/BLOCKED",
+      "receipt": "packaging/acceptance-evidence/progress-independent-20261025-cp018.json"
     }
   ]
 }

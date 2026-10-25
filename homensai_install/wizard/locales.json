@@ -214,7 +214,19 @@
     "prereq_action_choose_relogin_time": "Нужен выход из учётной записи и повторный вход. Выберите удобное время ниже.",
     "prereq_action_replan": "Условия или окружение изменились. Проверьте новый план и дайте новые согласия.",
     "prereq_action_resolve_prerequisite_error": "Устраните указанную ошибку. Затем проверьте состояние или явно продолжите сохранённую подготовку.",
-    "prereq_cancel_help": "Отмена прекращает дальнейшие действия. Уже выполненные изменения сохраняются."
+    "prereq_cancel_help": "Отмена прекращает дальнейшие действия. Уже выполненные изменения сохраняются.",
+    "prereq_transfer_title": "Загрузка файла",
+    "prereq_transfer_bytes": "{done} / {total} байт",
+    "prereq_transfer_preparing": "Подготовка загрузки",
+    "prereq_transfer_transferring": "Файл загружается",
+    "prereq_transfer_verifying": "Файл получен. Проверяем целостность и готовим его к установке.",
+    "prereq_transfer_retrying": "Повторная попытка загрузки",
+    "prereq_transfer_verified": "Файл проверен и подготовлен к установке.",
+    "prereq_transfer_failed": "Загрузка не завершена из-за ошибки.",
+    "prereq_transfer_canceled": "Загрузка остановлена.",
+    "prereq_transfer_unknown": "Данные о загрузке пока не подтверждены.",
+    "prereq_transfer_help": "Готовность файла не означает, что компонент уже установлен.",
+    "prereq_transfer_saved": "Показаны последние сохранённые данные. Обновите статус."
   },
   "en": {
     "title": "Application setup",
@@ -431,7 +443,19 @@
     "prereq_action_choose_relogin_time": "Sign out and back in is required. Choose a convenient time below.",
     "prereq_action_replan": "The conditions or environment changed. Review a fresh plan and provide new consents.",
     "prereq_action_resolve_prerequisite_error": "Resolve the reported error. Then check the state or explicitly resume the saved preparation.",
-    "prereq_cancel_help": "Cancellation stops further actions. Completed changes remain."
+    "prereq_cancel_help": "Cancellation stops further actions. Completed changes remain.",
+    "prereq_transfer_title": "File download",
+    "prereq_transfer_bytes": "{done} / {total} bytes",
+    "prereq_transfer_preparing": "Preparing the download",
+    "prereq_transfer_transferring": "Downloading the file",
+    "prereq_transfer_verifying": "File received. Checking integrity and preparing it for installation.",
+    "prereq_transfer_retrying": "Retrying the download",
+    "prereq_transfer_verified": "File verified and prepared for installation.",
+    "prereq_transfer_failed": "The download did not finish because of an error.",
+    "prereq_transfer_canceled": "Download stopped.",
+    "prereq_transfer_unknown": "Download information is not yet confirmed.",
+    "prereq_transfer_help": "A ready file does not mean the component has been installed.",
+    "prereq_transfer_saved": "Showing the last saved information. Refresh the status."
   },
   "de": {
     "title": "Anwendung installieren",
@@ -648,6 +672,18 @@
     "prereq_action_choose_relogin_time": "Eine Abmeldung und erneute Anmeldung ist erforderlich. Wählen Sie unten einen passenden Zeitpunkt.",
     "prereq_action_replan": "Bedingungen oder Umgebung haben sich geändert. Prüfen Sie einen neuen Plan und erteilen Sie neue Zustimmungen.",
     "prereq_action_resolve_prerequisite_error": "Beheben Sie den angezeigten Fehler. Prüfen Sie anschließend den Zustand oder setzen Sie die gespeicherte Vorbereitung ausdrücklich fort.",
-    "prereq_cancel_help": "Ein Abbruch beendet weitere Aktionen. Bereits ausgeführte Änderungen bleiben bestehen."
+    "prereq_cancel_help": "Ein Abbruch beendet weitere Aktionen. Bereits ausgeführte Änderungen bleiben bestehen.",
+    "prereq_transfer_title": "Datei herunterladen",
+    "prereq_transfer_bytes": "{done} / {total} Bytes",
+    "prereq_transfer_preparing": "Download wird vorbereitet",
+    "prereq_transfer_transferring": "Datei wird heruntergeladen",
+    "prereq_transfer_verifying": "Datei empfangen. Die Integrität wird geprüft und die Installation vorbereitet.",
+    "prereq_transfer_retrying": "Download wird erneut versucht",
+    "prereq_transfer_verified": "Datei geprüft und für die Installation vorbereitet.",
+    "prereq_transfer_failed": "Der Download wurde wegen eines Fehlers nicht abgeschlossen.",
+    "prereq_transfer_canceled": "Download gestoppt.",
+    "prereq_transfer_unknown": "Die Downloadinformationen sind noch nicht bestätigt.",
+    "prereq_transfer_help": "Eine vorbereitete Datei bedeutet noch nicht, dass die Komponente installiert ist.",
+    "prereq_transfer_saved": "Die zuletzt gespeicherten Informationen werden angezeigt. Aktualisieren Sie den Status."
   }
 }

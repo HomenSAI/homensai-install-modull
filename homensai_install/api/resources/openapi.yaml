@@ -1740,7 +1740,27 @@
         "description": "Исторический snapshot. queued/running/unknown требуют polling; READY не вызывает product submit.",
         "responses": {
           "200": {
-            "$ref": "#/components/responses/PrerequisiteHTTP200"
+            "description": "Исторический snapshot; download_progress необязателен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/PrerequisiteSnapshot"
+                    }
+                  },
+                  "required": [
+                    "api_version",
+                    "result"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "400": {
             "$ref": "#/components/responses/PrerequisiteHTTP400"
@@ -1768,10 +1788,30 @@
     "/api/v1/prerequisites/operations/{operation_id}/events": {
       "get": {
         "operationId": "prerequisitesEvents",
-        "description": "Durable phase/state events и snapshot; download callback bytes не гарантированы как durable progress.",
+        "description": "Durable phase/state и prerequisite_download events с snapshot. download_progress содержит измеренные байты signed artifact; 100 только после SHA-256 staged файла, не READY. after_sequence = sequence последнего полученного event, не snapshot.revision; страницы дочитываются и после завершения controller.",
         "responses": {
           "200": {
-            "$ref": "#/components/responses/PrerequisiteHTTP200"
+            "description": "Страница durable событий и текущий snapshot.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/PrerequisiteEventsResult"
+                    }
+                  },
+                  "required": [
+                    "api_version",
+                    "result"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "400": {
             "$ref": "#/components/responses/PrerequisiteHTTP400"
@@ -2638,8 +2678,269 @@
           },
           "execution": {
             "$ref": "#/components/schemas/PrerequisiteExecution"
+          },
+          "download_progress": {
+            "$ref": "#/components/schemas/PrerequisiteDownloadProgress"
           }
         }
+      },
+      "PrerequisiteDownloadProgress": {
+        "type": "object",
+        "description": "Последнее сохранённое измерение одного artifact. plan_digest, component_id, artifact_id, artifact_sha256 и total привязаны к принятому signed plan. completed <= total; для transferring completed < total, percent = floor(completed * 100 / total). verified требует completed == total и SHA-256 staged файла; это не dependency READY. После обрыва completed не является durable offset файла. sequence связан с событием той же транзакции и не превышает revision содержащего snapshot.",
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1
+          },
+          "plan_digest": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+          },
+          "component_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          },
+          "artifact_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          },
+          "artifact_sha256": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+          },
+          "transfer_id": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 32,
+            "pattern": "^[0-9a-f]{32}$(?![\\s\\S])",
+            "description": "Идентификатор одного transfer; не token авторизации или execution lease."
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 7
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "preparing",
+              "transferring",
+              "verifying",
+              "retrying",
+              "verified",
+              "failed",
+              "canceled"
+            ]
+          },
+          "completed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 68719476736
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 68719476736
+          },
+          "unit": {
+            "type": "string",
+            "const": "bytes"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "network",
+              "cache",
+              "partial",
+              "local"
+            ]
+          },
+          "resumed": {
+            "type": "boolean"
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "percent": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "minLength": 20,
+            "maxLength": 32,
+            "pattern": "Z$(?![\\s\\S])"
+          }
+        },
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "state": {
+                  "const": "verified"
+                }
+              },
+              "required": [
+                "state"
+              ]
+            },
+            "then": {
+              "properties": {
+                "verified": {
+                  "const": true
+                },
+                "percent": {
+                  "const": 100
+                },
+                "source": {
+                  "enum": [
+                    "network",
+                    "cache",
+                    "partial",
+                    "local"
+                  ]
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "verified": {
+                  "const": false
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "state": {
+                  "const": "transferring"
+                }
+              },
+              "required": [
+                "state"
+              ]
+            },
+            "then": {
+              "properties": {
+                "percent": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 99
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "state": {
+                  "enum": [
+                    "preparing",
+                    "verifying",
+                    "retrying",
+                    "failed",
+                    "canceled"
+                  ]
+                }
+              },
+              "required": [
+                "state"
+              ]
+            },
+            "then": {
+              "properties": {
+                "percent": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ],
+        "required": [
+          "schema_version",
+          "plan_digest",
+          "component_id",
+          "artifact_id",
+          "artifact_sha256",
+          "transfer_id",
+          "attempt",
+          "state",
+          "completed",
+          "total",
+          "unit",
+          "source",
+          "resumed",
+          "verified",
+          "percent",
+          "sequence",
+          "updated_at"
+        ]
+      },
+      "PrerequisiteEventsResult": {
+        "type": "object",
+        "description": "Упорядоченная страница общего журнала и текущий snapshot. after_sequence продвигается только по последнему полученному событию; snapshot.revision может быть новее страницы. Для prerequisite_download sequence/component_id/timestamp совпадают с download_progress.sequence/component_id/updated_at. Snapshot и progress event коммитятся атомарно; status и события сами не возобновляют effects.",
+        "properties": {
+          "events": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "type": "object",
+              "properties": {
+                "download_progress": {
+                  "$ref": "#/components/schemas/PrerequisiteDownloadProgress"
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "prerequisite_download"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ]
+                  },
+                  "then": {
+                    "required": [
+                      "download_progress"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/PrerequisiteSnapshot"
+          }
+        },
+        "required": [
+          "events",
+          "snapshot"
+        ],
+        "additionalProperties": false
       },
       "PrerequisitePlanResult": {
         "type": "object",
@@ -2815,6 +3116,10 @@
           },
           "production_ready": {
             "const": false
+          },
+          "durable_byte_progress": {
+            "type": "boolean",
+            "description": "Поддержка сохранённых byte observations; поле необязательно для старых серверов. true не гарантирует наличие download_progress до первой загрузки и не объявляет operation READY."
           }
         },
         "required": [

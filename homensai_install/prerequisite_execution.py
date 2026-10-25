@@ -18,6 +18,7 @@ from .errors import InstallerError, utcnow
 from .i18n import normalize_locale
 from .prerequisite_catalog import SignedPrerequisiteCatalog, fail, identifier
 from .prerequisite_runner import FixedCommandAdapter, system_markers
+from .prerequisite_progress import ProgressRecorder
 from .prerequisite_state import PrerequisiteStore
 from .prerequisites import check_requirements
 from shared.datahome import checked_path
@@ -98,7 +99,7 @@ class PrerequisiteCoordinator:
                     and self._license_allowed(entry)):
                 automatic.append(entry["requirement"]["component_id"])
         return {**self.identity(), "signed_catalog": True, "manual_recheck": True, "durable_resume": True,
-                "background_execution": True, "durable_operation_listing": True,
+                "background_execution": True, "durable_operation_listing": True, "durable_byte_progress": True,
                 "requirements": requirements, "automatic_component_ids": automatic, "automatic_reboot": False,
                 "boundary_choice": True, "platform_acceptance": "not_verified"}
 
@@ -261,8 +262,8 @@ class PrerequisiteCoordinator:
                 # Diagnostics must never turn an installed prerequisite into a retry.
                 pass
 
-    def _save(self, operation, message, *, create=False):
-        operation, event = self.store.save(operation, message, create=create)
+    def _save(self, operation, message, *, create=False, reset_progress=False):
+        operation, event = self.store.save(operation, message, create=create, reset_progress=reset_progress)
         self._emit(event)
         return operation
 
@@ -520,11 +521,6 @@ class PrerequisiteCoordinator:
             operation["required_action"] = "resume" if pending_auto else "manual_recheck"
         return operation
 
-    def _progress(self, operation_id, component_id, event):
-        allowed = {"bytes_done", "bytes_total", "bytes_delta", "percent", "attempt_id", "retryable", "status", "completed", "total", "unit"}
-        self._emit({"type": "prerequisite_download", "phase": "prerequisites", "operation_id": operation_id,
-                    "component_id": component_id, **{key: value for key, value in event.items() if key in allowed}})
-
     def _artifacts(self, operation, entry, adapter):
         name = entry["requirement"]["component_id"]
         step = operation["steps"][name]
@@ -532,32 +528,49 @@ class PrerequisiteCoordinator:
         paths = []
         for index, raw in enumerate(entry["artifacts"]):
             spec = ArtifactSpec.from_dict(raw)
-            source = operation["plan"]["local_artifacts"].get(spec.artifact_id)
-            if source is None:
-                source = self.downloads.fetch(spec, offline=operation["plan"]["offline"],
-                    progress=lambda event: self._progress(operation["operation_id"], name, event),
-                    cancel_requested=lambda: self._get(operation["operation_id"])["cancel_requested"])["path"]
-            if not self.downloads.verify(spec, source):
-                fail("INTEGRITY_FAILED", "prerequisite_local_artifact_hash", name)
-            destination = directory / ("artifact_" + str(index) + adapter.artifact_suffixes[index])
-            if not self.downloads.verify(spec, destination):
-                with os.fdopen(_open(Path(source), os.O_RDONLY), "rb") as src:
-                    with os.fdopen(_open(destination, os.O_WRONLY | os.O_CREAT | os.O_TRUNC), "wb") as dst:
-                        remaining = spec.size + 1
-                        while remaining:
-                            chunk = src.read(min(remaining, 128 * 1024))
-                            if not chunk:
-                                break
-                            dst.write(chunk)
-                            remaining -= len(chunk)
-                        dst.flush()
-                        os.fsync(dst.fileno())
-                if not self.downloads.verify(spec, destination):
-                    fail("INTEGRITY_FAILED", "prerequisite_staged_artifact_hash", name)
-            if os.name != "nt" and adapter.argv[0] == "{artifact_" + str(index) + "}":
-                destination.chmod(0o700)
-            paths.append(destination)
+            progress = ProgressRecorder(self, operation, name, spec)
+            try:
+                paths.append(self._artifact(operation, name, spec, directory, index, adapter, progress))
+            except InstallerError as error:
+                if error.code != "STATE_STORAGE_UNAVAILABLE":
+                    progress({"type": "download.canceled" if error.code == "OPERATION_CANCELED" else "download.failed"})
+                raise
+            except OSError:
+                progress({"type": "download.failed"})
+                raise
         return paths
+
+    def _artifact(self, operation, name, spec, directory, index, adapter, progress):
+        source = operation["plan"]["local_artifacts"].get(spec.artifact_id)
+        if source is None:
+            source = self.downloads.fetch(spec, offline=operation["plan"]["offline"],
+                persist_progress=progress,
+                cancel_requested=lambda: self._get(operation["operation_id"])["cancel_requested"])["path"]
+        else:
+            progress.observed["source"] = "local"
+        if not self.downloads.verify(spec, source):
+            fail("INTEGRITY_FAILED", "prerequisite_local_artifact_hash", name)
+        if progress.observed["source"] == "local":
+            progress({"type": "download.local_verified", "completed": spec.size})
+        destination = directory / ("artifact_" + str(index) + adapter.artifact_suffixes[index])
+        if not self.downloads.verify(spec, destination):
+            with os.fdopen(_open(Path(source), os.O_RDONLY), "rb") as src:
+                with os.fdopen(_open(destination, os.O_WRONLY | os.O_CREAT | os.O_TRUNC), "wb") as dst:
+                    remaining = spec.size + 1
+                    while remaining:
+                        chunk = src.read(min(remaining, 128 * 1024))
+                        if not chunk:
+                            break
+                        dst.write(chunk)
+                        remaining -= len(chunk)
+                    dst.flush()
+                    os.fsync(dst.fileno())
+            if not self.downloads.verify(spec, destination):
+                fail("INTEGRITY_FAILED", "prerequisite_staged_artifact_hash", name)
+        if os.name != "nt" and adapter.argv[0] == "{artifact_" + str(index) + "}":
+            destination.chmod(0o700)
+        progress({"type": "download.staged_verified", "completed": spec.size})
+        return destination
 
     def _drive(self, operation, *, execute):
         if operation["status"] in _TERMINAL:
@@ -781,4 +794,4 @@ class PrerequisiteCoordinator:
                 fail("RECOVERY_REQUIRED", "prerequisite_effect_cannot_be_removed_from_graph")
             operation.update(plan=plan, consents=consents, plan_digest=plan["plan_digest"], catalog_digest=plan["catalog_digest"],
                              steps=new_steps, status="AWAITING_USER", ready=False, error=None, required_action="resume")
-            return self._public(self._save(operation, "prerequisite_plan_replaced"))
+            return self._public(self._save(operation, "prerequisite_plan_replaced", reset_progress=True))

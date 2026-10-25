@@ -61,6 +61,23 @@ def _private_file(path, flags):
         raise
 
 
+def _check_sqlite_files(path, *, allow_missing_main=False):
+    """Check opened private files; commit may remove a transient sidecar.
+
+    The owner's OS lease serializes writers, but read-only pending/busy probes
+    deliberately do not acquire it. ENOENT on a SQLite sidecar is therefore
+    normal even between its observation and open; other errors stay fatal.
+    """
+    for candidate in (path, Path(str(path) + "-journal"), Path(str(path) + "-wal"), Path(str(path) + "-shm")):
+        try:
+            descriptor = _private_file(candidate, os.O_RDONLY)
+        except FileNotFoundError:
+            if candidate != path or allow_missing_main:
+                continue
+            raise
+        os.close(descriptor)
+
+
 def _lock(descriptor, *, initialize=False):
     if os.name == "nt":
         import msvcrt
@@ -139,18 +156,14 @@ class ExecutionDomain:
         return (isinstance(other, ExecutionDomain) and self.owner_id == other.owner_id
                 and os.path.normcase(str(self.directory)) == os.path.normcase(str(other.directory)))
 
-    def _check_files(self):
-        for path in (self.path, Path(str(self.path) + "-journal"),
-                     Path(str(self.path) + "-wal"), Path(str(self.path) + "-shm")):
-            if path.exists() or path.is_symlink():
-                descriptor = _private_file(path, os.O_RDONLY)
-                os.close(descriptor)
+    def _check_files(self, *, initialize=False):
+        _check_sqlite_files(self.path, allow_missing_main=initialize)
 
     @contextmanager
     def _db(self, *, initialize=False, write=False):
         db = None
         try:
-            self._check_files()
+            self._check_files(initialize=initialize)
             if initialize and not self.path.exists():
                 descriptor = _private_file(self.path, os.O_CREAT | os.O_EXCL | os.O_RDWR)
                 os.close(descriptor)
@@ -282,11 +295,10 @@ class ExecutionDomain:
                 # A normal restore/move between registry scan and this open
                 # cannot replace an unresolved journal with an empty database.
                 ExecutionDomain._observe_registry([item])
-                # Check private journal sidecars before opening SQLite.
-                for candidate in (path, Path(str(path) + "-journal"), Path(str(path) + "-wal"), Path(str(path) + "-shm")):
-                    if candidate.exists() or candidate.is_symlink():
-                        check = _private_file(candidate, os.O_RDONLY)
-                        os.close(check)
+                # A concurrent cooperative cancel may commit this participant
+                # journal without owning the common lease; its sidecars are
+                # transient just as for read-only common-domain probes.
+                _check_sqlite_files(path)
                 db = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=5, isolation_level=None)
                 db.execute("BEGIN")
                 if db.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone() != ("1",):

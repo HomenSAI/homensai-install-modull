@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "prepared_at": "2026-10-25T19:36:40.517325+00:00",
+  "checkpoint": "CP-20261025-018",
+  "source_commit": "5cc688ed8d036c95199e8862f5dc7a7cd646662c",
+  "parent_commit": "90993c42252c39477ec3b849606933c253b22b1c",
+  "status": "PASS_SCOPED",
+  "production_ready": false,
+  "runtime_and_test_sha256": {
+    "homensai_install/execution_lease.py": "093f6c0d8f54a543064c8e00cb8a92d8323377e3a77c88b55d1044e4662ed3c5",
+    "tests/test_execution_domain_sidecars.py": "760d8cb2977fc6be916be02463cd7e6daf3353b455ed045fade9aaae64a129fd"
+  },
+  "before_receipt": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-domain-sidecars-before2.json",
+  "checks": [
+    {
+      "id": "cp018-domain-sidecars-before",
+      "label": "2 FAIL: real commit/unlink while read probes hold no OS lock",
+      "xml": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-domain-sidecars-before.xml",
+      "xml_sha256": "4b31927a6bae4c1d16748de6418a1bf197d0f956de7a68af8b3ee78652af7805",
+      "log": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-domain-sidecars-before.log",
+      "log_sha256": "fdc7ff70ab48915209add0010e8f96a480c733510f4cd08bb863521f68954b04",
+      "junit": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "2",
+          "skipped": "0",
+          "tests": "2",
+          "time": "0.144",
+          "timestamp": "2026-10-25T20:32:12.935041+01:00",
+          "hostname": "063b995bf262"
+        }
+      ]
+    },
+    {
+      "id": "cp018-domain-sidecars-before2",
+      "label": "2 FAIL: same regression with gate constrained to its single intended commit",
+      "xml": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-domain-sidecars-before2.xml",
+      "xml_sha256": "38fc13a6b2edaaf9cc642ee9f245d2a02edf0a0754bcc137f5f3a3213502bb14",
+      "log": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-domain-sidecars-before2.log",
+      "log_sha256": "11c108b956a17f36a31b931f2248090cfdad961198640ead686feff5a8da05bb",
+      "junit": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "2",
+          "skipped": "0",
+          "tests": "2",
+          "time": "0.115",
+          "timestamp": "2026-10-25T20:34:05.431949+01:00",
+          "hostname": "063b995bf262"
+        }
+      ]
+    },
+    {
+      "id": "cp018-domain-sidecars-after",
+      "label": "2 PASS: unchanged regression functions after optional-sidecar fix",
+      "xml": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-domain-sidecars-after.xml",
+      "xml_sha256": "01c1f88db3ce8ddc58d3936e550744133b789934e55f2eb23b4ead1d08124585",
+      "log": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-domain-sidecars-after.log",
+      "log_sha256": "449f48faab28952069f2e297454c2a3b0f42069bcbc27c7b2b56439fc80297ed",
+      "junit": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "2",
+          "time": "0.091",
+          "timestamp": "2026-10-25T20:34:22.361597+01:00",
+          "hostname": "063b995bf262"
+        }
+      ]
+    },
+    {
+      "id": "cp018-domain-sidecars-focused",
+      "label": "12 PASS: six new narrow cases plus six existing recovery/HTTP cases",
+      "xml": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-domain-sidecars-focused.xml",
+      "xml_sha256": "0bd7ff467d53acb2216270e2cf5ba79ad29f8353a6cb277274807ac7306df47e",
+      "log": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-domain-sidecars-focused.log",
+      "log_sha256": "1a16055668fd62390adc49ab6fd780dd48a77f7a42d9a56968a2f236f5a73389",
+      "junit": [
+        {
+          "name": "pytest",
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "12",
+          "time": "1.069",
+          "timestamp": "2026-10-25T20:35:28.946432+01:00",
+          "hostname": "063b995bf262"
+        }
+      ]
+    }
+  ],
+  "command": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -p no:cacheprovider tests/test_execution_domain_sidecars.py tests/test_execution_domain.py tests/test_execution_lease_wizard.py --junitxml=/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-domain-sidecars-focused.xml -q",
+  "final_result": "12 passed in 1.07s",
+  "counts": "The 12 focused cases overlap the eventual root full suite; do not add them as distinct acceptance tests. Six newly added cases: two actual SQLite commit races plus four refusal controls.",
+  "causal_path": "The common OS lock serializes mutating lease owners. pending() and prerequisites_busy() intentionally read without that lock. While owner writes QUEUED, the read probe observes its rollback journal; actual SQLite COMMIT removes it before private file open. Old code reports STATE_STORAGE_UNAVAILABLE/unknown. This is a false failure, not an exclusion bypass.",
+  "fix": "Use a shared private-open checker. Ignore FileNotFoundError only for -journal/-wal/-shm. Main may be absent only during explicit domain initialization; existing read/write connections cannot recreate it. Existing owner/mode/type/link guards remain. Apply same checker to registered journal preflight because cooperative cancellation can write those journals without the common lease.",
+  "negative_controls": [
+    "Missing main refuses before SQLite and is not recreated",
+    "Overpermissive sidecar refuses before SQLite",
+    "Sidecar symlink refuses before SQLite",
+    "Sidecar hardlink refuses before SQLite"
+  ],
+  "merged_coordinator_readonly_review": "Reviewed root staged prerequisite_execution.py: lease acquisition/handoff/finalization unchanged; ProgressRecorder writes under those wrappers; _save forwards reset_progress only on explicit replace_plan; mandatory failure exits before installer and preserves domain recovery. No merge defect identified. No root files modified.",
+  "limits": [
+    "Synthetic owned SQLite and Python threads on Linux, not Windows lock/ACL acceptance",
+    "No hardware power-loss or actual installer run",
+    "No new broad test run; root will execute combined CP018 suite and installed harness"
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-017",
+  "checkpoint_id": "CP-20261025-018",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
@@ -295,6 +295,24 @@
       "status": "PASS",
       "scope": "57 source and 1 real loopback HTTP; overlap full suite; original failures retained",
       "receipt": "packaging/acceptance-evidence/execution-lease-independent-20261025-cp017.json"
+    },
+    {
+      "id": "cp018-source-integration",
+      "status": "PASS",
+      "scope": "2192 passed, 1 Windows-only skipped, 15 subtests; exact merged source and synthetic Linux process/HTTP/D-Bus",
+      "receipt": "packaging/acceptance-evidence/source-20261025-cp018.json"
+    },
+    {
+      "id": "cp018-installed-progress",
+      "status": "PASS",
+      "scope": "Current wheel: 10 isolated synthetic clients, 11 CLI calls, 65 package/161 dependency files unchanged; staged verification and persisted paginated progress",
+      "receipt": "packaging/acceptance-evidence/installed-prerequisites-20261025-cp018.json"
+    },
+    {
+      "id": "cp018-ui-contract",
+      "status": "PASS",
+      "scope": "29 Node groups under injected DOM/HTTP; overlaps full suite; actual browser NOT RUN/BLOCKED",
+      "receipt": "packaging/acceptance-evidence/progress-independent-20261025-cp018.json"
     }
   ],
   "historical_evidence": [
@@ -435,8 +453,10 @@
         "tests/test_downloads.py"
       ],
       "next_executor_action": "Реальный контролируемый TLS/proxy transport: обрыв/resume/range/cache/неверный локальный package; доверие TLS сохраняется. Live harness надо завершить.",
-      "current_artifact_evidence": [],
-      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+      "current_artifact_evidence": [
+        "packaging/acceptance-evidence/progress-20261025-cp018.json"
+      ],
+      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-018: Durable progress, staged verification, retry/fault/cancel/reconnect/event pagination проверены в source/synthetic process/HTTP. Installed synthetic SDK/CLI проверяет auto/manual, cancel-before-download, восстановление и progress pagination; ru/en/de Node contracts PASS. Полная browser/platform/product приёмка не выполнена."
     },
     {
       "scenario_id": "ACC-06",
@@ -507,9 +527,10 @@
         "packaging/acceptance-evidence/environment-20261025-cp012.json",
         "packaging/acceptance-evidence/recovery-20261025-cp013.json",
         "packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json",
-        "packaging/acceptance-evidence/execution-lease-20261025-cp017.json"
+        "packaging/acceptance-evidence/execution-lease-20261025-cp017.json",
+        "packaging/acceptance-evidence/progress-20261025-cp018.json"
       ],
-      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-017: Общий lease и старые известные журналы проверены в source/synthetic independent-process/HTTP сценариях; installed synthetic SDK/CLI PASS. Полная platform/browser/product приёмка не выполнена."
+      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-018: Durable progress, staged verification, retry/fault/cancel/reconnect/event pagination проверены в source/synthetic process/HTTP. Installed synthetic SDK/CLI проверяет auto/manual, cancel-before-download, восстановление и progress pagination; ru/en/de Node contracts PASS. Полная browser/platform/product приёмка не выполнена."
     },
     {
       "scenario_id": "ACC-09",
@@ -563,9 +584,10 @@
       ],
       "next_executor_action": "Реальный SIGKILL только своего controller на каждой опасной границе journal/stage/migration/pointer/restore/readiness; после restart проверить тот же operation_id и отсутствие двойных эффектов. Существующий harness покрывает узкую staging boundary.",
       "current_artifact_evidence": [
-        "packaging/acceptance-evidence/execution-lease-20261025-cp017.json"
+        "packaging/acceptance-evidence/execution-lease-20261025-cp017.json",
+        "packaging/acceptance-evidence/progress-20261025-cp018.json"
       ],
-      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-017: Общий lease и старые известные журналы проверены в source/synthetic independent-process/HTTP сценариях; installed synthetic SDK/CLI PASS. Полная platform/browser/product приёмка не выполнена."
+      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-018: Durable progress, staged verification, retry/fault/cancel/reconnect/event pagination проверены в source/synthetic process/HTTP. Installed synthetic SDK/CLI проверяет auto/manual, cancel-before-download, восстановление и progress pagination; ru/en/de Node contracts PASS. Полная browser/platform/product приёмка не выполнена."
     },
     {
       "scenario_id": "ACC-13",
@@ -641,9 +663,10 @@
         "packaging/acceptance-evidence/recovery-20261025-cp013.json",
         "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json",
         "packaging/acceptance-evidence/installed-prerequisites-summary-20261025-cp016.json",
-        "packaging/acceptance-evidence/execution-lease-20261025-cp017.json"
+        "packaging/acceptance-evidence/execution-lease-20261025-cp017.json",
+        "packaging/acceptance-evidence/progress-20261025-cp018.json"
       ],
-      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-017: Общий lease и старые известные журналы проверены в source/synthetic independent-process/HTTP сценариях; installed synthetic SDK/CLI PASS. Полная platform/browser/product приёмка не выполнена."
+      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-018: Durable progress, staged verification, retry/fault/cancel/reconnect/event pagination проверены в source/synthetic process/HTTP. Installed synthetic SDK/CLI проверяет auto/manual, cancel-before-download, восстановление и progress pagination; ru/en/de Node contracts PASS. Полная browser/platform/product приёмка не выполнена."
     },
     {
       "scenario_id": "ACC-17",
@@ -738,9 +761,10 @@
       "next_executor_action": "Все 12 reference GUI сочетаний: ru/en/de × четыре target. Проверить keyboard/zoom/long German/Cyrillic/fallback/refresh/maintenance, key/placeholder parity и hashes показанных условий.",
       "current_artifact_evidence": [
         "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json",
-        "packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json"
+        "packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json",
+        "packaging/acceptance-evidence/progress-20261025-cp018.json"
       ],
-      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-015: Условный GUI реализован, actual JS response contract PASS; настоящий browser/installed/OS scenario остаётся NOT RUN/BLOCKED и обязателен."
+      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-018: Durable progress, staged verification, retry/fault/cancel/reconnect/event pagination проверены в source/synthetic process/HTTP. Installed synthetic SDK/CLI проверяет auto/manual, cancel-before-download, восстановление и progress pagination; ru/en/de Node contracts PASS. Полная browser/platform/product приёмка не выполнена."
     }
   ],
   "implementation_gaps": [
@@ -754,7 +778,7 @@
       "test_code": "IMPLEMENTED: source, independent processes, crash/cancel/registry faults and HTTP",
       "acceptance_status": "PARTIAL: source/integration and installed synthetic PASS; real platforms NOT RUN",
       "ready": false,
-      "note": "CP017: common lease before enqueue through final callbacks; fail-closed unknown effects and malformed/replaced known journals. Scope excludes never registered roots and old binaries outside protocol. New-inode trusted journal relocation remains NOT IMPLEMENTED.",
+      "note": "CP017: common lease before enqueue through final callbacks; fail-closed unknown effects and malformed/replaced known journals. Scope excludes never registered roots and old binaries outside protocol. New-inode trusted journal relocation remains NOT IMPLEMENTED. CP018 additionally fixes observed read-only pending/busy race while SQLite removes a transient sidecar; 2 original FAIL retained.",
       "next_executor_action": "Preserve CP017 regressions when merging durable progress. Run actual platform/ACL/installer/reboot acceptance on exact artifacts; implement explicit trusted journal relocation before claiming it supported.",
       "design_review": {
         "checkpoint": "CP-20261025-016",
@@ -763,7 +787,8 @@
         "new_concurrency_progress_tests": "NOT RUN"
       },
       "evidence": [
-        "packaging/acceptance-evidence/execution-lease-20261025-cp017.json"
+        "packaging/acceptance-evidence/execution-lease-20261025-cp017.json",
+        "packaging/acceptance-evidence/progress-20261025-cp018.json"
       ]
     },
     {
@@ -778,9 +803,10 @@
       "acceptance_status": "PARTIAL: Node PASS, actual browser NOT RUN/BLOCKED",
       "ready": false,
       "next_executor_action": "Run actual browser rendering/focus/keyboard/locale and installed/platform acceptance on current artifacts. Preserve explicit consents, READ-only recovery, execution.active=false gate and fresh product review after READY.",
-      "note": "CP015: 19 new and 6 legacy Node groups PASS on shipped assets; source1974PASS and real process/HTTP5PASS. These are not rendering or OS acceptance.",
+      "note": "CP018:29 progress/prerequisite Node groups plus existing capability contracts pass on current shipped assets; full source/integration and installed synthetic SDK/CLI PASS. Browser rendering/OS acceptance remain unverified.",
       "evidence": [
-        "packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json"
+        "packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json",
+        "packaging/acceptance-evidence/progress-20261025-cp018.json"
       ]
     },
     {
@@ -788,17 +814,21 @@
       "task_ids": [
         "HIM-035"
       ],
-      "implementation": "NOT IMPLEMENTED",
-      "test_code": "NOT IMPLEMENTED",
-      "acceptance_status": "NOT RUN",
+      "implementation": "IMPLEMENTED: bounded signed-artifact projection, transactional events, mandatory writer and GUI",
+      "test_code": "IMPLEMENTED: source, SIGKILL/reconnect, retries, storage faults, SDK/HTTP schema, installed SDK/CLI and Node",
+      "acceptance_status": "PARTIAL: source/integration/installed synthetic/Node PASS; actual browser/platform NOT RUN",
       "ready": false,
-      "next_executor_action": "Persist bounded measured byte progress with ordered cursors; test reconnect, retry, stale/duplicate pages and no false100% before verification. See docs/PREREQUISITES_NEXT_CORE_STEPS.md; design is not implementation or acceptance.",
+      "next_executor_action": "Preserve regression fixtures and repeat installed harness after artifact changes; complete actual browser/OS/network and full product acceptance.",
       "design_review": {
         "checkpoint": "CP-20261025-016",
         "document": "docs/PREREQUISITES_NEXT_CORE_STEPS.md",
         "scope": "Read-only source analysis and proposed protocol",
         "new_concurrency_progress_tests": "NOT RUN"
-      }
+      },
+      "note": "CP018:17 fields, actual measured bytes, staged-only100%, cursor by received events, same-plan reset and fresh cancel merge. Observation is not fsynced resume offset.",
+      "evidence": [
+        "packaging/acceptance-evidence/progress-20261025-cp018.json"
+      ]
     },
     {
       "id": "prerequisite-browser-local-artifact",

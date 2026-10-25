@@ -1,20 +1,23 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261025-008`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261025-009`; ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый local/GitHub до создания CP-008:
-`4fa7cc26bc4fb8fa8ae2ddca3a531a9a2afe5625` (CP-007).
+Последний подтверждённый local/GitHub до создания CP-009:
+`960827cb32b65c9748c9a3f4eaee8406dfe27606` (CP-008).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
 ## Восстановление контекста
 
 Прочитать CLAUDE.md, полный PROMPT, канонический ToDo, docs/work-state.json,
-IMPLEMENTATION_STATUS.md, WORK_LOG.md и INSTALLER_API.md. Проверить branch,
+IMPLEMENTATION_STATUS.md, WORK_LOG.md, INSTALLER_API.md,
+**VERIFICATION_BACKLOG.md и verification-status.json**. Невыполненные проверки
+обязательны для следующего ИИ; NOT RUN/BLOCKED/FAIL означают НЕ ГОТОВО.
+Отсутствующий тест сначала реализовать, потом выполнить; PASS только с receipt. Проверить branch,
 dirty/staged files и активные процессы. Не сбрасывать чужие изменения и не
 завершать произвольный PID. Частичный PASS не означает готовность выпуска.
 
-106 задач: 7 DONE, 63 IN_PROGRESS, 4 BLOCKED, 32 TODO. HIM-006/007 закрыты
+106 задач: 8 DONE, 62 IN_PROGRESS, 4 BLOCKED, 32 TODO. HIM-006/007 закрыты
 только как source audit и design target matrix. Все G0–G5 OPEN.
 Список задач только в HomenSAI_Universal_Installer_TODO_RU.txt.
 
@@ -96,7 +99,11 @@ late rollback и SIGKILL→new controller/browser→explicit resume. Стары�
 
 ## Следующие инженерные шаги
 
-1. Проверить текущий CP-008 local/GitHub ref/tree и результат нового CI run.
+1. Проверить текущий CP-009 local/GitHub ref/tree. CP-008 уже подтверждён;
+   Node contract stage со скриншота завершён. CI CP-008 runs40188356899/40188360805
+   завершились до runner/steps: source tests NOT RUN, HIM-086 BLOCKED.
+   На каждом следующем шаге сначала проверить, обновить TODO/RESUME, сохранить
+   checkpoint и подтвердить GitHub ref/tree, только затем переходить дальше.
    Последние наблюдённые CP-007 runs40186123426/40186125750 completed/failure
    до runner allocation: runner_id=0, steps=[]. Причина через API неизвестна.
    Не менять workflow/платёжные настройки по догадке; HIM-086 BLOCKED.

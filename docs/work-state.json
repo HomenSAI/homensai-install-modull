@@ -1,12 +1,11 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-008",
+  "checkpoint_id": "CP-20261025-009",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "active_tasks": [
     "HIM-008",
-    "HIM-071",
     "HIM-011",
     "HIM-012",
     "HIM-013",
@@ -76,7 +75,8 @@
     "HIM-005",
     "HIM-006",
     "HIM-007",
-    "HIM-009"
+    "HIM-009",
+    "HIM-071"
   ],
   "blocked_tasks": {
     "HIM-003": "User Docker/Forgejo host not connected",
@@ -88,7 +88,7 @@
     "cloud_git": "SYNC_PENDING",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261025-007",
+    "last_confirmed_checkpoint": "CP-20261025-008",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
   "next_step": "Integrate service port into the shared engine; complete Docker host attestation/image transport/update/restore/rollback/abort; implement Windows and production prerequisite bootstrap; then thin product adapters and live target acceptance",
@@ -99,7 +99,7 @@
     "linux_native": "PARTIAL: frozen x64 user-session lifecycle/updates/rollback/repair/crash-resume PASS in scoped receipts; OS service/reboot/full matrix open",
     "linux_docker": "NOT RUN/BLOCKED live daemon: source install/uninstall/start/stop/backup tested with modeled daemon; images/host attestation/full lifecycle remain open"
   },
-  "last_confirmed_github_sha": "4fa7cc26bc4fb8fa8ae2ddca3a531a9a2afe5625",
+  "last_confirmed_github_sha": "960827cb32b65c9748c9a3f4eaee8406dfe27606",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -111,7 +111,8 @@
     "packaging/acceptance-evidence/source-20261025-cp008.json",
     "packaging/acceptance-evidence/sdk-installed-20261025-cp008.json",
     "packaging/acceptance-evidence/review-20261025-cp008.json",
-    "packaging/acceptance-evidence/github-ci-20261025-cp007.json"
+    "packaging/acceptance-evidence/github-ci-20261025-cp007.json",
+    "packaging/acceptance-evidence/recovery-20261025-cp009.json"
   ],
   "environment": {
     "os": "linux",
@@ -124,9 +125,9 @@
     "sandbox_pid_proc_identity": "MISMATCH; process acceptance ran outside sandbox with matched identity"
   },
   "task_counts": {
-    "DONE": 7,
+    "DONE": 8,
     "BLOCKED": 4,
-    "IN_PROGRESS": 63,
+    "IN_PROGRESS": 62,
     "TODO": 32
   },
   "source_verification": {
@@ -137,5 +138,8 @@
     "integration_subtests": 5,
     "sdk_python_files": 44,
     "sdk_resources": 18
-  }
+  },
+  "verification_backlog": "docs/verification-status.json",
+  "verification_instruction": "Обязательно выполнить NOT RUN/BLOCKED/FAIL при доступной среде; отсутствие harness явно NOT IMPLEMENTED. Непроверенное НЕ ГОТОВО.",
+  "checkpoint_policy": "После каждого проверенного шага TODO+RESUME+код в одном checkpoint, GitHub ref/tree подтверждён до следующего шага."
 }

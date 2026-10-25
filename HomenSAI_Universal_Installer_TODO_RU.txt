@@ -73,18 +73,19 @@ SYNC_CONFLICT / SYNC_BLOCKED.
 НАЧАЛЬНАЯ ПАНЕЛЬ СОСТОЯНИЯ
 ========================================================================
 
-Всего задач: 106. DONE: 7; IN_PROGRESS: 63; BLOCKED: 4; TODO: 32. Разработка продолжается; IN_PROGRESS не означает готовый выпуск.
+Всего задач: 106. DONE: 8; IN_PROGRESS: 62; BLOCKED: 4; TODO: 32. Разработка продолжается; IN_PROGRESS не означает готовый выпуск.
 HIM-001/002 проверены в текущей сессии; остальные проверки указаны в карточках.
 Все G0–G5: OPEN; доступ к локальному Docker Git владельца: BLOCKED.
 Состояния отражают текущую сессию; полный выпуск ещё не принят.
 
 Текущая реализация: общий API/SDK, Linux native recovery, GUI ru/en/de; Docker install/uninstall/start/stop/backup, systemd user port и durable prerequisites в source. Live platform gates открыты.
-Текущая контрольная точка: CP-20261025-008; актуальный SHA проверять по Git history и внешней sync receipt.
+Текущая контрольная точка: CP-20261025-009; актуальный SHA проверять по Git history и внешней sync receipt.
 Рабочая ветка: codex/universal-installer-20261025; исходный SHA: a16a55d58e65ccf64ed2ba0c853a0053baea6689.
 Канонический ToDo: HomenSAI_Universal_Installer_TODO_RU.txt;
 журнал: docs/WORK_LOG.md; продолжение: docs/RESUME.md и docs/work-state.json.
-Последний подтверждённый до создания CP-008 checkpoint_id: CP-20261025-007; GitHub SHA 4fa7cc26bc4fb8fa8ae2ddca3a531a9a2afe5625.
-Локальный Git / Docker Git / GitHub: SYNC_CONFIRMED / SYNC_BLOCKED / SYNC_CONFIRMED для CP-007. CP-008: SYNC_PENDING до независимой проверки ref/commit/tree.
+Проверки: docs/VERIFICATION_BACKLOG.md + docs/verification-status.json. Новому ИИ обязательно прочитать их; NOT RUN/BLOCKED/FAIL означают НЕ ГОТОВО, отсутствие теста отмечается отдельно.
+Последний подтверждённый до создания CP-009 checkpoint_id: CP-20261025-008; GitHub SHA 960827cb32b65c9748c9a3f4eaee8406dfe27606.
+Локальный Git / Docker Git / GitHub: SYNC_CONFIRMED / SYNC_BLOCKED / SYNC_CONFIRMED для CP-008. CP-009: SYNC_PENDING до независимой проверки ref/commit/tree.
 Блокировки: локальный Forgejo/Docker владельца не подключён; GitHub CI завершился до runner/steps; production signing и юридические/лицензионные gates открыты.
 Следующий инженерный этап: service-engine integration, оставшиеся Docker lifecycle/image transport/host attestation, Windows native и production prerequisites bootstrap, тонкие product adapters; затем platform acceptance. Точные действия — docs/RESUME.md.
 
@@ -136,6 +137,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-003. Проверить локальный Git в Docker и GitHub
 Статус: BLOCKED | Проверки: BLOCKED | checkpoint_id: CP-20261025-001
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-002; PROMPT: § 31.1.
 Готово, когда: Определены реальные remotes, проект, ветки и доступ. Проверено постоянное хранение
 рабочей копии, Git objects/refs и общего Git directory worktree; для отдельного Docker Git-сервера
@@ -181,7 +183,8 @@ profiles, доступные runners и локальная сборка. Для 
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-008. Зафиксировать архитектуру, права и правила допуска зависимостей
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-005, HIM-006, HIM-007; PROMPT: § 3, 6, 11, 19, 26.
 Готово, когда: Описаны границы core/platform/product adapter, владельцы ресурсов, основные угрозы и
 минимальные проверки доверия. Заведён реестр exact versions/licenses/hashes; неизвестные или запрещающие
@@ -198,18 +201,18 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 Доказательство / ограничения / следующий шаг: tools/checkpoint.py: явный allowlist, isolated index, hooks/signing, CAS, remotes отдельно, receipt вне Git tree. 37 реальных Git/bare-repo tests; Docker Git владельца остаётся SYNC_BLOCKED.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
-[ ] HIM-071. Проверить продолжение разработки без истории чата
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+[x] HIM-071. Проверить продолжение разработки без истории чата
+Статус: DONE | Проверки: PASS | checkpoint_id: CP-20261025-009
 Зависимости: HIM-009; PROMPT: § 31.
 Готово, когда: Другой исполнитель/чистая сессия на тестовом репозитории восстанавливает очередь по
 ToDo/RESUME/Git. Проверены локальный commit без push, потерянный ответ push, недоступный один remote,
 dirty files и расходящаяся история; чужая работа сохранена.
-Доказательство / ограничения / следующий шаг: 37 Git/checkpoint tests покрывают dirty/staged, lost push reply, diverged/disconnected remote, linked worktree и crash after ref. Независимая чистая сессия по всему текущему handoff ещё не принята.
-Дополнение CP-008: Новая сессия восстановила CP005 по 205 точным Git blobs/tree/commit, затем CP006/007 подтверждены remote/local. Независимые worktree объединены без сброса dirty изменений. Полная отдельная handoff acceptance всех failure modes ещё не закрыта.
-Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
+Доказательство / ограничения / следующий шаг: Новая независимая сессия восстановила CP-008 из чистой изолированной копии, сверила точный GitHub ref 960827cb32b65c9748c9a3f4eaee8406dfe27606 и tree b1a63e337779e8f800547be7daa9b87f9028c1c0, нашла следующий шаг по RESUME/ToDo без повторения CP-005. Повторно выполнены 37 настоящих temporary Git/bare checkpoint tests (dirty/staged, lost reply, disconnected/diverged remote, interrupted ref/index transaction, linked worktree) и 1 Node wizard contract: 38 PASS, 3.46 s. Scope — восстановление разработки; проверка постоянного Docker-хранилища владельца остаётся отдельной BLOCKED в HIM-003/ACC-21. Receipt: packaging/acceptance-evidence/recovery-20261025-cp009.json.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-009); CP-008 independently SYNC_CONFIRMED.
 
 [ ] HIM-010. Закрыть G0: готовность к разработке
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-004, HIM-005, HIM-006, HIM-007, HIM-008, HIM-009; PROMPT: § 1, 17–19, 31.
 Готово, когда: Есть исходная карта проекта, рабочая очередь, безопасная среда и воспроизводимое
 продолжение по репозиторию. Все блокировки названы; финальная отметка G0 требует подтверждения
@@ -222,7 +225,8 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 ========================================================================
 
 [ ] HIM-011. Объединить manifest v1/v2 в нормализованную модель
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-002
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-005, HIM-008; PROMPT: § 4.
 Готово, когда: Существующие форматы преобразуются явно; значения полей не изменены молча. Неизвестная
 несовместимая схема отклоняется с понятным кодом; миграция и совместимость проверены.
@@ -230,7 +234,8 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-012. Определить схемы, идентификаторы и строгую валидацию
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-011; PROMPT: § 4, 28.1, 28.4.
 Готово, когда: Разделены api/module/manifest/adapter/catalog/product/DB versions и
 installation/data/host identities. Проверяются дубли ключей, неизвестные поля, циклы, размеры входов и
@@ -239,7 +244,8 @@ installation/data/host identities. Проверяются дубли ключе�
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-013. Собрать подключаемый пакет SDK и CLI
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-011; PROMPT: § 5, 28.2.
 Готово, когда: Пакет собирается и устанавливается как закреплённая зависимость вне checkout ядра.
 Публичный namespace и CLI работают; production не использует случайную editable-зависимость; --help и
@@ -250,7 +256,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-014. Создать INSTALLER_API.md и discovery
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-012, HIM-013; PROMPT: § 28.1.
 Готово, когда: README ведёт к единой точке входа API; discovery и api describe возвращают версии,
 schemas, capabilities и target restrictions офлайн. Планируемая возможность отделена от реализованной и
@@ -261,7 +268,8 @@ schemas, capabilities и target restrictions офлайн. Планируема�
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-015. Опубликовать минимальный ProductAdapter protocol
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-012, HIM-013; PROMPT: § 3–4, 28.5.
 Готово, когда: Определены capabilities и необходимые product hooks; есть Python protocol и версия JSON
 executable protocol. Запуск через argv без shell, с таймаутами и ограниченным окружением; неподдержанные
@@ -270,7 +278,8 @@ executable protocol. Запуск через argv без shell, с таймау�
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-016. Реализовать безопасное discover и EnvironmentInventory
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-012, HIM-015; PROMPT: § 21, 24, 28.3.
 Готово, когда: Находятся ОС/архитектура, установки, зависимости, ресурсы, порты, пути и значимые
 machine/user/process/service variables. Значения секретов не выгружаются; probes ограничены;
@@ -279,7 +288,8 @@ validate/discover не исполняют произвольные hooks.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-017. Реализовать планирование и привязку согласий
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-012, HIM-016; PROMPT: § 21, 24, 28.3–28.4.
 Готово, когда: План перечисляет действия, владельцев, место, права и reboot steps; имеет digest и
 существенный environment fingerprint. plan не меняет систему; изменившиеся условия дают PLAN_STALE;
@@ -290,7 +300,8 @@ consent не подменяется одним hash.
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-018. Ввести общий каркас операций и recovery journal
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-017; PROMPT: § 3, 12, 28.3–28.4.
 Готово, когда: Есть operation/step IDs, lock, состояния, durable journal и receipts; предусмотрены
 безопасные границы cancel/resume. Fresh не требует фиктивного previous release. Ошибка обязательной
@@ -300,7 +311,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-019. Реализовать DataHome, владельца и хранение секретов
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-012, HIM-018; PROMPT: § 4, 11, 20, 24.
 Готово, когда: Разделены код, runtime, постоянные данные и execution scope. Пути и фактические
 symlink/junction/reparse points проверяются перед записью; Windows/Linux права и user/service secret
@@ -311,7 +323,8 @@ boundaries заданы; секретов нет в argv/logs.
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-020. Связать launcher с release/runtime и владением процессами
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-015, HIM-018, HIM-019; PROMPT: § 7–11.
 Готово, когда: Launcher запускает согласованную активную пару release/runtime; изменение указателя
 влияет на реальный процесс. Start/stop проверяют product/instance/version ownership, не убивают чужой
@@ -321,7 +334,8 @@ PID и не запускают второй scheduler.
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-021. Реализовать минимальную проверку происхождения и payload
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-008, HIM-012, HIM-017; PROMPT: § 6, 14, 26.
 Готово, когда: До исполнения проверяются доверенный источник, подписанный inventory, hash и
 target/version. Trust root не берётся из непроверенного скачивания. Для разработки допустим
@@ -331,7 +345,8 @@ target/version. Trust root не берётся из непроверенного
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-022. Ввести начальные ошибки, события и раннюю диагностику
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-002
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-012, HIM-018; PROMPT: § 22, 28.4, 30.
 Готово, когда: Есть общий error envelope, исходные внешние exit codes, минимальный офлайн-каталог и
 ранний журнал до установки БД продукта. Events имеют operation_id/sequence; секреты очищаются; unknown
@@ -340,7 +355,8 @@ error сохраняется без выдуманной причины.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-023. Подготовить reference application и тестовые версии
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-013, HIM-015, HIM-019; PROMPT: § 15–16.
 Готово, когда: Маленькое веб-приложение имеет SQLite, пользовательский файл, настройку, синтетический
 секрет и версии v1/v2/v3 с управляемой миграцией/readiness failure. Оно использует только публичный
@@ -349,7 +365,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-101. Ввести обязательные локали ru, en и de
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-012, HIM-014, HIM-022; PROMPT: § 20, 22, 28, 30, 32.
 Готово, когда: Есть единый locale contract, стабильные message keys и полные каталоги
 русского/английского/немецкого. Определение языка, явный выбор, сохранение и fallback en проверены; API
@@ -359,6 +376,7 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 
 [ ] HIM-024. Закрыть G1: проверить установленный пакет через публичный API
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-014, HIM-016, HIM-017, HIM-018, HIM-020, HIM-021, HIM-022, HIM-023, HIM-101; PROMPT: §
 5, 17, 28.
 Готово, когда: Reference-проект вне checkout ядра проходит validate/discover/plan через SDK и CLI;
@@ -372,7 +390,8 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 ========================================================================
 
 [ ] HIM-025. Собрать независимый bootstrap графического мастера
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-013, HIM-019, HIM-021, HIM-024; PROMPT: § 7–8, 20.
 Готово, когда: Контроллер и локальные web-assets запускаются без Python/Docker/БД продукта.
 Windows/Linux имеют работоспособный bootstrap; доступ только через защищённую loopback-сессию;
@@ -381,7 +400,8 @@ Windows/Linux имеют работоспособный bootstrap; доступ 
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-026. Реализовать экраны мастера и выбор способа установки
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-016, HIM-017, HIM-025; PROMPT: § 20, 23.
 Готово, когда: Мастер определяет среду, показывает допустимые native/Docker и scope, пути и состав
 установки. Пользователь может выбрать способ; неподдержанная комбинация объясняется до изменений; одна
@@ -391,7 +411,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-027. Встроить принятие EULA и отдельных условий
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-008, HIM-025, HIM-026; PROMPT: § 6, 27.
 Готово, когда: Локальный текст соглашения доступен до изменений, предусмотрены прокрутка и явное
 непроставленное согласие с доступным управлением. Receipt фиксирует редакцию/hash/язык/время. Отказ
@@ -400,7 +421,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-104. Подготовить три языковые версии собственных условий
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-003
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-003
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-027, HIM-101; PROMPT: § 27, 32.
 Готово, когда: Собственные EULA/privacy/consent тексты согласованы по смыслу на ru/en/de; receipt
 содержит hash именно показанной редакции и язык. Оригинальные лицензии третьих лиц сохранены;
@@ -410,6 +432,7 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 
 [ ] HIM-028. Реализовать узкое повышение прав
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-019, HIM-025, HIM-026; PROMPT: § 20–21, 24.
 Готово, когда: Привилегированный helper выполняет только разрешённые шаги. Исходный пользователь
 остаётся владельцем установки при вводе другого admin в UAC; отказ от повышения прав имеет корректное
@@ -418,7 +441,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-029. Реализовать граф prerequisites и выбор auto/manual
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-016, HIM-017, HIM-022, HIM-026, HIM-027; PROMPT: § 21.
 Готово, когда: Required/optional и compatible/incompatible/missing компоненты видны с checkbox и
 причинами. Работают auto-install, ручной путь и «Проверить снова»; shared/external отличены от
@@ -427,7 +451,8 @@ managed/private; обязательная зависимость не пропу
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-033. Реализовать скачивание, кэш и локальные prerequisites
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-021, HIM-029; PROMPT: § 14, 21, 26.
 Готово, когда: Работают проверяемый cache, ограниченные retries и resume при поддержке источника,
 локальный пакет, ошибки proxy/TLS/диска. Проверка сертификатов не отключается; ни один пакет не
@@ -437,7 +462,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-030. Реализовать нативные зависимости и БД продукта
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-019, HIM-021, HIM-028, HIM-029, HIM-033; PROMPT: § 7–8, 21, 23.
 Готово, когда: Подготавливаются объявленные app-local runtime, ресурсы, каталоги, права и SQLite schema.
 Отдельный DB-server устанавливается лишь по контракту; если capability объявлена, проверен хотя бы один
@@ -446,7 +472,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-031. Реализовать подготовку Docker на Windows
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-021, HIM-027, HIM-028, HIM-029, HIM-033; PROMPT: § 6, 9, 21.
 Готово, когда: Проверяются поддержанные Desktop/backend, WSL, виртуализация и Compose; после выбора
 пользователя работает официальная установка и ожидание Docker API. Учтены отдельные условия Desktop;
@@ -455,7 +482,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-032. Реализовать подготовку Docker на Linux
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-021, HIM-027, HIM-028, HIM-029, HIM-033; PROMPT: § 9, 21.
 Готово, когда: Для выбранного distro используются проверенные официальные пакеты/репозитории.
 Engine/CLI/Compose, сервис и доступ пользователя проверены; rootless и обычный Engine имеют явные
@@ -464,7 +492,8 @@ profiles; конфликтующие чужие пакеты не удаляют
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-034. Реализовать reboot/relogin и повторный preflight
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-018, HIM-022, HIM-028, HIM-029; PROMPT: § 21, 24, 28.
 Готово, когда: Состояния REBOOT_REQUIRED/RELOGIN_REQUIRED сохраняются вне temp; есть выбор
 «Сейчас/Позже». Продолжается та же операция с закреплёнными версиями и проверенными receipts.
@@ -474,7 +503,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-035. Реализовать общий и покомпонентный прогресс
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-018, HIM-022, HIM-025, HIM-029, HIM-033; PROMPT: § 22.
 Готово, когда: Проценты основаны на событиях/байтах/файлах, неизвестная длительность обозначена явно.
 100% зависит от verification, не от скачивания. Reconnect/refresh браузера восстанавливает snapshot и
@@ -483,7 +513,8 @@ events, не запускает дубликат операции.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-102. Перевести весь мастер установки и обслуживания
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-025, HIM-026, HIM-029, HIM-035, HIM-101; PROMPT: § 20–23, 29, 32.
 Готово, когда: На ru/en/de доступны bootstrap, шаги/компоненты/прогресс, права, reboot, ошибки раннего
 запуска, помощь и итог. Язык меняется без новой установки/операции; тексты и assets доступны офлайн.
@@ -492,7 +523,8 @@ Maintenance дополняется при HIM-059.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-036. Связать fresh-транзакцию с реальными adapters
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-018, HIM-019, HIM-020, HIM-021, HIM-028, HIM-030; PROMPT: § 3, 12, 21, 28.
 Готово, когда: Работают реальные prepare/apply/verify и допустимые компенсации. Fresh создаёт только
 собственные ресурсы; lock и журнал используются при изменениях; cancel/failure не удаляют shared
@@ -503,6 +535,7 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 
 [ ] HIM-037. Собрать платформенный Windows Setup с выбором native/Docker
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-025, HIM-026, HIM-027, HIM-028, HIM-029, HIM-030, HIM-033, HIM-035, HIM-036; PROMPT: §
 7, 10–11, 20.
 Готово, когда: Получен запускаемый Windows artifact с frozen controller/launcher, локальным runtime и
@@ -513,7 +546,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-038. Собрать платформенный Linux-установщик с выбором native/Docker
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-025, HIM-026, HIM-027, HIM-028, HIM-029, HIM-030, HIM-033, HIM-035, HIM-036; PROMPT: §
 8, 10–11, 20.
 Готово, когда: Получен запускаемый графический single-file bootstrap/bundle для объявленной
@@ -524,7 +558,8 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-039. Подключить реальный Docker adapter к общему ядру
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-018, HIM-019, HIM-020, HIM-021, HIM-029, HIM-036; PROMPT: § 9–12.
 Готово, когда: Compose создаёт все объявленные компоненты с ownership labels, отдельными volumes/secrets
 и проверенной последовательностью. Host-порты локальные, bind внутри контейнера корректен; нет
@@ -533,7 +568,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-040. Реализовать полную проверку результата и открытие приложения
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-020, HIM-023, HIM-036; PROMPT: § 10, 23.
 Готово, когда: Проверяются backend/instance/version, БД, обязательные workers, HTML и JS/CSS плюс
 браузерный smoke. On-demand converter проверяется вызовом и завершается. Финал показывает адрес, версию,
@@ -542,7 +578,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-041. Сделать базовое удаление с сохранением данных
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-019, HIM-020, HIM-036; PROMPT: § 25.
 Готово, когда: Fresh-установка удаляется через мастер/системную точку входа без удаления
 пользовательских данных, секретов, чужих зависимостей и recovery metadata. Сохранённое состояние имеет
@@ -553,6 +590,7 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 
 [ ] HIM-042. Принять reference: Windows native
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-023, HIM-027, HIM-034, HIM-035, HIM-037, HIM-040, HIM-041; PROMPT: § 7, 16, 20–23.
 Готово, когда: На чистой поддержанной Windows без dev tools выполнены GUI fresh → работающий браузерный
 продукт → start/stop → uninstall с сохранением данных. Записаны точные SHA установщика, среда, проверки
@@ -561,7 +599,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-043. Принять reference: Linux native
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-005
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-005
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-023, HIM-027, HIM-034, HIM-035, HIM-038, HIM-040, HIM-041; PROMPT: § 8, 16, 20–23.
 Готово, когда: На чистом заявленном Linux без developer environment выполнен тот же GUI цикл
 fresh/start/stop/uninstall. Проверяется установленный artifact, права и данные; запуск из checkout не
@@ -571,6 +610,7 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005);
 
 [ ] HIM-044. Принять reference: Windows Docker
 Статус: BLOCKED | Проверки: BLOCKED | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-023, HIM-027, HIM-031, HIM-034, HIM-035, HIM-037, HIM-039, HIM-040, HIM-041; PROMPT: §
 9, 16, 20–23.
 Готово, когда: Windows-мастер предлагает Docker, готовит отсутствующие prerequisites после согласия и
@@ -581,6 +621,7 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 
 [ ] HIM-045. Принять reference: Linux Docker
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-023, HIM-027, HIM-032, HIM-034, HIM-035, HIM-038, HIM-039, HIM-040, HIM-041; PROMPT: §
 9, 16, 20–23.
 Готово, когда: Linux-мастер готовит объявленный Docker profile и устанавливает reference app через тот
@@ -589,7 +630,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-046. Проверить мастер при отмене, ручном пути и повторном запуске
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-029, HIM-033, HIM-034, HIM-035, HIM-042, HIM-043, HIM-044, HIM-045; PROMPT: § 21–23.
 Готово, когда: Проверены отсутствующая/несовместимая зависимость, manual/recheck, отказ UAC/root,
 недоступная виртуализация, refresh/close/reopen браузера и два установщика. Нет false SUCCESS/100% и
@@ -600,7 +642,8 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-047. Проверить пользователей, пути и владение процессами
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-019, HIM-020, HIM-042, HIM-043, HIM-044, HIM-045; PROMPT: § 10–11, 16, 20, 24.
 Готово, когда: Проверены пробелы/кириллица, обычный пользователь, две OS-учётные записи, занятый чужой
 порт, повторный start и отдельный service profile, если заявлен. Нет чужого process kill, доступа к
@@ -611,7 +654,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-048. Проверить полноту preflight и безопасные отказы
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-016, HIM-017, HIM-028, HIM-034, HIM-042, HIM-043, HIM-044, HIM-045; PROMPT: § 21, 24,
 26.
 Готово, когда: Проверены effective variables разных scopes, executable resolution, права, место,
@@ -623,6 +667,7 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 
 [ ] HIM-105. Проверить три языка в четырёх вариантах установки
 Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-042, HIM-043, HIM-044, HIM-045, HIM-102, HIM-104; PROMPT: § 16, 23, 32.
 Готово, когда: Проверены 12 сочетаний reference GUI: ru/en/de × Windows/Linux × native/Docker. Нет
 обрезанных немецких надписей, сырых keys и некорректной кириллицы; keyboard/accessibility, fallback,
@@ -632,6 +677,7 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 
 [ ] HIM-049. Закрыть G2: четыре настоящих пути установки
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-042, HIM-043, HIM-044, HIM-045, HIM-046, HIM-047, HIM-048, HIM-105; PROMPT: § 16–17,
 20–23.
 Готово, когда: Все четыре обязательные reference-строки имеют фактический PASS на конкретных artifacts.
@@ -645,7 +691,8 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 ========================================================================
 
 [ ] HIM-050. Реализовать согласованный зашифрованный полный backup
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-015, HIM-018, HIM-019, HIM-020, HIM-040, HIM-041; PROMPT: § 11–13.
 Готово, когда: Backup включает согласованную БД, документы, конфигурацию, историю, нужные секреты/ключи
 и сведения о совместимом payload/runtime. Продуктовые writers корректно остановлены/quiesced. Проверены
@@ -656,7 +703,8 @@ target, не ожидая недоступного runner другой ОС.
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-051. Проверить безопасность форматов архива и распаковки
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-021, HIM-050; PROMPT: § 11, 13, 26.
 Готово, когда: Архив проверяется до записи; обработаны traversal, symlink/hardlink/reparse, дубли,
 размер/распаковка, повреждение, пароль и отсутствующий ключ. Никакой выход за разрешённые корни или
@@ -665,7 +713,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-052. Реализовать restore в новую или существующую установку
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-018, HIM-019, HIM-020, HIM-050, HIM-051; PROMPT: § 12–13.
 Готово, когда: Восстановлены данные и совместимый runtime, проверены схема и readiness. Для существующих
 данных есть согласованный план сохранения; новые installation/host identities и ключи создаются по
@@ -675,6 +724,7 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 
 [ ] HIM-053. Поддержать legacy-архивы и несколько корней данных
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-051, HIM-052; PROMPT: § 13.
 Готово, когда: Реально поддержанные старые форматы имеют адаптер/миграцию и проверенные fixtures;
 несколько data roots восстанавливаются согласованно. Неподдержанный формат отвергается явно, без пробной
@@ -683,7 +733,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-054. Реализовать последовательные updates v1 → v2 → v3
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-018, HIM-020, HIM-021, HIM-050, HIM-052; PROMPT: § 12, 14, 16.
 Готово, когда: Update проходит staging, согласованный backup, миграцию, activation и readiness на
 реальных adapters. Повтор той же версии идемпотентен; runtime и все offline bytes доступны до изменения
@@ -692,7 +743,8 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-055. Реализовать rollback и before-rollback
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-005
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-005
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-050, HIM-052, HIM-054; PROMPT: § 12–13, 16.
 Готово, когда: Перед откатом сохранено текущее состояние; проверена доступность старых
 release/runtime/metadata. Поздний rollback учитывает новые пользовательские записи и не теряет их молча.
@@ -701,7 +753,8 @@ release/runtime/metadata. Поздний rollback учитывает новые 
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005); предыдущий CP-004 SYNC_CONFIRMED.
 
 [ ] HIM-056. Реализовать и проверить resume после прерывания
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-018, HIM-034, HIM-054, HIM-055; PROMPT: § 12, 16, 28.
 Готово, когда: Реальный process-kill на существенных границах позволяет продолжить или восстановить
 согласованное состояние. Проверяются уже произошедшие эффекты hooks; нет второй миграции/внешнего
@@ -712,6 +765,7 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 
 [ ] HIM-057. Проверить переключение active release и аварийные состояния
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-020, HIM-054, HIM-055, HIM-056; PROMPT: § 10, 12, 16.
 Готово, когда: Остановка, pointer switch, migration и readiness проверены при сбоях; запускается
 правильная пара кода/runtime. Нет ложного подтверждения по active.json или чужому HTTP 200; потеря
@@ -720,7 +774,8 @@ rollback metadata приводит к корректному безопасно�
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-058. Реализовать repair и reinstall
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-005
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-005
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-019, HIM-020, HIM-021, HIM-052, HIM-054; PROMPT: § 12, 25.
 Готово, когда: Repair проверяет подписанный inventory и восстанавливает управляемые файлы той же версии
 без сброса БД/настроек. Reinstall сохраняет пользовательские данные, ключи и идентичности по контракту;
@@ -729,7 +784,8 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005); предыдущий CP-004 SYNC_CONFIRMED.
 
 [ ] HIM-059. Реализовать modify_components и постоянный мастер обслуживания
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-005
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-005
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-017, HIM-025, HIM-029, HIM-054, HIM-058; PROMPT: § 28–29.
 Готово, когда: Добавление/удаление компонентов, update/repair/backup/restore/uninstall доступны через
 общий maintenance UI/API и тот же граф владения. Изменение состава создаёт новый согласованный план;
@@ -738,7 +794,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005);
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005); предыдущий CP-004 SYNC_CONFIRMED.
 
 [ ] HIM-060. Завершить безопасную деинсталляцию и recovery после неё
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-041, HIM-050, HIM-052, HIM-058, HIM-059; PROMPT: § 25.
 Готово, когда: Удаляются только owned code/processes/службы/правила; данные, ключи, архивы и пригодный
 recovery-путь сохранены. Недоступный DataHome имеет отдельный сценарий с честным ограничением, без
@@ -749,6 +806,7 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 
 [ ] HIM-061. Проверить перенос данных между поддержанными средами
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-019, HIM-052, HIM-053, HIM-060; PROMPT: § 11, 13, 16.
 Готово, когда: На объявленных парах Docker/Windows/Linux архив переносится с документами, настройками и
 разрешённой переносимостью ключей. Права адаптированы, DPAPI ciphertext не выдан за переносимый ключ;
@@ -757,7 +815,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-062. Завершить общий API всех lifecycle actions
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-013, HIM-014, HIM-015, HIM-054, HIM-055, HIM-056, HIM-058, HIM-059, HIM-060, HIM-061;
 PROMPT: § 5, 28.
 Готово, когда: Заявленные
@@ -769,7 +828,8 @@ build/install/update/modify/repair/uninstall/backup/restore/rollback/start/stop 
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-063. Проверить идемпотентность, события и совместимость API
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-017, HIM-018, HIM-022, HIM-035, HIM-062; PROMPT: § 28.3–28.4.
 Готово, когда: Проверены same-key/same-request, конфликт содержимого, PLAN_STALE, consent refs,
 cancel_pending, cursor replay/dedup и snapshot. Reboot/awaiting-user не SUCCESS; поддержанные старые
@@ -779,7 +839,8 @@ cancel_pending, cursor replay/dedup и snapshot. Reboot/awaiting-user не SUCCE
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-064. Сделать scaffold и инструменты подключения продукта
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-014, HIM-015, HIM-023, HIM-062; PROMPT: § 28.5–28.6.
 Готово, когда: Работают init-adapter/validate/capabilities/contract-test, пример Python и
 generic/prebuilt либо JSON executable adapter. Примеры исполняются вне ядра; branding/localization не
@@ -788,7 +849,8 @@ generic/prebuilt либо JSON executable adapter. Примеры исполня
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-065. Завершить подробный офлайн-каталог ошибок
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-003
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-003
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-022, HIM-062; PROMPT: § 30.1.
 Готово, когда: Есть schema/version, стабильные codes и product namespaces, описание
 симптомов/причин/проверок/исправления. Различаются confirmed/suspected/unknown; unknown error получает
@@ -797,7 +859,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-066. Реализовать DiagnosticStore и историю операций
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-018, HIM-022, HIM-065; PROMPT: § 30.2.
 Готово, когда: Локальная SQLite хранит operations/attempts/events/errors и очищенные технические
 сведения с retention/migrations. Primary error отделён от последующего rollback error; диагностическая
@@ -806,7 +869,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-067. Обеспечить устойчивость самой диагностики
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-002
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-002
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-018, HIM-066; PROMPT: § 30.2, 30.5.
 Готово, когда: При отказе/повреждении SQLite действует ограниченный fallback journal, безопасный
 повторный импорт и dedup. Повреждённая БД сохранена для исследования; logger не вызывает рекурсивный
@@ -815,7 +879,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-068. Сделать экран ошибки, поиск и безопасный support export
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-059, HIM-062, HIM-065, HIM-066, HIM-067; PROMPT: § 30.1–30.3.
 Готово, когда: Работают errors.describe/search, diagnostics.get/export и GUI с причинами,
 доказательствами и применимыми действиями. Исправление идёт через отдельный plan; статья не исполняет
@@ -824,7 +889,8 @@ scripts. Экспорт показывает состав и исключает 
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-069. Реализовать локальную статистику и её проверку
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-062, HIM-066, HIM-067; PROMPT: § 30.4–30.5.
 Готово, когда: statistics.query и GUI считают уникальные operations отдельно от attempts, показывают
 период/фильтры/знаменатель. Reboot, retries и дубли событий не увеличивают установки; FAILED_ROLLED_BACK
@@ -833,7 +899,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-070. Обеспечить офлайн-доступ и доверенное обновление справочника
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-021, HIM-060, HIM-065, HIM-068, HIM-069; PROMPT: § 26, 28, 30.
 Готово, когда: Каталог нужной версии доступен без интернета и БД продукта, включая восстановление после
 удаления. Его обновление проходит общую проверку доверия; диагностическая история доступна через
@@ -842,7 +909,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-103. Локализовать каталог ошибок, диагностику и справку
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-065, HIM-068, HIM-069, HIM-070, HIM-101; PROMPT: § 30, 32.
 Готово, когда: Описания, причины, инструкции, предупреждения, статистика и support export имеют
 ru/en/de. Неизвестная внешняя ошибка получает локализованное объяснение плюс безопасный исходный
@@ -852,6 +920,7 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 
 [ ] HIM-072. Принять полный lifecycle reference app
 Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-005
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-050, HIM-051, HIM-052, HIM-053, HIM-054, HIM-055, HIM-056, HIM-057, HIM-058, HIM-059,
 HIM-060, HIM-061, HIM-062, HIM-063, HIM-064, HIM-065, HIM-066, HIM-067, HIM-068, HIM-069, HIM-070;
 PROMPT: § 12–16, 23–30.
@@ -865,6 +934,7 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005);
 
 [ ] HIM-073. Закрыть G3: данные, recovery, API и диагностика
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-071, HIM-072, HIM-103; PROMPT: § 17, 28–31.
 Готово, когда: Полный заявленный цикл выполнен через публичный API и GUI; доказано восстановление данных
 и продолжение после прерывания. Каталог, история и статистика проверены; незакрытые обязательные
@@ -878,6 +948,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-074. Подготовить продуктовые контракты на актуальных ревизиях
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-006, HIM-064, HIM-073; PROMPT: § 1.2–1.3, 15, 28.
 Готово, когда: Для отдельных безопасных копий JobPilot/Rent закреплены точные исходники, manifests,
 hooks, targets и данные. Изменения после начальной инвентаризации учтены; отсутствующий локальный source
@@ -887,6 +958,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-075. Подключить JobPilot через тонкий adapter
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-074; PROMPT: § 11–13, 15.
 Готово, когда: Сохранены DataHome, роли, queues, history/archive/restore, внешние holds и локальные
 model endpoints с host/container адаптацией. Product-specific логика остаётся в JobPilot adapter; ядро
@@ -896,6 +968,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-076. Подключить и проверить JobPilot renderer
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-075; PROMPT: § 6–8, 15, 23.
 Готово, когда: Windows/Linux conversion использует продуктовый adapter, отдельный LibreOffice profile,
 таймауты и ограничение параллелизма. Проверены вызов из frozen controller и окружение библиотек; чужой
@@ -905,6 +978,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-077. Собрать установочные artifacts JobPilot
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-075, HIM-076; PROMPT: § 7–9, 14–15.
 Готово, когда: Собраны artifacts для заявленных JobPilot targets с реальными payload/runtime/dependency
 hashes. Форматы и права не подменены демонстрационными путями; offline-комплект соответствует
@@ -914,6 +988,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-078. Принять JobPilot и закрыть известный rollback риск
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-055, HIM-057, HIM-077; PROMPT: § 1.2, 15–16, 23.
 Готово, когда: Выполнены собственные installed-проверки JobPilot. По доступным первичным отчётам все 16
 metadata cases проверены на пересобранном artifact; прежние падавшие сценарии и обязательный набор
@@ -924,6 +999,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-079. Подготовить Rent manifest, runtime и vendor locks
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-074; PROMPT: § 1.3, 6, 15.
 Готово, когда: Rent использует реальные layout/resources, закреплённые runtime/wheels и platform
 artifact; WinSW фиксируется при service profile. Proprietary код не перелицензирован, homensai-core не
@@ -933,6 +1009,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-080. Реализовать запуск Rent во всех объявленных режимах
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-079; PROMPT: § 9–10, 15.
 Готово, когда: Web/bot/scheduler запускаются по зависимостям и останавливаются в обратном порядке.
 Взаимоисключающие autonomous/platform profiles не разделяют ошибочно DB/token; Docker/native adapters не
@@ -942,6 +1019,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-081. Подключить полный recovery Rent
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-050, HIM-052, HIM-055, HIM-079, HIM-080; PROMPT: § 12–13, 15.
 Готово, когда: Реальный набор данных/документов/ключей восстановим вместе с compatible runtime. DB-only
 backup помечен отдельно; before-rollback и продуктовые миграции проверены на синтетических данных.
@@ -950,6 +1028,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-082. Собрать и принять Rent artifacts
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-080, HIM-081; PROMPT: § 14–16, 23.
 Готово, когда: Для каждого заявленного Rent target выполнены реальные install/lifecycle/GUI проверки.
 Telegram и другие внешние действия эмулируются; действующая установка и реальные токены не используются.
@@ -959,6 +1038,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-083. Доказать независимое подключение второго проекта
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-064, HIM-078, HIM-082; PROMPT: § 15, 28.6.
 Готово, когда: Разработчик/ИИ подключает второй продукт только по публичному пакету, INSTALLER_API.md и
 schemas вне checkout ядра. Не нужны product-name branches, копирование внутренних файлов или UI-fork;
@@ -968,6 +1048,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-084. Проверить обновление совместимой версии самого модуля
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-063, HIM-083; PROMPT: § 4–5, 28.4, 28.6.
 Готово, когда: Подключённые проекты проходят контрактные и необходимые installed-проверки со следующей
 совместимой версией пакета. Версия закреплена; изменение одного продукта не обновляет общий runtime
@@ -977,6 +1058,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-085. Закрыть G4: повторное использование на JobPilot и Rent
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-078, HIM-082, HIM-083, HIM-084; PROMPT: § 15–17, 28.
 Готово, когда: Есть раздельные продуктовые матрицы с честными PASS/FAIL/BLOCKED/NOT RUN и ограничениями
 targets. Успех reference app не перенесён на продукты; необходимые интеграционные ветки/patches
@@ -990,6 +1072,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-086. Завершить воспроизводимые локальные и CI-сборки
 Статус: BLOCKED | Проверки: BLOCKED | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-085; PROMPT: § 7–8, 14.
 Готово, когда: Windows/Linux сборки имеют проверенные локальные команды и закреплённые
 tools/dependencies; CI использует те же процедуры. Отсутствующие минуты/runner отражены отдельно от
@@ -1000,6 +1083,7 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 
 [ ] HIM-087. Сформировать полные online/offline поставки
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-033, HIM-060, HIM-070, HIM-077, HIM-082, HIM-086; PROMPT: § 9, 13–14.
 Готово, когда: Для заявленных targets есть все runtime/wheels/images/resources/recovery bytes. Установка
 и update проверены при реально отключённой сети; внешние функции продукта ясно отделены от локальной
@@ -1009,6 +1093,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-088. Закрыть лицензии и SBOM фактической поставки
 Статус: BLOCKED | Проверки: BLOCKED | checkpoint_id: CP-20261025-005
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-008, HIM-021, HIM-076, HIM-079, HIM-087; PROMPT: § 6, 14, 26.
 Готово, когда: Реестр охватывает точные shipped binaries, транзитивные зависимости и ресурсы;
 licenses/notices/source obligations выполнены. Неизвестные/несовместимые права блокируют включение.
@@ -1018,6 +1103,7 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005);
 
 [ ] HIM-089. Подготовить production signing и цепочку доверия
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-021, HIM-086, HIM-087, HIM-088; PROMPT: § 7, 14, 26.
 Готово, когда: Производственные ключи/сертификаты используются защищённо; порядок
 signing→hashing→inventory→outer package корректен. Доверие к bootstrap устанавливается независимо;
@@ -1026,7 +1112,8 @@ rotation/revocation/update policy описаны. Test/unsigned artifact не о
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-090. Провести отрицательные проверки целостности и обновлений
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-089; PROMPT: § 26.
 Готово, когда: Повреждение payload/manifest, неправильный издатель/target/channel, отсутствие нужной
 подписи и недопустимый downgrade дают отказ до исполнения. Указаны реальные границы защиты; собственная
@@ -1037,6 +1124,7 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 
 [ ] HIM-091. Завершить тексты условий и проверку принятия
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-027, HIM-088; PROMPT: § 27.
 Готово, когда: Согласованы собственная лицензия, применимые EULA/privacy/third-party texts и
 коммерческое/некоммерческое использование. Шаблон не объявлен юридически проверенным автоматически;
@@ -1045,7 +1133,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-092. Завершить документацию разработчика и пользователя
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-062, HIM-064, HIM-070, HIM-085, HIM-087, HIM-091; PROMPT: § 18, 28–30.
 Готово, когда: Есть проверенный путь подключения нового продукта, схемы/версии/API, пользовательские
 инструкции установки/обслуживания/переноса/удаления и офлайн-справка. Примеры соответствуют
@@ -1056,6 +1145,7 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 
 [ ] HIM-093. Закрыть недостающие критические installed-сценарии
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-072, HIM-078, HIM-082, HIM-087, HIM-090; PROMPT: § 16, 23.
 Готово, когда: Итоговая матрица покрывает чистые ОС, пользователей, конфликты, носители/диск/файлы,
 повреждения, отсутствие old runtime/metadata, reboot/resume и реальные artifacts. Уже годные
@@ -1064,7 +1154,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-094. Проверить защиту секретов, прав и локальных интерфейсов
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-028, HIM-063, HIM-067, HIM-068, HIM-069, HIM-089; PROMPT: § 11, 20, 24, 26, 28, 30.
 Готово, когда: На синтетических секретах проверены SDK/CLI/GUI/events/logs/DB/export/Git, loopback
 session protection и отсутствие arbitrary elevated commands. App owner сохранён при elevation;
@@ -1074,7 +1165,8 @@ user/service scopes не дают доступа к чужим данным.
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-095. Проверить финальную восстановимость после удаления
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-005
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-005
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-060, HIM-061, HIM-070, HIM-087, HIM-093; PROMPT: § 13, 25, 30.
 Готово, когда: Из реально сохранённых данных/recovery artifacts после удаления можно восстановить
 приложение, ключи и документы по инструкции. Ветвь недоступного DataHome сообщает ограничения;
@@ -1084,6 +1176,7 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005);
 
 [ ] HIM-096. Составить окончательный индекс artifacts и доказательств
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-086, HIM-087, HIM-088, HIM-089, HIM-090, HIM-091, HIM-092, HIM-093, HIM-094, HIM-095;
 PROMPT: § 14, 18–19.
 Готово, когда: Для каждого пакета записаны module/product/source SHA, target, runtime, hashes, подписи,
@@ -1093,7 +1186,8 @@ artifact не выдан за постоянный архив.
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-097. Опубликовать в документации честную матрицу возможностей
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-085, HIM-096; PROMPT: § 2, 14–16, 19, 28.
 Готово, когда: Поддержанные targets/actions/продукты согласованы с фактической приёмкой. Непроверенное
 не обозначено ready; FAIL/BLOCKED и ограничения видны. Оценки скорости/надёжности не выдуманы, release
@@ -1104,6 +1198,7 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 
 [ ] HIM-098. Обновить финальный ToDo, RESUME и сохранение в Git
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-096, HIM-097; PROMPT: § 19, 31.
 Готово, когда: Журнал и следующий шаг соответствуют реальному состоянию. Все разрешённые результаты
 сохранены в рабочей ветке локально, в Docker Git при отдельном remote и на GitHub; наличие commits
@@ -1113,6 +1208,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-106. Проверить языковую полноту итоговой поставки
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-059, HIM-091, HIM-092, HIM-103, HIM-104, HIM-105; PROMPT: § 27–30, 32.
 Готово, когда: Русские/английские/немецкие экраны обслуживания, help, error catalog и собственные
 условия соответствуют одной версии. Автоматическая проверка совпадения keys/placeholder types проходит;
@@ -1122,6 +1218,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-099. Проверить полноту результата относительно двух документов
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-092, HIM-093, HIM-094, HIM-095, HIM-096, HIM-097, HIM-098, HIM-106; PROMPT: § 1–33.
 Готово, когда: Каждое обязательное требование имеет задачу и доказательство либо конкретный BLOCKED. Нет
 устаревших PASS, фальшивой готовности, расходящихся API/ToDo и пропущенных пользовательских уточнений.
@@ -1131,6 +1228,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-100. Закрыть G5 и передать готовый выпускной комплект
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-089, HIM-091, HIM-096, HIM-097, HIM-098, HIM-099; PROMPT: § 17–19, 31.
 Готово, когда: Проверены G0–G4 и обязательные выпускные критерии; выданы два установщика, package/API,
 artifacts index, инструкции и ограничения. Финальный checkpoint синхронизирован. Merge в защищённую

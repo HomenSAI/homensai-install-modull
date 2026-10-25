@@ -1,0 +1,469 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-009",
+  "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
+  "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
+  "production_ready": false,
+  "unaccepted_task_ids": [
+    "HIM-003",
+    "HIM-008",
+    "HIM-010",
+    "HIM-011",
+    "HIM-012",
+    "HIM-013",
+    "HIM-014",
+    "HIM-015",
+    "HIM-016",
+    "HIM-017",
+    "HIM-018",
+    "HIM-019",
+    "HIM-020",
+    "HIM-021",
+    "HIM-022",
+    "HIM-023",
+    "HIM-024",
+    "HIM-025",
+    "HIM-026",
+    "HIM-027",
+    "HIM-028",
+    "HIM-029",
+    "HIM-030",
+    "HIM-031",
+    "HIM-032",
+    "HIM-033",
+    "HIM-034",
+    "HIM-035",
+    "HIM-036",
+    "HIM-037",
+    "HIM-038",
+    "HIM-039",
+    "HIM-040",
+    "HIM-041",
+    "HIM-042",
+    "HIM-043",
+    "HIM-044",
+    "HIM-045",
+    "HIM-046",
+    "HIM-047",
+    "HIM-048",
+    "HIM-049",
+    "HIM-050",
+    "HIM-051",
+    "HIM-052",
+    "HIM-053",
+    "HIM-054",
+    "HIM-055",
+    "HIM-056",
+    "HIM-057",
+    "HIM-058",
+    "HIM-059",
+    "HIM-060",
+    "HIM-061",
+    "HIM-062",
+    "HIM-063",
+    "HIM-064",
+    "HIM-065",
+    "HIM-066",
+    "HIM-067",
+    "HIM-068",
+    "HIM-069",
+    "HIM-070",
+    "HIM-072",
+    "HIM-073",
+    "HIM-074",
+    "HIM-075",
+    "HIM-076",
+    "HIM-077",
+    "HIM-078",
+    "HIM-079",
+    "HIM-080",
+    "HIM-081",
+    "HIM-082",
+    "HIM-083",
+    "HIM-084",
+    "HIM-085",
+    "HIM-086",
+    "HIM-087",
+    "HIM-088",
+    "HIM-089",
+    "HIM-090",
+    "HIM-091",
+    "HIM-092",
+    "HIM-093",
+    "HIM-094",
+    "HIM-095",
+    "HIM-096",
+    "HIM-097",
+    "HIM-098",
+    "HIM-099",
+    "HIM-100",
+    "HIM-101",
+    "HIM-102",
+    "HIM-103",
+    "HIM-104",
+    "HIM-105",
+    "HIM-106"
+  ],
+  "required_reference_matrix": {
+    "targets": [
+      "windows-native",
+      "windows-docker",
+      "linux-native",
+      "linux-docker"
+    ],
+    "locales": [
+      "ru",
+      "en",
+      "de"
+    ],
+    "all_cells_default_status": "NOT RUN",
+    "all_cells_ready": false,
+    "observations": [],
+    "note": "12 обязательных сочетаний. Частичный Linux CP-005 хранится исторически; новых полных accepted cells нет."
+  },
+  "product_acceptance": {
+    "JobPilot": {
+      "status": "NOT RUN",
+      "ready": false,
+      "targets": "Уточнить и закрепить по продуктовому контракту; не переносить PASS reference."
+    },
+    "Rent": {
+      "status": "NOT RUN",
+      "ready": false,
+      "targets": "Уточнить и закрепить по продуктовому контракту; не переносить PASS reference."
+    }
+  },
+  "current_checks": [
+    {
+      "id": "CP009-recovery-source",
+      "status": "PASS",
+      "scope": "37 isolated Git recovery tests + 1 Node wizard contract",
+      "receipt": "packaging/acceptance-evidence/recovery-20261025-cp009.json"
+    }
+  ],
+  "historical_evidence": [
+    "packaging/acceptance-evidence/source-20261025-cp008.json",
+    "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
+    "packaging/acceptance-evidence/sdk-installed-20261025-cp008.json"
+  ],
+  "known_unresolved_failures": [
+    {
+      "id": "jobpilot-build2-rollback",
+      "status": "FAIL",
+      "scope": "Исторический build2: 3/16 metadata cases; первичные сценарии/native worktree недоступны",
+      "source": "docs/PRODUCT_AUDIT_20261025.md",
+      "next_action": "Получить исходные 16 cases, пересобрать artifact и проверить; не реконструировать отсутствующие сценарии как факт."
+    },
+    {
+      "id": "cp008-ci",
+      "status": "BLOCKED",
+      "scope": "runs 40188356899/40188360805: 4 jobs, runner_id=0, steps=[]; тесты НЕ ЗАПУСКАЛИСЬ",
+      "source": "packaging/acceptance-evidence/recovery-20261025-cp009.json",
+      "next_action": "Восстановить доступный runner и получить реальный run; не считать pipeline failure выполненным тестом."
+    }
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "ACC-01",
+      "canonical_requirement": "Чистая GUI-установка без developer tools; auto/manual prerequisites. Задачи: HIM-029–045. Начальное состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "packaging/check_reference_gui.cjs"
+      ],
+      "next_executor_action": "Собрать актуальные DEV artifacts; чистые desktop ОС без developer tools; выбрать auto/manual, проверить обязательные зависимости и результат установки. Production prerequisite registry и Windows bootstrap ещё требуют реализации.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-02",
+      "canonical_requirement": "Все компоненты, backend/DB/workers, HTML/JS/CSS, browser smoke. Задачи: HIM-040, HIM-042–045, HIM-078, HIM-082. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "packaging/check_reference_gui.cjs"
+      ],
+      "next_executor_action": "Проверить реальные HTML/JS/CSS, продуктовую БД, все workers и browser smoke на каждой заявленной поставке.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-03",
+      "canonical_requirement": "Обычный пользователь, две OS-учётные записи, кириллица/пробелы, другой администратор в UAC, user/service scope. Задачи: HIM-019, HIM-028, HIM-047, HIM-094. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "NOT IMPLEMENTED",
+      "existing_partial_harnesses": [],
+      "next_executor_action": "Подготовить два тестовых OS users, пути с пробелами/кириллицей, другой admin в UAC; проверить ACL, DPAPI и сохранение исходного владельца. Не использовать личные DataHome.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-04",
+      "canonical_requirement": "Чужой занятый порт, повторный start, параллельные installers, отсутствие второго scheduler и корректный stop. Задачи: HIM-020, HIM-046–047, HIM-080. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "integration_tests/test_native_engine.py"
+      ],
+      "next_executor_action": "Повторить на установленном artifact: чужой порт/процесс, две конкурирующие операции, repeat start/stop, отсутствие второго scheduler. Source tests не заменяют installed proof.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-05",
+      "canonical_requirement": "Отключение сети, retry/resume/cache, локальный prerequisite, proxy/TLS errors без отключения проверки сертификатов. Задачи: HIM-033, HIM-046, HIM-048. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "tests/test_downloads.py"
+      ],
+      "next_executor_action": "Реальный контролируемый TLS/proxy transport: обрыв/resume/range/cache/неверный локальный package; доверие TLS сохраняется. Live harness надо завершить.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-06",
+      "canonical_requirement": "Неверный hash/signature, подмена manifest, publisher/target/channel, обычный update с недопустимым downgrade. Задачи: HIM-021, HIM-089–090. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "tests/test_trust.py"
+      ],
+      "next_executor_action": "Проверить изменённые shipped bytes, manifest+payload, чужой ключ/publisher/target/channel/downgrade на каждом artifact; production доверие пока не принято.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-07",
+      "canonical_requirement": "Принятие/отказ EULA, отдельные условия prerequisites, receipt, доступность с клавиатуры, незаполненное согласие. Задачи: HIM-027, HIM-091. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "packaging/check_reference_gui.cjs",
+        "tests/test_wizard.py"
+      ],
+      "next_executor_action": "Для точных ru/en/de условий проверить отказ/scroll/keyboard/масштаб, receipt hash, отдельные prerequisites consent и отсутствие эффекта при отказе.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-08",
+      "canonical_requirement": "Reboot/relogin, повторный preflight, refresh/close/reopen GUI; прогресс не выдаёт waiting/failure за 100% SUCCESS. Задачи: HIM-034–035, HIM-046. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "tests/test_prerequisites_execution.py",
+        "tests/test_wizard_capabilities.py"
+      ],
+      "next_executor_action": "Настоящие reboot/relogin, GUI close/reopen/refresh; сохранение operation identity, новый preflight, отсутствие ложного 100%. OS runners отсутствуют; не имитировать reboot сменой PID.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-09",
+      "canonical_requirement": "Fresh v1 → update v2 → update v3; повтор версии и reinstall. Задачи: HIM-054, HIM-058, HIM-072. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "packaging/check_reference_upgrade.cjs"
+      ],
+      "next_executor_action": "Новые v1/v2/v3 bytes: update/reinstall/повтор версии с проверкой БД, user files и реального runtime. Docker/Windows lifecycle ещё не завершён.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-10",
+      "canonical_requirement": "Full backup и фактический restore с БД, файлами, ключами и runtime; неверный пароль, отсутствующий ключ, legacy format, несколько roots. Задачи: HIM-050–053, HIM-061, HIM-081. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "packaging/check_reference_maintenance.cjs",
+        "tests/test_archive_crypto.py"
+      ],
+      "next_executor_action": "Расшифровать и восстановить полный архив в другой каталог/host: БД, файлы, ключи, runtime. Проверить wrong password/missing key/legacy/multi-root. Multi-root/legacy bridge требуется реализовать.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-11",
+      "canonical_requirement": "Ошибка stop/backup/migration/readiness, before-rollback, late rollback и отсутствие old release/runtime/metadata. Задачи: HIM-055–057, HIM-078, HIM-093. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "packaging/check_reference_upgrade.cjs",
+        "integration_tests/test_native_engine.py"
+      ],
+      "next_executor_action": "На новых frozen bytes вызвать stop/backup/migration/health failures; проверить before-rollback и old runtime. Сохраняется исторический JobPilot build2 FAIL; все 16 исходных metadata cases нужно получить и повторить, отсутствующие не выдумывать.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-12",
+      "canonical_requirement": "Реальный process-kill на границах journal/staging/migration/pointer/ restore/readiness; повтор не дублирует побочный эффект. Задачи: HIM-056–057, HIM-072. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "packaging/check_reference_restart.cjs"
+      ],
+      "next_executor_action": "Реальный SIGKILL только своего controller на каждой опасной границе journal/stage/migration/pointer/restore/readiness; после restart проверить тот же operation_id и отсутствие двойных эффектов. Существующий harness покрывает узкую staging boundary.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-13",
+      "canonical_requirement": "Repair той же версии; modify_components; сохранное удаление, недоступный DataHome, uninstall → reinstall/recovery. Задачи: HIM-058–060, HIM-095. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "packaging/check_reference_maintenance.cjs"
+      ],
+      "next_executor_action": "Repair без изменения данных; modify_components, повреждённый/unavailable DataHome, owned-only uninstall, reinstall и restore сохранённого recovery. Отсутствующие lifecycle действия сначала реализовать.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-14",
+      "canonical_requirement": "Недостаток места, занятый файл, исчезнувший носитель, ошибка прав, symlink/junction/reparse и опасный archive path. Задачи: HIM-019, HIM-048, HIM-051, HIM-093. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "tests/test_archive.py",
+        "tests/test_datahome.py"
+      ],
+      "next_executor_action": "На тестовых файловых системах проверить disk-full, locked file, пропавший носитель, ACL/symlink/junction/reparse и архивные атаки. Fault injection в unit не выдавать за real OS acceptance.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-15",
+      "canonical_requirement": "Установка/update/recovery offline при действительно отключённой сети. Задачи: HIM-070, HIM-087, HIM-095. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "NOT IMPLEMENTED",
+      "existing_partial_harnesses": [],
+      "next_executor_action": "Полный новый offline bundle: реально ограничить сеть в изолированной VM/контейнере; install/update/restore должны использовать имеющиеся runtime/images/resources. Запрет сети в source tests — другая проверка.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-16",
+      "canonical_requirement": "API: dry-run, unsupported capability, PLAN_STALE, idempotency, событие повторно/по cursor, согласованность SDK/CLI/HTTP/OpenAPI. Задачи: HIM-024, HIM-062–064. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "tests/test_public_api.py",
+        "tests/test_backends.py"
+      ],
+      "next_executor_action": "Установить wheel вне checkout; пройти публичные SDK/CLI/HTTP/openapi сценарии dry-run/unsupported/PLAN_STALE/idempotency/events; отдельно полный установленный lifecycle.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-17",
+      "canonical_requirement": "Известная/неизвестная ошибка, доказанная/предполагаемая причина, первичная ошибка и последующая rollback error; безопасное исправление. Задачи: HIM-065, HIM-068. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "tests/test_diagnostics.py",
+        "tests/test_diagnostics_api.py"
+      ],
+      "next_executor_action": "В установленном мастере воспроизвести известную/неизвестную ошибку и primary+rollback failure; проверить безопасное explanation и реальную возможность выбранного recovery.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-18",
+      "canonical_requirement": "Недоступная/повреждённая DiagnosticStore, bounded fallback, идемпотентный импорт, retention, нет рекурсивного logger failure. Задачи: HIM-066–067. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "tests/test_diagnostics.py"
+      ],
+      "next_executor_action": "Установленный bootstrap: недоступная/повреждённая diagnostic DB, fallback/retention/import и disk failure без рекурсии и ложного завершения транзакции.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-19",
+      "canonical_requirement": "Статистика по уникальным operations/attempts: retries/reboot/дубли, FAILED_ROLLED_BACK, период/знаменатель, redacted support export. Задачи: HIM-068–069, HIM-094. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "tests/test_diagnostics_api.py"
+      ],
+      "next_executor_action": "Сверить статистику с уникальными operation/attempt IDs, reboot/retries/FAILED_ROLLED_BACK; UI/API/support export должны исключить синтетические secrets.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-20",
+      "canonical_requirement": "Второй проект вне checkout ядра по публичным docs/API; следующая совместимая версия модуля не ломает интеграцию. Задачи: HIM-083–084. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "NOT IMPLEMENTED",
+      "existing_partial_harnesses": [],
+      "next_executor_action": "Отдельный разработчик подключает реальный второй продукт только по установленному SDK/public docs; затем следующая совместимая версия. Аудит исходников не заменяет эту приёмку.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-21",
+      "canonical_requirement": "Checkpoint разработки: обрыв до/во время push, один remote недоступен, dirty files/конфликт, новая сессия без чата, постоянное Docker-хранилище. Задачи: HIM-003–004, HIM-009, HIM-071, HIM-098. Состояние: NOT RUN.",
+      "acceptance_status": "BLOCKED",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "tests/test_checkpoint.py"
+      ],
+      "next_executor_action": "37 Git failure/recovery tests повторены в CP-009; новый независимый checkout восстановлен. Отдельно на доступном Docker Git владельца проверить постоянное хранилище/оба remotes без удаления его контейнеров.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-22",
+      "canonical_requirement": "SBOM/лицензии фактических компонентов, внешнее доверие к bootstrap, production/test signing различены; secrets отсутствуют в поставке. Задачи: HIM-088–091, HIM-094, HIM-096. Состояние: NOT RUN.",
+      "acceptance_status": "BLOCKED",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "tests/test_license_policy.py",
+        "tools/check_licenses.py"
+      ],
+      "next_executor_action": "По точным shipped bytes проверить SBOM/notices/transitive licences, внешний trust root и production signing. Не заменять ключи/юридическое утверждение тестовыми APPROVED.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    },
+    {
+      "scenario_id": "ACC-23",
+      "canonical_requirement": "Языки ru/en/de: 12 сочетаний reference GUI, сохранение выбора, fallback, полный error/help catalog, EULA receipts, key/placeholder parity. Задачи: HIM-101–106. Состояние: NOT RUN.",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": [
+        "tests/test_i18n.py",
+        "tests/test_wizard.py"
+      ],
+      "next_executor_action": "Все 12 reference GUI сочетаний: ru/en/de × четыре target. Проверить keyboard/zoom/long German/Cyrillic/fallback/refresh/maintenance, key/placeholder parity и hashes показанных условий.",
+      "current_artifact_evidence": [],
+      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    }
+  ]
+}

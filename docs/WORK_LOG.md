@@ -315,3 +315,27 @@ product acceptance, licences/signing/approved legal и Docker Git владель
 CP008 sync считается подтверждённым только после независимой проверки remote
 ref/commit/tree; до этого tracked state SYNC_PENDING. Собственный SHA не
 записывается рекурсивным commit, результат push сохраняется внешней квитанцией.
+
+
+## CP-20261025-009 — восстановление, пошаговое сохранение и незавершённые проверки
+
+Время наблюдения UTC: 2026-10-25T11:54:55+00:00; пользовательская зона Europe/Berlin.
+CP-008 960827cb32b65c9748c9a3f4eaee8406dfe27606 и tree b1a63e337779e8f800547be7daa9b87f9028c1c0
+подтверждены GitHub и новой чистой локальной копией. Скриншот CP-005/Node
+устарел относительно истории; повторное исполнение CP-005 не запускалось.
+
+По новым указаниям владельца каждый шаг завершается проверкой, обновлением
+ToDo/RESUME, checkpoint и независимой проверкой GitHub до следующего шага.
+Создан реестр ACC-01–23 с test-code readiness, непроведённой приёмкой и
+действием для следующего ИИ. Все неполные HIM-карточки явно НЕ ГОТОВО;
+частичные PASS не используются как результат всей задачи.
+
+HIM-071 DONE: независимое восстановление + новый прогон 37 Git recovery cases
+и 1 Node contract, 38 PASS за 3.46 s. Полный source/installed suite этим не заявлен.
+Начальная попытка без pytest не исполняла тесты; повтор использовал имеющиеся
+project test dependencies. CI CP-008: 4 jobs без runner/steps; тесты NOT RUN.
+Docker Git владельца SYNC_BLOCKED, production_ready=false.
+
+Следующий шаг: конкретная source-подзадача из канонической очереди.
+Не выдавать открытые Windows/Docker/OS/prerequisite/product/release gates
+за выполненные. Текущий push подтверждается внешней receipt/ref после commit.

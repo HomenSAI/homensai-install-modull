@@ -376,3 +376,13 @@ CP-010: 63 целевых source tests PASS (1.69 s); отдельно уста�
 Подтверждённый предыдущий GitHub: `c778466a3a477bc273bda2061518aa57bfe6956e`, tree `ec55e8beb9842c074e545b31eb903ccc46069556`. Исходная CP-012 сохранена отдельно, чужие worktree не изменялись. Текущий sync до ref/tree — SYNC_PENDING. Receipt: `packaging/acceptance-evidence/recovery-20261025-cp013.json`.
 
 Следующий шаг: HIM-029/035/102: условный GUI auto/manual/terms/progress/recovery для зарегистрированного coordinator, безопасная capabilities-проекция требований версий без изменения plan v1, независимые Node contract tests. Любой execution.active=true/null блокирует новый запуск/продолжение продукта, включая state=finished. После READY нужен новый явный product preflight/terms/review. Общий lease и durable byte-progress остаются обязательными отдельными core шагами.
+
+## CP-20261025-014 — требования версий для мастера без изменения сохранённых планов
+
+В capabilities добавлена проверяемая проекция шести полей требований версии/обязательности/scope. Данные берутся из повторно проверенного подписанного каталога, без discovery, effects, путей или команд. Сохранённый plan v1, digest и consent refs не меняются; старая queued операция восстанавливается прежним контрактом. OpenAPI и встроенные API документы синхронизированы.
+
+55 целевых source/API/HTTP проверок PASS, 0 skips (5.933 s), Python 3.14.3; 12 новых случаев входят в эти 55. Root сравнил все семь интегрированных файлов с проверенным commit 2c6d3c9 и receipt-хешами. Первый harness-прогон 9 PASS/3 FAIL сохранён: исправлено ошибочное ожидание отсутствующего store после trusted constructor. Новый полный source suite/installed wheel/browser/OS acceptance NOT RUN; source1961 PASS CP-013 остаётся историческим результатом других bytes. GUI ещё в разработке.
+
+Подтверждён предыдущий GitHub `8fd2424441afaeb2d6f7644182b923f937152864`; текущий sync до ref/tree — SYNC_PENDING. Receipt: `packaging/acceptance-evidence/requirements-projection-20261025-cp014.json`.
+
+Следующий шаг: HIM-029/035/102: закончить условный GUI auto/manual/terms/progress/recovery и независимые Node contracts. Требования соединять с plan только при совпадении product/owner/target/catalog digest. READY и execution.active=false допускают только новый явный product preflight/terms/review; product submit сам не запускается. Затем отдельный installed signed prerequisite lifecycle и обязательные lease/byte-progress механизмы.

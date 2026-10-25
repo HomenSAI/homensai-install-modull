@@ -33,7 +33,7 @@ hash/probe. Поэтому наблюдение и отмена уже связ�
 
 | Метод и путь | Вход и результат |
 |---|---|
-| `GET /capabilities?mode=native` | Только зарегистрированный exact target. Без coordinator — configured=false. |
+| `GET /capabilities?mode=native` | Только зарегистрированный exact target; signed `requirements` для просмотра. Без coordinator — configured=false. |
 | `GET /licenses/{component_id}` | Проверенный текст из signed catalog. |
 | `POST /plans` | Mode, locale, choices auto/manual/use/skip, optional bool offline. Возвращает server plan ID, operation ID и plan для просмотра. |
 | `POST /operations` | Plan ID/digest, explicit consent refs, accepted_plan, accepted_terms, terms_digest. Durable background start. |
@@ -55,6 +55,34 @@ SDK/CLI имеют отдельный явный контракт локальн
 Успех HTTP-запроса возвращается с `200` и `{api_version:"1",result:...}`.
 Семантические отказы — `400`; Host/Origin/token — `403`; внутренний безопасный
 отказ — `500`. HTTP `200` не означает READY или завершённую product installation.
+
+### Требуемые и найденные версии
+
+Ответ configured capabilities содержит `requirements`: 1–128 объектов с ровно
+шестью полями `component_id`, `kind`, `required`, `minimum_version`,
+`maximum_version`, `scope`. Границы имеют тип string/null и всегда присутствуют.
+Scope — `host`, `controller` или `product`. Coordinator получает эту проекцию
+из заново проверенного signed catalog, без discovery и записи операции.
+Каталог, local paths, artifact URLs, команды и evidence в неё не включаются.
+
+Обе границы включительные; `null` снимает только соответствующее ограничение.
+Две `null` означают отсутствие ограничения версии. Формат
+`v?MAJOR.MINOR[.PATCH][+build]` сравнивается численно по трём частям; отсутствующий
+PATCH равен нулю, `v` и build suffix игнорируются. Prerelease и PEP 440 не
+поддерживаются. Например, `v1.2` и `1.2.0+build` равны для этой проверки.
+
+Браузер соединяет requirements с `plan.components` по component ID лишь при
+совпадении `product_id`, `owner_id`, полного `target` и `catalog_digest`.
+Найденная версия уже находится в `plan.components[].detected_version`.
+Версии выводятся безопасным обычным текстом; `null`, нестроковое, скрытое или
+некорректное значение показывается как неопределённое. UI не сравнивает версии:
+совместимость и readiness берутся только из server `initial_status`/
+`initial_ready`, а затем operation status/checks. При старом сервере без
+`requirements` сведения о диапазоне недоступны; это не равнозначно двум `null`.
+
+Проекция additive: raw plan v1, его digest, consent refs, сохранённые операции
+и повторная первоначальная проверка queued plan остаются прежними. HTTP не
+принимает `requirements` или version constraints в запросах браузера.
 
 ## Review и восстановление
 

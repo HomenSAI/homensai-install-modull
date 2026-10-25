@@ -205,6 +205,29 @@ plan = api.prerequisites_plan(choices, locale="ru", offline=True,
 state = api.prerequisites_start(operation_id, plan, consent_refs=accepted_refs)
 ```
 
+Для зарегистрированного coordinator `capabilities.requirements` содержит 1–128
+проверенных требований. Каждая запись имеет ровно поля `component_id`, `kind`,
+`required`, `minimum_version`, `maximum_version`, `scope`. Обе границы всегда
+присутствуют как строка либо `null`; scope равен `host`, `controller` или `product`.
+Это отдельная проекция signed catalog: она не выполняет discover, не создаёт
+операцию и не меняет сохранённый plan v1, его digest или consent refs.
+
+Ограничения версий включительные. `null` означает отсутствие соответствующей
+границы; две `null` — отсутствие ограничения версии. Поддерживается только
+`v?MAJOR.MINOR[.PATCH][+build]`: отсутствующий PATCH равен нулю, префикс `v` и
+build suffix не участвуют в числовом сравнении. Prerelease и PEP 440 этим
+контрактом не поддерживаются. Равные числовые границы задают точную версию.
+
+UI соединяет требования с `plan.components` по `component_id` после точного
+совпадения `product_id`, `owner_id`, `target` и `catalog_digest`. Найденная версия
+берётся из `plan.components[].detected_version`, результат проверки — из
+`initial_status`/`initial_ready`, затем из серверного status/checks. UI не
+сравнивает версии и не вычисляет readiness самостоятельно. Нестроковую,
+некорректную или скрытую найденную версию следует показывать как неопределённую;
+строки выводятся как обычный текст. В ответе старого сервера поле `requirements`
+может отсутствовать: это означает недоступность сведений о требованиях, а не
+разрешение любой версии. Старые клиенты могут игнорировать новую проекцию.
+
 `operation_id` соответствует общему API ID: `[a-z][a-z0-9_-]{0,79}`.
 Повтор `start` с тем же ID и планом читает сохранённый результат; другая операция
 не обходит активный claim. По умолчанию `start` и `resume` синхронны. Долгоживущий

@@ -1545,7 +1545,27 @@
         "description": "Возможности явно зарегистрированного target; production registry и GUI auto-flow не создаются.",
         "responses": {
           "200": {
-            "$ref": "#/components/responses/PrerequisiteHTTP200"
+            "description": "Проверенные возможности и проекция требований; без discover, запуска или записи операции.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/PrerequisiteCapabilitiesResult"
+                    }
+                  },
+                  "required": [
+                    "api_version",
+                    "result"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "400": {
             "$ref": "#/components/responses/PrerequisiteHTTP400"
@@ -2697,6 +2717,135 @@
             "additionalProperties": false
           }
         ]
+      },
+      "PrerequisiteRequirement": {
+        "type": "object",
+        "description": "Проверенная проекция signed requirement; только данные для просмотра, без путей/URL/команд. Границы включительные; null снимает соответствующее ограничение. Числовое сравнение MAJOR.MINOR.PATCH: пропущенный PATCH равен 0, v и +build игнорируются. Prerelease/PEP 440 не поддерживаются.",
+        "properties": {
+          "component_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          },
+          "kind": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "minimum_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^v?[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:\\+[A-Za-z0-9_.-]+)?$(?![\\s\\S])"
+          },
+          "maximum_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^v?[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:\\+[A-Za-z0-9_.-]+)?$(?![\\s\\S])"
+          },
+          "scope": {
+            "enum": [
+              "host",
+              "controller",
+              "product"
+            ]
+          }
+        },
+        "required": [
+          "component_id",
+          "kind",
+          "required",
+          "minimum_version",
+          "maximum_version",
+          "scope"
+        ],
+        "additionalProperties": false
+      },
+      "PrerequisiteCapabilitiesResult": {
+        "type": "object",
+        "description": "Возможности явной регистрации. requirements добавлены независимо от raw plan v1; его digest/consent refs и сохранённые queued операции не меняются. Для соединения requirements с plan по component_id нужны совпадающие product_id/owner_id/target/catalog_digest. Отсутствие requirements у старого сервера означает недоступные сведения, а не неограниченную версию.",
+        "properties": {
+          "api_version": {
+            "const": "1"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "product_id": {
+            "type": "string"
+          },
+          "owner_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          },
+          "target": {
+            "type": "object"
+          },
+          "catalog_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "requirements": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 128,
+            "items": {
+              "$ref": "#/components/schemas/PrerequisiteRequirement"
+            }
+          },
+          "automatic_component_ids": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+            }
+          },
+          "production_ready": {
+            "const": false
+          }
+        },
+        "required": [
+          "configured",
+          "automatic_component_ids",
+          "production_ready"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "configured": {
+                  "const": true
+                }
+              },
+              "required": [
+                "configured"
+              ]
+            },
+            "then": {
+              "required": [
+                "product_id",
+                "owner_id",
+                "target",
+                "catalog_digest",
+                "requirements"
+              ]
+            }
+          }
+        ],
+        "additionalProperties": true
       }
     },
     "responses": {

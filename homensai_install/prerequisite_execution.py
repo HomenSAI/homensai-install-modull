@@ -76,6 +76,10 @@ class PrerequisiteCoordinator:
     def capabilities(self):
         """Verify metadata before advertising only the configured source policies."""
         entries = self.catalog.entries()
+        # Проекция для review отделена от сохранённого plan v1 и его consent refs.
+        requirements = [{field: entry["requirement"][field] for field in (
+            "component_id", "kind", "required", "minimum_version", "maximum_version", "scope")}
+            for entry in entries]
         automatic = []
         for entry in entries:
             adapter = self.adapters.get(entry["adapter_id"])
@@ -86,7 +90,7 @@ class PrerequisiteCoordinator:
                 automatic.append(entry["requirement"]["component_id"])
         return {**self.identity(), "signed_catalog": True, "manual_recheck": True, "durable_resume": True,
                 "background_execution": True, "durable_operation_listing": True,
-                "automatic_component_ids": automatic, "automatic_reboot": False,
+                "requirements": requirements, "automatic_component_ids": automatic, "automatic_reboot": False,
                 "boundary_choice": True, "platform_acceptance": "not_verified"}
 
     def _observe(self):

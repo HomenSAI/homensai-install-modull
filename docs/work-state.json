@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-013",
+  "checkpoint_id": "CP-20261025-014",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -89,10 +89,10 @@
     "cloud_git": "SYNC_PENDING",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261025-012",
+    "last_confirmed_checkpoint": "CP-20261025-013",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
-  "next_step": "HIM-029/035/102: условный GUI auto/manual/terms/progress/recovery для зарегистрированного coordinator, безопасная capabilities-проекция требований версий без изменения plan v1, независимые Node contract tests. Любой execution.active=true/null блокирует новый запуск/продолжение продукта, включая state=finished. После READY нужен новый явный product preflight/terms/review. Общий lease и durable byte-progress остаются обязательными отдельными core шагами.",
+  "next_step": "HIM-029/035/102: закончить условный GUI auto/manual/terms/progress/recovery и независимые Node contracts. Требования соединять с plan только при совпадении product/owner/target/catalog digest. READY и execution.active=false допускают только новый явный product preflight/terms/review; product submit сам не запускается. Затем отдельный installed signed prerequisite lifecycle и обязательные lease/byte-progress механизмы.",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
@@ -100,7 +100,7 @@
     "linux_native": "PARTIAL: frozen x64 user-session lifecycle/updates/rollback/repair/crash-resume PASS in scoped receipts; OS service/reboot/full matrix open",
     "linux_docker": "NOT RUN/BLOCKED live daemon: source install/uninstall/start/stop/backup tested with modeled daemon; images/host attestation/full lifecycle remain open"
   },
-  "last_confirmed_github_sha": "c778466a3a477bc273bda2061518aa57bfe6956e",
+  "last_confirmed_github_sha": "8fd2424441afaeb2d6f7644182b923f937152864",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -128,7 +128,8 @@
     "packaging/acceptance-evidence/review-20261025-cp012.json",
     "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json",
     "packaging/acceptance-evidence/environment-20261025-cp012.json",
-    "packaging/acceptance-evidence/recovery-20261025-cp013.json"
+    "packaging/acceptance-evidence/recovery-20261025-cp013.json",
+    "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json"
   ],
   "environment": {
     "os": "linux",
@@ -162,22 +163,16 @@
   "checkpoint_policy": "После каждого проверенного шага TODO+RESUME+код в одном checkpoint, GitHub ref/tree подтверждён до следующего шага.",
   "latest_scoped_verification": [
     {
-      "id": "CP013-recovered-checkpoint",
+      "id": "CP014-requirements-projection",
       "status": "PASS",
-      "scope": "Exact unpublished CP012 tree restored; remote c778466 ref/tree/parent independently verified; external Docker Git BLOCKED.",
-      "receipt": "packaging/acceptance-evidence/recovery-20261025-cp013.json"
+      "scope": "55 targeted signed metadata/API/HTTP cases including12 new; immutable capability projection, old pending plan v1 compatible. Seven integrated files exactly match tested commit.",
+      "receipt": "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json"
     },
     {
-      "id": "CP013-current-full-source",
-      "status": "PASS_WITH_EXPLICIT_SKIPS",
-      "scope": "1961 source PASS/3 skips/10 subtests; two Linux source skips +three real HTTP cases separately5 PASS. Windows-only case NOT RUN. Focused141/regression5 overlap full suite.",
-      "receipt": "packaging/acceptance-evidence/recovery-20261025-cp013.json"
-    },
-    {
-      "id": "CP013-browser-launch",
-      "status": "BLOCKED",
-      "scope": "Verified official browser --version outside sandbox exits139; current GUI browser tests NOT RUN. Cause not established.",
-      "receipt": "packaging/acceptance-evidence/recovery-20261025-cp013.json"
+      "id": "CP014-full-and-installed-acceptance",
+      "status": "NOT RUN",
+      "scope": "Current full source/installed/frozen/browser/OS matrix not run; historical CP013 full source not transferred to changed bytes.",
+      "receipt": "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json"
     }
   ]
 }

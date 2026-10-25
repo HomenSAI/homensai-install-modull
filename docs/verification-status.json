@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-013",
+  "checkpoint_id": "CP-20261025-014",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
@@ -223,6 +223,18 @@
       "status": "BLOCKED",
       "scope": "Verified official browser --version outside sandbox exits139; current GUI browser tests NOT RUN. Cause not established.",
       "receipt": "packaging/acceptance-evidence/recovery-20261025-cp013.json"
+    },
+    {
+      "id": "CP014-requirements-projection",
+      "status": "PASS",
+      "scope": "55 targeted signed metadata/API/HTTP cases including12 new; immutable capability projection, old pending plan v1 compatible. Seven integrated files exactly match tested commit.",
+      "receipt": "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json"
+    },
+    {
+      "id": "CP014-full-and-installed-acceptance",
+      "status": "NOT RUN",
+      "scope": "Current full source/installed/frozen/browser/OS matrix not run; historical CP013 full source not transferred to changed bytes.",
+      "receipt": "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json"
     }
   ],
   "historical_evidence": [
@@ -301,9 +313,10 @@
         "packaging/acceptance-evidence/source-20261025-cp012.json",
         "packaging/acceptance-evidence/review-20261025-cp012.json",
         "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json",
-        "packaging/acceptance-evidence/environment-20261025-cp012.json"
+        "packaging/acceptance-evidence/environment-20261025-cp012.json",
+        "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json"
       ],
-      "note": "Полный сценарий НЕ ГОТОВ. Последние частичные проверки: CP-20261025-012; области и непроверенное указаны в receipts. Выполнить оставшуюся приёмку."
+      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-014: Подтверждена только source/API/HTTP совместимость проекции требований; actual GUI/installed/OS приёмка остаётся обязательной."
     },
     {
       "scenario_id": "ACC-02",
@@ -557,9 +570,10 @@
         "packaging/acceptance-evidence/review-20261025-cp012.json",
         "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json",
         "packaging/acceptance-evidence/environment-20261025-cp012.json",
-        "packaging/acceptance-evidence/recovery-20261025-cp013.json"
+        "packaging/acceptance-evidence/recovery-20261025-cp013.json",
+        "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json"
       ],
-      "note": "Полная приёмка НЕ ГОТОВА. CP013 содержит восстановление, source concurrency/status и узкие real HTTP проверки; оставшиеся OS/installed/browser сценарии обязательны."
+      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-014: Подтверждена только source/API/HTTP совместимость проекции требований; actual GUI/installed/OS приёмка остаётся обязательной."
     },
     {
       "scenario_id": "ACC-17",
@@ -652,8 +666,10 @@
         "tests/test_wizard.py"
       ],
       "next_executor_action": "Все 12 reference GUI сочетаний: ru/en/de × четыре target. Проверить keyboard/zoom/long German/Cyrillic/fallback/refresh/maintenance, key/placeholder parity и hashes показанных условий.",
-      "current_artifact_evidence": [],
-      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+      "current_artifact_evidence": [
+        "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json"
+      ],
+      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-014: Подтверждена только source/API/HTTP совместимость проекции требований; actual GUI/installed/OS приёмка остаётся обязательной."
     }
   ],
   "implementation_gaps": [

@@ -296,3 +296,10 @@ service profiles не заменяют обязательные четыре б�
 - Реальные reboot/relogin/power loss, Windows UAC/ACL/DPAPI, live Docker и
   systemd, cross-host restore, production licences/signing/legal approval
   ещё не проверены/не приняты. Причину каждой блокировки сохранять отдельно.
+
+
+## CP-20261025-019 — восстановление и начальные проверки
+
+CP-20261025-019: сохранён CONTINUE_DEVELOPMENT_PROMPT_RU.txt без изменения исходного задания; сверены CP018 branch/ref/HEAD. Новый Docker DEV build с CPython 3.14.3 и require-hashes доступен. До runtime-изменений проверены установленный SDK (65 package files, 7 CLI), prerequisites SDK/CLI (10 clients, 11 CLI) и документированный Windows source профиль (492 PASS; фактически Windows10Home, НЕ Windows11). Полный source/integration baseline ещё PENDING в изолированном snapshot; первая среда имеет недостающие gcc/system Python/D-Bus, готовится полный профиль. Отдельный Docker Git BLOCKED: remote не настроен, Gitea3010 API403. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/baseline-environment-20261025-cp019.json.
+
+Следующий шаг: Завершить полный baseline в дополненной Docker-среде; затем CP020: безопасный браузерный выбор локального prerequisite-файла, source/HTTP/Node и installed/browser проверки. До выключения в22:30 Berlin завершить проверенные checkpoints и push, непроверенное сохранить явно.

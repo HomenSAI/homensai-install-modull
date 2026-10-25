@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-018",
+  "checkpoint_id": "CP-20261025-019",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -86,13 +86,13 @@
     "HIM-088": "Exact distributed dependencies/notices/approvals unresolved"
   },
   "sync": {
-    "cloud_git": "SYNC_PENDING",
+    "cloud_git": "NOT_APPLICABLE: работа ведётся в Windows workspace",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261025-017",
+    "last_confirmed_checkpoint": "CP-20261025-018",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
-  "next_step": "Подтвердить CP018 GitHub ref/tree, затем безопасный явный выбор локального prerequisite artifact в мастере с signed pins и bounded handling; сохранить source и installed проверки. Обязательна actual browser/platform acceptance текущих artifacts при доступной среде. Параллельная core очередь: ExecutableProductAdapter/NativeEngine, migration backup contract и независимый reference через установленный публичный SDK; production catalog/signing/legal gates открыты.",
+  "next_step": "Завершить полный baseline в дополненной Docker-среде; затем CP020: безопасный браузерный выбор локального prerequisite-файла, source/HTTP/Node и installed/browser проверки. До выключения в22:30 Berlin завершить проверенные checkpoints и push, непроверенное сохранить явно.",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
@@ -100,7 +100,7 @@
     "linux_native": "PARTIAL: frozen x64 user-session lifecycle/updates/rollback/repair/crash-resume PASS in scoped receipts; OS service/reboot/full matrix open",
     "linux_docker": "NOT RUN/BLOCKED live daemon: source install/uninstall/start/stop/backup tested with modeled daemon; images/host attestation/full lifecycle remain open"
   },
-  "last_confirmed_github_sha": "588efbcf3f43bc6b634e281ad899cd3ba63a0a65",
+  "last_confirmed_github_sha": "3b82b54a83adce75afc59abf5feed53cc7379666",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -152,17 +152,18 @@
     "packaging/acceptance-evidence/prerequisite-state-race-20261025-cp018.json",
     "packaging/acceptance-evidence/execution-domain-sidecars-20261025-cp018.json",
     "packaging/acceptance-evidence/progress-raw-evidence-20261025-cp018.json",
-    "packaging/acceptance-evidence/github-ci-20261025-cp017.json"
+    "packaging/acceptance-evidence/github-ci-20261025-cp017.json",
+    "packaging/acceptance-evidence/baseline-environment-20261025-cp019.json"
   ],
   "environment": {
-    "os": "linux",
+    "os": "Windows 10 Home 10.0.19045",
     "arch": "x64",
-    "python": "3.12.14",
-    "docker_cli": false,
-    "docker_socket": false,
-    "systemd_pid1": false,
-    "windows": false,
-    "sandbox_pid_proc_identity": "MISMATCH; process acceptance ran outside sandbox with matched identity"
+    "docker_cli": true,
+    "docker_socket": true,
+    "docker_engine": "29.9.2",
+    "verification_python": "3.14.3 Linux Docker и отдельный Windows DEV venv",
+    "windows": true,
+    "windows_11": false
   },
   "task_counts": {
     "DONE": 8,
@@ -200,6 +201,12 @@
       "status": "PASS",
       "scope": "29 Node groups under injected DOM/HTTP; overlaps full suite; actual browser NOT RUN/BLOCKED",
       "receipt": "packaging/acceptance-evidence/progress-independent-20261025-cp018.json"
+    },
+    {
+      "id": "cp019-environment-baseline",
+      "status": "PASS_SCOPED / source PENDING",
+      "scope": "CP-20261025-019: сохранён CONTINUE_DEVELOPMENT_PROMPT_RU.txt без изменения исходного задания; сверены CP018 branch/ref/HEAD. Новый Docker DEV build с CPython 3.14.3 и require-hashes доступен. До runtime-изменений проверены установленный SDK (65 package files, 7 CLI), prerequisites SDK/CLI (10 clients, 11 CLI) и документированный Windows source профиль (492 PASS; фактически Windows10Home, НЕ Windows11). Полный source/integration baseline ещё PENDING в изолированном snapshot; первая среда имеет недостающие gcc/system Python/D-Bus, готовится полный профиль. Отдельный Docker Git BLOCKED: remote не настроен, Gitea3010 API403. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/baseline-environment-20261025-cp019.json.",
+      "receipt": "packaging/acceptance-evidence/baseline-environment-20261025-cp019.json"
     }
   ]
 }

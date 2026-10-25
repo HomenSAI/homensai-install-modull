@@ -1,0 +1,122 @@
+{
+  "status": "PASS",
+  "check": "offline_lock_consistency_and_dependency_closure",
+  "pinned_packages": 17,
+  "selected_wheel_files": 22,
+  "matrix": [
+    {
+      "target": "linux-x64",
+      "python": "3.14.3",
+      "active_packages": [
+        "altgraph",
+        "build",
+        "cffi",
+        "cryptography",
+        "iniconfig",
+        "packaging",
+        "pluggy",
+        "pycparser",
+        "pygments",
+        "pyinstaller",
+        "pyinstaller-hooks-contrib",
+        "pyproject-hooks",
+        "pytest",
+        "setuptools"
+      ]
+    },
+    {
+      "target": "linux-x64",
+      "python": "3.14.9",
+      "active_packages": [
+        "altgraph",
+        "build",
+        "cffi",
+        "cryptography",
+        "iniconfig",
+        "packaging",
+        "pluggy",
+        "pycparser",
+        "pygments",
+        "pyinstaller",
+        "pyinstaller-hooks-contrib",
+        "pyproject-hooks",
+        "pytest",
+        "setuptools"
+      ]
+    },
+    {
+      "target": "windows-x64",
+      "python": "3.14.3",
+      "active_packages": [
+        "altgraph",
+        "build",
+        "cffi",
+        "colorama",
+        "cryptography",
+        "iniconfig",
+        "packaging",
+        "pefile",
+        "pluggy",
+        "pycparser",
+        "pygments",
+        "pyinstaller",
+        "pyinstaller-hooks-contrib",
+        "pyproject-hooks",
+        "pytest",
+        "pywin32-ctypes",
+        "setuptools"
+      ]
+    },
+    {
+      "target": "windows-x64",
+      "python": "3.14.9",
+      "active_packages": [
+        "altgraph",
+        "build",
+        "cffi",
+        "colorama",
+        "cryptography",
+        "iniconfig",
+        "packaging",
+        "pefile",
+        "pluggy",
+        "pycparser",
+        "pygments",
+        "pyinstaller",
+        "pyinstaller-hooks-contrib",
+        "pyproject-hooks",
+        "pytest",
+        "pywin32-ctypes",
+        "setuptools"
+      ]
+    }
+  ],
+  "license_approval": false,
+  "runtime_acceptance": "NOT_CHECKED",
+  "installed_environment": {
+    "status": "PASS",
+    "target": "windows-x64",
+    "python": "3.14.3",
+    "packages": {
+      "altgraph": "0.17.5",
+      "build": "1.6.1",
+      "cffi": "2.1.1",
+      "colorama": "0.4.6",
+      "cryptography": "50.0.2",
+      "iniconfig": "2.3.1",
+      "packaging": "26.3",
+      "pefile": "2024.8.26",
+      "pluggy": "1.7.0",
+      "pycparser": "3.12",
+      "pygments": "2.21.0",
+      "pyinstaller": "6.22.3",
+      "pyinstaller-hooks-contrib": "2026.9",
+      "pyproject-hooks": "1.3.3",
+      "pytest": "9.1.1",
+      "pywin32-ctypes": "0.2.3",
+      "setuptools": "84.2.1"
+    },
+    "bootstrap_pip_version": "25.3",
+    "note": "pip is a recorded bootstrap tool, not a redistributed runtime dependency"
+  }
+}

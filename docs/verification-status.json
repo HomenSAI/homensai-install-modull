@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-018",
+  "checkpoint_id": "CP-20261025-019",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
@@ -842,5 +842,13 @@
       "ready": false,
       "next_executor_action": "Implement explicit safe local installer selection with expected signed pins and bounded local handling; test rejection before effects. Arbitrary browser paths remain forbidden."
     }
-  ]
+  ],
+  "cp019_baseline": {
+    "status": "PARTIAL",
+    "receipt": "packaging/acceptance-evidence/baseline-environment-20261025-cp019.json",
+    "full_source": "PENDING",
+    "windows_profile": "492 PASS наWindows10; Windows11 NOT RUN",
+    "installed_synthetic": "PASS до runtime-изменений",
+    "docker_git": "BLOCKED"
+  }
 }

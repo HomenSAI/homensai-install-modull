@@ -201,6 +201,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 Доказательство / ограничения / следующий шаг: tools/checkpoint.py: явный allowlist, isolated index, hooks/signing, CAS, remotes отдельно, receipt вне Git tree. 37 реальных Git/bare-repo tests; Docker Git владельца остаётся SYNC_BLOCKED.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
+Дополнение CP-20261025-019 / HIM-009: CP-20261025-019: сохранён CONTINUE_DEVELOPMENT_PROMPT_RU.txt без изменения исходного задания; сверены CP018 branch/ref/HEAD. Новый Docker DEV build с CPython 3.14.3 и require-hashes доступен. До runtime-изменений проверены установленный SDK (65 package files, 7 CLI), prerequisites SDK/CLI (10 clients, 11 CLI) и документированный Windows source профиль (492 PASS; фактически Windows10Home, НЕ Windows11). Полный source/integration baseline ещё PENDING в изолированном snapshot; первая среда имеет недостающие gcc/system Python/D-Bus, готовится полный профиль. Отдельный Docker Git BLOCKED: remote не настроен, Gitea3010 API403. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/baseline-environment-20261025-cp019.json.
+
 [x] HIM-071. Проверить продолжение разработки без истории чата
 Статус: DONE | Проверки: PASS | checkpoint_id: CP-20261025-013
 Зависимости: HIM-009; PROMPT: § 31.

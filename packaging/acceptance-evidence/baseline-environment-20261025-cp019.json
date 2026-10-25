@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "checkpoint": "CP-20261025-019",
+  "author": "Serhii Khomenko",
+  "source_commit": "3b82b54a83adce75afc59abf5feed53cc7379666",
+  "scope": "Восстановление контекста и baseline до runtime-изменений; приёмка всего продукта НЕ ГОТОВА",
+  "status": "PASS_SCOPED",
+  "production_ready": false,
+  "prompt": {
+    "path": "CONTINUE_DEVELOPMENT_PROMPT_RU.txt",
+    "sha256": "30da0a7e7f0b7ff56c32e54f155da213ecc263eb2458b92eb219850c21d06b83"
+  },
+  "observations": {
+    "github_cp018_ref": "CONFIRMED: 3b82b54a83adce75afc59abf5feed53cc7379666",
+    "docker_engine": "29.9.2 доступен; новый изолированный DEV image Python 3.14.3, зависимости require-hashes",
+    "windows_profile": "492 passed; Windows 10 Home x64, Python3.14.3; НЕ Windows11 acceptance",
+    "installed_sdk": "PASS: 65 package files, 7 CLI commands; synthetic planning contract",
+    "installed_prerequisites": "PASS: 10 clients, 11 CLI calls; synthetic installers/inventory",
+    "source_integration": "PENDING: первый baseline выполняется в отдельном snapshot CP018; missing gcc/system Python/D-Bus исключают полный профиль, готовится дополненная среда",
+    "docker_git": "BLOCKED: отдельный remote не настроен; 8796 refused, Gitea3010 API403; credentials/config не менялись",
+    "ci": "NOT RUN: текущие runs ещё не проверены",
+    "production": "G0–G5 OPEN; signing/legal/product/platform acceptance остаются открыты"
+  },
+  "evidence": [
+    {
+      "path": "packaging/acceptance-evidence/cp019-windows-profile.json",
+      "sha256": "8ef3c9f8a0c11d53f4e9063ae95d3fac0f33442e3cb4b4347b294f9d9f6d01fd"
+    },
+    {
+      "path": "packaging/acceptance-evidence/cp019-windows-runtime-download.json",
+      "sha256": "577be713da5e7567f822064dd3595c9bb992a5fda98b4ca44ee70a5fa774b9f3"
+    },
+    {
+      "path": "packaging/acceptance-evidence/cp019-windows-profile.xml",
+      "sha256": "06690a3c1d9b43ed0cc021e56cd573f36552aebc1c4b95c568d7d7a817afef59"
+    },
+    {
+      "path": "packaging/acceptance-evidence/cp019-windows-profile-0.log",
+      "sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf"
+    },
+    {
+      "path": "packaging/acceptance-evidence/cp019-windows-profile-1.log",
+      "sha256": "319017a80887fefba0c79b4a50a76ebe6832ca7904d157e26aa8931e44cfea45"
+    },
+    {
+      "path": "packaging/acceptance-evidence/cp019-windows-profile-2.log",
+      "sha256": "76203c34778f3ff13bd1becc17a395452e6d16c66e2814a980ed52ed8decd012"
+    },
+    {
+      "path": "packaging/acceptance-evidence/cp019-baseline-installed-sdk.json",
+      "sha256": "957bdba7dde44f21474e6f1b05e8d039030da945958e84bc3eb3eefdcd434fd9"
+    },
+    {
+      "path": "packaging/acceptance-evidence/cp019-baseline-installed-prerequisites.json",
+      "sha256": "b8d2656c42da1b43b5b0fae001aaeb454be73fe00402e46a80ab1ef830ca726a"
+    },
+    {
+      "path": "packaging/acceptance-evidence/cp019-baseline-installed-sdk.log",
+      "sha256": "f3dedd189f4ba6702e8e61f8d41e91234d00365558b53e3983c04232d792ee0c"
+    },
+    {
+      "path": "packaging/acceptance-evidence/cp019-baseline-installed-prerequisites.log",
+      "sha256": "16f5729de62f4f077c38b4a347fc41f750429958116b4fb88f46c039ecb7a4ba"
+    }
+  ],
+  "junit_sanitization": {
+    "reason": "Checkpoint scanner обнаружил в JUnit имени parametrized test синтетический token/private-key marker; исходный лог сохранён без изменения в build/cp019/windows-profile.xml",
+    "raw_sha256": "f210cef75c83aa2ddfc5fbeff222ba359dd54cba848d2e2232cecdc2c6ba6f27",
+    "published_sha256": "06690a3c1d9b43ed0cc021e56cd573f36552aebc1c4b95c568d7d7a817afef59"
+  }
+}

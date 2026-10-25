@@ -1,9 +1,9 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261025-018`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261025-019`;  ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый local/GitHub до создания CP-20261025-018:
-`588efbcf3f43bc6b634e281ad899cd3ba63a0a65` (CP-20261025-017).
+Последний подтверждённый local/GitHub до создания CP-20261025-019:
+`3b82b54a83adce75afc59abf5feed53cc7379666` (CP-20261025-018).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
@@ -21,7 +21,13 @@ dirty/staged files и активные процессы. Не сбрасыват
 только как source audit и design target matrix. Все G0–G5 OPEN.
 Список задач только в HomenSAI_Universal_Installer_TODO_RU.txt.
 
-## Среда и сохранение
+## Текущий этап CP019
+
+CP-20261025-019: сохранён CONTINUE_DEVELOPMENT_PROMPT_RU.txt без изменения исходного задания; сверены CP018 branch/ref/HEAD. Новый Docker DEV build с CPython 3.14.3 и require-hashes доступен. До runtime-изменений проверены установленный SDK (65 package files, 7 CLI), prerequisites SDK/CLI (10 clients, 11 CLI) и документированный Windows source профиль (492 PASS; фактически Windows10Home, НЕ Windows11). Полный source/integration baseline ещё PENDING в изолированном snapshot; первая среда имеет недостающие gcc/system Python/D-Bus, готовится полный профиль. Отдельный Docker Git BLOCKED: remote не настроен, Gitea3010 API403. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/baseline-environment-20261025-cp019.json.
+
+Следующий шаг: Завершить полный baseline в дополненной Docker-среде; затем CP020: безопасный браузерный выбор локального prerequisite-файла, source/HTTP/Node и installed/browser проверки. До выключения в22:30 Berlin завершить проверенные checkpoints и push, непроверенное сохранить явно.
+
+## Историческая среда CP018 и сохранение
 
 Cloud Ubuntu 24.04.3 LTS x64, Python 3.12.14. Исторические CP-005 receipts
 относятся к Python 3.14.3; результаты сред не смешивать. Начальная target matrix:

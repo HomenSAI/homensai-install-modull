@@ -97,6 +97,11 @@ def test_transport_requires_explicit_trusted_coordinator(tmp_path):
 
 def test_exact_payload_binding_and_identical_relocation(bundle):
     session, _ = wizard(bundle)
+    configured = session.route("GET", "/prerequisites/capabilities", {}, {})
+    assert configured["configured"] is True and configured["gui_auto_flow"] is True
+    assert configured["production_ready"] is False and configured["durable_byte_progress"] is False
+    unavailable = session.route("GET", "/prerequisites/capabilities", {"mode": ["docker"]}, {})
+    assert unavailable["configured"] is False and unavailable["gui_auto_flow"] is False
     original = session.api.prerequisites_identity()["payload_binding"]
     original["release"] = "caller-mutation"
     assert session.api.prerequisites_identity()["payload_binding"]["release"] == "1.0.0"
@@ -486,5 +491,5 @@ def test_published_http_contract_and_paired_resources_match_transport(tmp_path):
         assert (root / path).read_bytes() == (root / "homensai_install/api/resources" / packaged).read_bytes()
     published = json.loads((root / "api/discovery.json").read_text())["prerequisites"]
     assert published == InstallerAPI(tmp_path / "none").describe()["prerequisites"]
-    assert published["http_plan_input"] == "server_plan_id" and published["gui_auto_flow"] is False
+    assert published["http_plan_input"] == "server_plan_id" and published["gui_auto_flow"] is True
     assert published["durable_byte_progress"] is False

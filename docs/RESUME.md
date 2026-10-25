@@ -1,9 +1,9 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261025-014`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261025-015`; ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый local/GitHub до создания CP-20261025-014:
-`8fd2424441afaeb2d6f7644182b923f937152864` (CP-20261025-013).
+Последний подтверждённый local/GitHub до создания CP-20261025-015:
+`c3b3400461a38fdb8c3b92d2ba0512457988aa47` (CP-20261025-014).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
@@ -30,7 +30,7 @@ Windows 11 x64 и Ubuntu 24.04 LTS x86_64, четыре native/Docker пути, 
 systemd manager здесь отсутствуют; Windows runner не подключён.
 
 Новый изолированный DEV build-env на CPython 3.14.3 подготовлен и проверен по
-requirements-build.lock (receipts CP-011); текущие source/SDK проверки CP-012
+requirements-build.lock (receipts CP-011); текущие source/HTTP проверки CP-015
 выполнены именно им. Production security approval этого runtime НЕ ГОТОВО.
 
 Sandbox PID не совпадает с mounted /proc. Реальные process tests выполнены
@@ -79,6 +79,15 @@ CP-008 объединяет независимые source units в общем ro
 
 
 ## Последний выполненный шаг
+
+CP-20261025-015: Реализован условный мастер подготовки через общий HTTP/SDK: auto/manual/use/skip, signed version requirements, отдельные product/license/action/plan согласия, progress состояний, явные cancel/recheck/replan/resume. Reload и потерянный ACK читают тот же ID без implicit start/resume; active=true/null блокирует действия, READY требует нового product preflight/terms/review. Исправлены подтверждённая потеря polling после Refresh и неверный inner SDK api_version в OpenAPI; HTTP envelope остаётся 1, SDK 1.0. ru/en/de: 215 ключей.
+
+Полный source на Python 3.14.3: 1974 PASS, 3 skips, 10 subtests (75.88 s). Два Linux skip отдельно вместе с тремя настоящими loopback HTTP: 5 PASS (2.58 s); Windows case NOT RUN. Настоящий JS в Node VM: 19 новых групп и 6 прежних PASS, они входят в pytest wrappers и не прибавляются к source count. Исходные polling/API-schema FAIL сохранены с последующим PASS; newline hypothesis явно не подтверждена. Current installed wheel/frozen/actual browser/OS acceptance NOT RUN; browser BLOCKED, CI CP-014 четыре jobs без runner/steps. Global lease, durable byte progress и browser local artifact selection NOT IMPLEMENTED.
+
+Receipt: `packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json`.
+Следующий шаг: После подтверждения CP-015 в GitHub выполнить новый installed signed synthetic prerequisite SDK/CLI lifecycle из wheel вне checkout и сохранить CP-016. Затем общий атомарный product/prerequisite execution lease и durable measured byte progress; actual browser/platform acceptance остаётся обязательной.
+
+## Исторический шаг CP-20261025-014
 
 CP-20261025-014: В capabilities добавлена проверяемая проекция шести полей требований версии/обязательности/scope. Данные берутся из повторно проверенного подписанного каталога, без discovery, effects, путей или команд. Сохранённый plan v1, digest и consent refs не меняются; старая queued операция восстанавливается прежним контрактом. OpenAPI и встроенные API документы синхронизированы.
 
@@ -132,14 +141,14 @@ late rollback и SIGKILL→new controller/browser→explicit resume. Стары�
 ## Следующие инженерные шаги
 
 1. Проверить текущий checkpoint по GitHub ref/tree и local receipt. После каждого следующего шага обновить canonical TODO/RESUME/реестр, сохранить и подтвердить GitHub до продолжения.
-2. Подключить conditional GUI prerequisites: auto/manual/terms/progress/recovery по HTTP CP-012, безопасная signed projection требований версий. READY сбрасывает product review и требует fresh preflight; установка продукта сама не начинается. Real browser остаётся BLOCKED, Node tests не заменяют browser acceptance.
+2. Повторить installed signed synthetic prerequisite SDK/CLI lifecycle на новом wheel из CP-015 вне checkout. Условный GUI уже реализован и проверен через Node; actual browser остаётся BLOCKED. Node не принимает вёрстку, focus/keyboard или OS installation. После READY нужен новый явный product preflight/terms/review.
 3. Реализовать общий атомарный product/prerequisite execution lease и durable byte-progress stream. Текущий registered-store busy probe не закрывает cross-executor race. Production signed catalogue/pins/licences/host providers и browser local artifact selection также ещё НЕ ГОТОВО.
 4. Подключить подписанный ExecutableProductAdapter к NativeEngine: reviewed descriptor binding и fresh readiness observation, затем migration contract с настоящими backup receipts и fresh-empty precondition. Добавить независимый reference через публичный установленный пакет. Не заменять UNKNOWN автоматическим rollback.
 5. Docker: explicit abort/compensation interrupted install, trusted host attestation и image transport/import/offline bundle, update/restore/rollback/repair/reinstall. Live daemon в текущей среде BLOCKED.
 6. Windows native bootstrap и narrow elevation; Windows Docker/WSL2; systemd service integration с общим lock lease/execution ownership. Отсутствие runner не означает, что реализация закончена.
 7. Portable/legacy/multi-root recovery, modify_components, build/doctor facade, signed maintenance catalogue и mandatory production licence gate; затем thin product adapters JobPilot/Rent по pinned source audit. Исторический build2 FAIL не закрывать без исходных scenarios.
 8. Актуальные DEV artifacts и полная reference/product acceptance на четырёх targets × ru/en/de, offline, migration/rollback/restore, reboot/power loss. Каждый NOT RUN/BLOCKED/FAIL из verification-status.json должен быть выполнен следующим ИИ при доступности реализации/среды. NOT IMPLEMENTED означает сначала реализовать недостающий механизм/тест.
-9. Production signing/approved legal/licence decisions и отдельный Docker Git владельца остаются BLOCKED до реального подключения/решения. GitHub CI CP-011 jobs не получили runner/steps; источник проблемы не доказан. Не менять billing/workflow по догадке.
+9. Production signing/approved legal/licence decisions и отдельный Docker Git владельца остаются BLOCKED до реального подключения/решения. GitHub CI CP-014: четыре jobs без runner/steps; источник проблемы не доказан. Не менять billing/workflow по догадке.
 
 Все G0–G5 OPEN; production_ready=false. Это инженерная очередь и конкретные внешние блокировки; отдельные source PASS не заменяют приёмку.
 

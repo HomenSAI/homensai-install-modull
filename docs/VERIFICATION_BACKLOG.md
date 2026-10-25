@@ -1,6 +1,6 @@
 # Невыполненные проверки — обязательное задание следующему ИИ
 
-Автор: Serhii Khomenko. CP-20261025-014.
+Автор: Serhii Khomenko. CP-20261025-015.
 
 **Полная приёмка НЕ ГОТОВА; production_ready=false.** Этот документ и
 `verification-status.json` описывают проверки. Единственный список реализации —
@@ -27,6 +27,8 @@
 ранних попыток сохранять в истории, новый успех записывать отдельной квитанцией.
 
 ## Что подтверждено сейчас
+
+- CP-20261025-015: Полный source на Python 3.14.3: 1974 PASS, 3 skips, 10 subtests (75.88 s). Два Linux skip отдельно вместе с тремя настоящими loopback HTTP: 5 PASS (2.58 s); Windows case NOT RUN. Настоящий JS в Node VM: 19 новых групп и 6 прежних PASS, они входят в pytest wrappers и не прибавляются к source count. Исходные polling/API-schema FAIL сохранены с последующим PASS; newline hypothesis явно не подтверждена. Current installed wheel/frozen/actual browser/OS acceptance NOT RUN; browser BLOCKED, CI CP-014 четыре jobs без runner/steps. Global lease, durable byte progress и browser local artifact selection NOT IMPLEMENTED. Receipt: `packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json`.
 
 - CP-20261025-014: 55 целевых source/API/HTTP проверок PASS, 0 skips (5.933 s), Python 3.14.3; 12 новых случаев входят в эти 55. Root сравнил все семь интегрированных файлов с проверенным commit 2c6d3c9 и receipt-хешами. Первый harness-прогон 9 PASS/3 FAIL сохранён: исправлено ошибочное ожидание отсутствующего store после trusted constructor. Новый полный source suite/installed wheel/browser/OS acceptance NOT RUN; source1961 PASS CP-013 остаётся историческим результатом других bytes. GUI ещё в разработке. Receipt: `packaging/acceptance-evidence/requirements-projection-20261025-cp014.json`.
 
@@ -62,7 +64,7 @@
 прочитать и адаптировать к проверенному test fixture. Никаких реальных
 email/Telegram, пользовательских баз, чужих процессов или ports 8810/8811/8812.
 
-## Конкретные незавершённые механизмы CP-012
+## Конкретные незавершённые механизмы — состояние CP-015
 
 Наличие прошедших transport/source тестов не закрывает эти требования.
 Каждый пункт также записан в `verification-status.json` → `implementation_gaps`.
@@ -70,14 +72,15 @@ email/Telegram, пользовательских баз, чужих процес
 | Механизм | Реализация / тест | Что должен сделать следующий исполнитель |
 |---|---|---|
 | Общая атомарная блокировка product/prerequisite executors | NOT IMPLEMENTED / NOT RUN | Реализовать общий durable lease; проверить параллельные независимые процессы, обрыв, неизвестный эффект и безопасное освобождение. `busy()` проверяет состояние, но не выдаёт такой lease. |
-| GUI auto/manual/terms/progress/recovery | NOT IMPLEMENTED / NOT RUN | Подключить явные действия к HTTP, написать проверки настоящего JS и выполнить browser acceptance. |
+| GUI auto/manual/terms/progress/recovery | Source IMPLEMENTED; Node contract PASS; browser NOT RUN/BLOCKED | Выполнить actual browser rendering/focus/keyboard/localization и installed/platform acceptance на новых bytes. 19 новых и 6 прежних Node групп не заменяют браузер. |
 | Durable progress скачанных байтов | NOT IMPLEMENTED / NOT RUN | Сохранять измеренные события с порядком/cursor; проверить reconnect/retry/повторы без ложного100%. |
 | Выбор локального prerequisite installer через браузер | NOT IMPLEMENTED / NOT RUN | Добавить безопасный явный выбор с проверкой signed pins; произвольные browser paths по-прежнему запрещены. |
 
 Текущая browser acceptance BLOCKED: официальный альтернативный архив получен
 и ZIP CRC проверен, но executable и `--version` падают с SIGSEGV; причина неизвестна.
-CI CP-011 также BLOCKED: четыре задания без runner/steps, лог недоступен.
-Факты и последующие действия: `packaging/acceptance-evidence/environment-20261025-cp012.json`.
+CI CP-014 также BLOCKED: четыре задания без runner/steps, тесты не запускались.
+Факты и последующие действия: `packaging/acceptance-evidence/environment-20261025-cp012.json`
+и `packaging/acceptance-evidence/github-ci-20261025-cp014.json`.
 
 ## Полные сценарии, которые ещё НЕ ГОТОВЫ
 

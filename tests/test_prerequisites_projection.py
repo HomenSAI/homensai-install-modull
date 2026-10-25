@@ -10,7 +10,7 @@ import re
 
 import pytest
 
-from homensai_install import prerequisite_async as background
+from homensai_install import API_VERSION, prerequisite_async as background
 from homensai_install.api.model import canonical
 from homensai_install.api.v1 import InstallerAPI
 from homensai_install.errors import InstallerError
@@ -155,12 +155,16 @@ def test_http_projection_binding_and_published_resource_contract(bundle):
         assert re.search(pattern, "v1.2.0+build") and re.search(pattern, "1.2")
         assert not re.search(pattern, "1.2.0-rc1") and not re.search(pattern, "1.2\n")
     capability = schemas["PrerequisiteCapabilitiesResult"]
+    # HTTP envelope version and inner public SDK version are separate contracts.
+    # Compare the actual configured route result, not only the two schema copies.
+    assert capability["properties"]["api_version"]["const"] == caps["api_version"] == API_VERSION
     assert capability["properties"]["requirements"] == {
         "type": "array", "minItems": 1, "maxItems": 128,
         "items": {"$ref": "#/components/schemas/PrerequisiteRequirement"}}
     assert set(capability["allOf"][0]["then"]["required"]) == {
         "product_id", "owner_id", "target", "catalog_digest", "requirements"}
     response = contract["paths"]["/api/v1/prerequisites/capabilities"]["get"]["responses"]["200"]
+    assert response["content"]["application/json"]["schema"]["properties"]["api_version"]["const"] == "1"
     assert response["content"]["application/json"]["schema"]["properties"]["result"] == {
         "$ref": "#/components/schemas/PrerequisiteCapabilitiesResult"}
     assert set(schemas["PrerequisitePlanRequest"]["properties"]) == {"mode", "locale", "choices", "offline"}

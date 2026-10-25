@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-014",
+  "checkpoint_id": "CP-20261025-015",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
@@ -235,6 +235,30 @@
       "status": "NOT RUN",
       "scope": "Current full source/installed/frozen/browser/OS matrix not run; historical CP013 full source not transferred to changed bytes.",
       "receipt": "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json"
+    },
+    {
+      "id": "CP015-full-source",
+      "status": "PASS",
+      "scope": "1974 PASS/3 skips/10 subtests; current source bytes, Python3.14.3; Windows-only skip NOT RUN.",
+      "receipt": "packaging/acceptance-evidence/source-20261025-cp015.json"
+    },
+    {
+      "id": "CP015-process-http",
+      "status": "PASS",
+      "scope": "Two source Linux skips plus three actual loopback HTTP cases: 5 PASS, no skips; synthetic installers.",
+      "receipt": "packaging/acceptance-evidence/process-http-20261025-cp015.json"
+    },
+    {
+      "id": "CP015-gui-response-contract",
+      "status": "PASS",
+      "scope": "19 new and6 legacy Node groups, real shipped JS with injected DOM/fetch; polling regression FAIL then PASS; actual browser NOT RUN.",
+      "receipt": "packaging/acceptance-evidence/cp015-ui-independent-receipt.json"
+    },
+    {
+      "id": "CP015-browser-ci",
+      "status": "BLOCKED",
+      "scope": "Browser runtime remains unavailable; CI CP0144jobs runner_id0/steps[], tests NOT RUN.",
+      "receipt": "packaging/acceptance-evidence/github-ci-20261025-cp014.json"
     }
   ],
   "historical_evidence": [
@@ -314,9 +338,10 @@
         "packaging/acceptance-evidence/review-20261025-cp012.json",
         "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json",
         "packaging/acceptance-evidence/environment-20261025-cp012.json",
-        "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json"
+        "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json",
+        "packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json"
       ],
-      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-014: Подтверждена только source/API/HTTP совместимость проекции требований; actual GUI/installed/OS приёмка остаётся обязательной."
+      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-015: Условный GUI реализован, actual JS response contract PASS; настоящий browser/installed/OS scenario остаётся NOT RUN/BLOCKED и обязателен."
     },
     {
       "scenario_id": "ACC-02",
@@ -441,9 +466,10 @@
         "packaging/acceptance-evidence/review-20261025-cp012.json",
         "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json",
         "packaging/acceptance-evidence/environment-20261025-cp012.json",
-        "packaging/acceptance-evidence/recovery-20261025-cp013.json"
+        "packaging/acceptance-evidence/recovery-20261025-cp013.json",
+        "packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json"
       ],
-      "note": "Полная приёмка НЕ ГОТОВА. CP013 содержит восстановление, source concurrency/status и узкие real HTTP проверки; оставшиеся OS/installed/browser сценарии обязательны."
+      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-015: Условный GUI реализован, actual JS response contract PASS; настоящий browser/installed/OS scenario остаётся NOT RUN/BLOCKED и обязателен."
     },
     {
       "scenario_id": "ACC-09",
@@ -667,9 +693,10 @@
       ],
       "next_executor_action": "Все 12 reference GUI сочетаний: ru/en/de × четыре target. Проверить keyboard/zoom/long German/Cyrillic/fallback/refresh/maintenance, key/placeholder parity и hashes показанных условий.",
       "current_artifact_evidence": [
-        "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json"
+        "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json",
+        "packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json"
       ],
-      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-014: Подтверждена только source/API/HTTP совместимость проекции требований; actual GUI/installed/OS приёмка остаётся обязательной."
+      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-015: Условный GUI реализован, actual JS response contract PASS; настоящий browser/installed/OS scenario остаётся NOT RUN/BLOCKED и обязателен."
     }
   ],
   "implementation_gaps": [
@@ -693,11 +720,15 @@
         "HIM-035",
         "HIM-102"
       ],
-      "implementation": "NOT IMPLEMENTED",
-      "test_code": "NOT IMPLEMENTED",
-      "acceptance_status": "NOT RUN",
+      "implementation": "PARTIAL: conditional source GUI implemented",
+      "test_code": "Source Node contract IMPLEMENTED; actual browser harness/acceptance incomplete",
+      "acceptance_status": "PARTIAL: Node PASS, actual browser NOT RUN/BLOCKED",
       "ready": false,
-      "next_executor_action": "Connect explicit auto/manual/consent/progress/recovery UI to HTTP, add current-script contract tests and actual browser acceptance. Node tests alone do not accept rendering."
+      "next_executor_action": "Run actual browser rendering/focus/keyboard/locale and installed/platform acceptance on current artifacts. Preserve explicit consents, READ-only recovery, execution.active=false gate and fresh product review after READY.",
+      "note": "CP015: 19 new and 6 legacy Node groups PASS on shipped assets; source1974PASS and real process/HTTP5PASS. These are not rendering or OS acceptance.",
+      "evidence": [
+        "packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json"
+      ]
     },
     {
       "id": "prerequisite-durable-byte-progress",

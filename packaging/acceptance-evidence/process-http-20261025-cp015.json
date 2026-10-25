@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "checkpoint": "CP-20261025-015",
+  "profile": "process-http",
+  "started_at_utc": "2026-10-25T16:35:54.721472+00:00",
+  "source_parent": "c3b3400461a38fdb8c3b92d2ba0512457988aa47",
+  "argv": [
+    "/workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python",
+    "-B",
+    "-m",
+    "pytest",
+    "-q",
+    "-rs",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/tmp/hinstall-cp015-process-http-04f338",
+    "--junitxml=/workspace/scratch/04f3380d60c8/recovery-evidence/cp015-process-http.xml",
+    "tests/test_service_systemd.py::test_kernel_process_identity_is_verified_against_real_child",
+    "tests/test_service_systemd.py::test_real_busctl_property_and_method_have_distinct_json_shapes",
+    "integration_tests/test_prerequisites_http.py",
+    "integration_tests/test_wizard_http.py"
+  ],
+  "cwd": "/workspace/scratch/04f3380d60c8/homensai-install-modull",
+  "production_ready": false,
+  "scope": "two real Linux process/D-Bus checks plus three real loopback HTTP checks with synthetic installers",
+  "tested_input_digest": "9f4a2969d23b3888d6f219164d83bfa9d66990e884b35d9c2b28173957d25b50",
+  "exit_code": 0,
+  "elapsed_seconds": 2.803,
+  "finished_at_utc": "2026-10-25T16:35:57.526269+00:00",
+  "status": "PASS",
+  "stdout_sha256": "05319b44b2b0fe52a8ac064d00b1cae069e9dd897c27b84e8f942806bacb946c",
+  "junit_sha256": "0209e343918f7372d50becce9b01224025cc5531f3a4b0b76fbabc5ebd3a9811",
+  "junit": {
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "skipped": [],
+  "inputs_unchanged_after_test": true,
+  "input_manifest": "source-20261025-cp015.json"
+}

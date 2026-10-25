@@ -1,0 +1,14 @@
+{
+  "scope": "regression replay: exact current assets with only the pre-fix version-regex end anchor restored; not a historical full pre-fix source checkout",
+  "source_commit": "5b1ea539225dac1af05d73d130db12c33fb67578",
+  "original_assets_sha256": {
+    "app.js": "0bb2d84342b70718595855ee62a16c0dcb45eac9926e11431a8c73a35e7b2bb9",
+    "index.html": "848612d89132bab42a123ecb9624d10fad0aa233e685d52cc55b10892e32652b",
+    "locales.json": "57d39dbbf298d63ce7164c00fb6b1d24de369fa095bef768a20a80106a132784"
+  },
+  "replayed_assets_sha256": {
+    "app.js": "8f57484b5adb05dfff32209108b3ebc58362e06de02a590233471fd864cb6753",
+    "index.html": "848612d89132bab42a123ecb9624d10fad0aa233e685d52cc55b10892e32652b",
+    "locales.json": "57d39dbbf298d63ce7164c00fb6b1d24de369fa095bef768a20a80106a132784"
+  }
+}

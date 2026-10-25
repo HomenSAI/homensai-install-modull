@@ -1,6 +1,6 @@
 # HTTP-подключение prerequisites
 
-Автор: Serhii Khomenko. Область: transport CP-012 поверх существующего coordinator.
+Автор: Serhii Khomenko. Область: transport CP-012, requirements CP-014 и GUI contract CP-015 поверх существующего coordinator.
 
 Это source/transport implementation. Production registry, настоящий OS installer,
 reboot/relogin и browser auto/manual flow этим документом не объявляются готовыми.
@@ -53,6 +53,8 @@ argv, paths, URL, publisher/trust/config/owner/target dictionaries не явля
 SDK/CLI имеют отдельный явный контракт локальных файлов.
 
 Успех HTTP-запроса возвращается с `200` и `{api_version:"1",result:...}`.
+Внутреннее `result.api_version`, когда оно присутствует в SDK capabilities,
+имеет отдельную публичную версию SDK `"1.0"`; это не версия HTTP envelope.
 Семантические отказы — `400`; Host/Origin/token — `403`; внутренний безопасный
 отказ — `500`. HTTP `200` не означает READY или завершённую product installation.
 

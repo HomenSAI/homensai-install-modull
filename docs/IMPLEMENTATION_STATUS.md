@@ -1,12 +1,18 @@
 # Фактическое состояние реализации
 
-Дата: 25.10.2026. Checkpoint: **CP-20261025-014**.
+Дата: 25.10.2026. Checkpoint: **CP-20261025-015**.
 Ветка `codex/universal-installer-20261025`. **`production_ready=false`.**
 Исходный commit: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
 
 
 
 ## Последний выполненный шаг
+
+CP-20261025-015: Реализован условный мастер подготовки через общий HTTP/SDK: auto/manual/use/skip, signed version requirements, отдельные product/license/action/plan согласия, progress состояний, явные cancel/recheck/replan/resume. Reload и потерянный ACK читают тот же ID без implicit start/resume; active=true/null блокирует действия, READY требует нового product preflight/terms/review. Исправлены подтверждённая потеря polling после Refresh и неверный inner SDK api_version в OpenAPI; HTTP envelope остаётся 1, SDK 1.0. ru/en/de: 215 ключей.
+
+Полный source на Python 3.14.3: 1974 PASS, 3 skips, 10 subtests (75.88 s). Два Linux skip отдельно вместе с тремя настоящими loopback HTTP: 5 PASS (2.58 s); Windows case NOT RUN. Настоящий JS в Node VM: 19 новых групп и 6 прежних PASS, они входят в pytest wrappers и не прибавляются к source count. Исходные polling/API-schema FAIL сохранены с последующим PASS; newline hypothesis явно не подтверждена. Current installed wheel/frozen/actual browser/OS acceptance NOT RUN; browser BLOCKED, CI CP-014 четыре jobs без runner/steps. Global lease, durable byte progress и browser local artifact selection NOT IMPLEMENTED.
+
+## Исторический шаг CP-20261025-014
 
 CP-20261025-014: В capabilities добавлена проверяемая проекция шести полей требований версии/обязательности/scope. Данные берутся из повторно проверенного подписанного каталога, без discovery, effects, путей или команд. Сохранённый plan v1, digest и consent refs не меняются; старая queued операция восстанавливается прежним контрактом. OpenAPI и встроенные API документы синхронизированы.
 
@@ -62,7 +68,7 @@ port с защитой границы native/user и prerequisite coordinator ч
 | Пакет и discovery | Добавить | `pyproject.toml`, SDK, CLI, schemas, OpenAPI, `INSTALLER_API.md`; проверка установленного wheel вне checkout. |
 | Подпись поставки | Добавить | Ed25519 + SHA-256, manifest/target/runtime binding; production trust root ещё не выпущен. |
 | Диагностика и три языка | Добавить | SQLite + ограниченный fallback, 43 codes, ru/en/de, local statistics/export. |
-| GUI и end-user bootstrap | Реализован DEV Linux профиль | ru/en/de; frozen install/backup/uninstall/restore и browser export проверены на исторических CP-004/005 artifacts; остальные платформы и новая frozen сборка открыты. |
+| GUI и end-user bootstrap | Реализован DEV Linux профиль и условный prerequisites GUI | CP-015: ru/en/de, явные согласия/auto/manual/recovery, actual JS Node contracts PASS. Current browser/frozen/OS acceptance открыта; frozen install/backup/uninstall/restore и browser export CP-004/005 — исторические artifacts. |
 
 ## Проверяемое покрытие
 

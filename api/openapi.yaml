@@ -1542,7 +1542,7 @@
     "/api/v1/prerequisites/capabilities": {
       "get": {
         "operationId": "prerequisitesCapabilities",
-        "description": "Возможности явно зарегистрированного target; production registry и GUI auto-flow не создаются.",
+        "description": "Возможности явно зарегистрированного target; условный GUI-flow доступен только с доверенным coordinator. Production registry не создаётся, browser/OS acceptance этим флагом не подтверждается.",
         "responses": {
           "200": {
             "description": "Проверенные возможности и проекция требований; без discover, запуска или записи операции.",
@@ -2774,7 +2774,7 @@
         "description": "Возможности явной регистрации. requirements добавлены независимо от raw plan v1; его digest/consent refs и сохранённые queued операции не меняются. Для соединения requirements с plan по component_id нужны совпадающие product_id/owner_id/target/catalog_digest. Отсутствие requirements у старого сервера означает недоступные сведения, а не неограниченную версию.",
         "properties": {
           "api_version": {
-            "const": "1"
+            "const": "1.0"
           },
           "configured": {
             "type": "boolean"

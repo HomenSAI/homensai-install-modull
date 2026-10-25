@@ -1,0 +1,5 @@
+CASE FAILED: successful refresh restarts polling while an older error explanation is pending
+AssertionError [ERR_ASSERTION]: Successful refresh must not lose its poll to an older error handler
+    at /workspace/scratch/04f3380d60c8/installer-ui-tests/tests/js/wizard_prerequisites.cjs:404:12
+    at async test (/workspace/scratch/04f3380d60c8/installer-ui-tests/tests/js/wizard_prerequisites.cjs:197:39)
+    at async main (/workspace/scratch/04f3380d60c8/installer-ui-tests/tests/js/wizard_prerequisites.cjs:390:3)

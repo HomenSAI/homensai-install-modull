@@ -339,7 +339,12 @@ Guard сначала вызывает read-only `prerequisites_busy()`: стар
 
 Events содержат сохранённые фазы/состояния; callback с download bytes пока
 не сохранён как durable progress. Нельзя выдумывать проценты из этих событий.
-`gui_auto_flow=false`: текущий JavaScript-мастер ещё не использует новые маршруты.
+`gui_auto_flow=true` в discovery описывает реализованный условный JavaScript-flow.
+HTTP capabilities подтверждают его только для явно зарегистрированного target;
+без coordinator или для другого mode возвращается `gui_auto_flow=false`.
+Это доступность исходного кода, а не browser/OS acceptance: `production_ready=false`.
+Мастер разделяет dependency READY и product success, требует новые product
+preflight/terms/review после подготовки. GUI contract: `docs/PREREQUISITES_GUI.md`.
 Полный transport contract, ограничения и тестовые scopes:
 `docs/PREREQUISITES_HTTP.md`.
 

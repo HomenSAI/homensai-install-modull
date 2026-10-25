@@ -252,7 +252,7 @@ class WizardSession:
                         "http_transport": True, "gui_auto_flow": False, "production_ready": False}
             binding = self._prerequisites_bound(mode)
             return {**api.prerequisites_capabilities(), "binding": binding, "http_transport": True,
-                    "gui_auto_flow": False, "durable_byte_progress": False, "production_ready": False}
+                    "gui_auto_flow": True, "durable_byte_progress": False, "production_ready": False}
         self._prerequisites_bound()
         if method == "GET" and path.startswith("/prerequisites/licenses/"):
             self._query(query, set())

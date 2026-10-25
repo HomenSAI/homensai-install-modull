@@ -386,3 +386,13 @@ CP-010: 63 целевых source tests PASS (1.69 s); отдельно уста�
 Подтверждён предыдущий GitHub `8fd2424441afaeb2d6f7644182b923f937152864`; текущий sync до ref/tree — SYNC_PENDING. Receipt: `packaging/acceptance-evidence/requirements-projection-20261025-cp014.json`.
 
 Следующий шаг: HIM-029/035/102: закончить условный GUI auto/manual/terms/progress/recovery и независимые Node contracts. Требования соединять с plan только при совпадении product/owner/target/catalog digest. READY и execution.active=false допускают только новый явный product preflight/terms/review; product submit сам не запускается. Затем отдельный installed signed prerequisite lifecycle и обязательные lease/byte-progress механизмы.
+
+## CP-20261025-015 — Условный GUI prerequisites и восстановление опроса
+
+Реализован условный мастер подготовки через общий HTTP/SDK: auto/manual/use/skip, signed version requirements, отдельные product/license/action/plan согласия, progress состояний, явные cancel/recheck/replan/resume. Reload и потерянный ACK читают тот же ID без implicit start/resume; active=true/null блокирует действия, READY требует нового product preflight/terms/review. Исправлены подтверждённая потеря polling после Refresh и неверный inner SDK api_version в OpenAPI; HTTP envelope остаётся 1, SDK 1.0. ru/en/de: 215 ключей.
+
+Полный source на Python 3.14.3: 1974 PASS, 3 skips, 10 subtests (75.88 s). Два Linux skip отдельно вместе с тремя настоящими loopback HTTP: 5 PASS (2.58 s); Windows case NOT RUN. Настоящий JS в Node VM: 19 новых групп и 6 прежних PASS, они входят в pytest wrappers и не прибавляются к source count. Исходные polling/API-schema FAIL сохранены с последующим PASS; newline hypothesis явно не подтверждена. Current installed wheel/frozen/actual browser/OS acceptance NOT RUN; browser BLOCKED, CI CP-014 четыре jobs без runner/steps. Global lease, durable byte progress и browser local artifact selection NOT IMPLEMENTED.
+
+Подтверждён предыдущий GitHub `c3b3400461a38fdb8c3b92d2ba0512457988aa47`; текущий sync до ref/tree — SYNC_PENDING. Receipt: `packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json`.
+
+Следующий шаг: После подтверждения CP-015 в GitHub выполнить новый installed signed synthetic prerequisite SDK/CLI lifecycle из wheel вне checkout и сохранить CP-016. Затем общий атомарный product/prerequisite execution lease и durable measured byte progress; actual browser/platform acceptance остаётся обязательной.

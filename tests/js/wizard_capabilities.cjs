@@ -22,7 +22,8 @@ const context = vm.createContext({
   sessionStorage:{getItem:()=>null,setItem:()=>{},removeItem:()=>{}},
   history:{replaceState:()=>{}}, fetch:()=>new Promise(()=>{}),
 });
-vm.runInContext(fs.readFileSync(path.resolve(__dirname,"../../homensai_install/wizard/app.js"),"utf8"),context);
+const assetDir=process.argv[2]||path.resolve(__dirname,"../../homensai_install/wizard");
+vm.runInContext(fs.readFileSync(path.join(assetDir,"app.js"),"utf8"),context);
 function run(source) { return vm.runInContext(source,context); }
 function option(id, value) { return element(id).options.find(item=>item.value===value); }
 run(`messages={next:"Next",action_unavailable:"Choose a supported action"};

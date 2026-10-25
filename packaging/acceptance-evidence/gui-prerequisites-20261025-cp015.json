@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-015",
+  "author": "Serhii Khomenko",
+  "source_parent": "c3b3400461a38fdb8c3b92d2ba0512457988aa47",
+  "status": "PASS",
+  "scope": "Conditional prerequisite GUI source/response contracts and current source suite; not browser or OS acceptance",
+  "production_ready": false,
+  "gate_closed": false,
+  "integrated_agent_files": {
+    "homensai_install/wizard/app.js": {
+      "agent_commit": "52aeba3a54bffff6b08257318a560710dcc34725",
+      "sha256": "f59aeb752e2fe007c778c452566b5a8c4a70d5932d311b1626266d52bd1bcd34"
+    },
+    "homensai_install/wizard/index.html": {
+      "agent_commit": "52aeba3a54bffff6b08257318a560710dcc34725",
+      "sha256": "848612d89132bab42a123ecb9624d10fad0aa233e685d52cc55b10892e32652b"
+    },
+    "homensai_install/wizard/style.css": {
+      "agent_commit": "52aeba3a54bffff6b08257318a560710dcc34725",
+      "sha256": "6834f0fa1de6abbbbfd33e45bb5d98a6cb38c08b8051d234b0228caabbd81d66"
+    },
+    "homensai_install/wizard/locales.json": {
+      "agent_commit": "52aeba3a54bffff6b08257318a560710dcc34725",
+      "sha256": "57d39dbbf298d63ce7164c00fb6b1d24de369fa095bef768a20a80106a132784"
+    },
+    "tests/js/wizard_prerequisites.cjs": {
+      "agent_commit": "6187419d1743a163fc400152f57140e6d4d56d30",
+      "sha256": "bd516df6bd4d79eebbf9d76641ad39c378aa9a32913d767461a472f93c2ba9b8"
+    },
+    "tests/test_wizard_prerequisite_ui.py": {
+      "agent_commit": "6187419d1743a163fc400152f57140e6d4d56d30",
+      "sha256": "f040a4d0b8839b9df7f730e46c964b1431a36b3ae76b432eea525ca39ed018ce"
+    },
+    "tests/js/wizard_capabilities.cjs": {
+      "agent_commit": "6187419d1743a163fc400152f57140e6d4d56d30",
+      "sha256": "82ffda09d6ed42243c11752165142948b163059f99ebcccb3cbf098742dab795"
+    }
+  },
+  "source": {
+    "passed": 1974,
+    "skipped": 3,
+    "subtests_passed": 10,
+    "pytest_seconds": 75.88,
+    "input_manifest": "source-20261025-cp015.json",
+    "raw_junit_sha256": "ac46e608c44892edc8ce32bb0692bab8de3b42053b5b01b62a4c1ba31858f614"
+  },
+  "process_http": {
+    "passed": 5,
+    "skipped": 0,
+    "pytest_seconds": 2.58,
+    "scope": "two real Linux process/D-Bus checks plus three real loopback HTTP checks with synthetic installers",
+    "note": "Covers two Linux skips from source plus three loopback HTTP cases."
+  },
+  "javascript": {
+    "new_groups": 19,
+    "legacy_groups": 6,
+    "note": "Groups run inside two pytest wrapper tests; never add 25 to source pass count.",
+    "receipt": "cp015-ui-independent-receipt.json"
+  },
+  "observed_failures": [
+    "Polling after successful Refresh lost ownership while an older error explanation awaited HTTP; reproduced FAIL then PASS.",
+    "Inner SDK capabilities OpenAPI version const was 1 instead of actual 1.0; regression FAIL then PASS."
+  ],
+  "clarification": "Prior JS end-of-string newline hypothesis was not confirmed by negative control; strict-end spelling is defensive explicitness, not an observed fixed defect.",
+  "evidence_sha256": {
+    "source-20261025-cp015.json": "4a1c0dd3d1cf80c08b1eece30473b582cccbcd703bc05f84bb8d8d50893d2e7b",
+    "source-20261025-cp015.log": "2a30c6eb576d093e7403b6d269d92485b469e4ce1ff3a98a5ec725b8dddc4ea9",
+    "cp015-ui-independent-receipt.json": "a6d9f7f4d39748c8ae935d671fb0921e90a9baab313cabd1bc5478ea723abf7d",
+    "cp015-ui-contract-final.log": "8f56a3bc9dad48e99632c27c123378b4fb45b529b43093d3c452a0afde00ee31",
+    "cp015-ui-capabilities-final.log": "dd925a117e76d8d0ca87f75278e035880d6f24e79f21087c3fadd74b56bcd490",
+    "cp015-ui-poll-race-before.log": "a2d19c3f71b4fbc6f3813e37fb3984f06973705e8b0c0ebf22a1e5dffd6a4c71",
+    "cp015-ui-version-replay.log": "a2d19c3f71b4fbc6f3813e37fb3984f06973705e8b0c0ebf22a1e5dffd6a4c71",
+    "cp015-ui-version-observation.json": "9f3ce7793d2d03bc4d26a07199232fb93aa19c59c643de6c2c7c9125b7376845",
+    "cp015-ui-version-replay.json": "0a174e577ede69246e017e8d9aef4f322d97b8bac32b7a3c503c2a4f1a04c754",
+    "process-http-20261025-cp015.xml": "0209e343918f7372d50becce9b01224025cc5531f3a4b0b76fbabc5ebd3a9811",
+    "process-http-20261025-cp015.json": "b9c2926ed5d3c070cda12b67deca93f30c188aa03859ad916f7b0dd05bcea458",
+    "api-version-regression-20261025-cp015.json": "481d73f58f6734ef399199cb6d25e406f729227e90ddbc572443bf42b6349beb"
+  },
+  "ci": {
+    "status": "BLOCKED",
+    "receipt": "github-ci-20261025-cp014.json",
+    "tests": "NOT RUN: runner_id=0 and no steps on four jobs"
+  },
+  "not_run": [
+    "Windows-only source path case",
+    "Actual browser rendering, keyboard/focus/accessibility",
+    "Current installed wheel lifecycle (next checkpoint)",
+    "New frozen/full product acceptance",
+    "Real OS prerequisite installers, UAC, reboot/relogin, Windows and live Docker"
+  ],
+  "not_implemented": [
+    "Atomic common durable product/prerequisite execution lease",
+    "Durable measured download-byte progress",
+    "Safe browser-local prerequisite artifact selection",
+    "Production catalogue/approved licence/signing closure"
+  ],
+  "administrative_validation": {
+    "status": "PASS",
+    "tested_inputs_unchanged": 142,
+    "task_counts": {
+      "DONE": 8,
+      "BLOCKED": 4,
+      "IN_PROGRESS": 63,
+      "TODO": 31
+    },
+    "resource_parity": true,
+    "evidence_hashes_match": true,
+    "initial_harness_correction": "Первый ad-hoc count assertion ошибочно сравнил checkbox x/space с task status. Исправлен parser: читает Статус DONE/BLOCKED/IN_PROGRESS/TODO; сами task cards и их статусы не менялись. Это ошибка проверяющего скрипта, не продукта."
+  }
+}

@@ -1,6 +1,6 @@
 # Невыполненные проверки — обязательное задание следующему ИИ
 
-Автор: Serhii Khomenko. CP-20261025-009.
+Автор: Serhii Khomenko. CP-20261025-010.
 
 **Полная приёмка НЕ ГОТОВА; production_ready=false.** Этот документ и
 `verification-status.json` описывают проверки. Единственный список реализации —
@@ -28,6 +28,7 @@
 
 ## Что подтверждено сейчас
 
+- CP-20261025-010: CP-010: 63 целевых source tests PASS (1.69 s); отдельно установленный SDK/CLI PASS: 62 exact package files, 5 CLI commands, 4 SDK refusal cases, plan reload, 0 network/child-process attempts, нет product effects. Wheel SHA-256 46be06ff502e13975f49e8599283129af419959caf1d21b41f25532a3c737a28. Первые EPERM/test-harness FAIL сохранены в sdk-public-contract-20261025-cp010-attempts.json. Runtime fixture неисполняемый; reference wheel не исполнен; lifecycle/Windows/Docker/full G1 NOT RUN, НЕ ГОТОВО.
 - CP-008 `960827c` восстановлен в новой изолированной чистой копии и сверён с
   фактическим GitHub ref/tree. Возврат к CP-005 не нужен.
 - CP-009: 37 настоящих temporary Git/checkpoint recovery tests и один Node

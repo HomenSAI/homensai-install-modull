@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "source_baseline": "3571dd77dbc9f1adc805dd3a12e3efa915c7da7c",
+  "scope": "HIM-024 public bootstrap and installed-package planning substep; full gate remains open",
+  "environment": {
+    "python": "3.12.14",
+    "test_dependencies": "/workspace/scratch/51fcf3970f58/test-deps",
+    "runtime": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python"
+  },
+  "source_attempts": [
+    {
+      "status": "FAIL",
+      "command": "PYTHONPATH=/workspace/scratch/51fcf3970f58/test-deps:. python -m pytest -q tests/test_public_bootstrap.py tests/test_public_api.py tests/test_scaffold.py",
+      "result": "6 failed, 42 passed in 2.16s",
+      "reason": "Existing conftest replaced socket.socket before lazy ssl import; TypeError in SSLSocket class definition. No product code workaround. Test module now imports ssl at collection time."
+    },
+    {
+      "status": "PASS",
+      "command": "PYTHONPATH=/workspace/scratch/51fcf3970f58/test-deps:. python -m pytest -q --tb=short tests/test_public_bootstrap.py tests/test_public_api.py tests/test_scaffold.py",
+      "result": "48 passed in 1.37s"
+    }
+  ],
+  "installed_attempts": [
+    {
+      "attempt": 1,
+      "status": "NOT RUN",
+      "work_dir": "/workspace/scratch/1c36bef26117/installed-contract-cp010",
+      "completed": "Offline wheel build, exact package byte comparison, isolated venv install; public client not reached",
+      "blocked_at": "Fixture loopback port allocation",
+      "error": "PermissionError: [Errno 1] Operation not permitted at socket.socket()",
+      "resolution": "Automatic review allowed the same local offline harness outside restrictive socket sandbox; no fake engine or discovery substitution."
+    },
+    {
+      "attempt": 2,
+      "status": "FAIL",
+      "work_dir": "/workspace/scratch/1c36bef26117/installed-contract-cp010-run2",
+      "completed": "Installed public SDK and positive CLI commands passed; final CLI negative assertion failed",
+      "error": "Harness expected unsupported action CLI exit 1; actual documented structured CAPABILITY_UNSUPPORTED exit is 2",
+      "resolution": "Corrected harness expected exit code only."
+    },
+    {
+      "attempt": 3,
+      "status": "PASS",
+      "work_dir": "/workspace/scratch/1c36bef26117/installed-contract-cp010-run3",
+      "command": "python packaging/check_installed_sdk.py --work-dir /workspace/scratch/1c36bef26117/installed-contract-cp010-run3 --receipt packaging/acceptance-evidence/sdk-public-contract-20261025-cp010.json",
+      "execution": "Approved local loopback bind; no network/process attempts inside external clients",
+      "receipt": "sdk-public-contract-20261025-cp010.json",
+      "receipt_sha256": "9774e72ae1b054d73ccb1020ac0da74cef51b865b53ad14c86540ad03cb1a6cb",
+      "wheel_sha256": "46be06ff502e13975f49e8599283129af419959caf1d21b41f25532a3c737a28",
+      "exact_files_checked": 62,
+      "cli_commands": 5
+    }
+  ],
+  "not_run": [
+    "product install/update/restore/rollback",
+    "Python 3.14 reference runtime execution",
+    "Windows",
+    "Docker",
+    "service integration",
+    "GUI consent",
+    "production signing",
+    "clean machine dependency/license closure",
+    "full G1 and release gates"
+  ],
+  "production_ready": false,
+  "gate_closed": false
+}

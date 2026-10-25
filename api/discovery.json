@@ -88,7 +88,8 @@
     "default": "native:user",
     "selection": "reviewed_target",
     "implicit_fallback": false,
-    "availability": "capabilities_for_exact_target"
+    "availability": "capabilities_for_exact_target",
+    "bootstrap_sdk": "homensai_install.api.v1.InstallerAPI.from_bootstrap"
   },
   "prerequisites": {
     "registration": "explicit_sdk",

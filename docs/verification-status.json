@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-009",
+  "checkpoint_id": "CP-20261025-010",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
@@ -139,6 +139,18 @@
       "status": "PASS",
       "scope": "37 isolated Git recovery tests + 1 Node wizard contract",
       "receipt": "packaging/acceptance-evidence/recovery-20261025-cp009.json"
+    },
+    {
+      "id": "CP010-public-bootstrap-source",
+      "status": "PASS",
+      "scope": "63 focused public bootstrap/API/scaffold/backend source tests; root bytes match verified 62-file SDK wheel inputs",
+      "receipt": "packaging/acceptance-evidence/source-20261025-cp010.json"
+    },
+    {
+      "id": "CP010-installed-public-contract",
+      "status": "PASS",
+      "scope": "External venv public SDK/CLI planning only; 62 files, 5 CLI calls; nonexecutable runtime fixture, no lifecycle acceptance",
+      "receipt": "packaging/acceptance-evidence/sdk-public-contract-20261025-cp010.json"
     }
   ],
   "historical_evidence": [
@@ -367,11 +379,17 @@
       "test_code": "PARTIAL",
       "existing_partial_harnesses": [
         "tests/test_public_api.py",
-        "tests/test_backends.py"
+        "tests/test_backends.py",
+        "packaging/check_installed_sdk.py",
+        "packaging/installed_sdk_client.py"
       ],
       "next_executor_action": "Установить wheel вне checkout; пройти публичные SDK/CLI/HTTP/openapi сценарии dry-run/unsupported/PLAN_STALE/idempotency/events; отдельно полный установленный lifecycle.",
-      "current_artifact_evidence": [],
-      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+      "current_artifact_evidence": [
+        "packaging/acceptance-evidence/sdk-public-contract-20261025-cp010.json",
+        "packaging/acceptance-evidence/sdk-public-contract-20261025-cp010-attempts.json",
+        "packaging/acceptance-evidence/source-20261025-cp010.json"
+      ],
+      "note": "Полный сценарий НЕ ГОТОВ. Последние частичные проверки: CP-20261025-010; области и непроверенное указаны в receipts. Выполнить оставшуюся приёмку."
     },
     {
       "scenario_id": "ACC-17",

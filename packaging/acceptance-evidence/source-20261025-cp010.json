@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-010",
+  "source_baseline": "3571dd77dbc9f1adc805dd3a12e3efa915c7da7c",
+  "implementation_commit": "294fbcaca8ebc2d9a0e6691ad45da031ceedc3d3",
+  "status": "PASS",
+  "production_ready": false,
+  "environment": {
+    "python": "3.12.14",
+    "os": "Linux x64",
+    "scope": "source with mocked OS boundaries; installed contract separately"
+  },
+  "command": "PYTHONPATH=/workspace/scratch/51fcf3970f58/test-deps PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -B -m pytest -q -p no:cacheprovider --tb=short tests/test_public_bootstrap.py tests/test_public_api.py tests/test_scaffold.py tests/test_backends.py",
+  "passed": 63,
+  "duration_seconds": 1.69,
+  "root_source_matches_installed_receipt": {
+    "package_files": 62,
+    "harnesses": 2,
+    "status": "PASS"
+  },
+  "installed_receipt": "packaging/acceptance-evidence/sdk-public-contract-20261025-cp010.json",
+  "prior_attempts": "packaging/acceptance-evidence/sdk-public-contract-20261025-cp010-attempts.json",
+  "not_run": [
+    "full source suite on this revision",
+    "full installed product lifecycle",
+    "new frozen artifact acceptance",
+    "Windows",
+    "live Docker/systemd",
+    "production release gates"
+  ]
+}

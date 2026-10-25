@@ -73,21 +73,21 @@ SYNC_CONFLICT / SYNC_BLOCKED.
 НАЧАЛЬНАЯ ПАНЕЛЬ СОСТОЯНИЯ
 ========================================================================
 
-Всего задач: 106. DONE: 8; IN_PROGRESS: 62; BLOCKED: 4; TODO: 32. Разработка продолжается; IN_PROGRESS не означает готовый выпуск.
+Всего задач: 106. DONE: 8; IN_PROGRESS: 63; BLOCKED: 4; TODO: 31. Разработка продолжается; IN_PROGRESS не означает готовый выпуск.
 HIM-001/002 проверены в текущей сессии; остальные проверки указаны в карточках.
 Все G0–G5: OPEN; доступ к локальному Docker Git владельца: BLOCKED.
 Состояния отражают текущую сессию; полный выпуск ещё не принят.
 
 Текущая реализация: общий API/SDK, Linux native recovery, GUI ru/en/de; Docker install/uninstall/start/stop/backup, systemd user port и durable prerequisites в source. Live platform gates открыты.
-Текущая контрольная точка: CP-20261025-009; актуальный SHA проверять по Git history и внешней sync receipt.
+Текущая контрольная точка: CP-20261025-010; актуальный SHA проверять по Git history и внешней sync receipt.
 Рабочая ветка: codex/universal-installer-20261025; исходный SHA: a16a55d58e65ccf64ed2ba0c853a0053baea6689.
 Канонический ToDo: HomenSAI_Universal_Installer_TODO_RU.txt;
 журнал: docs/WORK_LOG.md; продолжение: docs/RESUME.md и docs/work-state.json.
 Проверки: docs/VERIFICATION_BACKLOG.md + docs/verification-status.json. Новому ИИ обязательно прочитать их; NOT RUN/BLOCKED/FAIL означают НЕ ГОТОВО, отсутствие теста отмечается отдельно.
-Последний подтверждённый до создания CP-009 checkpoint_id: CP-20261025-008; GitHub SHA 960827cb32b65c9748c9a3f4eaee8406dfe27606.
-Локальный Git / Docker Git / GitHub: SYNC_CONFIRMED / SYNC_BLOCKED / SYNC_CONFIRMED для CP-008. CP-009: SYNC_PENDING до независимой проверки ref/commit/tree.
+Последний подтверждённый до создания CP-20261025-010 checkpoint_id: CP-20261025-009; GitHub SHA 3571dd77dbc9f1adc805dd3a12e3efa915c7da7c.
+Локальный Git / Docker Git / GitHub: SYNC_CONFIRMED / SYNC_BLOCKED / SYNC_CONFIRMED для CP-20261025-009. CP-20261025-010: SYNC_PENDING до независимой проверки ref/commit/tree.
 Блокировки: локальный Forgejo/Docker владельца не подключён; GitHub CI завершился до runner/steps; production signing и юридические/лицензионные gates открыты.
-Следующий инженерный этап: service-engine integration, оставшиеся Docker lifecycle/image transport/host attestation, Windows native и production prerequisites bootstrap, тонкие product adapters; затем platform acceptance. Точные действия — docs/RESUME.md.
+Следующий инженерный этап: HIM-029/034/035: неблокирующий durable SDK запуска prerequisite operations с восстановлением, статусом и отменой; затем безопасный HTTP/CLI и GUI flow. G0–G5 остаются OPEN.
 
 Ориентиры из предыдущего рабочего окружения владельца:
 локальный Forgejo/Gitea — http://127.0.0.1:8796/;
@@ -256,7 +256,7 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-014. Создать INSTALLER_API.md и discovery
-Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-010
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-012, HIM-013; PROMPT: § 28.1.
 Готово, когда: README ведёт к единой точке входа API; discovery и api describe возвращают версии,
@@ -265,7 +265,8 @@ schemas, capabilities и target restrictions офлайн. Планируема�
 Доказательство / ограничения / следующий шаг: INSTALLER_API.md, discovery, OpenAPI, schemas и offline api describe синхронизированы. Добавлены operations_list и executable ProductAdapter/scaffold docs; HTTP внутренние refs проверяются тестом.
 Дополнение CP-007: BackendRouter отражён в describe/discovery/docs; CLI принимает pinned bootstrap config, HTTP OpenAPI связывает terms с mode. Отсутствующий backend явно unsupported; source tests и installed SDK PASS.
 Дополнение CP-008: Общий InstallerAPI делегирует явно зарегистрированному PrerequisiteCoordinator plan/start/status/events/attempts/recheck/resume/cancel/replan. Второго executor нет; READY не означает установку продукта. SDK synchronous; GUI/CLI auto-flow и production registry не подключены.
-Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
+CP-20261025-010: Публичная trusted-bootstrap фабрика InstallerAPI.from_bootstrap и общий путь CLI/scaffold; 63 focused regressions PASS. Public installed contract проверен отдельно; полное HTTP/OpenAPI/lifecycle покрытие НЕ ГОТОВО.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (до независимой проверки текущего ref/tree).
 
 [ ] HIM-015. Опубликовать минимальный ProductAdapter protocol
 Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
@@ -375,7 +376,7 @@ codes/JSON numbers от языка не зависят.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-024. Закрыть G1: проверить установленный пакет через публичный API
-Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
+Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-010
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-014, HIM-016, HIM-017, HIM-018, HIM-020, HIM-021, HIM-022, HIM-023, HIM-101; PROMPT: §
 5, 17, 28.
@@ -383,7 +384,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 неподдержанные actions возвращают явный отказ. Нужные минимальные контракты работают; полный lifecycle
 не блокирует начало первого install.
 Доказательство / ограничения / следующий шаг: —
-Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
+CP-20261025-010: Внешний installed SDK/CLI contract PASS: 62 файлов сверены с wheel, SDK validate/discover/plan/reload, 5 CLI вызовов, unsupported refusal, hooks/effects отсутствуют. Receipt packaging/acceptance-evidence/sdk-public-contract-20261025-cp010.json. Synthetic подписанный reference planning payload содержит неисполняемый runtime; reference product/lifecycle и зависимые критерии G1 остаются NOT RUN/IN_PROGRESS. G1 OPEN.
+Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (до независимой проверки текущего ref/tree).
 
 ========================================================================
 ЭТАП 2. ПЕРВЫЙ РАБОТАЮЩИЙ УСТАНОВЩИК ВО ВСЕХ ЧЕТЫРЁХ СОЧЕТАНИЯХ

@@ -211,7 +211,7 @@ def test_generated_sdk_client_is_pinned_and_has_no_import_effects(complete_spec,
     assert (destination / 'docs/INTEGRATION_GUIDE.md').exists()
     assert (destination / 'api/openapi.yaml').exists()
     assert (destination / 'api/schemas/manifest.schema.json').exists()
-    assert 'NativeEngine' in client.read_text() and 'JobPilot' not in client.read_text()
+    assert 'InstallerAPI.from_bootstrap' in client.read_text() and 'JobPilot' not in client.read_text()
     draft = destination / 'product-adapter.draft.py'
     compile(draft.read_text(), str(draft), 'exec')
     assert 'PRODUCT_ADAPTER_NOT_IMPLEMENTED' in draft.read_text()

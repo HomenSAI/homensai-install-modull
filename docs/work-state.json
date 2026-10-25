@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-009",
+  "checkpoint_id": "CP-20261025-010",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -66,7 +66,8 @@
     "HIM-092",
     "HIM-094",
     "HIM-095",
-    "HIM-097"
+    "HIM-097",
+    "HIM-024"
   ],
   "completed_tasks": [
     "HIM-001",
@@ -88,10 +89,10 @@
     "cloud_git": "SYNC_PENDING",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261025-008",
+    "last_confirmed_checkpoint": "CP-20261025-009",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
-  "next_step": "Integrate service port into the shared engine; complete Docker host attestation/image transport/update/restore/rollback/abort; implement Windows and production prerequisite bootstrap; then thin product adapters and live target acceptance",
+  "next_step": "HIM-029/034/035: неблокирующий durable SDK запуска prerequisite operations с восстановлением, статусом и отменой; затем безопасный HTTP/CLI и GUI flow. G0–G5 остаются OPEN.",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
@@ -99,7 +100,7 @@
     "linux_native": "PARTIAL: frozen x64 user-session lifecycle/updates/rollback/repair/crash-resume PASS in scoped receipts; OS service/reboot/full matrix open",
     "linux_docker": "NOT RUN/BLOCKED live daemon: source install/uninstall/start/stop/backup tested with modeled daemon; images/host attestation/full lifecycle remain open"
   },
-  "last_confirmed_github_sha": "960827cb32b65c9748c9a3f4eaee8406dfe27606",
+  "last_confirmed_github_sha": "3571dd77dbc9f1adc805dd3a12e3efa915c7da7c",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -112,7 +113,10 @@
     "packaging/acceptance-evidence/sdk-installed-20261025-cp008.json",
     "packaging/acceptance-evidence/review-20261025-cp008.json",
     "packaging/acceptance-evidence/github-ci-20261025-cp007.json",
-    "packaging/acceptance-evidence/recovery-20261025-cp009.json"
+    "packaging/acceptance-evidence/recovery-20261025-cp009.json",
+    "packaging/acceptance-evidence/sdk-public-contract-20261025-cp010.json",
+    "packaging/acceptance-evidence/sdk-public-contract-20261025-cp010-attempts.json",
+    "packaging/acceptance-evidence/source-20261025-cp010.json"
   ],
   "environment": {
     "os": "linux",
@@ -127,8 +131,8 @@
   "task_counts": {
     "DONE": 8,
     "BLOCKED": 4,
-    "IN_PROGRESS": 62,
-    "TODO": 32
+    "IN_PROGRESS": 63,
+    "TODO": 31
   },
   "source_verification": {
     "source_passed": 1856,
@@ -141,5 +145,19 @@
   },
   "verification_backlog": "docs/verification-status.json",
   "verification_instruction": "Обязательно выполнить NOT RUN/BLOCKED/FAIL при доступной среде; отсутствие harness явно NOT IMPLEMENTED. Непроверенное НЕ ГОТОВО.",
-  "checkpoint_policy": "После каждого проверенного шага TODO+RESUME+код в одном checkpoint, GitHub ref/tree подтверждён до следующего шага."
+  "checkpoint_policy": "После каждого проверенного шага TODO+RESUME+код в одном checkpoint, GitHub ref/tree подтверждён до следующего шага.",
+  "latest_scoped_verification": [
+    {
+      "id": "CP010-public-bootstrap-source",
+      "status": "PASS",
+      "scope": "63 focused public bootstrap/API/scaffold/backend source tests; root bytes match verified 62-file SDK wheel inputs",
+      "receipt": "packaging/acceptance-evidence/source-20261025-cp010.json"
+    },
+    {
+      "id": "CP010-installed-public-contract",
+      "status": "PASS",
+      "scope": "External venv public SDK/CLI planning only; 62 files, 5 CLI calls; nonexecutable runtime fixture, no lifecycle acceptance",
+      "receipt": "packaging/acceptance-evidence/sdk-public-contract-20261025-cp010.json"
+    }
+  ]
 }

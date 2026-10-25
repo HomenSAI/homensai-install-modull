@@ -1,10 +1,16 @@
 # Фактическое состояние реализации
 
-Дата: 25.10.2026. Checkpoint: **CP-20261025-008**.
+Дата: 25.10.2026. Checkpoint: **CP-20261025-010**.
 Ветка `codex/universal-installer-20261025`. **`production_ready=false`.**
 Исходный commit: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
 
-## Текущие проверки CP-008
+## Последний выполненный шаг
+
+CP-20261025-010: Добавлен InstallerAPI.from_bootstrap: общий существующий router настраивается через публичный SDK из доверенного bootstrap. CLI и scaffold используют ту же фабрику. Параметры доверия не принимаются из plan/HTTP options. Отдельный воспроизводимый harness собирает wheel и reference wheel офлайн, устанавливает SDK в новый venv вне checkout и проверяет настоящий native:user planning contract.
+
+CP-010: 63 целевых source tests PASS (1.69 s); отдельно установленный SDK/CLI PASS: 62 exact package files, 5 CLI commands, 4 SDK refusal cases, plan reload, 0 network/child-process attempts, нет product effects. Wheel SHA-256 46be06ff502e13975f49e8599283129af419959caf1d21b41f25532a3c737a28. Первые EPERM/test-harness FAIL сохранены в sdk-public-contract-20261025-cp010-attempts.json. Runtime fixture неисполняемый; reference wheel не исполнен; lifecycle/Windows/Docker/full G1 NOT RUN, НЕ ГОТОВО.
+
+## Исторические проверки CP-008
 
 В общий checkout интегрированы Docker install/uninstall, systemd user platform
 port с защитой границы native/user и prerequisite coordinator через общий SDK.

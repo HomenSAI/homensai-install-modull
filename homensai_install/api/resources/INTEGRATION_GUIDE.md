@@ -13,12 +13,12 @@
 ```python
 from homensai_install import __version__
 from homensai_install.api.v1 import InstallerAPI
-from homensai_install.engine import NativeEngine
-from homensai_install.trust import load_trust_config
 
 assert __version__ == "0.1.0"  # Версия, которую проверил и закрепил проект.
-verifier = load_trust_config("/trusted/bootstrap/trust-config.json")
-api = InstallerAPI("/private/installer-state", engine=NativeEngine(verifier=verifier))
+api = InstallerAPI.from_bootstrap(
+    "/private/installer-state",
+    trust_config="/trusted/bootstrap/trust-config.json",
+)
 contract = api.describe()
 assert contract["api_version"] == "1.0"
 ```
@@ -93,7 +93,7 @@ Scaffold проверяет наличие обычного native runtime по 
 - копия реального payload и `product.manifest.json`;
 - `payload.inventory.unsigned.json`, связывающий полный набор файлов, manifest, target, release и runtime;
 - копия installer wheel и `installer-wheel.pin.txt` с фактическим SHA-256;
-- `integration-client.py`, использующий общий SDK/NativeEngine;
+- `integration-client.py`, использующий общий SDK через `from_bootstrap`;
 - `integration.json`, копии `INSTALLER_API.md`, руководства, discovery, OpenAPI и схем;
 - `product-adapter.draft.py`, который явно отвечает `PRODUCT_ADAPTER_NOT_IMPLEMENTED`;
 - пустой `trust-config.example.json`, ToDo подключения и `integration-report.json`.
@@ -104,7 +104,7 @@ Publisher после review создаёт окончательные `payload.i
 
 ## 3. Использование общего плана и мастера
 
-Сгенерированный клиент не содержит собственной реализации установки. `prepare_install` проверяет version pin, загружает доверенный verifier, проверяет полный payload, связывает digest выбранной EULA с подписью и вызывает общий `api.plan`. Эта функция не принимает соглашение и не запускает установку.
+Сгенерированный клиент не содержит собственной реализации установки. `prepare_install` проверяет version pin, загружает доверенный verifier, проверяет полный payload, связывает digest выбранной EULA с подписью и вызывает общий `api.plan`. Эта функция не принимает соглашение и не запускает установку. Создание engine теперь скрыто за публичной фабрикой `from_bootstrap`; отдельная предварительная проверка подписанных условий пока использует `load_trust_config`. Минимальный публичный validate/discover/plan contract не заменяет эту проверку: сам engine повторно проверяет payload перед исполнением, а успешный plan не доказывает его подлинность.
 
 Вызов `submit_reviewed_plan` получает реальные consent refs от вызывающего UI и передаёт их в общий `api.submit` с idempotency key. Нужно показать человеку подписанные условия и весь план до этого вызова. Для пользовательского интерфейса предпочтительно подключать общий web-мастер `hinstall gui`; собственный UI работает с тем же API, а не с копией lifecycle.
 

@@ -145,14 +145,7 @@ def _json_file(path: str | None) -> dict | None:
 
 
 def _sdk(args) -> InstallerAPI:
-    from .backends import configured_backends
     from .errors import InstallerError
-    if args.development_runtime and not args.allow_development:
-        raise InstallerError("CONSENT_REQUIRED")
-    verifier = None
-    if args.trust_config:
-        from .trust import load_trust_config
-        verifier = load_trust_config(args.trust_config, allow_development=args.allow_development)
 
     def secret_provider(reference):
         key = reference.removeprefix("env:") if type(reference) is str else ""
@@ -160,14 +153,11 @@ def _sdk(args) -> InstallerAPI:
             raise InstallerError("PREREQUISITE_MISSING")
         return os.environ[key]
 
-    from .engine import EngineError
-    try:
-        engine = configured_backends(verifier=verifier, secret_provider=secret_provider,
-                                     development_runtime=args.development_runtime,
-                                     docker_cli_config=args.docker_cli_config)
-    except EngineError as error:
-        raise InstallerError(error.code, details=error.details) from None
-    return InstallerAPI(args.state_dir or default_state_dir(), engine=engine, locale=args.locale)
+    return InstallerAPI.from_bootstrap(
+        args.state_dir or default_state_dir(), trust_config=args.trust_config,
+        allow_development=args.allow_development, secret_provider=secret_provider,
+        development_runtime=args.development_runtime, docker_cli_config=args.docker_cli_config,
+        locale=args.locale)
 
 
 def _execute(args):

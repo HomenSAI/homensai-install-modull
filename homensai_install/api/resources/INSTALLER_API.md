@@ -6,6 +6,9 @@
 фасад и проверяемые ограничения. Наличие метода не означает приёмку Windows,
 Docker, production signing или установщика на чистой системе. Фактические
 возможности возвращает `capabilities()`, результаты — ToDo и receipts.
+Реестр обязательных невыполненных проверок — `docs/VERIFICATION_BACKLOG.md`
+и `docs/verification-status.json`. `NOT RUN` означает неподтверждённую готовность;
+частичный PASS не закрывает полный G1 или release gate.
 
 ## Начало подключения
 
@@ -97,17 +100,57 @@ Target имеет поля:
 
 Точные обязательные поля зависят от action. Неизвестный option и флаг
 `verified=true` отклоняются. Доверие не задаётся произвольными options.
-Bootstrap/разработчик создаёт `NativeEngine(verifier=..., secret_provider=...)`
-и передаёт его в `InstallerAPI(..., engine=engine)`.
+Доверенный bootstrap использует публичную фабрику `InstallerAPI.from_bootstrap`.
+Она создаёт существующий общий router и проверяющий подпись backend; продукту
+не требуется импортировать внутренний engine.
 
 ```python
-from homensai_install.engine import NativeEngine  # bootstrap integration, не ProductAdapter
-from homensai_install.trust import load_trust_config
+from homensai_install.api.v1 import InstallerAPI
 
-verifier = load_trust_config("pinned-public-keys.json", allow_development=False)
-engine = NativeEngine(verifier=verifier)
-api = InstallerAPI("/absolute/private/installer-state", engine=engine)
+api = InstallerAPI.from_bootstrap(
+    "/absolute/private/installer-state",
+    trust_config="pinned-public-keys.json",
+    allow_development=False,
+)
 ```
+
+Фабрика принимает только локальные настройки доверенного хоста: `trust_config`,
+`allow_development`, `development_runtime`, `docker_cli_config`, `secret_provider`
+и `locale`. Они не добавлены в plan options или HTTP contract. Development runtime
+требует явного `allow_development=True`. CLI использует эту же фабрику; SDK сам
+не читает секреты из окружения, provider при необходимости передаёт bootstrap.
+
+Создание SDK читает закреплённые публичные ключи, но не проверяет продуктовый
+payload. `validate` проверяет структуру, `discover` читает inventory, `plan`
+сохраняет только собственный журнал плана. Ни один из этих методов не исполняет
+продуктовые hooks. Подпись и полный набор байтов payload проверяет общий engine
+непосредственно перед исполнением. Успешный plan не означает проверенный release.
+Без `trust_config` планирование доступно, но исполнение не получает доверенного
+verifier. Отдельная проверка подписанных условий до показа пользователю, как в
+scaffold, по-прежнему требуется; фабрика её не заменяет.
+
+Минимальный installed-package contract воспроизводится офлайн:
+
+```sh
+python packaging/check_installed_sdk.py \
+  --work-dir /absolute/new-external-sdk-check \
+  --receipt /absolute/sdk-check-receipt.json
+```
+
+Нужны уже подготовленные `pip`, `setuptools` и `cryptography`. Harness собирает
+и устанавливает wheel в отдельный venv вне checkout, сверяет все package files,
+вызывает публичный SDK и установленный `hinstall`, проверяет явный отказ для
+недоступных действий и сохранение плана после пересоздания SDK. Клиент запрещает
+чтение checkout, сеть и дочерние процессы; настоящий discovery выполняет только
+временный bind выделенного loopback-порта. В ограниченном sandbox этот bind
+может требовать разрешения среды, его нельзя подменять фиктивным discover.
+
+Подписанный development fixture содержит настоящий собранный reference wheel
+и явно неисполняемый runtime placeholder. Проверка подтверждает планирование и
+отсутствие продуктовых эффектов; Python 3.14 runtime, install/update/restore/rollback,
+Docker, Windows, service, GUI и production release этим результатом не приняты.
+`plan` сохраняет собственный journal, поэтому «нет продуктовых эффектов» не означает
+отсутствие записей состояния SDK. Receipt содержит source baseline и точные hashes.
 
 ### Явный выбор backend
 

@@ -130,7 +130,6 @@ import json
 
 from homensai_install import __version__
 from homensai_install.api.v1 import InstallerAPI
-from homensai_install.engine import NativeEngine
 from homensai_install.trust import load_trust_config
 
 ROOT = Path(__file__).resolve().parent
@@ -153,7 +152,8 @@ def prepare_install(*, state_dir, install_root, locale="ru", allow_development=F
     }}
     verified = verifier(manifest, integration["target"], options)
     options["eula_digest"] = verified["legal/" + locale + ".txt"]
-    api = InstallerAPI(state_dir, engine=NativeEngine(verifier=verifier), locale=locale)
+    api = InstallerAPI.from_bootstrap(state_dir, trust_config=ROOT / "trust-config.json",
+                                     allow_development=allow_development, locale=locale)
     described = api.describe()
     if described["api_version"] != {api_version!r}:
         raise RuntimeError("Installer API contract changed")

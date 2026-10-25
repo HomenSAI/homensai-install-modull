@@ -105,6 +105,37 @@ class InstallerAPI:
                 fail("INVALID_REQUEST", details={"reason": "explicit_prerequisite_coordinator_required"})
         self._prerequisite_instance = prerequisites
 
+    @classmethod
+    def from_bootstrap(cls, state_dir: str | Path, *, trust_config: str | Path | None = None,
+                       allow_development: bool = False, development_runtime: str | Path | None = None,
+                       docker_cli_config: str | Path | None = None, secret_provider=None,
+                       locale: str = "ru") -> "InstallerAPI":
+        """Создать общий router из доверенных локальных настроек bootstrap.
+
+        Эти настройки задаёт приложение-хост, не manifest/options/HTTP body.
+        Конструктор не исполняет hooks и не проверяет payload: общий engine
+        проверяет подпись и полное дерево непосредственно перед исполнением.
+        Без trust_config планирование доступно, исполнение не получает доверия.
+        """
+        from homensai_install.backends import configured_backends
+        from homensai_install.engine import EngineError
+        from homensai_install.errors import InstallerError
+        from homensai_install.trust import load_trust_config
+
+        if type(allow_development) is not bool:
+            fail("INVALID_REQUEST", details={"field_path": "allow_development"})
+        if development_runtime is not None and not allow_development:
+            fail("CONSENT_REQUIRED")
+        verifier = (load_trust_config(trust_config, allow_development=allow_development)
+                    if trust_config is not None else None)
+        try:
+            engine = configured_backends(verifier=verifier, secret_provider=secret_provider,
+                                         development_runtime=development_runtime,
+                                         docker_cli_config=docker_cli_config)
+        except EngineError as error:
+            raise InstallerError(error.code, details=error.details) from None
+        return cls(state_dir, engine=engine, locale=locale)
+
     def _engine(self):
         if self._engine_instance is None:
             from homensai_install.backends import BackendRouter
@@ -143,6 +174,7 @@ class InstallerAPI:
                          "cli": "hinstall init-adapter", "missing_inputs": "DRAFT_BLOCKED"},
             "locales": ["ru", "en", "de"],
             "backends": {"sdk": "homensai_install.backends.BackendRouter",
+                         "bootstrap_sdk": "homensai_install.api.v1.InstallerAPI.from_bootstrap",
                          "registration": "explicit_bootstrap", "default": "native:user",
                          "selection": "reviewed_target", "implicit_fallback": False,
                          "availability": "capabilities_for_exact_target"},

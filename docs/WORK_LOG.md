@@ -339,3 +339,12 @@ Docker Git владельца SYNC_BLOCKED, production_ready=false.
 Следующий шаг: конкретная source-подзадача из канонической очереди.
 Не выдавать открытые Windows/Docker/OS/prerequisite/product/release gates
 за выполненные. Текущий push подтверждается внешней receipt/ref после commit.
+
+## CP-20261025-010 — публичный bootstrap и проверка установленного SDK
+
+Добавлен InstallerAPI.from_bootstrap: общий существующий router настраивается через публичный SDK из доверенного bootstrap. CLI и scaffold используют ту же фабрику. Параметры доверия не принимаются из plan/HTTP options. Отдельный воспроизводимый harness собирает wheel и reference wheel офлайн, устанавливает SDK в новый venv вне checkout и проверяет настоящий native:user planning contract.
+
+CP-010: 63 целевых source tests PASS (1.69 s); отдельно установленный SDK/CLI PASS: 62 exact package files, 5 CLI commands, 4 SDK refusal cases, plan reload, 0 network/child-process attempts, нет product effects. Wheel SHA-256 46be06ff502e13975f49e8599283129af419959caf1d21b41f25532a3c737a28. Первые EPERM/test-harness FAIL сохранены в sdk-public-contract-20261025-cp010-attempts.json. Runtime fixture неисполняемый; reference wheel не исполнен; lifecycle/Windows/Docker/full G1 NOT RUN, НЕ ГОТОВО.
+
+Предыдущий checkpoint CP-20261025-009 подтверждён: `3571dd77dbc9f1adc805dd3a12e3efa915c7da7c`.
+Текущий sync до проверки ref/tree — SYNC_PENDING. Следующий шаг: HIM-029/034/035: неблокирующий durable SDK запуска prerequisite operations с восстановлением, статусом и отменой; затем безопасный HTTP/CLI и GUI flow. G0–G5 остаются OPEN.

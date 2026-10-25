@@ -116,13 +116,14 @@ class InstallerAPI:
             "sdk": "homensai_install.api.v1.InstallerAPI", "cli": "hinstall",
             "locales": ["ru", "en", "de"],
             "operations": ["describe", "capabilities", "validate", "discover", "plan", "submit",
-                           "status", "events", "cancel", "resume", "errors.describe", "errors.search",
+                           "operations.list", "status", "events", "cancel", "resume", "errors.describe", "errors.search",
                            "diagnostics.get", "diagnostics.export", "statistics.query"],
             "schemas": {"manifest": "shared/manifest.schema.json", "request": "api/schemas/request.schema.json",
                         "plan": "api/schemas/plan.schema.json", "operation": "api/schemas/operation.schema.json",
                         "event": "api/schemas/event.schema.json"},
             "readiness": "development", "production_ready": False,
-            "limits": {"input_json_bytes": 2097152, "json_depth": 48, "event_page_size": 1000},
+            "limits": {"input_json_bytes": 2097152, "json_depth": 48, "event_page_size": 1000,
+                       "operation_list_size": 200},
         }
 
     def capabilities(self, target: dict | None = None) -> dict:
@@ -386,6 +387,37 @@ class InstallerAPI:
                 result = journal.update(operation_id, {"status": "RECOVERY_REQUIRED", "duration_ms": None},
                                         {"type": "operation.interrupted", "status": "RECOVERY_REQUIRED"})
         return result
+
+    def operations_list(self, product_id: str | None = None, unfinished_only: bool = True,
+                        limit: int = 100) -> dict:
+        """Найти операции после потери UI-сессии; исполнение автоматически не возобновляется."""
+        if (type(limit) is not int or not 1 <= limit <= 200
+                or type(unfinished_only) is not bool):
+            fail("INVALID_REQUEST")
+        if product_id is not None:
+            checked_id(product_id, field="product_id")
+        try:
+            journal = Journal(self.state_dir, create=False)
+        except FileNotFoundError:
+            return {"operations": [], "has_more": False, "limit": limit}
+        candidates = journal.operations_list(product_id, unfinished_only=unfinished_only, limit=limit + 1)
+        result = []
+        for candidate in candidates[:limit]:
+            operation = self.status(candidate["operation_id"])
+            if (unfinished_only and operation["status"] in TERMINAL
+                    and not (operation.get("result") or {}).get("resume_required", False)):
+                continue  # Worker успел закончить между SQL-страницей и проверкой owner.
+            for field in ("operation_id", "plan_id"):
+                checked_id(operation[field], field=field)
+            checked_id(candidate["product_id"], field="product_id")
+            if (operation["action"] not in ALL_ACTIONS
+                    or operation["status"] not in TERMINAL | RESUMABLE | {"QUEUED", "RUNNING"}
+                    or type(operation["updated_at"]) is not str or len(operation["updated_at"]) > 64):
+                fail("RECOVERY_REQUIRED")
+            result.append({"operation_id": operation["operation_id"], "plan_id": operation["plan_id"],
+                           "action": operation["action"], "status": operation["status"],
+                           "product_id": candidate["product_id"], "updated_at": operation["updated_at"]})
+        return {"operations": result, "has_more": len(candidates) > limit, "limit": limit}
 
     def events(self, operation_id: str, after_sequence: int = 0) -> dict:
         if type(after_sequence) is not int or after_sequence < 0:

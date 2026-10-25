@@ -1,8 +1,8 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261025-002`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261025-003`; ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый remote до создания CP-002: `f99d302bbf944248ae1e3d2d5d9cc6e2d899d31c`.
+Последний подтверждённый remote до создания CP-003: `b2d99a2bf75aa8e35328f64c3b8b08dc618bceda`.
 Фактический SHA текущего checkpoint определять по Git history/ref и внешней receipt.
 
 ## Восстановление контекста
@@ -44,3 +44,7 @@ Ed25519 inventory с manifest/target/runtime binding, Linux user-session lifecyc
 Не открывать HTTP installer на внешнем интерфейсе. Не публиковать main/release без
 разрешения. Каждый недоступный runner/remote фиксировать отдельно и продолжать
 независимую работу; никаких фиктивных PASS.
+
+## Дополнение CP-003
+
+GUI/frozen first install принят на Linux; полный GUI04 остановился на recovery integrity violation. Не выдавать его за PASS uninstall. Новая source suite1363PASS1skip; 24integrationPASS. История текущих проверок — WORK_LOG; next clean bundle после exclusion BDB/ensurepip/Tcl.

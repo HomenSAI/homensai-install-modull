@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-002",
+  "checkpoint_id": "CP-20261025-003",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -30,7 +30,8 @@
     "HIM-001",
     "HIM-002",
     "HIM-004",
-    "HIM-005"
+    "HIM-005",
+    "HIM-009"
   ],
   "blocked_tasks": {
     "HIM-003": "User Docker/Forgejo host is not connected to this cloud workspace"
@@ -39,15 +40,15 @@
     "cloud_git": "SYNC_PENDING",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261025-001"
+    "last_confirmed_checkpoint": "CP-20261025-002"
   },
-  "next_step": "Принять GUI/reference bundle; безопасные prerequisites/downloads, checkpoint tooling, недостающие platform adapters и product integrations.",
+  "next_step": "Повтор чистого frozen lifecycle после license pruning; protocol/scaffold и licence gate; platform runners.",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
     "windows_docker": "BLOCKED",
-    "linux_native": "PARTIAL: real synthetic user-session lifecycle, GUI/frozen reference pending",
+    "linux_native": "PARTIAL: frozen GUI fresh+backup PASS; full bundled lifecycle and restart resume pending",
     "linux_docker": "BLOCKED"
   },
-  "last_confirmed_github_sha": "f99d302bbf944248ae1e3d2d5d9cc6e2d899d31c"
+  "last_confirmed_github_sha": "b2d99a2bf75aa8e35328f64c3b8b08dc618bceda"
 }

@@ -146,6 +146,39 @@ class Journal:
             fail("OPERATION_NOT_FOUND")
         return parse_json(row[0], error_code="RECOVERY_REQUIRED")
 
+    def operations_list(self, product_id: str | None = None, *, unfinished_only: bool = True,
+                        limit: int = 101) -> list[dict]:
+        """Ограниченная SQL-проекция; plans/options/consents/results не возвращаются.
+
+        Product берётся из сохранённого плана, поэтому работает и с прежними
+        journal v1 без product_id непосредственно в записи операции.
+        """
+        if (type(limit) is not int or not 1 <= limit <= 201
+                or type(unfinished_only) is not bool):
+            fail("INVALID_REQUEST")
+        if product_id is not None:
+            checked_id(product_id, field="product_id")
+        query = """
+            SELECT o.operation_id,
+                   json_extract(o.body, '$.plan_id'),
+                   json_extract(o.body, '$.action'),
+                   json_extract(o.body, '$.status'),
+                   json_extract(p.body, '$.source_manifest.product_id'),
+                   json_extract(o.body, '$.updated_at')
+            FROM operations AS o
+            JOIN plans AS p ON p.plan_id = json_extract(o.body, '$.plan_id')
+            WHERE (? IS NULL OR json_extract(p.body, '$.source_manifest.product_id') = ?)
+              AND (? = 0 OR json_extract(o.body, '$.status') NOT IN
+                   ('SUCCEEDED', 'FAILED', 'FAILED_ROLLED_BACK', 'CANCELED')
+                   OR json_extract(o.body, '$.result.resume_required') = 1)
+            ORDER BY json_extract(o.body, '$.updated_at') DESC, o.operation_id DESC
+            LIMIT ?
+        """
+        with self.connection() as db:
+            rows = db.execute(query, (product_id, product_id, int(unfinished_only), limit)).fetchall()
+        fields = ("operation_id", "plan_id", "action", "status", "product_id", "updated_at")
+        return [dict(zip(fields, row)) for row in rows]
+
     def update(self, operation_id: str, updates: dict, event: dict | None = None, *, release: bool = False) -> dict:
         with self.connection(write=True) as db:
             row = db.execute("SELECT body FROM operations WHERE operation_id=?", (operation_id,)).fetchone()

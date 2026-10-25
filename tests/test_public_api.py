@@ -281,3 +281,73 @@ def test_cli_machine_output_and_errors_hide_arguments(capsys, tmp_path):
     output = capsys.readouterr()
     assert "do-not-echo" not in output.out + output.err
     assert json.loads(output.out)["error"]["code"] == "INVALID_REQUEST"
+
+
+def test_operations_list_missing_state_is_empty_without_writes(tmp_path):
+    api = InstallerAPI(tmp_path / "not-created")
+    assert api.operations_list() == {"operations": [], "has_more": False, "limit": 100}
+    assert not api.state_dir.exists()
+
+
+def test_operations_list_recovers_lost_ui_session_without_resuming_execution(subject):
+    api, engine, manifest, _ = subject
+    operation = submit(api, make_plan(subject), background=False)
+    operation_id = operation["operation_id"]
+    # Моделируем persisted RUNNING от завершившегося процесса. Это source contract,
+    # а не installed/GUI acceptance: fake engine не запускает сервер.
+    api._journal().update(operation_id, {
+        "status": "RUNNING", "owner": {"pid": 0}, "result": None,
+        "consent_refs": ["never-list-this-private-reference"],
+        "error": {"private": "never-list-this-private-value"}})
+    restarted = InstallerAPI(api.state_dir, engine=engine)
+    found = restarted.operations_list(product_id=manifest["product_id"])
+    assert len(found["operations"]) == 1
+    row = found["operations"][0]
+    assert row["operation_id"] == operation_id and row["status"] == "RECOVERY_REQUIRED"
+    assert set(row) == {"operation_id", "plan_id", "action", "status", "product_id", "updated_at"}
+    assert "never-list-this" not in json.dumps(found)
+    assert engine.calls == 1
+    events = restarted.events(operation_id)["events"]
+    assert events[-1]["type"] == "operation.interrupted"
+    assert restarted.operations_list()["operations"][0]["operation_id"] == operation_id
+    assert engine.calls == 1
+
+
+def test_operations_list_filters_product_finished_and_recoverable_cancel(subject):
+    api, engine, manifest, options = subject
+    first = submit(api, make_plan(subject), background=False)
+    other_manifest = deepcopy(manifest)
+    other_manifest["product_id"] = "other_product"
+    other_plan = api.plan("install", other_manifest, options=options)
+    second = submit(api, other_plan, key="other", background=False)
+    api._journal().update(second["operation_id"], {
+        "status": "CANCELED", "result": {"resume_required": True}})
+    assert api.operations_list(manifest["product_id"])["operations"] == []
+    all_finished = api.operations_list(manifest["product_id"], unfinished_only=False)
+    assert [row["operation_id"] for row in all_finished["operations"]] == [first["operation_id"]]
+    recoverable = api.operations_list("other_product")
+    assert [row["operation_id"] for row in recoverable["operations"]] == [second["operation_id"]]
+    assert recoverable["operations"][0]["status"] == "CANCELED"
+    assert engine.calls == 2
+
+
+def test_operations_list_bounded_and_invalid_inputs_fail_closed(subject):
+    api, _, _, _ = subject
+    for index in range(3):
+        submit(api, make_plan(subject), key=f"op-{index}", background=False)
+    page = api.operations_list(unfinished_only=False, limit=2)
+    assert len(page["operations"]) == 2 and page["has_more"] and page["limit"] == 2
+    for kwargs in ({"limit": 0}, {"limit": 201}, {"limit": True}, {"unfinished_only": "false"},
+                   {"product_id": "invalid/private/product"}):
+        with pytest.raises(InstallerError) as caught:
+            api.operations_list(**kwargs)
+        assert caught.value.code == "INVALID_REQUEST"
+
+
+def test_cli_operations_list_after_ui_state_loss(capsys, tmp_path):
+    from homensai_install.cli import main
+    state = tmp_path / "empty"
+    assert main(["operations", "--state-dir", str(state), "--product-id", "rent", "--json"]) == 0
+    value = json.loads(capsys.readouterr().out)["result"]
+    assert value == {"operations": [], "has_more": False, "limit": 100}
+    assert not state.exists()

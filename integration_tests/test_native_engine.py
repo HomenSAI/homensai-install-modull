@@ -12,35 +12,51 @@ import socket
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import uuid
 from unittest.mock import patch
 
 from homensai_install.engine import NativeEngine, EngineError, _birth
+from homensai_install import engine as engine_module
 from shared import archive_crypto
+from shared.archive import build_archive
 
 
-SERVER = '''import os,json,signal,threading
+SERVER = '''import os,json,signal,threading,subprocess,sys
 from http.server import HTTPServer,BaseHTTPRequestHandler
 from pathlib import Path
 class Handler(BaseHTTPRequestHandler):
  def do_GET(self):
   if self.path=='/healthz':
-   value={"product_id":os.environ['HOMENSAI_PRODUCT_ID'],"installation_id":os.environ['HOMENSAI_INSTALLATION_ID'],"release":os.environ['HOMENSAI_RELEASE'],"ready":not Path('fail_health').exists()}
+   ready=not Path('fail_health').exists()
+   if Path('expected-secret.txt').exists(): ready=ready and os.environ.get('PRODUCT_TOKEN')==Path('expected-secret.txt').read_text()
+   value={"product_id":os.environ['HOMENSAI_PRODUCT_ID'],"installation_id":os.environ['HOMENSAI_INSTALLATION_ID'],"release":os.environ['HOMENSAI_RELEASE'],"ready":ready}
    body=json.dumps(value).encode()
   else: body=b'<html><body>Reference</body></html>'
   self.send_response(200);self.end_headers();self.wfile.write(body)
  def log_message(self,*args): pass
 class Server(HTTPServer): allow_reuse_address=True
 server=Server(('127.0.0.1',int(os.environ['HOMENSAI_WEB_PORT'])),Handler)
+if Path('spawn-child').exists(): subprocess.Popen([sys.executable,'child.py'])
 def stop(*args): threading.Thread(target=server.shutdown,daemon=True).start()
 signal.signal(signal.SIGTERM,stop)
 server.serve_forever(poll_interval=.05)
 server.server_close()
 '''
 
+CHILD_WRITER = '''import os,time
+from pathlib import Path
+home=Path(os.environ['HOMENSAI_DATA_HOME'])
+(home/'child-pid.txt').write_text(str(os.getpid()))
+while True:
+ with (home/'child-writes.txt').open('a') as output: output.write('write\\n')
+ time.sleep(.05)
+'''
+
 MIGRATE = '''import os,sqlite3
 from pathlib import Path
+if Path('expected-secret.txt').exists(): assert os.environ.get('PRODUCT_TOKEN')==Path('expected-secret.txt').read_text()
 p=Path(os.environ['HOMENSAI_DATA_HOME'])/'product.sqlite'
 db=sqlite3.connect(p)
 db.execute('create table if not exists app_version (v text)')
@@ -107,7 +123,7 @@ class NativeLifecycleTests(unittest.TestCase):
                         process.wait(timeout=5)
         self.tmp.cleanup()
 
-    def bundle(self, release, *, bad_health=False):
+    def bundle(self, release, *, bad_health=False, child_writer=False, synthetic_secret=None):
         folder = self.base / ("source-" + release)
         folder.mkdir()
         files = {"server.py": SERVER, "migrate.py": MIGRATE,
@@ -117,12 +133,19 @@ class NativeLifecycleTests(unittest.TestCase):
         files.update({"legal/" + lang + ".txt": "Test terms " + lang for lang in ("ru", "en", "de")})
         if bad_health:
             files["fail_health"] = "intentional readiness failure\n"
+        if child_writer:
+            files.update({"spawn-child": "test child writer\n", "child.py": CHILD_WRITER})
+        if synthetic_secret is not None:
+            files["expected-secret.txt"] = synthetic_secret  # Test fixture only, never a product secret.
         for path, content in files.items():
             dest = folder / path
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_text(content)
         inventory = {path: hashlib.sha256((folder / path).read_bytes()).hexdigest() for path in files}
         manifest = copy.deepcopy(self.manifest)
+        if synthetic_secret is not None:
+            manifest["secrets"] = [{"name": "PRODUCT_TOKEN", "required": True,
+                                   "contexts": ["service", "admin"], "same_value": True}]
         manifest["runtime"]["lock_files"] = {os_name: {"file": "locks/" + os_name + ".lock", "sha256": inventory["locks/" + os_name + ".lock"]} for os_name in ("windows", "linux")}
         wheel = "vendor/test_fixture-1.0-py3-none-any.whl"
         manifest["runtime"]["vendor_wheels"] = [{"file": wheel, "sha256": inventory[wheel]}]
@@ -210,7 +233,9 @@ class NativeLifecycleTests(unittest.TestCase):
         record = {"pid": os.getpid(), "birth": _birth(os.getpid()),
                   "installation_id": "1" * 32, "release": "v1"}
         self.assertFalse(self.engine._running(record))
-        self.engine._terminate(record)  # Current test process survives.
+        with self.assertRaises(EngineError) as error:
+            self.engine._terminate(record)
+        self.assertEqual(error.exception.code, "OPERATION_CONFLICT")
 
     def test_unknown_verifier_fails_closed(self):
         bundle = self.bundle("v1")
@@ -345,6 +370,135 @@ class NativeLifecycleTests(unittest.TestCase):
             self.run_action("install", bundle)
         self.assertEqual(error.exception.code, "PREREQUISITE_MISSING")
         self.assertFalse(self.root.exists())
+
+    def test_orphan_after_spawn_is_adopted_by_exact_launch_identity(self):
+        bundle = self.bundle("v1")
+        plan = self.operation_plan("install", bundle)
+        actual_write = engine_module._write
+        def crash_receipt(path, value, **kwargs):
+            if Path(path).name == "processes.json" and any(item.get("status") == "running" for item in value.values()):
+                raise SimulatedCrash()
+            return actual_write(path, value, **kwargs)
+        with patch("homensai_install.engine._write", side_effect=crash_receipt):
+            with self.assertRaises(SimulatedCrash):
+                self.engine.execute(plan)
+        self.current = bundle
+        child = next(iter(self.engine._children.values()))
+        result = self.new_engine().resume(plan, {})
+        self.assertTrue(result["health"]["ready"])
+        receipt = json.loads((self.root / ".hinstall" / "processes.json").read_text())["web"]
+        self.assertEqual(receipt["pid"], child.pid)
+        self.assertEqual(receipt["status"], "running")
+
+    def test_unknown_launch_is_not_blindly_repeated(self):
+        bundle = self.bundle("v1")
+        plan = self.operation_plan("install", bundle)
+        real_popen = subprocess.Popen
+        def fail_before_spawn(argv, **kwargs):
+            if "server.py" in argv:
+                raise SimulatedCrash()
+            return real_popen(argv, **kwargs)
+        with patch("homensai_install.engine.subprocess.Popen", side_effect=fail_before_spawn):
+            with self.assertRaises(SimulatedCrash):
+                self.engine.execute(plan)
+        with self.assertRaises(EngineError) as error:
+            self.new_engine().resume(plan, {})
+        self.assertEqual(error.exception.code, "RECOVERY_REQUIRED")
+        self.assertEqual(self.engine._children, {})
+
+    def test_plaintext_archive_cannot_enter_encrypted_restore(self):
+        bundle = self.bundle("v1")
+        self.run_action("install", bundle)
+        self.run_action("stop", bundle)
+        ctx = self.engine._context(bundle["manifest"], self.target, bundle["options"])
+        plain = self.base / "plain.zip"
+        build_archive(ctx["home"], plain)
+        self.run_action("start", bundle)
+        pid = json.loads((self.root / ".hinstall" / "processes.json").read_text())["web"]["pid"]
+        with self.assertRaises(EngineError) as error:
+            self.run_action("restore", bundle, archive_path=str(plain))
+        self.assertEqual(error.exception.code, "INTEGRITY_FAILED")
+        self.assertEqual(json.loads((self.root / ".hinstall" / "processes.json").read_text())["web"]["pid"], pid)
+
+    def test_tampered_restore_candidate_is_rejected_before_live_changes(self):
+        bundle = self.bundle("v1")
+        self.run_action("install", bundle)
+        user_file = self.root / "data" / "user.txt"
+        user_file.write_text("snapshot")
+        archive = self.run_action("backup", bundle)["archive"]["path"]
+        user_file.write_text("new current data")
+        plan = self.operation_plan("restore", bundle, archive_path=archive)
+        def crash(event):
+            if event["phase"] == "verify_archive" and event["status"] == "SUCCEEDED":
+                raise SimulatedCrash()
+        with self.assertRaises(SimulatedCrash):
+            self.engine.execute(plan, emit=crash)
+        candidate = next((self.base / ".installed-recovery").glob("*-restore-candidate"))
+        (candidate / "roots" / "data" / "user.txt").write_text("unexpected substituted data")
+        with self.assertRaises(EngineError) as error:
+            self.new_engine().resume(plan, {})
+        self.assertEqual(error.exception.code, "INTEGRITY_FAILED")
+        self.assertEqual(user_file.read_text(), "new current data")
+
+    def test_export_directory_permissions_and_foreign_archive_are_preserved(self):
+        bundle = self.bundle("v1")
+        self.run_action("install", bundle)
+        export = self.base / "exports"
+        export.mkdir(mode=0o750)
+        existing = export / "existing.hsac"
+        existing.write_text("foreign bytes")
+        with self.assertRaises(EngineError) as error:
+            self.run_action("backup", bundle, archive_path=str(existing))
+        self.assertEqual(error.exception.code, "OPERATION_CONFLICT")
+        self.assertEqual(existing.read_text(), "foreign bytes")
+        result = self.run_action("backup", bundle, archive_path=str(export / "created.hsac"))
+        self.assertEqual(result["status"], "SUCCEEDED")
+        self.assertEqual(export.stat().st_mode & 0o777, 0o750)
+        self.assertEqual((export / "created.hsac").stat().st_mode & 0o777, 0o600)
+
+    def test_remaining_component_child_blocks_backup_without_killing_it(self):
+        bundle = self.bundle("v1", child_writer=True)
+        self.run_action("install", bundle)
+        child_file = self.root / "data" / "child-pid.txt"
+        deadline = time.monotonic() + 3
+        while not child_file.exists() and time.monotonic() < deadline:
+            time.sleep(.02)
+        child_pid = int(child_file.read_text())
+        parent = json.loads((self.root / ".hinstall" / "processes.json").read_text())["web"]
+        child = {**parent, "pid": child_pid, "birth": _birth(child_pid)}
+        try:
+            with self.assertRaises(EngineError) as error:
+                self.run_action("backup", bundle)
+            self.assertEqual(error.exception.code, "RECOVERY_REQUIRED")
+            self.assertTrue(self.engine._running(child))
+            self.assertFalse(list((self.base / ".installed-recovery").glob("*.hsac")))
+        finally:
+            # Только обнаруженный собственный launch token + kernel birth.
+            self.engine._terminate(child)
+        self.run_action("stop", bundle)
+
+    def test_stored_secret_refs_survive_restart_and_failed_update_rollback(self):
+        first = self.bundle("v1", synthetic_secret="synthetic-first")
+        second = self.bundle("bad", bad_health=True, synthetic_secret="synthetic-second")
+        first["options"]["secret_refs"] = {"PRODUCT_TOKEN": "product:first"}
+        second["options"]["secret_refs"] = {"PRODUCT_TOKEN": "product:second"}
+        secrets = {"product:first": "synthetic-first", "product:second": "synthetic-second",
+                   "test:archive": "test-only-strong-archive-password"}
+        calls = []
+        def provider(reference):
+            calls.append(reference)
+            return secrets.get(reference)
+        self.engine.secret_provider = provider
+        self.run_action("install", first)
+        self.assertEqual(calls.count("product:first"), 1)
+        self.run_action("stop", first)
+        restarted = copy.deepcopy(first)
+        restarted["options"].pop("secret_refs")
+        self.assertTrue(self.run_action("start", restarted)["health"]["ready"])
+        self.assertEqual(self.run_action("update", second)["status"], "FAILED_ROLLED_BACK")
+        self.current = first
+        ctx = self.engine._context(first["manifest"], self.target, first["options"])
+        self.assertTrue(self.engine._health(ctx)["ready"])
 
 
 if __name__ == "__main__":

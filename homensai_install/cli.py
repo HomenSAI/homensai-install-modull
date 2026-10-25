@@ -86,6 +86,11 @@ def parser() -> Parser:
     submit.add_argument("--plan-digest", required=True)
     submit.add_argument("--idempotency-key", required=True)
     submit.add_argument("--consent-ref", action="append", default=[])
+    operations = commands.add_parser("operations", help="Найти сохранённые операции после перезапуска UI")
+    _common(operations)
+    operations.add_argument("--product-id")
+    operations.add_argument("--all", action="store_true", help="Включить завершённые операции")
+    operations.add_argument("--limit", type=int, default=100)
     for name in ("status", "events", "cancel", "resume"):
         sub = commands.add_parser(name)
         _common(sub)
@@ -179,6 +184,8 @@ def _execute(args):
                           idempotency_key=args.idempotency_key, background=False)
     if args.command == "status":
         return api.status(args.operation_id)
+    if args.command == "operations":
+        return api.operations_list(args.product_id, unfinished_only=not args.all, limit=args.limit)
     if args.command == "events":
         return api.events(args.operation_id, args.after_sequence)
     if args.command == "cancel":

@@ -420,6 +420,96 @@
             }
           }
         }
+      },
+      "get": {
+        "operationId": "operations_list",
+        "description": "Найти сохранённые операции после перезапуска bootstrap/потери UI-сессии. Product ID фиксируется сервером из startup manifest. Отсутствие journal даёт пустой список без создания state. Dead owner переводится в RECOVERY_REQUIRED; действия не запускаются.",
+        "parameters": [
+          {
+            "name": "unfinished_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true
+            },
+            "description": "Включает незавершённые статусы и result.resume_required=true; false включает завершённые операции."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ограниченный список метаданных сохранённых операций текущего продукта; без автоматического resume.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "properties": {
+                        "result": {
+                          "$ref": "#/components/schemas/OperationListResult"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/operations/{operation_id}": {
@@ -1338,6 +1428,105 @@
           }
         }
       }
+    },
+    "/api/v1/diagnostics/export/preview": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "JSON result envelope"
+          },
+          "400": {
+            "description": "Structured error envelope"
+          }
+        },
+        "security": [
+          {
+            "InstallerSession": []
+          }
+        ],
+        "summary": "Preview redacted local support report; no upload",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "operation_id": {
+                    "type": "string",
+                    "description": "Operation belonging to the startup product; required by wizard"
+                  },
+                  "locale": {
+                    "enum": [
+                      "ru",
+                      "en",
+                      "de"
+                    ]
+                  }
+                },
+                "required": [
+                  "operation_id"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/diagnostics/export": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "JSON result envelope"
+          },
+          "400": {
+            "description": "Structured error envelope"
+          }
+        },
+        "security": [
+          {
+            "InstallerSession": []
+          }
+        ],
+        "summary": "Confirmed export of the exact preview into private state and browser download; never uploads",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "confirmed",
+                  "expected_digest",
+                  "operation_id"
+                ],
+                "properties": {
+                  "operation_id": {
+                    "type": "string",
+                    "description": "Operation belonging to the startup product; required by wizard"
+                  },
+                  "locale": {
+                    "enum": [
+                      "ru",
+                      "en",
+                      "de"
+                    ]
+                  },
+                  "confirmed": {
+                    "const": true
+                  },
+                  "expected_digest": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1382,6 +1571,14 @@
               "en",
               "de"
             ]
+          },
+          "archive_path": {
+            "type": "string",
+            "description": "Explicit local archive path for backup or restore; no overwrite of foreign files."
+          },
+          "acknowledge_data_loss": {
+            "type": "boolean",
+            "description": "Required true for restore and rollback in wizard."
           }
         },
         "required": [],
@@ -1419,6 +1616,14 @@
               "stop",
               "modify_components"
             ]
+          },
+          "archive_path": {
+            "type": "string",
+            "description": "Explicit local archive path for backup or restore; no overwrite of foreign files."
+          },
+          "acknowledge_data_loss": {
+            "type": "boolean",
+            "description": "Required true for restore and rollback in wizard."
           }
         },
         "required": [
@@ -1524,12 +1729,19 @@
             "minLength": 12,
             "maxLength": 4096,
             "writeOnly": true
+          },
+          "product_secrets": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "description": "Only secret names declared in the bound signed product manifest. Memory only."
           }
         },
-        "required": [
-          "archive_password"
-        ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "minProperties": 1
       },
       "WizardPreferencesRequest": {
         "type": "object",
@@ -1546,6 +1758,88 @@
           "locale"
         ],
         "additionalProperties": false
+      },
+      "OperationSummary": {
+        "type": "object",
+        "required": [
+          "operation_id",
+          "plan_id",
+          "action",
+          "status",
+          "product_id",
+          "updated_at"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "operation_id": {
+            "type": "string"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "action": {
+            "enum": [
+              "build",
+              "install",
+              "update",
+              "modify_components",
+              "repair",
+              "reinstall",
+              "uninstall",
+              "backup",
+              "restore",
+              "rollback",
+              "start",
+              "stop"
+            ]
+          },
+          "status": {
+            "enum": [
+              "QUEUED",
+              "RUNNING",
+              "SUCCEEDED",
+              "FAILED",
+              "FAILED_ROLLED_BACK",
+              "CANCELED",
+              "RECOVERY_REQUIRED",
+              "AWAITING_USER",
+              "REBOOT_REQUIRED",
+              "RELOGIN_REQUIRED"
+            ]
+          },
+          "product_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "OperationListResult": {
+        "type": "object",
+        "required": [
+          "operations",
+          "has_more",
+          "limit"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "operations": {
+            "type": "array",
+            "maxItems": 200,
+            "items": {
+              "$ref": "#/components/schemas/OperationSummary"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        }
       }
     }
   }

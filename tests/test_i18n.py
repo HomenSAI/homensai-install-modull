@@ -81,3 +81,12 @@ def test_catalog_returns_copies_and_rejects_missing_translation():
     assert catalog.describe("PORT_IN_USE")["checks"]
     with pytest.raises(ValueError):
         ErrorCatalog({"schema_version": 1, "catalog_version": "1", "errors": {"UNKNOWN_ERROR": {}}})
+
+
+def test_executable_adapter_failures_are_localized_and_not_blindly_retryable():
+    for code in ("ADAPTER_PROTOCOL_INVALID", "ADAPTER_TIMEOUT", "ADAPTER_EXECUTION_FAILED"):
+        for locale in ("ru", "en", "de"):
+            entry = ErrorCatalog().describe(code, locale)
+            assert entry["known_code"] and entry["locale"] == locale
+            assert not entry["retryable"] and "reconcile" in entry["permitted_actions"]
+    assert "unknown outcome" in ErrorCatalog().describe("ADAPTER_TIMEOUT", "en")["impact"]

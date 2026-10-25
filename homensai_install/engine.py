@@ -61,6 +61,11 @@ def _digest(value):
     return hashlib.sha256(_canonical(value)).hexdigest()
 
 
+def _file_digest(path):
+    with checked_path(path).open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
 def _read(path: Path):
     path = checked_path(path)
     if path.stat().st_size > 16 * 1024 * 1024:
@@ -240,6 +245,10 @@ class NativeEngine:
                    "reason": None if native else "CAPABILITY_UNSUPPORTED"}
             for name in self.ACTIONS}, "production_ready": False,
             "execution_scope": "user-session", "manifest_schemas": [2],
+            "deployment_form": "prebuilt-release", "installs_vendor_wheels": False,
+            "service_autostart": False, "restart_supervision": False,
+            "health_model": "owned_processes_and_product_http", "heartbeat_monitoring": False,
+            "backup_strategy": "filesystem_quiesced", "product_backup_hooks_supported": False,
             "requires_trusted_payload_verifier": True,
             "development_runtime": self.development_runtime is not None}
 
@@ -310,7 +319,29 @@ class NativeEngine:
                      "installation_id": owner.get("installation_id") if owner else None,
                      "registered": owner.get("installed", False) if owner else False,
                      "root_occupied": occupied}
-        owned_running = any(self._running(x) for x in self._records(ctx).values()) if owner else False
+        records = self._records(ctx) if owner else {}
+        processes = {name: {"running": self._running(record), "release": record.get("release"),
+                            "state": record.get("status", "recorded")}
+                     for name, record in records.items()}
+        owned_running = any(item["running"] for item in processes.values())
+        integrity = {"state": "NOT_INSTALLED", "release": active}
+        if owner and active and owner.get("installed"):
+            try:
+                self._installed(ctx, active)
+                integrity["state"] = "VERIFIED"
+            except Exception:
+                integrity.update(state="VIOLATED", error_code="INTEGRITY_FAILED")
+        elif owner and not active:
+            integrity["state"] = "INCOMPLETE"
+        essential["integrity"] = integrity
+        pending = []
+        folder = ctx["control"] / "operations"
+        if owner and folder.exists():
+            for file in sorted(folder.glob("*.json")):
+                operation = _read(file)
+                if operation.get("status") in {"RUNNING", "CANCELED", "RECOVERY_REQUIRED", "FAILED"}:
+                    pending.append({"receipt": file.stem, "action": operation.get("action"),
+                                    "status": operation.get("status"), "phase": operation.get("phase")})
         with socket.socket() as probe:
             probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
@@ -322,10 +353,16 @@ class NativeEngine:
             path = options.get(option)
             if path:
                 file = checked_path(path)
-                essential[option] = hashlib.sha256(file.read_bytes()).hexdigest() if file.is_file() else None
+                essential[option] = _file_digest(file) if file.is_file() else None
         return {"fingerprint_data": essential, "installation": owner,
                 "active_release": active, "runtime": {"system_python_required": False},
+                "integrity": integrity, "components": processes,
+                "unfinished_operations": pending,
                 "production_ready": False, "read_only": True}
+
+    def status(self, manifest, target, options):
+        """Состояние установки, процессов и signed bytes без запуска/исправлений."""
+        return self.discover(manifest, target, options)
 
     def plan(self, action, manifest, target, inventory, options):
         ctx = self._context(manifest, target, options)
@@ -364,7 +401,10 @@ class NativeEngine:
         return {"steps": [{"id": x, "component_id": "product", "weight": 1} for x in steps],
                 "resources": [str(ctx["root"]), str(ctx["work"])],
                 "required_consents": consents, "scope": "user-session",
-                "preserves_user_data": True, "production_ready": False}
+                "preserves_user_data": True, "production_ready": False,
+                "backup_strategy": "filesystem_quiesced", "product_backup_hooks_supported": False,
+                "consistency_requires": ["all_writers_are_owned_components", "graceful_stop_completed"],
+                "legacy_commands_not_executed": ["backup.cmd", "restore.cmd"]}
 
     def _password(self, ctx):
         reference = ctx["options"].get("backup_password_ref")
@@ -378,6 +418,7 @@ class NativeEngine:
             raise EngineError("PREREQUISITE_MISSING", "Источник пароля недоступен") from None
         if not isinstance(password, str) or len(password) < 12:
             raise EngineError("PREREQUISITE_MISSING", "Пароль архива отсутствует или слишком короткий")
+        ctx.setdefault("secret_cache", {})[reference] = password
         return lambda: password
 
     def _verify(self, manifest, target, options):
@@ -455,11 +496,14 @@ class NativeEngine:
                 raise EngineError("OPERATION_CONFLICT", "Release metadata уже отличается")
             if not destination.exists():
                 _copy_file(source, destination)
+        destination = self._metadata_path(ctx, release)
+        refs = opts.get("secret_refs")
+        if refs is None and destination.exists():
+            refs = _read(destination).get("secret_refs", {})
         value = {"release": release, "manifest": ctx["manifest"], "target": ctx["target"],
                  "modes": list(ctx["modes"]), "inventory": inventory,
                  "runtime_executable": runtime,
-                 "secret_refs": ctx["options"].get("secret_refs", {})}
-        destination = self._metadata_path(ctx, release)
+                 "secret_refs": refs or {}}
         if destination.exists() and _read(destination) != value:
             raise EngineError("OPERATION_CONFLICT", "Release ID уже занят другим содержимым")
         _write(destination, value)
@@ -488,10 +532,95 @@ class NativeEngine:
         try:
             with (Path("/proc") / str(record["pid"]) / "environ").open("rb") as stream:
                 values = stream.read(1024 * 1024).split(b"\0")
-            return (b"HOMENSAI_INSTALLATION_ID=" + record["installation_id"].encode() in values
-                    and b"HOMENSAI_RELEASE=" + record["release"].encode() in values)
+            matches = (b"HOMENSAI_INSTALLATION_ID=" + record["installation_id"].encode() in values
+                       and b"HOMENSAI_RELEASE=" + record["release"].encode() in values)
+            if record.get("launch_id"):
+                matches = matches and b"HOMENSAI_LAUNCH_ID=" + record["launch_id"].encode() in values
+            return matches
         except (OSError, KeyError, UnicodeError):
             return False
+
+    def _adopt_launch(self, ctx, name, record):
+        """Recovery между Popen и receipt: только exact random launch identity.
+
+        Не найденный незавершённый launch нельзя слепо повторять. Проверяем
+        kernel owner, executable, cwd, argv, installation/release/launch token.
+        Никакие значения окружения не сохраняются и не выводятся.
+        """
+        if not re.fullmatch(r"[0-9a-f]{32}", str(record.get("launch_id", ""))):
+            raise EngineError("RECOVERY_REQUIRED", "Незавершённый launch не имеет identity")
+        release = record.get("release")
+        meta = self._installed(ctx, release)
+        components = {item["name"]: item for item in meta["manifest"]["components"]}
+        if name not in components:
+            raise EngineError("OPERATION_CONFLICT", "Неизвестный launch component")
+        argv = self._argv(ctx, release, components[name]["cmd"])
+        if record.get("argv_digest") != _digest(argv):
+            raise EngineError("OPERATION_CONFLICT", "Launch intent отличается от команды")
+        executable = Path(argv[0]).resolve(strict=True)
+        directory = self._release(ctx, release)
+        candidates = []
+        for entry in Path("/proc").iterdir():
+            if not entry.name.isdecimal():
+                continue
+            try:
+                if entry.stat().st_uid != os.getuid():
+                    continue
+                if Path(os.readlink(entry / "cwd")) != directory or Path(os.readlink(entry / "exe")).resolve() != executable:
+                    continue
+                actual = (entry / "cmdline").read_bytes().rstrip(b"\0").split(b"\0")
+                if actual != [os.fsencode(item) for item in argv]:
+                    continue
+                candidate = {**record, "pid": int(entry.name), "birth": _birth(int(entry.name)), "status": "running"}
+                if self._running(candidate):
+                    candidates.append(candidate)
+            except (OSError, ValueError):
+                continue
+        if len(candidates) != 1:
+            raise EngineError("RECOVERY_REQUIRED", "Нельзя однозначно подтвердить незавершённый launch")
+        return candidates[0]
+
+    def _reconcile_launches(self, ctx, records):
+        for name, record in tuple(records.items()):
+            if record.get("status") == "launching":
+                records[name] = self._adopt_launch(ctx, name, record)
+                _write(ctx["control"] / "processes.json", records)
+        return records
+
+    def _assert_session_quiesced(self, record):
+        """Main PID exit не означает, что его foreground session опустела.
+
+        Оставшиеся потомки не убиваются догадкой: backup/replace блокируются.
+        Процессы, специально ушедшие через setsid/внешнюю службу, требуют
+        другого adapter; этот backend не разрешает daemonizing components.
+        """
+        pid, birth = record.get("pid"), record.get("birth")
+        if os.name == "nt" or type(pid) is not int or not isinstance(birth, str):
+            return
+        boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+        if not birth.startswith(boot + ":"):
+            return
+        for path in Path("/proc").iterdir():
+            if not path.name.isdecimal() or int(path.name) == pid:
+                continue
+            try:
+                if path.stat().st_uid != os.getuid():
+                    continue
+                fields = (path / "stat").read_text().rsplit(")", 1)[1].split()
+                if fields[0] != "Z" and int(fields[3]) == pid:
+                    raise EngineError("RECOVERY_REQUIRED", "После main PID остались процессы компонента; snapshot запрещён")
+            except (OSError, IndexError, ValueError):
+                continue
+
+    def _reap_child(self, pid):
+        child = self._children.pop(pid, None)
+        if child is not None:
+            child.wait(timeout=1)
+        else:
+            try:
+                os.waitpid(pid, os.WNOHANG)
+            except ChildProcessError:
+                pass
 
     def _argv(self, ctx, release, command):
         meta = self._metadata(ctx, release)
@@ -519,11 +648,27 @@ class NativeEngine:
                    HOMENSAI_CONFIG_HOME=str(ctx["home"].roots["config"]),
                    HOMENSAI_WEB_HOST="127.0.0.1", HOMENSAI_WEB_PORT=str(manifest["web"]["port"]),
                    HOMENSAI_MAINTENANCE="1", PYTHONDONTWRITEBYTECODE="1", PYTHONUNBUFFERED="1")
-        refs = {**self._metadata(ctx, release).get("secret_refs", {}), **ctx["options"].get("secret_refs", {})}
-        env.update(self._secrets(manifest, refs, "admin" if component == "hook" else "service"))
+        env["PYTHONNOUSERSITE"] = "1"
+        refs = self._secret_refs(ctx, release)
+        env.update(self._secrets(manifest, refs, "admin" if component == "hook" else "service",
+                                 cache=ctx.get("secret_cache")))
         return env
 
-    def _secrets(self, manifest, refs, context):
+    def _secret_refs(self, ctx, release, meta=None):
+        meta = meta or self._metadata(ctx, release)
+        refs = meta.get("secret_refs", {})
+        if (not isinstance(refs, dict) or set(refs) - {item["name"] for item in meta["manifest"]["secrets"]}
+                or any(not isinstance(value, str) or re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.:-]{0,127}", value) is None
+                       for value in refs.values())):
+            raise EngineError("RECOVERY_REQUIRED", "Повреждены ссылки на product secrets")
+        refs = dict(refs)
+        # Rollback запускает старый release со старыми refs. Параметры новой
+        # версии не подменяют его credentials при automatic rollback.
+        if release == ctx["release"] or ctx.get("action") == "start":
+            refs.update(ctx["options"].get("secret_refs", {}))
+        return refs
+
+    def _secrets(self, manifest, refs, context, *, cache=None):
         values = {}
         for item in manifest["secrets"]:
             if context not in item["contexts"]:
@@ -532,10 +677,15 @@ class NativeEngine:
             if name in {"PATH", "HOME", "USERPROFILE", "SystemRoot", "WINDIR", "COMSPEC", "TEMP", "TMP", "LANG", "LC_ALL"} or name.startswith(("PYTHON", "HOMENSAI_", "LD_", "DYLD_")):
                 raise EngineError("INVALID_MANIFEST", "Secret использует управляющее имя окружения")
             reference = refs.get(name, name)
-            try:
-                secret = self.secret_provider(reference) if self.secret_provider else None
-            except Exception:
-                secret = None
+            if cache is not None and reference in cache:
+                secret = cache[reference]
+            else:
+                try:
+                    secret = self.secret_provider(reference) if self.secret_provider else None
+                except Exception:
+                    secret = None
+                if cache is not None:
+                    cache[reference] = secret
             if secret is None and not item["required"]:
                 continue
             if not isinstance(secret, str) or not secret or "\0" in secret:
@@ -569,9 +719,13 @@ class NativeEngine:
         if not release:
             raise EngineError("RECOVERY_REQUIRED", "Нет активного release")
         meta = self._installed(ctx, release)
-        records = self._records(ctx)
+        records = self._reconcile_launches(ctx, self._records(ctx))
         order = component_order(meta["manifest"], tuple(meta["modes"]))
         for name, record in records.items():
+            if record.get("birth") and _birth(record.get("pid")) == record["birth"] and not self._running(record):
+                raise EngineError("OPERATION_CONFLICT", "Живой process receipt не подтвердил installation identity")
+            if not self._running(record):
+                self._assert_session_quiesced(record)
             if self._running(record) and (name not in order or record.get("release") != release):
                 raise EngineError("OPERATION_CONFLICT", "Работает другой набор процессов установки")
         if all(name in records and self._running(records[name]) for name in order):
@@ -588,21 +742,39 @@ class NativeEngine:
             if name in records and self._running(records[name]):
                 continue
             kwargs = {"start_new_session": True} if os.name != "nt" else {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
-            process = subprocess.Popen(self._argv(ctx, release, components[name]["cmd"]),
-                                       cwd=self._release(ctx, release), env=self._environment(ctx, release, name),
-                                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                                       stderr=subprocess.DEVNULL, close_fds=True, **kwargs)
+            argv = self._argv(ctx, release, components[name]["cmd"])
+            env = self._environment(ctx, release, name)
+            intent = {"pid": None, "birth": None, "release": release, "status": "launching",
+                      "installation_id": self._owner(ctx, required=True)["installation_id"],
+                      "launch_id": uuid.uuid4().hex, "argv_digest": _digest(argv)}
+            records[name] = intent
+            _write(ctx["control"] / "processes.json", records)
+            env["HOMENSAI_LAUNCH_ID"] = intent["launch_id"]
+            try:
+                process = subprocess.Popen(argv, cwd=self._release(ctx, release), env=env,
+                                           stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                           stderr=subprocess.DEVNULL, close_fds=True, **kwargs)
+            except OSError:
+                records[name] = {**intent, "status": "spawn_failed"}
+                _write(ctx["control"] / "processes.json", records)
+                raise EngineError("RECOVERY_REQUIRED", "Компонент не удалось запустить") from None
             self._children[process.pid] = process
             birth = _birth(process.pid)
             if birth is None:
-                process.poll()
+                if process.poll() is not None:
+                    records[name] = {**intent, "pid": process.pid, "status": "exited"}
+                    _write(ctx["control"] / "processes.json", records)
                 raise EngineError("RECOVERY_REQUIRED", "Запущенный компонент уже завершился")
-            records[name] = {"pid": process.pid, "birth": birth, "release": release,
-                             "installation_id": self._owner(ctx, required=True)["installation_id"]}
+            records[name] = {**intent, "pid": process.pid, "birth": birth, "status": "running"}
             _write(ctx["control"] / "processes.json", records)
 
     def _terminate(self, record):
         if not self._running(record):
+            if record.get("birth") and _birth(record.get("pid")) == record["birth"]:
+                raise EngineError("OPERATION_CONFLICT", "Чужая identity живого процесса: stop запрещён")
+            self._assert_session_quiesced(record)
+            if type(record.get("pid")) is int and _birth(record["pid"]) is None:
+                self._reap_child(record["pid"])
             return
         pid = record["pid"]
         if os.name == "nt":
@@ -638,15 +810,14 @@ class NativeEngine:
                 time.sleep(0.05)
             if self._running(record):
                 raise EngineError("RECOVERY_REQUIRED", "Компонент не остановился согласованно; данные не заменены")
-            child = self._children.pop(pid, None)
-            if child is not None:
-                child.wait(timeout=1)
+            self._reap_child(pid)
+            self._assert_session_quiesced(record)
         finally:
             os.close(fd)
 
     def _stop(self, ctx):
         owner = self._owner(ctx, required=True)
-        records = self._records(ctx)
+        records = self._reconcile_launches(ctx, self._records(ctx))
         order = []
         for release in dict.fromkeys(record.get("release") for record in records.values()):
             meta = self._metadata(ctx, release)
@@ -726,13 +897,15 @@ class NativeEngine:
         if path.exists():
             if not receipt.exists() or _read(receipt) != binding:
                 raise EngineError("OPERATION_CONFLICT", "Архив уже существует и не относится к этой операции")
+            if not archive_crypto.is_encrypted(path):
+                raise EngineError("INTEGRITY_FAILED", "Ожидался шифрованный архив")
             archive_crypto.verify_archive(path, password_provider=password,
                                            expected_product_id=ctx["manifest"]["product_id"])
         else:
             path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             archive_crypto.build_encrypted_archive(ctx["home"], path, password_provider=password)
             _write(receipt, binding, private_parent=False)
-        return {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        return {"path": str(path), "sha256": _file_digest(path),
                 "release": release, "encrypted": True, "includes_recovery_payload": bool(release)}
 
     def _ports(self, ctx, inventory, password, emit):
@@ -785,13 +958,23 @@ class NativeEngine:
                 raise EngineError("CONSENT_REQUIRED", "Hash соглашения не совпадает с подписанным текстом")
         if cancel_requested():
             return {"status": "CANCELED", "production_ready": False}
+        ctx["secret_cache"] = {}
         password = (self._password(ctx) if action in {"update", "backup", "restore", "rollback", "repair", "reinstall"}
                     else None)
-        if action in {"install", "update", "repair", "reinstall", "start"}:
-            for context in ("service", "admin"):
-                self._secrets(ctx["manifest"], ctx["options"].get("secret_refs", {}), context)
         if action != "install":
             self._owner(ctx, required=True)
+        if action in {"install", "update", "repair", "reinstall", "start"}:
+            refs = ctx["options"].get("secret_refs", {})
+            current = self._pointer(ctx) if self._owner(ctx) else None
+            if current and (current == ctx["release"] or action == "start"):
+                refs = self._secret_refs(ctx, current)
+            for context in ("service", "admin"):
+                self._secrets(ctx["manifest"], refs, context, cache=ctx["secret_cache"])
+            if action == "update" and current:
+                previous = self._metadata(ctx, current)
+                for context in ("service", "admin"):
+                    self._secrets(previous["manifest"], self._secret_refs(ctx, current, previous), context,
+                                  cache=ctx["secret_cache"])
         # Claim, все записи журнала и файловые эффекты сериализуются одним
         # inode lock, даже при использовании разных API state_dir.
         lock = checked_path(ctx["root"].parent / (".hinstall-" + _digest(str(ctx["root"]))[:24] + ".lock"))
@@ -867,6 +1050,8 @@ class NativeEngine:
                 state.update(status="FAILED", error_code=getattr(error, "code", "RECOVERY_REQUIRED"))
                 _write(journal, state)
                 raise
+            result.setdefault("backup_strategy", "filesystem_quiesced")
+            result.setdefault("production_ready", False)
             state.update(status=result.get("status", "SUCCEEDED"), result=result)
             _write(journal, state)
             return result
@@ -991,6 +1176,8 @@ class NativeEngine:
             if action == "rollback" and ctx["options"].get("acknowledge_data_loss") is not True:
                 raise EngineError("CONSENT_REQUIRED")
             source = checked_path(ctx["options"]["archive_path"])
+            if not archive_crypto.is_encrypted(source):
+                raise EngineError("INTEGRITY_FAILED", "Native restore принимает только шифрованные архивы")
             candidate = ctx["work"] / (token + "-restore-candidate")
             def extract():
                 if not candidate.exists():
@@ -1001,8 +1188,20 @@ class NativeEngine:
                     # Failed/partial extraction is not resumed by trusting an
                     # existing directory. Require an explicit new plan.
                     raise EngineError("RECOVERY_REQUIRED", "Restore candidate уже существует")
-                return {"path": str(candidate)}
-            step("verify_archive", extract)
+                return {"path": str(candidate), "archive_sha256": _file_digest(source)}
+            extracted = step("verify_archive", extract)
+            if _file_digest(source) != extracted["archive_sha256"]:
+                raise EngineError("INTEGRITY_FAILED", "Источник restore изменился после проверки")
+            # После crash кандидат мог измениться. Проверяем каждый файл и
+            # пустой каталог по аутентифицированному manifest исходного AES.
+            archive_manifest = archive_crypto.verify_archive(source, password_provider=password,
+                                                             expected_product_id=ctx["manifest"]["product_id"])
+            expected_files = {item["path"]: item["sha256"] for item in archive_manifest["files"]}
+            expected_directories = {".", "roots", *archive_manifest["directories"]}
+            if _tree(candidate) != (expected_directories, expected_files):
+                raise EngineError("INTEGRITY_FAILED", "Restore candidate не соответствует архиву")
+            if set(archive_manifest["roots"]) != set(ctx["home"].roots):
+                raise EngineError("INTEGRITY_FAILED", "Archive roots не соответствуют установке")
             pointer = _read(candidate / "roots" / "services" / ctx["manifest"]["update"]["pointer_file"])
             release = pointer["release"]
             recovery = checked_path(candidate / "roots" / "runtime" / "recovery" / release)
@@ -1038,6 +1237,8 @@ class NativeEngine:
     def _data_backup(self, ctx, path, password):
         if not path.exists():
             archive_crypto.build_encrypted_archive(ctx["home"], path, password_provider=password)
+        if not archive_crypto.is_encrypted(path):
+            raise EngineError("INTEGRITY_FAILED", "Ожидался шифрованный recovery snapshot")
         archive_crypto.verify_archive(path, password_provider=password,
                                        expected_product_id=ctx["manifest"]["product_id"])
         return {"path": str(path), "encrypted": True, "recovery_source": "verified replacement bundle"}

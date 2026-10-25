@@ -22,6 +22,7 @@
     "discover",
     "plan",
     "submit",
+    "operations.list",
     "status",
     "events",
     "cancel",
@@ -44,7 +45,8 @@
   "limits": {
     "input_json_bytes": 2097152,
     "json_depth": 48,
-    "event_page_size": 1000
+    "event_page_size": 1000,
+    "operation_list_size": 200
   },
   "documentation": {
     "entrypoint": "INSTALLER_API.md",

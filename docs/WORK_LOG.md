@@ -41,3 +41,29 @@ HIM-004/005 закрыты. Остальные частично реализов
 IN_PROGRESS с областью фактического PASS. G0–G5 открыты. Блокировки: реальный
 Docker/Forgejo владельца, Windows/Docker runners, production signing и юридическое
 утверждение. Продолжать независимые GUI/reference, prerequisites и checkpoint tooling.
+
+## CP-20261025-003 — GUI, frozen reference, prerequisites, checkpoint automation
+
+CP-002 подтверждён локально/GitHub: b2d99a2bf75aa8e35328f64c3b8b08dc618bceda.
+Добавлены GUI ru/en/de, защищённый HTTP transport, product-bound resume list,
+preview/export diagnostics, reference SQLite product, builder и настоящий Linux
+frozen bootstrap. Chromium прошёл fresh installation, языки, согласия и web readiness.
+
+Source suite: 1363 passed, 1 skipped, 10 subtests (29.84s). После этого отдельный
+расширенный wizard suite: 10 PASS. Native/API/HTTP integration: 24 PASS (27.99s).
+Checkpoint automation:37 PASS на настоящих temporary Git/bare repos.
+Downloads/prerequisites:56 PASS; read-only/manual first, auto OS install unsupported.
+
+Frozen GUI04: install и encrypted backup PASS. Следующее uninstall остановилось
+на extra file в recovery inventory; live release hashes целы. Источник изменения
+не установлен. Содержимое сохранено, проверка не ослаблена. Полный happy-path
+в следующем чистом bundle обязателен; отказ не записывается как успешное удаление.
+
+Аудит лицензий обнаружил Berkeley DB в лишнем _dbm extension и bundled ensurepip;
+reference builder теперь исключает BDB, pip bootstrap и ненужные Tcl/Tk. Встроенные
+libpython dependencies и frozen loader всё равно требуют полного inventory/notices.
+Production release заблокирован до лицензионного gate, ключей/сертификата и EULA.
+
+Следующая очередь: чистый frozen bundled lifecycle + crash/browser-restart resume,
+полный licence gate, signed executable ProductAdapter/scaffold, platform adapters
+и настоящие JobPilot/Rent. Docker/Windows runners и Forgejo владельца не подключены.

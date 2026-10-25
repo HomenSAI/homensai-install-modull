@@ -2092,6 +2092,162 @@
         }
       },
       "alias_of": "PERMISSION_DENIED"
+    },
+    "ADAPTER_PROTOCOL_INVALID": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "reconcile"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Неверный протокол адаптера",
+          "description": "Ответ адаптера продукта не соответствует закреплённой версии JSON-протокола.",
+          "possible_causes": [
+            "Несовместимая версия, неправильная структура ответа, превышение размера или повреждённый JSON."
+          ],
+          "checks": [
+            "Проверьте protocol_version, разрешённые поля и reason-код; не публикуйте raw stdout/stderr."
+          ],
+          "remediation": [
+            "Исправьте и пересоберите доверенный адаптер. Если действие меняло систему, сначала сверяйте фактическое состояние."
+          ],
+          "impact": "Результат действия нельзя принять как подтверждение успешной установки."
+        },
+        "en": {
+          "title": "Invalid adapter protocol",
+          "description": "The product adapter response does not match the pinned JSON protocol.",
+          "possible_causes": [
+            "Incompatible version, malformed fields, oversized response, or invalid JSON."
+          ],
+          "checks": [
+            "Check protocol_version, allowed fields, and the reason code; do not publish raw stdout/stderr."
+          ],
+          "remediation": [
+            "Fix and rebuild the trusted adapter. Reconcile actual state first if the action could mutate the system."
+          ],
+          "impact": "The response cannot establish successful installation."
+        },
+        "de": {
+          "title": "Ungültiges Adapterprotokoll",
+          "description": "Die Antwort des Produktadapters entspricht nicht dem festgelegten JSON-Protokoll.",
+          "possible_causes": [
+            "Inkompatible Version, ungültige Felder, zu große Antwort oder fehlerhaftes JSON."
+          ],
+          "checks": [
+            "Prüfen Sie protocol_version, erlaubte Felder und den reason-Code; veröffentlichen Sie keine rohe stdout/stderr-Ausgabe."
+          ],
+          "remediation": [
+            "Korrigieren und bauen Sie den vertrauenswürdigen Adapter neu. Gleichen Sie bei verändernden Aktionen zuerst den tatsächlichen Zustand ab."
+          ],
+          "impact": "Die Antwort bestätigt keine erfolgreiche Installation."
+        }
+      }
+    },
+    "ADAPTER_TIMEOUT": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "reconcile"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Превышено время работы адаптера",
+          "description": "Адаптер не подтвердил завершение до установленного срока.",
+          "possible_causes": [
+            "Медленный компонент, зависший процесс или недоступный внешний ресурс; точная причина ещё не установлена."
+          ],
+          "checks": [
+            "Проверьте журнал этапа, состояние запущенных процессов и результаты проверки ресурсов."
+          ],
+          "remediation": [
+            "Перед повтором изменяющего действия выполните reconcile. Не запускайте миграцию или установку повторно вслепую."
+          ],
+          "impact": "После timeout результат изменяющего действия может быть неизвестен; отсутствие ответа не доказывает отсутствие изменений."
+        },
+        "en": {
+          "title": "Adapter deadline exceeded",
+          "description": "The adapter did not confirm completion before its deadline.",
+          "possible_causes": [
+            "A slow component, blocked process, or unavailable dependency; the specific cause is not yet established."
+          ],
+          "checks": [
+            "Inspect the phase journal, owned processes, and resource checks."
+          ],
+          "remediation": [
+            "Reconcile actual state before retrying a mutating action. Never blindly repeat a migration or installation."
+          ],
+          "impact": "A timed-out mutating action may have an unknown outcome; no response does not prove no changes."
+        },
+        "de": {
+          "title": "Zeitlimit des Adapters überschritten",
+          "description": "Der Adapter hat den Abschluss nicht innerhalb der Frist bestätigt.",
+          "possible_causes": [
+            "Langsame Komponente, blockierter Prozess oder nicht verfügbare Abhängigkeit; die genaue Ursache ist noch ungeklärt."
+          ],
+          "checks": [
+            "Prüfen Sie Phasenprotokoll, zugehörige Prozesse und Ressourcenprüfungen."
+          ],
+          "remediation": [
+            "Gleichen Sie vor Wiederholung einer verändernden Aktion den tatsächlichen Zustand ab. Wiederholen Sie Migration oder Installation nicht ungeprüft."
+          ],
+          "impact": "Nach einem Timeout kann das Ergebnis unbekannt sein; eine fehlende Antwort beweist keine unveränderte Umgebung."
+        }
+      }
+    },
+    "ADAPTER_EXECUTION_FAILED": {
+      "severity": "error",
+      "retryable": false,
+      "permitted_actions": [
+        "inspect",
+        "reconcile"
+      ],
+      "translations": {
+        "ru": {
+          "title": "Адаптер завершился с ошибкой",
+          "description": "Процесс адаптера вернул неуспешный код завершения.",
+          "possible_causes": [
+            "Отказ компонента, некорректная конфигурация или недоступные ресурсы; причины требуют отдельной проверки."
+          ],
+          "checks": [
+            "Проверьте этап, безопасный reason-код и внешний exit code без раскрытия содержимого stdout/stderr."
+          ],
+          "remediation": [
+            "Исправьте подтверждённую причину и сверяйте состояние ресурсов перед новым планом или допустимым повтором."
+          ],
+          "impact": "Операция не считается успешной; частичные изменения должны быть проверены и учтены."
+        },
+        "en": {
+          "title": "Adapter execution failed",
+          "description": "The adapter process returned an unsuccessful exit code.",
+          "possible_causes": [
+            "Component failure, invalid configuration, or unavailable resources; causes require independent verification."
+          ],
+          "checks": [
+            "Inspect the phase, safe reason code, and external exit code without exposing stdout/stderr."
+          ],
+          "remediation": [
+            "Resolve the confirmed cause and reconcile resources before a new plan or permitted retry."
+          ],
+          "impact": "The operation is not successful; partial changes require verification and reconciliation."
+        },
+        "de": {
+          "title": "Adapterausführung fehlgeschlagen",
+          "description": "Der Adapterprozess hat einen Fehlercode zurückgegeben.",
+          "possible_causes": [
+            "Komponentenfehler, ungültige Konfiguration oder nicht verfügbare Ressourcen; Ursachen müssen gesondert geprüft werden."
+          ],
+          "checks": [
+            "Prüfen Sie Phase, sicheren reason-Code und Rückgabecode, ohne stdout/stderr offenzulegen."
+          ],
+          "remediation": [
+            "Beheben Sie die bestätigte Ursache und gleichen Sie Ressourcen vor neuem Plan oder zulässiger Wiederholung ab."
+          ],
+          "impact": "Der Vorgang ist nicht erfolgreich; teilweise Änderungen müssen geprüft und berücksichtigt werden."
+        }
+      }
     }
   }
 }

@@ -3,7 +3,7 @@
   "info": {
     "title": "HomenSAI local installation API",
     "version": "1.0",
-    "description": "Development contract. Loopback only. SDK/CLI use the same InstallerAPI facade. No build/sign/arbitrary elevated command in HTTP. Wizard session binds product manifest and trust at startup; HTTP accepts only mode/path/action/consents, not arbitrary manifests or trust roots. Generic SDK request schema is separate."
+    "description": "Development contract. Loopback only. SDK/CLI use the same InstallerAPI facade. No build/sign/arbitrary elevated command in HTTP. Wizard session binds product manifest and trust at startup; HTTP accepts only mode/path/action/consents, not arbitrary manifests or trust roots. Generic SDK request schema is separate. Prerequisite HTTP accepts only server-owned plan IDs and explicit consent; registered owner/product/manifest/target/catalog/payload binding is pinned. CLI prerequisites use synchronous trusted SDK injection. GUI prerequisite flow remains unavailable."
   },
   "servers": [
     {
@@ -1538,6 +1538,531 @@
           }
         }
       }
+    },
+    "/api/v1/prerequisites/capabilities": {
+      "get": {
+        "operationId": "prerequisitesCapabilities",
+        "description": "Возможности явно зарегистрированного target; production registry и GUI auto-flow не создаются.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "native",
+                "docker"
+              ],
+              "default": "native"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/licenses/{component_id}": {
+      "get": {
+        "operationId": "prerequisitesLicense",
+        "description": "Текст условий из signed catalog; path/URL не принимаются.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/plans": {
+      "post": {
+        "operationId": "prerequisitesPlan",
+        "description": "Сохранить до 16 server-owned review plans; вернуть plan_id и operation_id. Нет effects; полный plan не принимается от браузера.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisitePlanRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prerequisites/operations": {
+      "post": {
+        "operationId": "prerequisitesStart",
+        "description": "Durable background start по серверному плану и явным согласиям; повтор того же plan ID не запускает resume.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisiteReviewRequest"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "prerequisitesOperations",
+        "description": "Bounded recovery list exact owner/product/target/catalog; без скрытого resume.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "unfinished_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 100
+            }
+          },
+          {
+            "name": "after_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/operations/{operation_id}": {
+      "get": {
+        "operationId": "prerequisitesStatus",
+        "description": "Исторический snapshot. queued/running/unknown требуют polling; READY не вызывает product submit.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/operations/{operation_id}/events": {
+      "get": {
+        "operationId": "prerequisitesEvents",
+        "description": "Durable phase/state events и snapshot; download callback bytes не гарантированы как durable progress.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          },
+          {
+            "name": "after_sequence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/operations/{operation_id}/attempts/{component_id}": {
+      "get": {
+        "operationId": "prerequisitesAttempts",
+        "description": "История подтверждённых попыток с pins/receipts.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          },
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/operations/{operation_id}/cancel": {
+      "post": {
+        "operationId": "prerequisitesCancel",
+        "description": "Сохранить cancel без ожидания installer или долгого session lock; не kill.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisiteEmptyRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/operations/{operation_id}/resume": {
+      "post": {
+        "operationId": "prerequisitesResume",
+        "description": "Явный background resume с сохранёнными либо новыми consent refs; product review сбрасывается.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisiteResumeRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/operations/{operation_id}/recheck": {
+      "post": {
+        "operationId": "prerequisitesRecheck",
+        "description": "Синхронные read-only probes/journal; без download/install, status/cancel доступны параллельно.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisiteEmptyRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/operations/{operation_id}/boundary": {
+      "post": {
+        "operationId": "prerequisitesBoundary",
+        "description": "Записать now/later для reboot/relogin; host_action.performed=false, OS action не выполняется.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisiteBoundaryRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/operations/{operation_id}/replace-plan": {
+      "post": {
+        "operationId": "prerequisitesReplacePlan",
+        "description": "Заменить план по server plan ID и новым согласиям. Не запускает installer и не снимает неизвестный effect.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisiteReviewRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1867,6 +2392,351 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 200
+          }
+        }
+      },
+      "PrerequisiteEmptyRequest": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "PrerequisitePlanRequest": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "enum": [
+              "native",
+              "docker"
+            ],
+            "default": "native"
+          },
+          "locale": {
+            "enum": [
+              "ru",
+              "en",
+              "de"
+            ]
+          },
+          "choices": {
+            "type": "object",
+            "maxProperties": 128,
+            "additionalProperties": {
+              "enum": [
+                "auto",
+                "manual",
+                "use",
+                "skip"
+              ]
+            }
+          },
+          "offline": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "PrerequisiteReviewRequest": {
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "consent_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1024
+          },
+          "accepted_plan": {
+            "const": true
+          },
+          "accepted_terms": {
+            "const": true
+          },
+          "terms_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "plan_id",
+          "plan_digest",
+          "consent_refs",
+          "accepted_plan",
+          "accepted_terms",
+          "terms_digest"
+        ],
+        "additionalProperties": false
+      },
+      "PrerequisiteResumeRequest": {
+        "type": "object",
+        "properties": {
+          "consent_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1024
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "PrerequisiteBoundaryRequest": {
+        "type": "object",
+        "properties": {
+          "when": {
+            "enum": [
+              "now",
+              "later"
+            ]
+          }
+        },
+        "required": [
+          "when"
+        ],
+        "additionalProperties": false
+      },
+      "PrerequisitePayloadBinding": {
+        "type": "object",
+        "properties": {
+          "manifest_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "target": {
+            "type": "object"
+          },
+          "release": {
+            "type": "string"
+          },
+          "runtime_executable": {
+            "type": "string"
+          },
+          "files_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "manifest_digest",
+          "target",
+          "release",
+          "runtime_executable",
+          "files_digest"
+        ],
+        "additionalProperties": false
+      },
+      "PrerequisiteExecution": {
+        "type": "object",
+        "required": [
+          "mode",
+          "state",
+          "active"
+        ],
+        "properties": {
+          "mode": {
+            "enum": [
+              "background",
+              "synchronous"
+            ]
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "finished",
+              "failed",
+              "superseded",
+              "idle",
+              "recovery_required",
+              "unknown"
+            ]
+          },
+          "active": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      },
+      "PrerequisiteSnapshot": {
+        "type": "object",
+        "required": [
+          "operation_id",
+          "product_id",
+          "owner_id",
+          "target",
+          "catalog_digest",
+          "plan_digest",
+          "status",
+          "ready",
+          "revision",
+          "execution"
+        ],
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+          },
+          "product_id": {
+            "type": "string"
+          },
+          "owner_id": {
+            "type": "string"
+          },
+          "target": {
+            "type": "object"
+          },
+          "catalog_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "status": {
+            "type": "string"
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "execution": {
+            "$ref": "#/components/schemas/PrerequisiteExecution"
+          }
+        }
+      },
+      "PrerequisitePlanResult": {
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+          },
+          "operation_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "plan": {
+            "type": "object"
+          },
+          "terms_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "locale": {
+            "enum": [
+              "ru",
+              "en",
+              "de"
+            ]
+          },
+          "production_ready": {
+            "const": false
+          }
+        },
+        "required": [
+          "plan_id",
+          "operation_id",
+          "plan_digest",
+          "plan",
+          "terms_digest",
+          "locale",
+          "production_ready"
+        ],
+        "additionalProperties": false
+      },
+      "PrerequisiteHTTPEnvelope": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "api_version": {
+                "const": "1"
+              },
+              "result": {}
+            },
+            "required": [
+              "api_version",
+              "result"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "api_version": {
+                "const": "1"
+              },
+              "error": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "responses": {
+      "PrerequisiteHTTP200": {
+        "description": "Запрос выполнен или durable очередь принята; не product SUCCESS",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PrerequisiteHTTPEnvelope"
+            }
+          }
+        }
+      },
+      "PrerequisiteHTTP400": {
+        "description": "Структурированный отказ входа, binding, consent или состояния",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PrerequisiteHTTPEnvelope"
+            }
+          }
+        }
+      },
+      "PrerequisiteHTTP403": {
+        "description": "Host/Origin/token проверка не пройдена",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PrerequisiteHTTPEnvelope"
+            }
+          }
+        }
+      },
+      "PrerequisiteHTTP500": {
+        "description": "Безопасный внутренний отказ",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PrerequisiteHTTPEnvelope"
+            }
           }
         }
       }

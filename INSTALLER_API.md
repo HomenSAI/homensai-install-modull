@@ -196,7 +196,7 @@ coordinator не принимается. По умолчанию автомат�
 ```python
 api = InstallerAPI(state_dir, engine=engine, prerequisites=coordinator)
 capabilities = api.prerequisites_capabilities()
-identity = api.prerequisites_identity()  # product/target/catalog/owner/manifest digest
+identity = api.prerequisites_identity()  # product/target/catalog/owner + verified payload binding
 terms = api.prerequisites_license(component_id)
 plan = api.prerequisites_plan(choices, locale="ru", offline=True,
                               local_artifacts=verified_local_files)
@@ -215,6 +215,7 @@ host может явно передать `background=True`: общий coordina
 | Метод | Поведение |
 | --- | --- |
 | `prerequisites_status(id)` | Историческое состояние без команд/discover |
+| `prerequisites_busy()` | Bool: в registered store есть claim или controller не доказанно свободен; чужие ID не возвращаются |
 | `prerequisites_operations_list(unfinished_only=True, limit=100, after_id=None)` | Сводки операций exact owner/product/target/catalog; `next_cursor` для следующей страницы |
 | `prerequisites_events(id, after_sequence=0, limit=100)` | События и snapshot |
 | `prerequisites_attempts(id, component_id, after=0, limit=100)` | Сохранённые pins и результаты прежних попыток |
@@ -265,11 +266,76 @@ host может явно передать `background=True`: общий coordina
 
 `READY` означает готовность выбранных prerequisites данной операции, а не
 установленное приложение. Перед product install bootstrap повторяет discover
-и строит новый reviewed product plan. GUI auto-flow, HTTP/CLI transport для
-этого SDK, Windows elevation/session providers и production catalog остаются
-отдельными непринятыми работами. Эти новые методы сейчас доступны SDK;
-standalone CLI/HTTP не принимают команды, adapters или каталог из запросов.
+и строит новый reviewed product plan. HTTP и CLI передают вызовы явно
+зарегистрированному coordinator; production catalog/registry по умолчанию
+не создаётся. GUI auto-flow, Windows elevation/session providers и реальные
+platform installers остаются отдельными непринятыми работами.
 Полный platform contract и ограничения: `docs/PREREQUISITES.md`.
+
+### HTTP transport prerequisites
+
+Доверенный host передаёт настроенный `api` в `WizardSession(api, manifest,
+options, verifier=verifier)` и `create_server(session)`. Конструктор сравнивает
+product/manifest/target и полный подписанный payload с coordinator.
+`prerequisites_identity().payload_binding` содержит неизменяемые
+`manifest_digest`, `target`, `release`, `runtime_executable`, `files_digest`.
+Это проверенные при создании каталога байты, без абсолютных путей; идентичный
+перенесённый payload допустим. Другой подписанный выпуск с тем же manifest — нет.
+Owner и catalog digest закрепляются в сессии. Status/cancel не перечитывают
+повреждённый или исчезнувший source bundle; исполнение всё равно перепроверяет
+его в coordinator перед эффектами.
+
+HTTP endpoints начинаются с `/api/v1/prerequisites/`: `capabilities`,
+`licenses/{component_id}`, `plans`, `operations`, `operations/{id}` и
+`events`, `attempts/{component_id}`, `cancel`, `resume`, `recheck`, `boundary`,
+`replace-plan` под выбранной операцией. Сохраняются loopback Host/Origin/token
+и bounded JSON проверки. Точные schemas находятся в OpenAPI.
+
+`POST plans` принимает только mode/locale/choices/offline. Сервер хранит до 16
+неизменяемых планов и выдаёт opaque `plan_id` и заранее выделенный `operation_id`.
+`POST operations` принимает этот plan ID/digest, явные consent refs,
+`accepted_plan=true`, `accepted_terms=true` и digest показанных signed terms.
+Полный plan, catalog/trust/argv/URL и local-artifact paths из HTTP запрещены.
+Истёкший или потерянный до старта план строится заново без продуктовых эффектов.
+После start полный план и согласия сохранены в coordinator; потерянный ACK
+восстанавливается по тому же operation ID/list. Повтор start не является resume.
+
+Start/resume используют `background=True`; recheck синхронно выполняет только
+probes и журнал. Долгие проверки не держат общий session lock: status/cancel
+доступны во время ожидания installer. Новый product submit/resume блокируется
+при незавершённых prerequisites или ещё активном/неизвестном controller.
+Guard сначала вызывает read-only `prerequisites_busy()`: старый catalog claim,
+скрытый из exact-bound list, тоже блокирует product plan/submit. Probe возвращает
+только bool зарегистрированного private store, без чужого operation ID или плана.
+Начало подготовки и новое наблюдение READY аннулируют product review на сервере.
+После READY нужен новый product plan и новое подтверждение; transport не
+вызывает product submit автоматически. Это сессионный gate; глобальная
+координация с произвольными внешними контроллерами им не объявляется.
+Промежуток между probe и product submit не защищён общим межпроцессным lease;
+такой lease остаётся отдельной незавершённой задачей.
+
+Events содержат сохранённые фазы/состояния; callback с download bytes пока
+не сохранён как durable progress. Нельзя выдумывать проценты из этих событий.
+`gui_auto_flow=false`: текущий JavaScript-мастер ещё не использует новые маршруты.
+Полный transport contract, ограничения и тестовые scopes:
+`docs/PREREQUISITES_HTTP.md`.
+
+### CLI transport prerequisites
+
+Доверенный Python host вызывает `homensai_install.cli.main(argv, api=api)`.
+Флаги/JSON не создают coordinator и не выбирают динамический import/runner.
+Обычный CLI без регистрации честно сообщает unsupported. `start` и `resume`
+синхронны; фон, погибающий при выходе CLI, не создаётся. Семейство
+`prerequisites` покрывает plan/start/status/operations/events/attempts,
+resume/recheck/cancel/choose-boundary/replace-plan и metadata/licenses.
+Raw SDK plan или точный success envelope сохранённого CLI вывода проходят
+строгую проверку coordinator; этот CLI review artifact не принимается по HTTP.
+
+Для start/resume/recheck/status/events exit `0` требует READY без ошибки,
+`1` означает failure/recovery, `3` — paused/not ready, `4` — canceled;
+структурированная ошибка даёт `2`. Metadata и принятый control request могут
+вернуть `0` как результат запроса, не как готовность зависимостей.
+Примеры и полный контракт: `docs/PREREQUISITES_CLI.md`.
 
 `engine` и `trust` — bootstrap integration API версии разработки; продуктовый
 adapter не должен обращаться к их внутренним классам. Обычный потребитель

@@ -190,18 +190,22 @@ def main():
     inputs = ["--manifest", config["manifest"], "--options", config["options"], "--os", "linux", "--arch", "x64", "--mode", "native", "--scope", "user"]
     commands = [("describe", ["api", "describe"], 0), ("validate", ["validate", "--manifest", config["manifest"]], 0),
                 ("discover", ["discover", *inputs], 0), ("plan", ["plan", "install", *inputs], 0),
-                ("unsupported", ["plan", "modify_components", *inputs], 2)]
+                ("unsupported", ["plan", "modify_components", *inputs], 2),
+                ("prerequisites-capabilities", ["prerequisites", "capabilities"], 0),
+                ("prerequisites-unconfigured", ["prerequisites", "operations"], 2)]
     for name, command, code in commands:
         raw = run([python, "-I", "-B", client, config_path, "cli", *common, *command], cwd=work, env=environment, expected=code)
         envelope = json.loads(raw)
         report = json.loads(Path(config["client_report"]).read_text())
-        if name == "unsupported":
+        if name in {"unsupported", "prerequisites-unconfigured"}:
             assert envelope["error"]["code"] == "CAPABILITY_UNSUPPORTED"
         else:
             assert "error" not in envelope
             result = envelope["result"]
             if name == "describe":
                 assert result == sdk["description"]
+            if name == "prerequisites-capabilities":
+                assert result["configured"] is False and result["production_ready"] is False
             if name == "validate":
                 assert result["manifest_digest"] == sdk["manifest_digest"]
             if name == "plan":
@@ -230,7 +234,8 @@ def main():
                "no_product_effects": True, "network_traffic_or_child_process_attempts_in_clients": 0,
                "not_run": ["product install/update/restore/rollback", "Python 3.14 reference runtime execution",
                            "Windows", "Docker", "service integration", "GUI consent", "production signing",
-                           "clean machine dependency/license closure", "full G1 and release gates"]}
+                           "clean machine dependency/license closure", "full G1 and release gates",
+                           "installed registered prerequisite coordinator lifecycle", "installed prerequisite HTTP/GUI transport"]}
     args.receipt.parent.mkdir(parents=True, exist_ok=True)
     write_json(args.receipt, receipt)
     print(json.dumps({"status": "PASS", "receipt": str(args.receipt), "wheel_sha256": receipt["wheel"]["sha256"],

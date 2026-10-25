@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-011",
+  "checkpoint_id": "CP-20261025-012",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
@@ -181,6 +181,30 @@
       "status": "BLOCKED",
       "scope": "GUI browser NOT RUN: endpoint returns195byte HTML; CP010CI fourjobs no runner orsteps, testsNOT RUN",
       "receipt": "packaging/acceptance-evidence/environment-20261025-cp011.json"
+    },
+    {
+      "id": "CP012-current-full-source",
+      "status": "PASS_WITH_EXPLICIT_SKIPS",
+      "scope": "1956 full source PASS/3 skips/10 subtests; 2 skipped Linux process cases separately PASS; Windows-only case NOT RUN. Exact integrated current package bytes.",
+      "receipt": "packaging/acceptance-evidence/source-20261025-cp012.json"
+    },
+    {
+      "id": "CP012-prerequisite-transports",
+      "status": "PASS",
+      "scope": "HTTP141 focused and3 actual loopback; CLI69 focused; independent core12/HTTP8. Overlapping scopes, synthetic installers.",
+      "receipt": "packaging/acceptance-evidence/source-20261025-cp012.json"
+    },
+    {
+      "id": "CP012-installed-sdk",
+      "status": "PASS",
+      "scope": "63 exact package files/7 CLI calls outside checkout; SDK planning and stock unconfigured prerequisite refusal. Registered installed lifecycle NOT RUN.",
+      "receipt": "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json"
+    },
+    {
+      "id": "CP012-browser-ci",
+      "status": "BLOCKED",
+      "scope": "Chrome official archive CRC PASS but launch SIGSEGV; actual browser tests NOT RUN. CP011 CI4jobs runner0/steps[], tests NOT RUN.",
+      "receipt": "packaging/acceptance-evidence/environment-20261025-cp012.json"
     }
   ],
   "historical_evidence": [
@@ -216,6 +240,20 @@
       "scope": "Playwright1.62.1 Chromium download returned HTTP200 text/html195bytes, notZIP; GUI testsNOT RUN",
       "source": "packaging/acceptance-evidence/environment-20261025-cp011.json",
       "next_action": "Подготовить совместимый browser из доступного официального источника/runner и выполнить новые GUI tests; прежний frozen PASS не переносить."
+    },
+    {
+      "id": "cp011-ci",
+      "status": "BLOCKED",
+      "scope": "Runs 40193293550/40193289944: 4 jobs, runner_id=0, steps=[]; tests NOT RUN. Job log unavailable (404 BlobNotFound). Exact cause not established.",
+      "source": "packaging/acceptance-evidence/environment-20261025-cp012.json",
+      "next_action": "Получить реальный runner и steps/logs, повторить source jobs на актуальном SHA; не менять billing/workflow по догадке."
+    },
+    {
+      "id": "cp012-browser-runtime",
+      "status": "BLOCKED",
+      "scope": "Official Chrome156 archive ZIP/CRC PASS; executable and --version SIGSEGV(-11), including exact /tmp copy. Cause unknown. Installer browser tests NOT RUN.",
+      "source": "packaging/acceptance-evidence/environment-20261025-cp012.json",
+      "next_action": "Подготовить рабочий совместимый browser/runner, подтвердить локальный page/click smoke, затем выполнить actual installer GUI tests на новых source/artifact bytes."
     }
   ],
   "scenarios": [
@@ -227,7 +265,11 @@
       "test_code": "PARTIAL",
       "existing_partial_harnesses": [
         "packaging/check_reference_gui.cjs",
-        "tests/test_prerequisites_async.py"
+        "tests/test_prerequisites_async.py",
+        "tests/test_prerequisites_cli.py",
+        "tests/test_prerequisites_recheck_cancel.py",
+        "tests/test_wizard_prerequisites.py",
+        "integration_tests/test_prerequisites_http.py"
       ],
       "next_executor_action": "Собрать актуальные DEV artifacts; чистые desktop ОС без developer tools; выбрать auto/manual, проверить обязательные зависимости и результат установки. Production prerequisite registry и Windows bootstrap ещё требуют реализации.",
       "current_artifact_evidence": [
@@ -237,9 +279,13 @@
         "packaging/acceptance-evidence/source-baseline-cp010-python314.json",
         "packaging/acceptance-evidence/runtime-download-20261025-cp011.json",
         "packaging/acceptance-evidence/build-wheels-20261025-cp011.json",
-        "packaging/acceptance-evidence/environment-20261025-cp011.json"
+        "packaging/acceptance-evidence/environment-20261025-cp011.json",
+        "packaging/acceptance-evidence/source-20261025-cp012.json",
+        "packaging/acceptance-evidence/review-20261025-cp012.json",
+        "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json",
+        "packaging/acceptance-evidence/environment-20261025-cp012.json"
       ],
-      "note": "Полный сценарий НЕ ГОТОВ. Последние частичные проверки: CP-20261025-011; области и непроверенное указаны в receipts. Выполнить оставшуюся приёмку."
+      "note": "Полный сценарий НЕ ГОТОВ. Последние частичные проверки: CP-20261025-012; области и непроверенное указаны в receipts. Выполнить оставшуюся приёмку."
     },
     {
       "scenario_id": "ACC-02",
@@ -272,11 +318,20 @@
       "ready": false,
       "test_code": "PARTIAL",
       "existing_partial_harnesses": [
-        "integration_tests/test_native_engine.py"
+        "integration_tests/test_native_engine.py",
+        "tests/test_prerequisites_cli.py",
+        "tests/test_prerequisites_recheck_cancel.py",
+        "tests/test_wizard_prerequisites.py",
+        "integration_tests/test_prerequisites_http.py"
       ],
       "next_executor_action": "Повторить на установленном artifact: чужой порт/процесс, две конкурирующие операции, repeat start/stop, отсутствие второго scheduler. Source tests не заменяют installed proof.",
-      "current_artifact_evidence": [],
-      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+      "current_artifact_evidence": [
+        "packaging/acceptance-evidence/source-20261025-cp012.json",
+        "packaging/acceptance-evidence/review-20261025-cp012.json",
+        "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json",
+        "packaging/acceptance-evidence/environment-20261025-cp012.json"
+      ],
+      "note": "Полный сценарий НЕ ГОТОВ. Последние частичные проверки: CP-20261025-012; области и непроверенное указаны в receipts. Выполнить оставшуюся приёмку."
     },
     {
       "scenario_id": "ACC-05",
@@ -312,11 +367,20 @@
       "test_code": "PARTIAL",
       "existing_partial_harnesses": [
         "packaging/check_reference_gui.cjs",
-        "tests/test_wizard.py"
+        "tests/test_wizard.py",
+        "tests/test_prerequisites_cli.py",
+        "tests/test_prerequisites_recheck_cancel.py",
+        "tests/test_wizard_prerequisites.py",
+        "integration_tests/test_prerequisites_http.py"
       ],
       "next_executor_action": "Для точных ru/en/de условий проверить отказ/scroll/keyboard/масштаб, receipt hash, отдельные prerequisites consent и отсутствие эффекта при отказе.",
-      "current_artifact_evidence": [],
-      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+      "current_artifact_evidence": [
+        "packaging/acceptance-evidence/source-20261025-cp012.json",
+        "packaging/acceptance-evidence/review-20261025-cp012.json",
+        "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json",
+        "packaging/acceptance-evidence/environment-20261025-cp012.json"
+      ],
+      "note": "Полный сценарий НЕ ГОТОВ. Последние частичные проверки: CP-20261025-012; области и непроверенное указаны в receipts. Выполнить оставшуюся приёмку."
     },
     {
       "scenario_id": "ACC-08",
@@ -327,7 +391,11 @@
       "existing_partial_harnesses": [
         "tests/test_prerequisites_execution.py",
         "tests/test_wizard_capabilities.py",
-        "tests/test_prerequisites_async.py"
+        "tests/test_prerequisites_async.py",
+        "tests/test_prerequisites_cli.py",
+        "tests/test_prerequisites_recheck_cancel.py",
+        "tests/test_wizard_prerequisites.py",
+        "integration_tests/test_prerequisites_http.py"
       ],
       "next_executor_action": "Настоящие reboot/relogin, GUI close/reopen/refresh; сохранение operation identity, новый preflight, отсутствие ложного 100%. OS runners отсутствуют; не имитировать reboot сменой PID.",
       "current_artifact_evidence": [
@@ -337,9 +405,13 @@
         "packaging/acceptance-evidence/source-baseline-cp010-python314.json",
         "packaging/acceptance-evidence/runtime-download-20261025-cp011.json",
         "packaging/acceptance-evidence/build-wheels-20261025-cp011.json",
-        "packaging/acceptance-evidence/environment-20261025-cp011.json"
+        "packaging/acceptance-evidence/environment-20261025-cp011.json",
+        "packaging/acceptance-evidence/source-20261025-cp012.json",
+        "packaging/acceptance-evidence/review-20261025-cp012.json",
+        "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json",
+        "packaging/acceptance-evidence/environment-20261025-cp012.json"
       ],
-      "note": "Полный сценарий НЕ ГОТОВ. Последние частичные проверки: CP-20261025-011; области и непроверенное указаны в receipts. Выполнить оставшуюся приёмку."
+      "note": "Полный сценарий НЕ ГОТОВ. Последние частичные проверки: CP-20261025-012; области и непроверенное указаны в receipts. Выполнить оставшуюся приёмку."
     },
     {
       "scenario_id": "ACC-09",
@@ -444,7 +516,11 @@
         "tests/test_backends.py",
         "packaging/check_installed_sdk.py",
         "packaging/installed_sdk_client.py",
-        "tests/test_prerequisites_async.py"
+        "tests/test_prerequisites_async.py",
+        "tests/test_prerequisites_cli.py",
+        "tests/test_prerequisites_recheck_cancel.py",
+        "tests/test_wizard_prerequisites.py",
+        "integration_tests/test_prerequisites_http.py"
       ],
       "next_executor_action": "Установить wheel вне checkout; пройти публичные SDK/CLI/HTTP/openapi сценарии dry-run/unsupported/PLAN_STALE/idempotency/events; отдельно полный установленный lifecycle.",
       "current_artifact_evidence": [
@@ -457,9 +533,13 @@
         "packaging/acceptance-evidence/source-baseline-cp010-python314.json",
         "packaging/acceptance-evidence/runtime-download-20261025-cp011.json",
         "packaging/acceptance-evidence/build-wheels-20261025-cp011.json",
-        "packaging/acceptance-evidence/environment-20261025-cp011.json"
+        "packaging/acceptance-evidence/environment-20261025-cp011.json",
+        "packaging/acceptance-evidence/source-20261025-cp012.json",
+        "packaging/acceptance-evidence/review-20261025-cp012.json",
+        "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json",
+        "packaging/acceptance-evidence/environment-20261025-cp012.json"
       ],
-      "note": "Полный сценарий НЕ ГОТОВ. Последние частичные проверки: CP-20261025-011; области и непроверенное указаны в receipts. Выполнить оставшуюся приёмку."
+      "note": "Полный сценарий НЕ ГОТОВ. Последние частичные проверки: CP-20261025-012; области и непроверенное указаны в receipts. Выполнить оставшуюся приёмку."
     },
     {
       "scenario_id": "ACC-17",
@@ -552,6 +632,57 @@
       "next_executor_action": "Все 12 reference GUI сочетаний: ru/en/de × четыре target. Проверить keyboard/zoom/long German/Cyrillic/fallback/refresh/maintenance, key/placeholder parity и hashes показанных условий.",
       "current_artifact_evidence": [],
       "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+    }
+  ],
+  "implementation_gaps": [
+    {
+      "id": "product-prerequisite-shared-lease",
+      "task_ids": [
+        "HIM-020",
+        "HIM-063"
+      ],
+      "implementation": "NOT IMPLEMENTED",
+      "test_code": "NOT IMPLEMENTED",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "note": "Current busy() is a conservative read-only probe, not an atomic common lease across product/prerequisite executors.",
+      "next_executor_action": "Implement durable shared lease and synthetic independent-process tests for simultaneous starts, unknown effects, interruption and safe release. Never infer global exclusion from HTTP source PASS."
+    },
+    {
+      "id": "prerequisite-gui-flow",
+      "task_ids": [
+        "HIM-029",
+        "HIM-035",
+        "HIM-102"
+      ],
+      "implementation": "NOT IMPLEMENTED",
+      "test_code": "NOT IMPLEMENTED",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "next_executor_action": "Connect explicit auto/manual/consent/progress/recovery UI to HTTP, add current-script contract tests and actual browser acceptance. Node tests alone do not accept rendering."
+    },
+    {
+      "id": "prerequisite-durable-byte-progress",
+      "task_ids": [
+        "HIM-035"
+      ],
+      "implementation": "NOT IMPLEMENTED",
+      "test_code": "NOT IMPLEMENTED",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "next_executor_action": "Persist bounded measured byte progress with ordered cursors; test reconnect, retry, stale/duplicate pages and no false100% before verification."
+    },
+    {
+      "id": "prerequisite-browser-local-artifact",
+      "task_ids": [
+        "HIM-033",
+        "HIM-046"
+      ],
+      "implementation": "NOT IMPLEMENTED",
+      "test_code": "NOT IMPLEMENTED",
+      "acceptance_status": "NOT RUN",
+      "ready": false,
+      "next_executor_action": "Implement explicit safe local installer selection with expected signed pins and bounded local handling; test rejection before effects. Arbitrary browser paths remain forbidden."
     }
   ]
 }

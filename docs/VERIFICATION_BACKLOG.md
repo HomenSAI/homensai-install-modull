@@ -1,6 +1,6 @@
 # Невыполненные проверки — обязательное задание следующему ИИ
 
-Автор: Serhii Khomenko. CP-20261025-011.
+Автор: Serhii Khomenko. CP-20261025-012.
 
 **Полная приёмка НЕ ГОТОВА; production_ready=false.** Этот документ и
 `verification-status.json` описывают проверки. Единственный список реализации —
@@ -28,6 +28,7 @@
 
 ## Что подтверждено сейчас
 
+- CP-20261025-012: Текущий root full source на Python 3.14.3: 1956 PASS, 3 skips, 10 subtests (84.26 s); два Linux skip отдельно выполнены с matching PID namespace: 2 PASS (0.12 s), Windows-only case NOT RUN. HTTP focused 141 PASS и настоящий loopback 3 PASS; CLI focused 69 PASS; независимый core/HTTP review 12+8 PASS, области пересекаются. Installed SDK planning: 63 exact files и 7 CLI calls PASS, wheel 5c327073061674dec7917915ce07d4ceea5eb9e3e2685e9c3867d3b39bb197e1. Ранее выявленные FAIL/EPERM сохранены в истории. GUI flow, durable byte events и atomic cross-executor lease ещё NOT IMPLEMENTED; registered installed prerequisite lifecycle, live OS/Windows/Docker/browser/frozen acceptance NOT RUN. Browser BLOCKED: официальный альтернативный архив проверен, запуск SIGSEGV с неизвестной причиной. CI CP-011: 4 jobs без runner/steps, тесты NOT RUN.
 - CP-20261025-011: Финальный source focused: 185 PASS (11.84 s), новые async cases: 17 PASS; независимый review: 7 race cases PASS; после интеграции root: 26 PASS (3.71 s). Новый installed SDK planning contract: 63 exact files/5 CLI calls PASS, wheel 931f6ec22a0550f5f5b8b6289dd3329adf1f959927f735d59996154c176c6535. Отдельный baseline CP-010 на Python 3.14.3: 1858 PASS/3 skips/10 subtests; 49 integration + 2 ранее пропущенных Linux cases = отдельный прогон 51 PASS/5 subtests. Windows case NOT RUN. Текущий новый full source/frozen/platform acceptance НЕ ГОТОВ; GUI browser BLOCKED (официальный endpoint вернул HTML), CI CP-010 без runner/steps. Exact scopes и предыдущие ошибки записаны в receipts.
 - CP-20261025-010: CP-010: 63 целевых source tests PASS (1.69 s); отдельно установленный SDK/CLI PASS: 62 exact package files, 5 CLI commands, 4 SDK refusal cases, plan reload, 0 network/child-process attempts, нет product effects. Wheel SHA-256 46be06ff502e13975f49e8599283129af419959caf1d21b41f25532a3c737a28. Первые EPERM/test-harness FAIL сохранены в sdk-public-contract-20261025-cp010-attempts.json. Runtime fixture неисполняемый; reference wheel не исполнен; lifecycle/Windows/Docker/full G1 NOT RUN, НЕ ГОТОВО.
 - CP-008 `960827c` восстановлен в новой изолированной чистой копии и сверён с
@@ -56,6 +57,23 @@
 Нельзя запускать строки из этого файла как shell script. Команды нужно
 прочитать и адаптировать к проверенному test fixture. Никаких реальных
 email/Telegram, пользовательских баз, чужих процессов или ports 8810/8811/8812.
+
+## Конкретные незавершённые механизмы CP-012
+
+Наличие прошедших transport/source тестов не закрывает эти требования.
+Каждый пункт также записан в `verification-status.json` → `implementation_gaps`.
+
+| Механизм | Реализация / тест | Что должен сделать следующий исполнитель |
+|---|---|---|
+| Общая атомарная блокировка product/prerequisite executors | NOT IMPLEMENTED / NOT RUN | Реализовать общий durable lease; проверить параллельные независимые процессы, обрыв, неизвестный эффект и безопасное освобождение. `busy()` проверяет состояние, но не выдаёт такой lease. |
+| GUI auto/manual/terms/progress/recovery | NOT IMPLEMENTED / NOT RUN | Подключить явные действия к HTTP, написать проверки настоящего JS и выполнить browser acceptance. |
+| Durable progress скачанных байтов | NOT IMPLEMENTED / NOT RUN | Сохранять измеренные события с порядком/cursor; проверить reconnect/retry/повторы без ложного100%. |
+| Выбор локального prerequisite installer через браузер | NOT IMPLEMENTED / NOT RUN | Добавить безопасный явный выбор с проверкой signed pins; произвольные browser paths по-прежнему запрещены. |
+
+Текущая browser acceptance BLOCKED: официальный альтернативный архив получен
+и ZIP CRC проверен, но executable и `--version` падают с SIGSEGV; причина неизвестна.
+CI CP-011 также BLOCKED: четыре задания без runner/steps, лог недоступен.
+Факты и последующие действия: `packaging/acceptance-evidence/environment-20261025-cp012.json`.
 
 ## Полные сценарии, которые ещё НЕ ГОТОВЫ
 

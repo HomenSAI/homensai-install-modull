@@ -62,11 +62,21 @@ class SignedPrerequisiteCatalog:
         self.descriptor = relative(descriptor)
         data = self._load()
         self._digest = self._loaded_binding
+        self._payload_binding = deepcopy(self._loaded_payload_binding)
         self._data = data
 
     @property
     def catalog_digest(self):
         return self._digest
+
+    def payload_binding(self):
+        """Закреплённые проверенные байты, без путей и повторного I/O.
+
+        Transport сравнивает их с payload своего trusted bootstrap. Наблюдение
+        сохранённой операции/отмена не требуют доступного исходного bundle;
+        перед исполнением каталог по-прежнему проверяется полностью.
+        """
+        return deepcopy(self._payload_binding)
 
     def _file(self, name, files, limit):
         relative(name)
@@ -142,6 +152,10 @@ class SignedPrerequisiteCatalog:
                     # System feature commands need a separately pinned helper artifact.
                     fail("INVALID_REQUEST", "prerequisite_auto_requires_pinned_artifact", name)
             self._order(entries)
+            self._loaded_payload_binding = {"manifest_digest": digest(self.manifest),
+                "target": self.target, "release": self.options.get("release"),
+                "runtime_executable": self.options.get("runtime_executable"),
+                "files_digest": digest(files)}
             self._loaded_binding = digest({"catalog": data, "files": files, "manifest": self.manifest,
                 "target": self.target, "release": self.options.get("release"),
                 "runtime_executable": self.options.get("runtime_executable")})

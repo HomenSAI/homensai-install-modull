@@ -1,9 +1,9 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261025-011`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261025-012`; ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый local/GitHub до создания CP-20261025-011:
-`a2a4f37703c47b06b96369081f7a8268d1e7bbdd` (CP-20261025-010).
+Последний подтверждённый local/GitHub до создания CP-20261025-012:
+`8e8075d895bd02e3027b7552e796f1ccf5de47e8` (CP-20261025-011).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
@@ -28,6 +28,10 @@ Cloud Ubuntu 24.04.3 LTS x64, Python 3.12.14. Исторические CP-005 re
 Windows 11 x64 и Ubuntu 24.04 LTS x86_64, четыре native/Docker пути, ru/en/de.
 Это не Windows владельца и не его Docker/Forgejo. Docker CLI/socket и настоящий
 systemd manager здесь отсутствуют; Windows runner не подключён.
+
+Новый изолированный DEV build-env на CPython 3.14.3 подготовлен и проверен по
+requirements-build.lock (receipts CP-011); текущие source/SDK проверки CP-012
+выполнены именно им. Production security approval этого runtime НЕ ГОТОВО.
 
 Sandbox PID не совпадает с mounted /proc. Реальные process tests выполнены
 за этой изоляцией после проверки совпадения PID/proc, только с собственными
@@ -73,13 +77,14 @@ CP-008 объединяет независимые source units в общем ro
 сначала проверить root tree/history. Главная очередь — канонический ToDo.
 
 
+
 ## Последний выполненный шаг
 
-CP-20261025-011: Добавлен явный background=True для prerequisite start/resume в общем SDK. Операция, план, согласия и claim сохраняются до ACK; свежая проверка плана выполняется перед первым эффектом и после обрыва. Status/list/cancel не ждут installer; повторный start не становится resume. Реальные process exits и гонки cancel/finish проверены; неизвестный эффект сохраняет RECOVERY_REQUIRED. Публичная фабрика принимает доверенный coordinator, list ограничен owner/product/target/catalog и не раскрывает private plan/receipts.
+CP-20261025-012: Подключены HTTP routes и синхронный CLI к тому же доверенно зарегистрированному prerequisite coordinator. HTTP сравнивает полный signed payload, хранит планы на сервере, требует явные согласия и выдаёт durable background ACK. Status/events/cancel отвечают при медленных probes/installers; повтор start не становится resume. Подготовка и READY сбрасывают product review. Общий read-only busy guard видит claim старого каталога без раскрытия чужого ID. Исправлена реальная гонка отмены при sync recheck: принятая отмена не теряется при финальном сохранении, неизвестный installer сохраняет receipt/claim, отмена перед intent не запускает installer.
 
-Финальный source focused: 185 PASS (11.84 s), новые async cases: 17 PASS; независимый review: 7 race cases PASS; после интеграции root: 26 PASS (3.71 s). Новый installed SDK planning contract: 63 exact files/5 CLI calls PASS, wheel 931f6ec22a0550f5f5b8b6289dd3329adf1f959927f735d59996154c176c6535. Отдельный baseline CP-010 на Python 3.14.3: 1858 PASS/3 skips/10 subtests; 49 integration + 2 ранее пропущенных Linux cases = отдельный прогон 51 PASS/5 subtests. Windows case NOT RUN. Текущий новый full source/frozen/platform acceptance НЕ ГОТОВ; GUI browser BLOCKED (официальный endpoint вернул HTML), CI CP-010 без runner/steps. Exact scopes и предыдущие ошибки записаны в receipts.
+Текущий root full source на Python 3.14.3: 1956 PASS, 3 skips, 10 subtests (84.26 s); два Linux skip отдельно выполнены с matching PID namespace: 2 PASS (0.12 s), Windows-only case NOT RUN. HTTP focused 141 PASS и настоящий loopback 3 PASS; CLI focused 69 PASS; независимый core/HTTP review 12+8 PASS, области пересекаются. Installed SDK planning: 63 exact files и 7 CLI calls PASS, wheel 5c327073061674dec7917915ce07d4ceea5eb9e3e2685e9c3867d3b39bb197e1. Ранее выявленные FAIL/EPERM сохранены в истории. GUI flow, durable byte events и atomic cross-executor lease ещё NOT IMPLEMENTED; registered installed prerequisite lifecycle, live OS/Windows/Docker/browser/frozen acceptance NOT RUN. Browser BLOCKED: официальный альтернативный архив проверен, запуск SIGSEGV с неизвестной причиной. CI CP-011: 4 jobs без runner/steps, тесты NOT RUN.
 
-Следующий шаг: HIM-029/035/062: безопасный HTTP и синхронный CLI transport для зарегистрированного coordinator; затем GUI auto/manual/terms/progress/recovery с новым product review после READY. Production registry и platform acceptance остаются открыты.
+Следующий шаг: HIM-029/035/102: условный GUI auto/manual/terms/progress/recovery для зарегистрированного coordinator, безопасная проекция требований версий, независимые Node contract tests. После READY — новый product preflight/terms/review по явному действию. Глобальный product/prerequisite lease и durable byte-progress остаются отдельными обязательными core шагами до полной приёмки.
 
 ## Историческая проверка CP-008
 
@@ -109,13 +114,14 @@ late rollback и SIGKILL→new controller/browser→explicit resume. Стары�
 ## Следующие инженерные шаги
 
 1. Проверить текущий checkpoint по GitHub ref/tree и local receipt. После каждого следующего шага обновить canonical TODO/RESUME/реестр, сохранить и подтвердить GitHub до продолжения.
-2. Завершить prerequisites по цепочке: безопасный HTTP/CLI поверх CP-011 → GUI auto/manual/terms/progress/recovery. READY сбрасывает product review и требует fresh preflight; установка продукта сама не начинается. Production signed catalogue/pins/licences/host providers остаются отдельной работой.
-3. Подключить подписанный ExecutableProductAdapter к NativeEngine: reviewed descriptor binding и fresh readiness observation, затем migration contract с настоящими backup receipts и fresh-empty precondition. Добавить независимый reference через публичный установленный пакет. Не заменять UNKNOWN автоматическим rollback.
-4. Docker: explicit abort/compensation interrupted install, trusted host attestation и image transport/import/offline bundle, update/restore/rollback/repair/reinstall. Live daemon в текущей среде BLOCKED.
-5. Windows native bootstrap и narrow elevation; Windows Docker/WSL2; systemd service integration с общим lock lease/execution ownership. Отсутствие runner не означает, что реализация закончена.
-6. Portable/legacy/multi-root recovery, modify_components, build/doctor facade, signed maintenance catalogue и mandatory production licence gate; затем thin product adapters JobPilot/Rent по pinned source audit. Исторический build2 FAIL не закрывать без исходных scenarios.
-7. Актуальные DEV artifacts и полная reference/product acceptance на четырёх targets × ru/en/de, offline, migration/rollback/restore, reboot/power loss. Каждый NOT RUN/BLOCKED/FAIL из verification-status.json должен быть выполнен следующим ИИ при доступности реализации/среды.
-8. Production signing/approved legal/licence decisions и отдельный Docker Git владельца остаются BLOCKED до реального подключения/решения. GitHub CI CP-008 jobs не получили runner/steps; источник проблемы не доказан. Не менять billing/workflow по догадке.
+2. Подключить conditional GUI prerequisites: auto/manual/terms/progress/recovery по HTTP CP-012, безопасная signed projection требований версий. READY сбрасывает product review и требует fresh preflight; установка продукта сама не начинается. Real browser остаётся BLOCKED, Node tests не заменяют browser acceptance.
+3. Реализовать общий атомарный product/prerequisite execution lease и durable byte-progress stream. Текущий registered-store busy probe не закрывает cross-executor race. Production signed catalogue/pins/licences/host providers и browser local artifact selection также ещё НЕ ГОТОВО.
+4. Подключить подписанный ExecutableProductAdapter к NativeEngine: reviewed descriptor binding и fresh readiness observation, затем migration contract с настоящими backup receipts и fresh-empty precondition. Добавить независимый reference через публичный установленный пакет. Не заменять UNKNOWN автоматическим rollback.
+5. Docker: explicit abort/compensation interrupted install, trusted host attestation и image transport/import/offline bundle, update/restore/rollback/repair/reinstall. Live daemon в текущей среде BLOCKED.
+6. Windows native bootstrap и narrow elevation; Windows Docker/WSL2; systemd service integration с общим lock lease/execution ownership. Отсутствие runner не означает, что реализация закончена.
+7. Portable/legacy/multi-root recovery, modify_components, build/doctor facade, signed maintenance catalogue и mandatory production licence gate; затем thin product adapters JobPilot/Rent по pinned source audit. Исторический build2 FAIL не закрывать без исходных scenarios.
+8. Актуальные DEV artifacts и полная reference/product acceptance на четырёх targets × ru/en/de, offline, migration/rollback/restore, reboot/power loss. Каждый NOT RUN/BLOCKED/FAIL из verification-status.json должен быть выполнен следующим ИИ при доступности реализации/среды. NOT IMPLEMENTED означает сначала реализовать недостающий механизм/тест.
+9. Production signing/approved legal/licence decisions и отдельный Docker Git владельца остаются BLOCKED до реального подключения/решения. GitHub CI CP-011 jobs не получили runner/steps; источник проблемы не доказан. Не менять billing/workflow по догадке.
 
 Все G0–G5 OPEN; production_ready=false. Это инженерная очередь и конкретные внешние блокировки; отдельные source PASS не заменяют приёмку.
 

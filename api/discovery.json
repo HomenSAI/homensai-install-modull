@@ -34,6 +34,7 @@
     "statistics.query",
     "prerequisites.capabilities",
     "prerequisites.identity",
+    "prerequisites.busy",
     "prerequisites.license",
     "prerequisites.plan",
     "prerequisites.start",
@@ -100,6 +101,12 @@
     "readiness": "source_contract",
     "production_ready": false,
     "background_ack": "durable_queued_operation",
-    "recovery_listing": true
+    "recovery_listing": true,
+    "http_transport": "explicit_wizard_session",
+    "http_plan_input": "server_plan_id",
+    "cli_transport": "explicit_trusted_sdk",
+    "cli_execution": "synchronous",
+    "durable_byte_progress": false,
+    "busy_probe": "registered_store_claim_or_controller"
   }
 }

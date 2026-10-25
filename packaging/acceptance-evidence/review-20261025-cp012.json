@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-012",
+  "status": "PASS_WITH_SCOPE",
+  "production_ready": false,
+  "implementation_commits": {
+    "core": "e0dcc02a30c7bb42a741a55bfa66099345c8cde7",
+    "http": "5f711ec05029593ac29b38a044b063225ffd6623",
+    "cli": "a619b79f99a2ba57c3883dacf49fbea9ff2b0c80"
+  },
+  "reviewers": [
+    "independent recovery_audit: core and HTTP",
+    "independent docker_design: CLI",
+    "root: integration and scoped source review"
+  ],
+  "independent_checks": [
+    {
+      "scope": "core cancellation and shared store observation",
+      "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -m pytest -q -p no:cacheprovider --tb=short tests/test_prerequisites_recheck_cancel.py",
+      "passed": 12,
+      "duration_seconds": 2.99,
+      "source_commit": "e0dcc02a30c7bb42a741a55bfa66099345c8cde7"
+    },
+    {
+      "scope": "HTTP safety regressions on combined HTTP + exact core bytes",
+      "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -m pytest -q -p no:cacheprovider --tb=short tests/test_wizard_prerequisites.py::test_slow_recheck_does_not_block_status_or_cancel tests/test_wizard_prerequisites.py::test_hidden_prior_catalog_claim_blocks_product_plan_and_submit tests/test_wizard_prerequisites.py::test_unknown_or_busy_registered_controller_never_allows_product_plan tests/test_wizard_prerequisites.py::test_malformed_custom_busy_probe_cannot_allow_product_plan tests/test_wizard_prerequisites.py::test_unknown_or_still_active_ready_controller_cannot_submit_product tests/test_wizard_prerequisites.py::test_ready_invalidates_review_even_without_browser_poll_and_never_submits",
+      "passed": 8,
+      "duration_seconds": 1.22,
+      "note": "Executed before HTTP commit; code and test hashes below independently matched final integrated files. Later browser environment prose update read by root."
+    },
+    {
+      "scope": "CLI synchronous lifetime/security source cases",
+      "passed": 5,
+      "duration_seconds": 0.73,
+      "source_commit": "a619b79f99a2ba57c3883dacf49fbea9ff2b0c80",
+      "note": "Independent docker_design review of final CLI source and documentation; no later CLI changes."
+    }
+  ],
+  "findings_fixed": [
+    "Cancel during synchronous recheck left AWAITING_USER and held claim; safe boundary is now atomic in journal transaction",
+    "Cancel after final save before unlock now settles durable state; recheck returns latest revision",
+    "Active async QUEUED/RUNNING validation retains pending cancel and claim until worker boundary",
+    "Cancel before durable installer intent prevents installer; uncertain INSTALLING/UNKNOWN retains receipt and claim",
+    "Hidden prior-catalog claim blocks product plan/submit through read-only whole-store boolean",
+    "None, zero or unknown busy probe does not authorize product execution",
+    "Full signed payload identity is checked, not manifest identity alone"
+  ],
+  "reviewed_sha256": {
+    "homensai_install/prerequisite_state.py": "18fbf79f31f44e85a32c9ff719d81832bc1b585565424cae730ec5099222118b",
+    "homensai_install/prerequisite_execution.py": "57da20790fa3686dd5b91097029d73cb5d8cf41ef6ff7993bd699507b492939d",
+    "tests/test_prerequisites_recheck_cancel.py": "9f3b5393de8cd72a139b19c705bea793623bf9a97aa4e1fa321612fccbd388b0",
+    "homensai_install/api/v1.py": "bd40ad0277121147c67cc3a6129733130e10790886949b8e8cb00387937ca45b",
+    "homensai_install/gui.py": "501e0dc27c7f92f047ecb8aebeff8ae7239624606f04a24893fdeab84c2f3bd4",
+    "homensai_install/prerequisite_catalog.py": "78b865a4f707faafa03453edb871a46b07a57ecdb609fb604b405b0736aef538",
+    "tests/test_wizard_prerequisites.py": "3dc48ddc7a6ebc1b53918d132c1355a6b56dfa2f04f484c288cf89e844a3e619"
+  },
+  "root_reviewed_hashes_match": true,
+  "unique_regressions_saved_in_repository": true,
+  "limitations": [
+    {
+      "item": "Atomic lease shared by prerequisite and product executors across processes",
+      "implementation": "NOT IMPLEMENTED",
+      "acceptance": "NOT RUN",
+      "next_action": "Implement common durable execution lease before claiming global exclusion; test simultaneous independent product/prerequisite controllers and crash recovery."
+    },
+    {
+      "item": "Independent reviewers did not run live OS installers, Windows, browser or installed registered prerequisite lifecycle",
+      "acceptance": "NOT RUN"
+    }
+  ]
+}

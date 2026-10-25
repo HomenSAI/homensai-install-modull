@@ -180,12 +180,16 @@ class InstallerAPI:
                          "availability": "capabilities_for_exact_target"},
             "prerequisites": {"registration": "explicit_sdk", "execution": "synchronous_default_background_opt_in",
                               "background_ack": "durable_queued_operation", "recovery_listing": True,
+                              "http_transport": "explicit_wizard_session", "http_plan_input": "server_plan_id",
+                              "cli_transport": "explicit_trusted_sdk", "cli_execution": "synchronous",
+                              "busy_probe": "registered_store_claim_or_controller",
+                              "durable_byte_progress": False,
                               "automatic_default_factory": False, "gui_auto_flow": False,
                               "readiness": "source_contract", "production_ready": False},
             "operations": ["describe", "capabilities", "validate", "discover", "plan", "submit",
                            "operations.list", "status", "events", "cancel", "resume", "errors.describe", "errors.search",
                            "diagnostics.get", "diagnostics.export", "statistics.query",
-                           "prerequisites.capabilities", "prerequisites.identity", "prerequisites.license",
+                           "prerequisites.capabilities", "prerequisites.identity", "prerequisites.busy", "prerequisites.license",
                            "prerequisites.plan", "prerequisites.start", "prerequisites.status",
                            "prerequisites.operations.list",
                            "prerequisites.events", "prerequisites.attempts", "prerequisites.recheck",
@@ -211,7 +215,7 @@ class InstallerAPI:
 
         Background start/resume is explicitly opted in. A prerequisite READY
         never claims product installation success. GUI bootstrap must supply its
-        own reviewed catalogue and transport before exposing an automatic flow.
+        own reviewed catalogue; HTTP/CLI only delegate to that registration.
         """
         if self._prerequisite_instance is None:
             fail("CAPABILITY_UNSUPPORTED", details={"reason": "prerequisites_not_configured"})
@@ -236,7 +240,8 @@ class InstallerAPI:
 
     def prerequisites_identity(self) -> dict:
         value = self._prerequisite_call("identity")
-        return {**value, "manifest_digest": digest(self._prerequisite_instance.catalog.manifest)}
+        return {**value, "manifest_digest": digest(self._prerequisite_instance.catalog.manifest),
+                "payload_binding": self._prerequisite_instance.catalog.payload_binding()}
 
     def prerequisites_capabilities(self) -> dict:
         if self._prerequisite_instance is None:
@@ -244,6 +249,17 @@ class InstallerAPI:
                     "manual_recheck": False, "durable_resume": False, "production_ready": False}
         return {"api_version": API_VERSION, "configured": True,
                 **self._prerequisite_call("capabilities"), "production_ready": False}
+
+    def prerequisites_busy(self) -> bool:
+        """Есть claim или controller не доказанно свободен; чужие ID не выдаются.
+
+        Это read-only проверка зарегистрированного store, не межпроцессная
+        блокировка совместной product/prerequisite транзакции.
+        """
+        result = self._prerequisite_call("busy")
+        if type(result) is not bool:
+            fail("UNEXPECTED_ERROR")
+        return result
 
     def prerequisites_license(self, component_id: str) -> dict:
         if type(component_id) is not str or len(component_id) > 128:

@@ -34,7 +34,7 @@ def default_state_dir() -> Path:
 def _common(parser, *, root=False):
     default = None if root else argparse.SUPPRESS
     parser.add_argument("--state-dir", default=default)
-    parser.add_argument("--locale", choices=("ru", "en", "de"), default="ru" if root else argparse.SUPPRESS)
+    parser.add_argument("--locale", choices=("ru", "en", "de"), default=None if root else argparse.SUPPRESS)
     parser.add_argument("--json", action="store_true", default=False if root else argparse.SUPPRESS)
     parser.add_argument("--trust-config", default=default)
     parser.add_argument("--allow-development", action="store_true", default=False if root else argparse.SUPPRESS)
@@ -54,6 +54,40 @@ def _input(parser):
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--options", help="Публичный JSON-файл параметров; значения секретов запрещены")
     _target(parser)
+
+
+def _prerequisites_parser(commands):
+    group = commands.add_parser("prerequisites", help="Подготовка зависимостей через доверенный coordinator")
+    _common(group)
+    actions = group.add_subparsers(dest="prerequisites_command", required=True)
+    for name in ("identity", "capabilities", "license", "plan", "start", "status", "operations",
+                 "events", "attempts", "recheck", "resume", "cancel", "choose-boundary", "replace-plan"):
+        sub = actions.add_parser(name)
+        _common(sub)
+        if name in {"start", "status", "events", "attempts", "recheck", "resume", "cancel",
+                    "choose-boundary", "replace-plan"}:
+            sub.add_argument("operation_id")
+        if name in {"license", "attempts"}:
+            sub.add_argument("component_id")
+        if name == "plan":
+            sub.add_argument("--choices", help="JSON object: component_id → auto/manual/use/skip")
+            sub.add_argument("--offline", action="store_true")
+            sub.add_argument("--local-artifacts", help="JSON object: artifact_id → абсолютный локальный путь")
+        if name in {"start", "replace-plan"}:
+            sub.add_argument("--plan", required=True, help="JSON plan SDK или успешный JSON envelope команды plan")
+        if name in {"start", "replace-plan", "resume"}:
+            sub.add_argument("--consent-ref", action="append", default=None if name == "resume" else [])
+        if name in {"events", "attempts", "operations"}:
+            sub.add_argument("--limit", type=int, default=100)
+        if name == "events":
+            sub.add_argument("--after-sequence", type=int, default=0)
+        if name == "attempts":
+            sub.add_argument("--after", type=int, default=0)
+        if name == "operations":
+            sub.add_argument("--all", action="store_true", help="Включить READY/CANCELED")
+            sub.add_argument("--after-id")
+        if name == "choose-boundary":
+            sub.add_argument("when", choices=("now", "later"))
 
 
 def parser() -> Parser:
@@ -125,6 +159,7 @@ def parser() -> Parser:
     diagnostics.add_argument("--preview", action="store_true")
     diagnostics.add_argument("--expected-digest")
     diagnostics.add_argument("--confirm-export", action="store_true")
+    _prerequisites_parser(commands)
     gui = commands.add_parser("gui", add_help=False)
     gui.add_argument("args", nargs=argparse.REMAINDER)
     return root
@@ -157,14 +192,77 @@ def _sdk(args) -> InstallerAPI:
         args.state_dir or default_state_dir(), trust_config=args.trust_config,
         allow_development=args.allow_development, secret_provider=secret_provider,
         development_runtime=args.development_runtime, docker_cli_config=args.docker_cli_config,
-        locale=args.locale)
+        locale=args.locale or "ru")
 
 
-def _execute(args):
+def _prerequisite_plan_file(path):
+    """Accept a raw SDK plan or the exact successful CLI envelope, not code."""
+    value = _json_file(path)
+    if type(value) is dict and {"api_version", "request_id", "result"} <= set(value):
+        from .errors import InstallerError
+        if (set(value) != {"api_version", "request_id", "result"} or value["api_version"] != API_VERSION
+                or type(value["request_id"]) is not str
+                or re.fullmatch(r"req_[0-9a-f]{32}", value["request_id"]) is None
+                or type(value["result"]) is not dict):
+            raise InstallerError("INVALID_REQUEST")
+        return value["result"]
+    return value
+
+
+def _prerequisites_execute(args, api):
+    command = args.prerequisites_command
+    if command == "capabilities":
+        return api.prerequisites_capabilities()
+    # An unconfigured ordinary CLI refuses before reading a requested plan or
+    # artifact map. Identity is read-only and does not re-verify the catalogue,
+    # so historical status remains readable when payload verification is blocked.
+    identity = api.prerequisites_identity()
+    if command == "identity":
+        return identity
+    if command == "license":
+        return api.prerequisites_license(args.component_id)
+    if command == "plan":
+        return api.prerequisites_plan(_json_file(args.choices), locale=args.locale or api.locale, offline=args.offline,
+                                      local_artifacts=_json_file(args.local_artifacts))
+    if command == "start":
+        return api.prerequisites_start(args.operation_id, _prerequisite_plan_file(args.plan),
+                                       args.consent_ref, background=False)
+    if command == "resume":
+        return api.prerequisites_resume(args.operation_id, args.consent_ref, background=False)
+    if command == "status":
+        return api.prerequisites_status(args.operation_id)
+    if command == "operations":
+        return api.prerequisites_operations_list(unfinished_only=not args.all, limit=args.limit,
+                                                 after_id=args.after_id)
+    if command == "events":
+        return api.prerequisites_events(args.operation_id, after_sequence=args.after_sequence, limit=args.limit)
+    if command == "attempts":
+        return api.prerequisites_attempts(args.operation_id, args.component_id, after=args.after, limit=args.limit)
+    if command == "recheck":
+        return api.prerequisites_recheck(args.operation_id)
+    if command == "cancel":
+        return api.prerequisites_cancel(args.operation_id)
+    if command == "choose-boundary":
+        return api.prerequisites_choose_boundary(args.operation_id, args.when)
+    if command == "replace-plan":
+        return api.prerequisites_replace_plan(args.operation_id, _prerequisite_plan_file(args.plan), args.consent_ref)
+    raise AssertionError("unhandled prerequisites command")
+
+
+def _execute(args, *, api: InstallerAPI | None = None):
+    if api is not None:
+        from .errors import InstallerError
+        if (not isinstance(api, InstallerAPI) or args.command == "init-adapter"
+                or args.allow_development
+                or any(getattr(args, name) is not None for name in
+                       ("state_dir", "trust_config", "development_runtime", "docker_cli_config"))):
+            raise InstallerError("INVALID_REQUEST", details={"reason": "injected_api_bootstrap_override"})
     if args.command == "init-adapter":
         from .scaffold import scaffold_product
         return scaffold_product(args.output_dir, _json_file(args.spec))
-    api = _sdk(args)
+    api = _sdk(args) if api is None else api
+    if args.command == "prerequisites":
+        return _prerequisites_execute(args, api)
     target = {key: getattr(args, key) for key in ("os", "arch", "mode", "scope")
               if getattr(args, key, None) is not None}
     if args.command == "api":
@@ -211,9 +309,32 @@ def _execute(args):
     raise AssertionError("unhandled CLI command")
 
 
-def main(argv: list[str] | None = None) -> int:
+def _exit_code(args, result):
+    state = result.get("status") if isinstance(result, dict) else None
+    if args.command != "prerequisites":
+        return 2 if state == "BLOCKED" else 1 if state in {"FAILED", "FAILED_ROLLED_BACK", "RECOVERY_REQUIRED"} else 0
+    if args.prerequisites_command in {"identity", "capabilities", "license", "plan", "operations", "attempts",
+                                      "cancel", "choose-boundary", "replace-plan"}:
+        # For these commands success acknowledges the query/control request,
+        # not prerequisite readiness. Consumers must inspect the JSON result.
+        return 0
+    outcome = result.get("snapshot", {}) if args.prerequisites_command == "events" else result
+    state = outcome.get("status") if isinstance(outcome, dict) else None
+    if state == "CANCELED":
+        return 4
+    if isinstance(outcome, dict) and outcome.get("error"):
+        return 1
+    if state == "READY" and outcome.get("ready") is True:
+        return 0
+    if state in {"RUNNING", "QUEUED", "AWAITING_USER", "REBOOT_REQUIRED", "RELOGIN_REQUIRED"}:
+        return 3
+    return 1  # Unknown/malformed state cannot claim readiness.
+
+
+def main(argv: list[str] | None = None, *, api: InstallerAPI | None = None) -> int:
+    """Trusted Python bootstrap may inject an API; argv never loads a registry."""
     argv = list(sys.argv[1:] if argv is None else argv)
-    if argv and argv[0] == "gui":
+    if api is None and argv and argv[0] == "gui":
         from .gui import main as gui_main
         return gui_main(argv[1:])
     request_id = "req_" + uuid.uuid4().hex
@@ -222,19 +343,22 @@ def main(argv: list[str] | None = None) -> int:
     try:
         args = parser().parse_args(argv)
         if args.command == "gui":
+            if api is not None:
+                raise InstallerError("INVALID_REQUEST", details={"reason": "injected_api_not_gui_bootstrap"})
             from .gui import main as gui_main
             return gui_main(args.args)
-        result = _execute(args)
+        result = _execute(args, api=api)
         response = {"api_version": API_VERSION, "request_id": request_id, "result": result}
-        state = result.get("status") if isinstance(result, dict) else None
-        exit_code = 2 if state == "BLOCKED" else 1 if state in {"FAILED", "FAILED_ROLLED_BACK", "RECOVERY_REQUIRED"} else 0
+        exit_code = _exit_code(args, result)
     except InstallerError as error:
         response = {"api_version": API_VERSION, "request_id": request_id,
-                    "error": error.to_dict(locale=getattr(args, "locale", "ru"))}
+                    "error": error.to_dict(locale=getattr(args, "locale", None) or
+                                           (api.locale if isinstance(api, InstallerAPI) else "ru"))}
         exit_code = 2
     except Exception:
         response = {"api_version": API_VERSION, "request_id": request_id,
-                    "error": InstallerError("UNEXPECTED_ERROR").to_dict(locale=getattr(args, "locale", "ru"))}
+                    "error": InstallerError("UNEXPECTED_ERROR").to_dict(locale=getattr(args, "locale", None) or
+                                                                         (api.locale if isinstance(api, InstallerAPI) else "ru"))}
         exit_code = 1
     print(json.dumps(response, ensure_ascii=False, separators=(",", ":"), allow_nan=False))
     return exit_code

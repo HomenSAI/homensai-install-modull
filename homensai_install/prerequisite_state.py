@@ -170,6 +170,11 @@ class PrerequisiteStore:
             row = db.execute("SELECT body FROM operations WHERE id=?", (operation_id,)).fetchone()
         return parse_json(row[0], error_code="INTEGRITY_FAILED") if row else None
 
+    def has_claim(self):
+        """Observe any active claim in this store without exposing its owner/ID."""
+        with self.connection() as db:
+            return db.execute("SELECT 1 FROM claim WHERE id=1").fetchone() is not None
+
     def operations(self, identity, *, unfinished_only=True, limit=100, after_id=None):
         """Filter immutable registration identity before keyset pagination."""
         if (type(unfinished_only) is not bool or type(limit) is not int or not 1 <= limit <= 100
@@ -191,14 +196,30 @@ class PrerequisiteStore:
         return operations[:limit], cursor
 
     @staticmethod
-    def _settle_finished_cancel(operation):
-        """Close the last-cancel window after a background drive has ended."""
-        if (operation["cancel_requested"] and operation["status"] not in {"READY", "CANCELED"}
-                and operation.get("_dispatch", {}).get("state") in {"FINISHED", "FAILED", "SUPERSEDED"}):
-            uncertain = any(step["state"] in {"INSTALLING", "UNKNOWN"} for step in operation["steps"].values())
-            operation["ready"] = False
-            operation["status"] = "RECOVERY_REQUIRED" if uncertain else "CANCELED"
-            operation["required_action"] = "reconcile_installer" if uncertain else None
+    def _settle_cancel_at_boundary(operation, *, previous_status=None):
+        """Settle the cancel and result in the same journal transaction.
+
+        Installer intent is persisted as RUNNING before external execution.
+        Waiting/readiness states are safe boundaries even if a read-only probe
+        or observer still holds the controller lock. Unknown receipts remain
+        recovery-required; an already committed READY is not undone by cancel.
+        """
+        if not operation["cancel_requested"] or operation["status"] == "CANCELED":
+            return
+        if operation["status"] == "READY" and previous_status == "READY":
+            return
+        dispatch = operation.get("_dispatch", {}).get("state")
+        waiting = operation["status"] in {"AWAITING_USER", "REBOOT_REQUIRED", "RELOGIN_REQUIRED",
+                                           "RECOVERY_REQUIRED", "READY"}
+        if operation["status"] == "AWAITING_USER" and dispatch in {"QUEUED", "RUNNING"}:
+            waiting = False  # An accepted async validation still owns this pass.
+        finished = dispatch in {"FINISHED", "FAILED", "SUPERSEDED"}
+        if not (waiting or finished or previous_status == "CANCELED"):
+            return
+        uncertain = any(step["state"] in {"INSTALLING", "UNKNOWN"} for step in operation["steps"].values())
+        operation["ready"] = False
+        operation["status"] = "RECOVERY_REQUIRED" if uncertain else "CANCELED"
+        operation["required_action"] = "reconcile_installer" if uncertain else None
 
     def save(self, operation, message_code, *, create=False):
         operation = dict(operation)
@@ -214,7 +235,7 @@ class PrerequisiteStore:
             # erase the request or reuse its event sequence.
             if previous:
                 operation["cancel_requested"] = operation["cancel_requested"] or previous["cancel_requested"]
-            self._settle_finished_cancel(operation)
+            self._settle_cancel_at_boundary(operation, previous_status=previous["status"] if previous else None)
             operation["revision"] = (previous["revision"] if previous else 0) + 1
             operation["updated_at"] = utcnow()
             event = {"type": "prerequisite_state", "phase": "prerequisites", "message_code": message_code,
@@ -244,7 +265,7 @@ class PrerequisiteStore:
         return operation, event
 
     def request_cancel(self, operation_id):
-        """Persist only a cancel request while another controller owns the lock."""
+        """Persist cancel without waiting for a controller; settle safe pauses."""
         with self.connection(write=True) as db:
             row = db.execute("SELECT body FROM operations WHERE id=?", (operation_id,)).fetchone()
             if row is None:
@@ -254,7 +275,7 @@ class PrerequisiteStore:
                 return operation, None
             operation["cancel_requested"] = True
             operation["required_action"] = "wait_for_safe_boundary"
-            self._settle_finished_cancel(operation)
+            self._settle_cancel_at_boundary(operation)
             operation["revision"] += 1
             operation["updated_at"] = utcnow()
             event = {"type": "prerequisite_state", "phase": "prerequisites", "message_code": "prerequisite_cancel_requested",

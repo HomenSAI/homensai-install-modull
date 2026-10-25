@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+from collections import OrderedDict
+from copy import deepcopy
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -15,6 +17,7 @@ from urllib.parse import parse_qs, urlsplit
 import webbrowser
 
 from .api.v1 import InstallerAPI
+from .api.model import bounded_json, checked_id, digest
 from .backends import configured_backends
 from .errors import ErrorCatalog, InstallerError
 from .i18n import normalize_locale
@@ -23,6 +26,8 @@ from .trust import load_trust_config
 ASSETS = Path(__file__).with_name("wizard")
 LOCALES = ("ru", "en", "de")
 MAX_BODY = 65536
+MAX_PREREQUISITE_PLANS = 16
+MAX_PREREQUISITE_OBSERVATIONS = 64
 
 
 def _json(raw):
@@ -80,6 +85,294 @@ class WizardSession:
         self._archive_password = None
         self._product_secrets = {}
         self._operations = set()
+        self._review_generation = 0
+        self._plan_generations = {}
+        self._prerequisite_plans = OrderedDict()
+        self._prerequisite_observations = OrderedDict()
+        self._prerequisite_inflight = set()
+        self._prerequisite_binding = self._bind_prerequisites()
+
+    def _bind_prerequisites(self):
+        """Только доверенный bootstrap; один раз сравнить полные signed bytes."""
+        identity = getattr(self.api, "prerequisites_identity", None)
+        if identity is None:
+            return None
+        try:
+            binding = bounded_json(identity())
+        except InstallerError as error:
+            if (error.code == "CAPABILITY_UNSUPPORTED"
+                    and error.context.get("details", {}).get("reason") == "prerequisites_not_configured"):
+                return None
+            raise
+        from .trust import SignedPayloadVerifier
+        if not isinstance(self.verifier, SignedPayloadVerifier):
+            raise InstallerError("INTEGRITY_FAILED", details={"reason": "prerequisite_session_verifier_required"})
+        if type(binding) is not dict or set(binding) != {
+                "product_id", "owner_id", "target", "catalog_digest", "manifest_digest", "payload_binding"}:
+            raise InstallerError("INTEGRITY_FAILED", details={"reason": "prerequisite_session_identity"})
+        mode = binding.get("target", {}).get("mode") if type(binding.get("target")) is dict else None
+        options = self.options_for(mode)
+        target = self.target(mode)
+        files = self.verifier(self.manifest, target, options)
+        expected = {"manifest_digest": digest(self.manifest), "target": target,
+                    "release": options.get("release"), "runtime_executable": options.get("runtime_executable"),
+                    "files_digest": digest(dict(files))}
+        if (binding["product_id"] != self.manifest["product_id"]
+                or binding["manifest_digest"] != expected["manifest_digest"]
+                or binding["target"] != target or binding["payload_binding"] != expected
+                or type(binding["owner_id"]) is not str or not binding["owner_id"]
+                or type(binding["catalog_digest"]) is not str):
+            raise InstallerError("INTEGRITY_FAILED", details={"reason": "prerequisite_session_payload_mismatch"})
+        return deepcopy(binding)
+
+    def _prerequisites_bound(self, mode=None):
+        binding = self._prerequisite_binding
+        if binding is None:
+            raise InstallerError("CAPABILITY_UNSUPPORTED", details={"reason": "prerequisites_not_configured"})
+        # Identity is a pinned read-only snapshot. Do not rehash source bytes or
+        # probe the host on status/cancel: source loss must not prevent cancel.
+        if self.api.prerequisites_identity() != binding:
+            raise InstallerError("PLAN_STALE", details={"reason": "prerequisite_session_binding_changed"})
+        if mode is not None and mode != binding["target"]["mode"]:
+            raise InstallerError("CAPABILITY_UNSUPPORTED", details={"reason": "prerequisite_session_target"})
+        return binding
+
+    @staticmethod
+    def _fields(value, allowed, required=()):
+        if type(value) is not dict or set(value) - set(allowed) or set(required) - set(value):
+            raise InstallerError("INVALID_REQUEST")
+
+    @staticmethod
+    def _query(query, allowed):
+        WizardSession._fields(query, allowed)
+        if any(type(values) is not list or len(values) != 1 or type(values[0]) is not str
+               for values in query.values()):
+            raise InstallerError("INVALID_REQUEST")
+        return {key: values[0] for key, values in query.items()}
+
+    def _invalidate_review(self):
+        # Caller holds the short session lock. SDK product plans remain an audit
+        # record, but this browser session no longer authorizes their submission.
+        self._review_generation += 1
+        self._plan_locales.clear()
+        self._plan_generations.clear()
+
+    def _prerequisite_snapshot(self, value, *, observe=True):
+        binding = self._prerequisites_bound()
+        if (type(value) is not dict or any(value.get(key) != binding[key]
+                for key in ("product_id", "owner_id", "target", "catalog_digest"))):
+            raise InstallerError("OPERATION_NOT_FOUND")
+        checked_id(value.get("operation_id"))
+        if observe:
+            marker = (value.get("revision"), value.get("status"), value.get("ready"))
+            with self._lock:
+                old = self._prerequisite_observations.get(value["operation_id"])
+                if old is not None and type(marker[0]) is int and type(old[0]) is int and marker[0] < old[0]:
+                    return value  # Concurrent old GET cannot rewind observation.
+                if old != marker:
+                    self._invalidate_review()
+                self._prerequisite_observations[value["operation_id"]] = marker
+                self._prerequisite_observations.move_to_end(value["operation_id"])
+                while len(self._prerequisite_observations) > MAX_PREREQUISITE_OBSERVATIONS:
+                    self._prerequisite_observations.popitem(last=False)
+        return value
+
+    def _prerequisite_status(self, operation_id, *, observe=True):
+        self._prerequisites_bound()
+        return self._prerequisite_snapshot(self.api.prerequisites_status(operation_id), observe=observe)
+
+    def _product_prerequisite_guard(self):
+        """Сессионный gate, не второй executor и не глобальный OS-lock."""
+        if self._prerequisite_binding is None:
+            return
+        self._prerequisites_bound()
+        if self._prerequisite_inflight:
+            raise InstallerError("OPERATION_CONFLICT", details={"reason": "prerequisite_request_in_progress"})
+        # A prior catalogue/owner is deliberately absent from filtered lists,
+        # but its unresolved claim still forbids a product operation here.
+        if self.api.prerequisites_busy() is not False:
+            raise InstallerError("OPERATION_CONFLICT", details={"reason": "prerequisites_store_busy"})
+        pending = self.api.prerequisites_operations_list(unfinished_only=True, limit=100)
+        for value in pending["operations"]:
+            self._prerequisite_snapshot(value)
+        # Observe completion even if the browser has not polled READY. Otherwise
+        # an old review could be submitted in the interval after the worker ends.
+        controller_active = False
+        for operation_id in tuple(self._prerequisite_observations):
+            observed = self._prerequisite_status(operation_id)
+            controller_active |= observed.get("execution", {}).get("active") is not False
+        if pending["operations"] or pending.get("next_cursor") or controller_active:
+            raise InstallerError("OPERATION_CONFLICT", details={"reason": "prerequisites_unfinished"})
+
+    def _reserve_prerequisite_change(self, operation_id):
+        with self._lock:
+            pending = self.api.operations_list(product_id=self.manifest["product_id"], unfinished_only=True, limit=100)
+            if pending["operations"] or pending.get("has_more"):
+                raise InstallerError("OPERATION_CONFLICT", details={"reason": "product_operation_unfinished"})
+            for operation in tuple(self._operations):
+                if self.api.status(operation)["status"] in {"RUNNING", "QUEUED", "PENDING", "CANCEL_PENDING"}:
+                    raise InstallerError("OPERATION_CONFLICT", details={"reason": "product_operation_active"})
+            if self._prerequisite_inflight:
+                raise InstallerError("OPERATION_CONFLICT", details={"reason": "prerequisite_request_in_progress"})
+            self._prerequisite_inflight.add(operation_id)
+            self._invalidate_review()
+
+    def _prerequisite_review(self, body):
+        self._fields(body, {"plan_id", "plan_digest", "consent_refs", "accepted_plan", "accepted_terms", "terms_digest"},
+                     {"plan_id", "plan_digest", "consent_refs", "accepted_plan", "accepted_terms", "terms_digest"})
+        checked_id(body["plan_id"], field="plan_id")
+        with self._lock:
+            stored = deepcopy(self._prerequisite_plans.get(body["plan_id"]))
+        if stored is None:
+            raise InstallerError("PLAN_NOT_FOUND")
+        if body["plan_digest"] != stored["plan"]["plan_digest"]:
+            raise InstallerError("PLAN_STALE")
+        if (body["accepted_plan"] is not True or body["accepted_terms"] is not True
+                or body["terms_digest"] != stored["terms_digest"]):
+            raise InstallerError("CONSENT_REQUIRED")
+        refs = body["consent_refs"]
+        if type(refs) is not list or len(refs) > 1024 or any(type(ref) is not str for ref in refs):
+            raise InstallerError("INVALID_REQUEST")
+        if not set(stored["plan"]["required_consents"]) <= set(refs):
+            raise InstallerError("CONSENT_REQUIRED")
+        self._prerequisites_bound(stored["plan"]["target"]["mode"])
+        return stored, refs
+
+    def _route_prerequisites(self, method, path, query, body):
+        """HTTP only transports explicit SDK calls; no installer/worker here."""
+        api = self.api
+        if method == "GET" and path == "/prerequisites/capabilities":
+            values = self._query(query, {"mode"})
+            self._fields(body, set())
+            mode = values.get("mode", "native")
+            if mode not in {"native", "docker"}:
+                raise InstallerError("INVALID_REQUEST")
+            if self._prerequisite_binding is None or mode != self._prerequisite_binding["target"]["mode"]:
+                return {"configured": False, "target": self.target(mode), "automatic_component_ids": [],
+                        "http_transport": True, "gui_auto_flow": False, "production_ready": False}
+            binding = self._prerequisites_bound(mode)
+            return {**api.prerequisites_capabilities(), "binding": binding, "http_transport": True,
+                    "gui_auto_flow": False, "durable_byte_progress": False, "production_ready": False}
+        self._prerequisites_bound()
+        if method == "GET" and path.startswith("/prerequisites/licenses/"):
+            self._query(query, set())
+            component = path.removeprefix("/prerequisites/licenses/")
+            if "/" in component:
+                raise InstallerError("INVALID_REQUEST")
+            return api.prerequisites_license(component)
+        if method == "POST" and path == "/prerequisites/plans":
+            self._query(query, set())
+            self._fields(body, {"mode", "locale", "choices", "offline"})
+            mode = body.get("mode", "native")
+            if type(mode) is not str or mode not in {"native", "docker"} or body.get("locale", self.locale) not in LOCALES:
+                raise InstallerError("INVALID_REQUEST")
+            self._prerequisites_bound(mode)
+            locale = normalize_locale(body.get("locale", self.locale))
+            with self._lock:
+                generation = self._review_generation
+            # Full signature reads/discovery run outside the session mutex.
+            terms = self.terms(locale, mode)
+            plan = api.prerequisites_plan(body.get("choices"), locale=locale, offline=body.get("offline", False))
+            for key in ("product_id", "owner_id", "target", "catalog_digest"):
+                if plan.get(key) != self._prerequisite_binding[key]:
+                    raise InstallerError("PLAN_STALE")
+            plan_id, operation_id = "prereqplan_" + uuid.uuid4().hex, "prep_" + uuid.uuid4().hex
+            stored = {"plan_id": plan_id, "operation_id": operation_id, "plan": deepcopy(plan),
+                      "terms_digest": terms["digest"], "generation": generation}
+            with self._lock:
+                if generation != self._review_generation:
+                    raise InstallerError("PLAN_STALE")
+                self._prerequisite_plans[plan_id] = stored
+                while len(self._prerequisite_plans) > MAX_PREREQUISITE_PLANS:
+                    self._prerequisite_plans.popitem(last=False)
+            return {"plan_id": plan_id, "operation_id": operation_id, "plan_digest": plan["plan_digest"],
+                    "plan": plan, "terms_digest": terms["digest"], "locale": locale,
+                    "production_ready": False}
+        if method == "POST" and path == "/prerequisites/operations":
+            self._query(query, set())
+            stored, refs = self._prerequisite_review(body)
+            operation_id = stored["operation_id"]
+            try:
+                previous = self._prerequisite_status(operation_id, observe=False)
+            except InstallerError as error:
+                if error.code != "OPERATION_NOT_FOUND":
+                    raise
+                previous = None
+            if previous is not None:
+                # No implicit resume, including a lost ACK or a failed worker.
+                if previous["plan_digest"] != stored["plan"]["plan_digest"]:
+                    raise InstallerError("PLAN_STALE")
+                return self._prerequisite_snapshot(previous)
+            with self._lock:
+                if stored["generation"] != self._review_generation:
+                    raise InstallerError("PLAN_STALE")
+                self._reserve_prerequisite_change(operation_id)
+            try:
+                result = api.prerequisites_start(operation_id, stored["plan"], refs, background=True)
+                return self._prerequisite_snapshot(result)
+            finally:
+                with self._lock:
+                    self._prerequisite_inflight.discard(operation_id)
+        if method == "GET" and path == "/prerequisites/operations":
+            values = self._query(query, {"unfinished_only", "limit", "after_id"})
+            unfinished = values.get("unfinished_only", "true")
+            if unfinished not in {"true", "false"}:
+                raise InstallerError("INVALID_REQUEST")
+            result = api.prerequisites_operations_list(unfinished_only=unfinished == "true",
+                limit=int(values.get("limit", "100")), after_id=values.get("after_id"))
+            for operation in result["operations"]:
+                self._prerequisite_snapshot(operation)
+            return result
+        if path.startswith("/prerequisites/operations/"):
+            parts = path.strip("/").split("/")
+            if len(parts) not in {3, 4, 5}:
+                raise InstallerError("INVALID_REQUEST")
+            operation_id, tail = parts[2], parts[3] if len(parts) >= 4 else ""
+            # Cancel deliberately avoids the UI mutex, including observation
+            # bookkeeping, while another request is doing a long probe.
+            status = self._prerequisite_status(operation_id, observe=tail != "cancel")
+            if method == "GET" and not tail:
+                self._query(query, set())
+                return status
+            if method == "GET" and tail == "events" and len(parts) == 4:
+                values = self._query(query, {"after_sequence", "limit"})
+                result = api.prerequisites_events(operation_id, after_sequence=int(values.get("after_sequence", "0")),
+                                                 limit=int(values.get("limit", "100")))
+                self._prerequisite_snapshot(result["snapshot"])
+                return result
+            if method == "GET" and tail == "attempts" and len(parts) == 5:
+                values = self._query(query, {"after", "limit"})
+                return api.prerequisites_attempts(operation_id, parts[4], after=int(values.get("after", "0")),
+                                                  limit=int(values.get("limit", "100")))
+            if method == "POST" and len(parts) == 4:
+                self._query(query, set())
+                if tail == "cancel":
+                    self._fields(body, set())
+                    return self._prerequisite_snapshot(api.prerequisites_cancel(operation_id), observe=False)
+                if tail == "boundary":
+                    self._fields(body, {"when"}, {"when"})
+                    return self._prerequisite_snapshot(api.prerequisites_choose_boundary(operation_id, body["when"]))
+                if tail in {"resume", "recheck", "replace-plan"}:
+                    if tail == "replace-plan":
+                        stored, refs = self._prerequisite_review(body)
+                    else:
+                        self._fields(body, {"consent_refs"} if tail == "resume" else set())
+                        if "consent_refs" in body and (type(body["consent_refs"]) is not list
+                                or any(type(ref) is not str for ref in body["consent_refs"])):
+                            raise InstallerError("INVALID_REQUEST")
+                    self._reserve_prerequisite_change(operation_id)
+                    try:
+                        if tail == "resume":
+                            result = api.prerequisites_resume(operation_id, body.get("consent_refs"), background=True)
+                        elif tail == "recheck":
+                            result = api.prerequisites_recheck(operation_id)
+                        else:
+                            result = api.prerequisites_replace_plan(operation_id, stored["plan"], refs)
+                        return self._prerequisite_snapshot(result)
+                    finally:
+                        with self._lock:
+                            self._prerequisite_inflight.discard(operation_id)
+        raise InstallerError("CAPABILITY_UNSUPPORTED")
 
     def secret(self, reference):
         with self._lock:
@@ -129,6 +422,12 @@ class WizardSession:
                 "text": data.decode("utf-8"), "development": self.development}
 
     def route(self, method, path, query, body):
+        if path == "/prerequisites" or path.startswith("/prerequisites/"):
+            # SDK background dispatch owns the controller. Slow read-only
+            # planning/recheck must not serialize HTTP status or cancel.
+            return self._route_prerequisites(method, path, query, body)
+        if method == "POST" and path in {"/plans", "/discover"}:
+            return self._route(method, path, query, body)
         # Secret updates cannot slip between submit/resume and registration of
         # the active operation. A worker reads values after this lock is released.
         if method == "POST":
@@ -200,7 +499,11 @@ class WizardSession:
             if set(body) - {"install_root", "mode", "action", "locale", "archive_path", "acknowledge_data_loss", "product_modes"}:
                 raise InstallerError("INVALID_REQUEST")
             mode = body.get("mode", "native")
-            options = self.options_for(mode)
+            with self._lock:
+                if path == "/plans":
+                    self._product_prerequisite_guard()
+                generation = self._review_generation
+                options = self.options_for(mode)
             if "install_root" in body:
                 if type(body["install_root"]) is not str:
                     raise InstallerError("INVALID_REQUEST")
@@ -233,13 +536,20 @@ class WizardSession:
             # Recovery secrets и произвольные argv не принимаются из web request.
             result = api.plan(action, self.manifest, target=target, options=options)
             with self._lock:
+                if generation != self._review_generation:
+                    raise InstallerError("PLAN_STALE")
                 self._plan_locales[result["plan_id"]] = (locale, terms["digest"])
+                self._plan_generations[result["plan_id"]] = generation
             return result
         if method == "POST" and path == "/operations":
+            self._product_prerequisite_guard()
             if body.get("accepted_terms") is not True or body.get("accepted_plan") is not True:
                 raise InstallerError("CONSENT_REQUIRED")
             with self._lock:
                 accepted = self._plan_locales.get(body.get("plan_id"))
+                if (self._prerequisite_binding is not None
+                        and self._plan_generations.get(body.get("plan_id")) != self._review_generation):
+                    raise InstallerError("PLAN_STALE")
             if accepted is None or body.get("terms_digest") != accepted[1]:
                 raise InstallerError("CONSENT_REQUIRED")
             # API проверяет digest и полный список требуемых согласий плана.
@@ -272,6 +582,7 @@ class WizardSession:
             if method == "POST" and tail == "cancel":
                 return api.cancel(op)
             if method == "POST" and tail == "resume":
+                self._product_prerequisite_guard()
                 result = api.resume(op, decisions=body.get("decisions"), background=True)
                 self._operations.add(op)
                 return result
@@ -384,7 +695,7 @@ def create_server(session: WizardSession, *, port=0):
                         raise InstallerError("INVALID_REQUEST")
                     body = _json(self.rfile.read(length))
                 result = session.route(self.command, parsed.path[len("/api/v1"):],
-                                       parse_qs(parsed.query, max_num_fields=20), body)
+                                       parse_qs(parsed.query, keep_blank_values=True, max_num_fields=20), body)
                 self.send(200, {"api_version": "1", "result": result})
             except InstallerError as exc:
                 self.send(400, {"api_version": "1", "error": exc.to_dict(locale=session.locale)})

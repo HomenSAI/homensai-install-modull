@@ -283,6 +283,14 @@ class PrerequisiteCoordinator:
         """Historical durable status; performs no discovery/download/execution."""
         return self._public(self._get(operation_id))
 
+    def busy(self):
+        """Conservative read-only guard for this store, including hidden claims.
+
+        No operation identity is disclosed across catalogue/product bindings.
+        This observation is not an atomic lease shared with a product executor.
+        """
+        return self.store.has_claim() or self.store.controller_busy() is not False
+
     def operations_list(self, *, unfinished_only=True, limit=100, after_id=None):
         """Read-only recovery index for this exact owner/product/target/catalogue."""
         operations, cursor = self.store.operations(self.identity(), unfinished_only=unfinished_only,
@@ -605,7 +613,10 @@ class PrerequisiteCoordinator:
             if "_dispatch" in operation and operation["status"] not in _TERMINAL:
                 del operation["_dispatch"]
                 operation = self._save(operation, "prerequisite_synchronous_recheck")
-            return self._public(self._drive(operation, execute=False))
+            self._drive(operation, execute=False)
+            # A final observer may have persisted cancellation after the probe's
+            # commit. Report the latest durable revision, not its stale input.
+            return self._public(self._get(operation_id))
 
     def resume(self, operation_id, *, consents=None):
         with self.store.lock():

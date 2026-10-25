@@ -581,10 +581,23 @@ stdin/stdout/stderr, deadline, env allowlist и отдельным durable жу�
 backend этой реализации пока поддерживает Linux; Windows требует отдельного
 Job Object backend и приёмки. Версия/entrypoint доступны в discovery.
 
-Пакет не импортирует adapter по URL и не выдаёт ему admin-права.
-Автоматическая регистрация executable protocol в lifecycle engine пока
-не реализована; текущий native backend использует явные продуктовые команды
-manifest v2 через проверенный runtime. Общий lifecycle не копируется в продукт.
+Пакет не импортирует adapter по URL и не выдаёт ему admin-права. Доверенный host
+может явно включить `NativeEngine(verifier=signed_verifier,
+product_adapter_descriptor="installer/adapter.json")`. Эта регистрация доступна
+только для Linux/native/user и действий `start`, `stop`, `backup`; SDK по умолчанию
+её не включает. Остальные действия при включённом adapter заранее отклоняются.
+Без регистрации сохраняется прежний native путь manifest v2.
+
+План закрепляет descriptor и verified release; перед эффектами binding проверяется
+заново. Readiness обязана наблюдать нужные release/installation_id и свежий probe,
+сохраняя проверки owned PID/listener/HTTP. Quiesce использует durable intent и
+существующий adapter journal: UNKNOWN, потерянный ledger или отсутствующая
+ожидаемая invocation не разрешают повтор. Backup остаётся настоящим полным
+проверенным зашифрованным архивом прежнего ядра. Миграции, fresh-empty и полный
+install/update/restore lifecycle через этот adapter ещё не реализованы.
+Подробный контракт: `PRODUCT_ADAPTER_EXECUTION.md` в ресурсах установленного SDK
+и [документ проекта](docs/PRODUCT_ADAPTER_EXECUTION.md). Общий lifecycle в продукт
+не копируется; полная приёмка HIM-015/023 остаётся открытой.
 
 `hinstall init-adapter --output-dir NEW_DIR --spec product-spec.json --json`
 создаёт подключение из переданных реальных payload/runtime/wheels/locks,

@@ -1,0 +1,45 @@
+{
+  "checkpoint": "CP-20261025-021",
+  "task_ids": [
+    "HIM-065",
+    "HIM-068"
+  ],
+  "scenario_ids": [
+    "ACC-17"
+  ],
+  "status": "PASS",
+  "checked_at_utc": "2026-10-25T20:55:30.944128+00:00",
+  "input_sha256": {
+    "homensai_install/engine.py": "76e6f1ba35dd58ebe3328bb9cae582cba2f2ee0509145ecd3574cde693db8a56",
+    "integration_tests/test_native_product_adapter.py": "98e07ce1657ae6a6235ebefcea9fefc1cd654c014e06ef3d87880b602b929df1"
+  },
+  "command": [
+    "docker",
+    "run",
+    "--rm",
+    "--network",
+    "none",
+    "--mount",
+    "type=bind,source=E:\\homensai\\homensai-install-modull,target=/workspace,readonly",
+    "hinstall-dev:verification",
+    "python",
+    "-B",
+    "-m",
+    "pytest",
+    "-q",
+    "integration_tests/test_native_product_adapter.py",
+    "-k",
+    "backup_primary_failure_survives"
+  ],
+  "exit_code": 0,
+  "observed": "3 passed, 29 deselected in 9.35s",
+  "changes": [
+    "После backup failure recovery_start/health не заменяют исходный exception: reraised тот же объект.",
+    "При secondary failure в native journal и exception.details сохраняются только primary_error_code и recovery_error{phase,code}; публичный facade переносит оба кода.",
+    "Single failure сохраняет прежнее поведение без новых secondary полей.",
+    "Сырые primary/secondary сообщения, секреты и tracebacks не попадают в новый receipt."
+  ],
+  "previous_failure_receipt": "packaging/acceptance-evidence/core-review-backup-primary-error-20261025-cp021.json",
+  "scope": "3 synthetic signed NativeLifecycle integration cases, real own Linux processes/loopback + настоящий facade exception projection. Только потеря primary при backup recovery; полный ACC17/HIM065/HIM068 остаётся PENDING, product/platform/installed acceptance не закрыты. Счётчики пересекаются с source suite и не суммируются.",
+  "production_ready": false
+}

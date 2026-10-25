@@ -72,12 +72,20 @@
     "sdk": "homensai_install.adapters.ExecutableProductAdapter",
     "protocol_version": "1.0",
     "registration": "explicit_sdk",
-    "lifecycle_engine_registration": false,
+    "lifecycle_engine_registration": true,
     "execution_platforms": [
       "linux"
     ],
     "execution_mode": "native",
-    "execution_scope": "user"
+    "execution_scope": "user",
+    "lifecycle_registration": "trusted_native_engine_constructor",
+    "lifecycle_engine_actions": [
+      "start",
+      "stop",
+      "backup"
+    ],
+    "migration_execution": false,
+    "default_registration": false
   },
   "scaffold": {
     "sdk": "homensai_install.scaffold.scaffold_product",

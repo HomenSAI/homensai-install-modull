@@ -1,6 +1,7 @@
 """Явный ProductAdapter JSON protocol v1 поверх проверенного signed payload.
 
-Модуль не реализует установку/обновление/архивацию и не вызывается из plan.
+Модуль не реализует установку/обновление/архивацию. Plan читает только
+статические signed capabilities; hooks вызываются явным lifecycle execution.
 Подтверждённый replay хранится отдельно от lifecycle journal; неопределённый
 результат эффекта никогда не превращается в автоматическую повторную попытку.
 """
@@ -73,34 +74,63 @@ def _process_alive(pid):
 
 
 class _Ledger:
-    def __init__(self, directory):
-        self.directory = owned_directory(Path(directory), create=True)
-        self.path = self.directory / "adapter-invocations.sqlite3"
+    def __init__(self, directory, *, create=True):
         try:
-            fd = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            os.close(fd)
-        except FileExistsError:
-            pass
-        info = self.path.lstat()
+            self.directory = owned_directory(Path(directory), create=create)
+        except FileNotFoundError:
+            _fail("STATE_STORAGE_UNAVAILABLE", "adapter_ledger_missing")
+        self.path = self.directory / "adapter-invocations.sqlite3"
+        fresh = False
+        if create:
+            try:
+                fd = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                os.close(fd)
+                fresh = True
+            except FileExistsError:
+                pass
+        try:
+            info = self.path.lstat()
+        except FileNotFoundError:
+            _fail("STATE_STORAGE_UNAVAILABLE", "adapter_ledger_missing")
         if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
                 or (os.name != "nt" and (info.st_uid != os.getuid() or info.st_mode & 0o077))):
             _fail("STATE_STORAGE_UNAVAILABLE", "adapter_ledger_permissions")
+        self.file_identity = (info.st_dev, info.st_ino)
         with self.transaction() as db:
-            db.execute("""CREATE TABLE IF NOT EXISTS calls (
+            if fresh:
+                db.execute("""CREATE TABLE calls (
                 call_id TEXT PRIMARY KEY, request_digest TEXT NOT NULL,
                 operation_id TEXT NOT NULL, hook TEXT NOT NULL, state TEXT NOT NULL,
                 result TEXT, owner_pid INTEGER NOT NULL, updated_at TEXT NOT NULL)
             """)
+            else:
+                db.execute("SELECT call_id,request_digest,operation_id,hook,state,result,owner_pid,updated_at FROM calls LIMIT 0")
+
+    def _check_file(self):
+        try:
+            owned_directory(self.directory, create=False)
+            info = self.path.lstat()
+        except (OSError, ValueError):
+            _fail("STATE_STORAGE_UNAVAILABLE", "adapter_ledger_missing_or_replaced")
+        if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
+                or (info.st_dev, info.st_ino) != self.file_identity
+                or getattr(info, "st_file_attributes", 0) & 0x400
+                or (os.name != "nt" and (info.st_uid != os.getuid() or info.st_mode & 0o077))):
+            _fail("STATE_STORAGE_UNAVAILABLE", "adapter_ledger_missing_or_replaced")
 
     @contextmanager
     def transaction(self):
         connection = None
         try:
-            connection = sqlite3.connect(str(self.path), timeout=5, isolation_level=None)
+            self._check_file()
+            connection = sqlite3.connect(self.path.as_uri() + "?mode=rw", uri=True, timeout=5, isolation_level=None)
             connection.execute("PRAGMA synchronous=FULL")
             connection.execute("BEGIN IMMEDIATE")
+            self._check_file()
             yield connection
+            self._check_file()
             connection.execute("COMMIT")
+            self._check_file()
         except sqlite3.Error:
             if connection is not None and connection.in_transaction:
                 connection.execute("ROLLBACK")
@@ -126,7 +156,7 @@ class _Ledger:
         return {"request_digest": row[0], "operation_id": row[1], "hook": row[2], "state": row[3],
                 "result": parse_json(row[4]) if row[4] is not None else None, "owner_pid": row[5]}
 
-    def begin(self, key, request_digest, operation_id, hook, *, resume):
+    def begin(self, key, request_digest, operation_id, hook, *, resume, require_existing=False):
         with self.transaction() as db:
             old = self._read(db, key)
             if old:
@@ -140,6 +170,8 @@ class _Ledger:
                 db.execute("UPDATE calls SET state='RUNNING',owner_pid=?,updated_at=? WHERE call_id=?",
                            (os.getpid(), now(), key))
             else:
+                if require_existing:
+                    _fail("RECOVERY_REQUIRED", "adapter_expected_invocation_missing")
                 db.execute("INSERT INTO calls VALUES (?,?,?,?,?,?,?,?)",
                            (key, request_digest, operation_id, hook, "RUNNING", None, os.getpid(), now()))
         return None
@@ -294,14 +326,16 @@ class ExecutableProductAdapter:
                                  "descriptor_digest": self._descriptor_digest, "release": self.options["release"]})
         return request, request_digest
 
-    def invoke(self, hook: str, request: Mapping[str, object]) -> Mapping[str, object]:
+    def invoke(self, hook: str, request: Mapping[str, object], *, existing_ledger: bool = False) -> Mapping[str, object]:
+        if type(existing_ledger) is not bool:
+            _fail("INVALID_REQUEST", "adapter_existing_ledger_flag")
         request, request_digest = self._request(hook, request)
         self.capabilities()  # Полная повторная проверка подписи/байтов до записи intent и exec.
         self._execution_context()
-        ledger = _Ledger(self.state_dir)
+        ledger = _Ledger(self.state_dir, create=not existing_ledger)
         key = self._identity(request["idempotency_key"])
         old_result = ledger.begin(key, request_digest, request["operation_id"], hook,
-                                  resume=request["phase"] == "resume")
+                                  resume=request["phase"] == "resume", require_existing=existing_ledger)
         if old_result is not None:
             return {"hook": hook, "request_digest": request_digest, "result": old_result, "replayed": True}
         try:
@@ -320,7 +354,7 @@ class ExecutableProductAdapter:
         if "operation_status" not in self._descriptor["capabilities"]:
             _fail("CAPABILITY_UNSUPPORTED", "adapter_operation_status_not_declared")
         key = self._identity(idempotency_key)
-        ledger = _Ledger(self.state_dir)
+        ledger = _Ledger(self.state_dir, create=False)
         old = ledger.claim_reconciliation(key)
         if old["state"] == "SUCCEEDED":
             return {"outcome": "applied", "result": old["result"], "replayed": True}
@@ -488,7 +522,13 @@ class ExecutableProductAdapter:
                     or result["capabilities"] != sorted(self._descriptor["capabilities"])):
                 _fail("ADAPTER_PROTOCOL_INVALID", "adapter_handshake_mismatch")
         elif hook in {"health", "readiness"}:
-            _strict_keys(result, {"ready", "checks"})
+            _strict_keys(result, {"ready", "checks"}, {"observed_identity"})
+            if "observed_identity" in result:
+                identity = result["observed_identity"]
+                _strict_keys(identity, {"product_id", "release", "installation_id", "probe_id"})
+                checked_product_id(identity["product_id"])
+                if any(not _safe_name(identity[key]) for key in ("release", "installation_id", "probe_id")):
+                    _fail("ADAPTER_PROTOCOL_INVALID", "adapter_observed_identity")
             if type(result["ready"]) is not bool or type(result["checks"]) is not list or len(result["checks"]) > 128:
                 _fail("ADAPTER_PROTOCOL_INVALID", "adapter_health_shape")
             for check in result["checks"]:

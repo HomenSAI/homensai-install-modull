@@ -1,0 +1,31 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_fault_with_existing_readiness_ledger_cannot_register_missing_quiesce_on_duplicate _
+
+installed = (<adapter_native_fixture.NativeLifecycleTests testMethod=runTest>, {'manifest': {'schema_version': 2, 'product_name': ...utld/source-v1', 'runtime_executable': 'runtime/python', ...}}, <function installed.<locals>.resign at 0x731d67602fb0>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x731d68399a70>
+
+    def test_fault_with_existing_readiness_ledger_cannot_register_missing_quiesce_on_duplicate(installed,monkeypatch):
+        from homensai_install.adapters import ExecutableProductAdapter
+        fixture,bundle,_=installed
+        fixture.engine.execute(fixture.reviewed_plan('start',bundle))
+        assert state(fixture)['ready']==1 and state(fixture)['quiesce']==0
+        class FaultBeforeInvocation(BaseException):pass
+        original=ExecutableProductAdapter.invoke
+        def interrupted(self,hook,request,**kwargs):
+            if hook=='quiesce':raise FaultBeforeInvocation()
+            return original(self,hook,request,**kwargs)
+        plan=fixture.reviewed_plan('stop',bundle)
+        with monkeypatch.context() as patch:
+            patch.setattr(ExecutableProductAdapter,'invoke',interrupted)
+            with pytest.raises(FaultBeforeInvocation):fixture.engine.execute(plan)
+        ledger=fixture.root/'.hinstall/product-adapter/v1/adapter-invocations.sqlite3'
+        assert ledger.is_file()
+>       with pytest.raises(EngineError) as caught:fixture.engine.execute(plan)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE EngineError
+
+integration_tests/test_native_product_adapter.py:327: Failed
+=========================== short test summary info ============================
+FAILED integration_tests/test_native_product_adapter.py::test_fault_with_existing_readiness_ledger_cannot_register_missing_quiesce_on_duplicate
+1 failed, 28 deselected in 4.37s

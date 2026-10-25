@@ -228,12 +228,25 @@ class NativeEngine:
                "rollback", "repair", "reinstall", "uninstall")
     MAINTENANCE_ACTIONS = {"start", "stop", "backup", "uninstall"}
 
-    def __init__(self, verifier=None, secret_provider=None, *, development_runtime=None):
+    ADAPTER_ACTIONS = {"start", "stop", "backup"}
+
+    def __init__(self, verifier=None, secret_provider=None, *, development_runtime=None,
+                 product_adapter_descriptor=None):
         self.verifier = verifier
         self.secret_provider = secret_provider
         self.development_runtime = (Path(development_runtime).resolve(strict=True)
                                     if development_runtime else None)
         self._children = {}
+        if product_adapter_descriptor is not None:
+            from .trust import SignedPayloadVerifier
+            if not isinstance(verifier, SignedPayloadVerifier):
+                raise EngineError("INTEGRITY_FAILED", "ProductAdapter требует signed verifier")
+            value = product_adapter_descriptor
+            if (type(value) is not str or not value or len(value) > 1024 or "\\" in value or ":" in value
+                    or any(ord(character) < 32 or ord(character) == 127 for character in value)
+                    or any(part in {"", ".", ".."} for part in value.split("/"))):
+                raise EngineError("INVALID_MANIFEST", "Некорректный путь product adapter descriptor")
+        self.product_adapter_descriptor = product_adapter_descriptor
 
     def capabilities(self, target):
         host = "windows" if os.name == "nt" else "linux" if sys.platform.startswith("linux") else sys.platform
@@ -242,8 +255,10 @@ class NativeEngine:
         host_arch = {"x86_64": "x64", "AMD64": "x64", "aarch64": "arm64", "ARM64": "arm64"}.get(platform.machine(), platform.machine())
         native = native and target.get("arch", host_arch) == host_arch
         return {"target": target, "actions": {
-            name: {"supported": bool(native), "readiness": "development",
-                   "reason": None if native else "CAPABILITY_UNSUPPORTED"}
+            name: {"supported": bool(native and (self.product_adapter_descriptor is None or name in self.ADAPTER_ACTIONS)),
+                   "readiness": "development",
+                   "reason": None if native and (self.product_adapter_descriptor is None or name in self.ADAPTER_ACTIONS)
+                   else "CAPABILITY_UNSUPPORTED"}
             for name in self.ACTIONS}, "production_ready": False,
             "execution_scope": "user-session", "manifest_schemas": [2],
             "deployment_form": "prebuilt-release", "installs_vendor_wheels": False,
@@ -251,13 +266,17 @@ class NativeEngine:
             "health_model": "owned_processes_owned_listener_and_product_http", "heartbeat_monitoring": False,
             "backup_strategy": "filesystem_quiesced", "product_backup_hooks_supported": False,
             "requires_trusted_payload_verifier": True,
-            "development_runtime": self.development_runtime is not None}
+            "development_runtime": self.development_runtime is not None,
+            "product_adapter": {"registered": self.product_adapter_descriptor is not None,
+                                "registration": "trusted_constructor",
+                                "migration_execution": False,
+                                "readiness_identity": "observed_release_and_installation_with_fresh_probe"}}
 
     def _context(self, manifest, target, options):
         manifest = validate_manifest(manifest)
         if manifest["schema_version"] != 2:
             raise EngineError("CAPABILITY_UNSUPPORTED", "Native требует полный manifest v2")
-        if not self.capabilities(target)["actions"]["install"]["supported"]:
+        if not any(value["supported"] for value in self.capabilities(target)["actions"].values()):
             raise EngineError("CAPABILITY_UNSUPPORTED", "Target/user scope не поддерживается на этом хосте")
         root = checked_path(options.get("install_root", ""))
         if root == Path(root.anchor):
@@ -405,7 +424,7 @@ class NativeEngine:
 
     def plan(self, action, manifest, target, inventory, options):
         ctx = self._context(manifest, target, options)
-        if action not in self.ACTIONS:
+        if action not in self.ACTIONS or not self.capabilities(target)["actions"][action]["supported"]:
             raise EngineError("CAPABILITY_UNSUPPORTED")
         effective_active = None
         if action in self.MAINTENANCE_ACTIONS:
@@ -451,6 +470,107 @@ class NativeEngine:
                 "legacy_commands_not_executed": ["backup.cmd", "restore.cmd"]}
         if effective_active is not None:
             result["effective_active"] = effective_active
+        if self.product_adapter_descriptor is not None:
+            adapter, binding = self._product_adapter(ctx)
+            required = {"readiness"} if action == "start" else {"quiesce", "operation_status"}
+            if action == "backup":
+                required.add("readiness")
+            if not required <= set(adapter.capabilities()["hooks"]):
+                raise EngineError("CAPABILITY_UNSUPPORTED", "Нужные ProductAdapter hooks не объявлены")
+            result["product_adapter_binding"] = binding
+            result["product_adapter_hooks"] = sorted(required)
+        return result
+
+    def _product_adapter(self, ctx):
+        """Static signed metadata; constructing a plan never invokes a hook."""
+        from .adapters import ExecutableProductAdapter
+        adapter = ExecutableProductAdapter(ctx["manifest"], ctx["target"], ctx["options"],
+            verifier=self.verifier, state_dir=ctx["control"] / "product-adapter" / ctx["release"],
+            descriptor=self.product_adapter_descriptor,
+            environment={"HOMENSAI_DATA_HOME": str(ctx["home"].roots["data"])})
+        capabilities = dict(adapter.capabilities())
+        inventory = self._verify(ctx["manifest"], ctx["target"], ctx["options"])
+        binding = {"descriptor": self.product_adapter_descriptor, "release": ctx["release"],
+                   "runtime_executable": ctx["options"]["runtime_executable"],
+                   "manifest_sha256": _digest(ctx["manifest"]), "target": ctx["target"],
+                   "inventory_sha256": _digest(inventory), "capabilities_sha256": _digest(capabilities)}
+        return adapter, binding
+
+    def _installed_product_adapter(self, ctx):
+        release = self._pointer(ctx)
+        meta = self._installed(ctx, release)
+        options = {**ctx["options"], "release": release, "payload_dir": str(self._release(ctx, release)),
+                   "runtime_executable": meta["runtime_executable"],
+                   "inventory_file": str(ctx["control"] / "releases" / (release + ".inventory.json")),
+                   "signature_file": str(ctx["control"] / "releases" / (release + ".signature.json"))}
+        adapter, binding = self._product_adapter({**ctx, "manifest": meta["manifest"], "target": meta["target"],
+                                                  "release": release, "options": options})
+        if binding != ctx.get("product_adapter_binding"):
+            raise EngineError("PLAN_STALE", "ProductAdapter не совпадает с reviewed release")
+        return adapter
+
+    def _adapter_readiness(self, ctx, expected):
+        adapter = self._installed_product_adapter(ctx)
+        probe = "probe_" + uuid.uuid4().hex
+        response = adapter.invoke("readiness", {"operation_id": "op_" + ctx["operation_token"],
+            "idempotency_key": probe, "phase": "diagnostic",
+            "data": {"expected_identity": expected, "probe_id": probe}})
+        result = response["result"]
+        if (response.get("replayed") is not False or result.get("ready") is not True
+                or result.get("observed_identity") != {**expected, "probe_id": probe}):
+            raise EngineError("HEALTH_CHECK_FAILED", "ProductAdapter не подтвердил свежую identity установки",
+                              details={"check": "product_adapter_observed_identity"})
+        return result
+
+    def _adapter_quiesce(self, ctx):
+        from .errors import InstallerError
+        adapter = self._installed_product_adapter(ctx)
+        key = "quiesce_" + ctx["operation_token"]
+        request = {"operation_id": "op_" + ctx["operation_token"], "idempotency_key": key,
+                   "phase": "execute", "data": {"installation_id": self._owner(ctx, required=True)["installation_id"],
+                   "release": self._pointer(ctx), "data_home": str(ctx["home"].roots["data"])}}
+        state = ctx["operation_state"]
+        started = state.get("product_adapter_quiesce_started") is True
+        if state.get("product_adapter_unknown") is True and not ctx.get("adapter_resume"):
+            raise _UncertainEffect()
+        try:
+            if ctx.get("adapter_resume") and (started or state.get("product_adapter_unknown") is True):
+                try:
+                    outcome = adapter.reconcile(key)
+                except InstallerError as error:
+                    # A known intent with no authoritative reconciliation row
+                    # is not proof that the product hook was never executed.
+                    raise _UncertainEffect() from None
+                else:
+                    if outcome["outcome"] == "unknown":
+                        raise _UncertainEffect()
+                    if outcome["outcome"] == "applied":
+                        result = outcome["result"]
+                        if result["quiesced"] is not True or result["active_writers"] != 0:
+                            raise _UncertainEffect()
+                        return self._adapter_quiesce_completed(ctx, result)
+                    request["phase"] = "resume"
+            if not started:
+                state["product_adapter_quiesce_started"] = True
+                state["product_adapter_quiesce_complete"] = False
+                _write(ctx["control"] / "operations" / (ctx["operation_token"] + ".json"), state)
+            result = adapter.invoke("quiesce", request, existing_ledger=started)["result"]
+            if result["quiesced"] is not True or result["active_writers"] != 0:
+                raise _UncertainEffect()
+            return self._adapter_quiesce_completed(ctx, result)
+        except InstallerError:
+            # Quiesce is mutating. Failure does not prove no product effect;
+            # generic exception handling must not roll it back or repeat it.
+            raise _UncertainEffect() from None
+
+    def _adapter_quiesce_completed(self, ctx, result):
+        # Resolving quiesce does not authorize retrying a later failed backup.
+        # Clear its durable fence before the next owned stop/archive effect.
+        state = ctx.get("operation_state", {})
+        if state.get("product_adapter_unknown") is True or state.get("product_adapter_quiesce_complete") is not True:
+            state.pop("product_adapter_unknown", None)
+            state["product_adapter_quiesce_complete"] = True
+            _write(ctx["control"] / "operations" / (ctx["operation_token"] + ".json"), state)
         return result
 
     def _password(self, ctx):
@@ -1005,6 +1125,8 @@ class NativeEngine:
 
     def _stop(self, ctx):
         owner = self._owner(ctx, required=True)
+        if self.product_adapter_descriptor is not None:
+            self._adapter_quiesce(ctx)
         records = self._reconcile_launches(ctx, self._records(ctx))
         order = []
         for release in dict.fromkeys(record.get("release") for record in records.values()):
@@ -1045,6 +1167,8 @@ class NativeEngine:
                     if (response.status == 200 and isinstance(value, dict)
                             and value.get("ready") is True and all(value.get(k) == v for k, v in expected.items())
                             and self._owns_loopback_listener(records, manifest["web"]["port"])):
+                        adapter_readiness = (self._adapter_readiness(ctx, expected)
+                                             if self.product_adapter_descriptor is not None else None)
                         for command in manifest["hooks"]["health_checks"]:
                             result = subprocess.run(self._argv(ctx, release, command), cwd=self._release(ctx, release),
                                                     env=self._environment(ctx, release), stdin=subprocess.DEVNULL,
@@ -1052,7 +1176,8 @@ class NativeEngine:
                                                     timeout=30, check=False)
                             if result.returncode:
                                 raise EngineError("RECOVERY_REQUIRED", "Product health hook не пройден")
-                        return {**expected, "ready": True, "url": url}
+                        return {**expected, "ready": True, "url": url,
+                                **({"product_adapter": adapter_readiness} if adapter_readiness is not None else {})}
             except (OSError, ValueError, urllib.error.URLError):
                 pass
             time.sleep(0.1)
@@ -1137,13 +1262,14 @@ class NativeEngine:
         return Ports(ctx["manifest"], ctx["root"], work_dir=ctx["work"], payloads=payloads,
                      effects=effects, password_provider=password)
 
-    def execute(self, plan, emit=lambda event: None, cancel_requested=lambda: False):
+    def execute(self, plan, emit=lambda event: None, cancel_requested=lambda: False, *, _adapter_resume=False):
         manifest = plan.get("source_manifest", plan.get("manifest"))
         ctx = self._context(manifest, plan["target"], plan.get("options", {}))
         action = plan["action"]
         ctx["action"] = action
-        if action not in self.ACTIONS:
+        if action not in self.ACTIONS or not self.capabilities(plan["target"])["actions"][action]["supported"]:
             raise EngineError("CAPABILITY_UNSUPPORTED")
+        ctx["adapter_resume"] = _adapter_resume
         inventory = None
         if action in {"install", "update", "repair", "reinstall"}:
             inventory = self._verify(ctx["manifest"], ctx["target"], ctx["options"])
@@ -1206,7 +1332,7 @@ class NativeEngine:
                 if previous and previous.get("maintenance_binding") is not None and previous["maintenance_binding"] != binding:
                     raise EngineError("PLAN_STALE", "Незавершённый план относится к другому active release")
                 ctx.update(action=action, operation_token=token, maintenance_binding=binding,
-                           secret_cache=source["secret_cache"])
+                           secret_cache=source["secret_cache"], adapter_resume=_adapter_resume)
                 records = self._records(ctx)
                 if action == "start":
                     unresolved = any(record.get("status") == "launching" for record in records.values())
@@ -1217,9 +1343,31 @@ class NativeEngine:
                 if restart_required:
                     for context in ("service", "admin"):
                         self._secrets(ctx["manifest"], ctx["options"]["secret_refs"], context, cache=ctx["secret_cache"])
+            if self.product_adapter_descriptor is not None:
+                detail = plan.get("engine_plan")
+                reviewed = detail.get("product_adapter_binding") if isinstance(detail, dict) else None
+                _, binding = self._product_adapter(ctx)
+                if reviewed != binding:
+                    raise EngineError("PLAN_STALE", "Нужен reviewed ProductAdapter plan для этих signed bytes")
+                ctx["product_adapter_binding"] = binding
+            # A new controller/plan cannot evade an uncertain mutating adapter
+            # effect by selecting a different API state directory or stop ID.
+            operation_folder = ctx["control"] / "operations"
+            for file in operation_folder.glob("*.json") if operation_folder.exists() else ():
+                if file != journal:
+                    other = _read(file)
+                    if ((other.get("product_adapter_unknown") is True
+                            or other.get("product_adapter_quiesce_started") is True
+                            and other.get("product_adapter_quiesce_complete") is not True)
+                            and other.get("status") not in {"SUCCEEDED", "FAILED_ROLLED_BACK"}):
+                        raise EngineError("RECOVERY_REQUIRED", "Нужен reconciliation исходной ProductAdapter операции")
             self._prepare(ctx)
             self._owner(ctx, required=True)
-            if previous and previous.get("status") in {"FAILED", "RECOVERY_REQUIRED"} and action not in {"start", "stop", "update"}:
+            adapter_backup_resume = (self.product_adapter_descriptor is not None and action == "backup"
+                                     and _adapter_resume and previous is not None
+                                     and previous.get("product_adapter_unknown") is True)
+            if (previous and previous.get("status") in {"FAILED", "RECOVERY_REQUIRED"}
+                    and action not in {"start", "stop", "update"} and not adapter_backup_resume):
                 raise EngineError("RECOVERY_REQUIRED", "Неудавшийся шаг требует проверенного восстановления")
             # Незавершённый другой mutating plan нельзя обойти новым token.
             if action not in {"stop"}:
@@ -1276,6 +1424,8 @@ class NativeEngine:
                 return result
             except _UncertainEffect:
                 state.update(status="RECOVERY_REQUIRED", error_code="RECOVERY_REQUIRED")
+                if self.product_adapter_descriptor is not None:
+                    state["product_adapter_unknown"] = True
                 _write(journal, state)
                 raise EngineError("RECOVERY_REQUIRED", "Результат продуктового hook не подтверждён; повтор запрещён") from None
             except Exception as error:
@@ -1332,12 +1482,32 @@ class NativeEngine:
             path = ctx["options"].get("archive_path", str(ctx["work"] / (token + ".hsac")))
             try:
                 result = step("backup", lambda: self._backup(ctx, path, password))
-            except Exception:
+            except Exception as primary:
                 # Данные при обычном failure backup не менялись; возвращаем
                 # ранее работавшие процессы. Crash/cancel остаются resumable.
                 if running:
-                    self._start(ctx)
-                    self._health(ctx)
+                    recovery_phase = "recovery_start"
+                    try:
+                        self._start(ctx)
+                        recovery_phase = "recovery_health"
+                        self._health(ctx)
+                    except Exception as secondary:
+                        def stable_code(error):
+                            code = getattr(error, "code", None)
+                            return (code if type(code) is str and 0 < len(code) <= 80
+                                    and all(c.isupper() or c.isdigit() or c == "_" for c in code)
+                                    else "UNEXPECTED_ERROR")
+                        receipt = {"phase": recovery_phase, "code": stable_code(secondary)}
+                        # Only stable codes/our phase names enter durable state;
+                        # no exception message, traceback, path or secret.
+                        ctx["operation_state"]["primary_error_code"] = stable_code(primary)
+                        ctx["operation_state"]["recovery_error"] = receipt
+                        details = getattr(primary, "details", {})
+                        try:
+                            primary.details = {**(details if type(details) is dict else {}),
+                                "primary_error_code": stable_code(primary), "recovery_error": receipt}
+                        except (AttributeError, TypeError):
+                            pass  # Preserve the first exception even if it forbids attributes.
                 raise
             if running:
                 step("start", lambda: self._start(ctx))
@@ -1486,7 +1656,7 @@ class NativeEngine:
         return {"path": str(path), "encrypted": True, "recovery_source": "verified replacement bundle"}
 
     def resume(self, plan, previous_operation, emit=lambda event: None, cancel_requested=lambda: False):
-        return self.execute(plan, emit, cancel_requested)
+        return self.execute(plan, emit, cancel_requested, _adapter_resume=True)
 
 
 class _Effects:

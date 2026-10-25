@@ -272,7 +272,7 @@ CP-20261025-010: Публичная trusted-bootstrap фабрика InstallerAP
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (до независимой проверки текущего ref/tree).
 
 [ ] HIM-015. Опубликовать минимальный ProductAdapter protocol
-Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-021
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-012, HIM-013; PROMPT: § 3–4, 28.5.
 Готово, когда: Определены capabilities и необходимые product hooks; есть Python protocol и версия JSON
@@ -280,6 +280,8 @@ executable protocol. Запуск через argv без shell, с таймау�
 операции честно отклоняются.
 Доказательство / ограничения / следующий шаг: adapters.py: подписанный JSON executable protocol, fixed argv/no shell, bounded env/I/O/timeout, reverify, durable effects/reconcile. 26 protocol tests; Linux native user only. Автоподключение protocol вместо legacy hooks и platform acceptance открыты.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+
+Дополнение CP-20261025-021 / HIM-015: CP-20261025-021: подключён ExecutableProductAdapter к NativeEngine через явный trusted constructor opt-in только Linux/native/user start/stop/backup. Reviewed plan закрепляет signed descriptor/payload/runtime; readiness требует свежие release/installation/probe identity вместе с прежними owned PID/listener/HTTP. Durable quiesce intent и строгий ledger reconciliation не разрешают повтор UNKNOWN после утраты ledger или отсутствующей ожидаемой invocation. Backup использует настоящий полный encrypted архив. Исправлен воспроизведённый дефект: secondary recovery start/readiness больше не маскирует primary backup error, оба безопасных кода сохранены в native journal/public details. Все исходные FAIL и reverse-fault RED сохранены отдельно. Final source/integration: 2363 PASS, 3 skip, 15 subtests, inputs unchanged. Installed SDK/CLI и synthetic prerequisites PASS; actual Chromium установленного wheel: 24 PASS ru/en/de. Во всех трёх отдельных wheel совпадают 68 package files; SHA архивов различаются и не объявлены bit-reproducible. Windows10/Python3.14.3: 492 и отдельно57 PASS, 4 POSIX skip. Это не Windows11/platform acceptance. Installed ProductAdapter maintenance отдельно NOT RUN; новые maintenance процессы/HTTP/backup приняты на source уровне. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json. Полная приёмка задачи остаётся НЕ ГОТОВА.
 
 [ ] HIM-016. Реализовать безопасное discover и EnvironmentInventory
 Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
@@ -362,7 +364,7 @@ error сохраняется без выдуманной причины.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-023. Подготовить reference application и тестовые версии
-Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-021
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-013, HIM-015, HIM-019; PROMPT: § 15–16.
 Готово, когда: Маленькое веб-приложение имеет SQLite, пользовательский файл, настройку, синтетический
@@ -370,6 +372,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 пакет и product adapter.
 Доказательство / ограничения / следующий шаг: Reference v1/v2/v3: реальные SQLite DDL/data migrations, пользовательский файл/config, optional REFERENCE_API_KEY, failure profiles;30 source tests. Frozen GUI v1→v2→v3 PASS с actual health/version/schema. Legacy Native hooks ещё не заменены executable ProductAdapter.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+
+Дополнение CP-20261025-021 / HIM-023: CP-20261025-021: подключён ExecutableProductAdapter к NativeEngine через явный trusted constructor opt-in только Linux/native/user start/stop/backup. Reviewed plan закрепляет signed descriptor/payload/runtime; readiness требует свежие release/installation/probe identity вместе с прежними owned PID/listener/HTTP. Durable quiesce intent и строгий ledger reconciliation не разрешают повтор UNKNOWN после утраты ledger или отсутствующей ожидаемой invocation. Backup использует настоящий полный encrypted архив. Исправлен воспроизведённый дефект: secondary recovery start/readiness больше не маскирует primary backup error, оба безопасных кода сохранены в native journal/public details. Все исходные FAIL и reverse-fault RED сохранены отдельно. Final source/integration: 2363 PASS, 3 skip, 15 subtests, inputs unchanged. Installed SDK/CLI и synthetic prerequisites PASS; actual Chromium установленного wheel: 24 PASS ru/en/de. Во всех трёх отдельных wheel совпадают 68 package files; SHA архивов различаются и не объявлены bit-reproducible. Windows10/Python3.14.3: 492 и отдельно57 PASS, 4 POSIX skip. Это не Windows11/platform acceptance. Installed ProductAdapter maintenance отдельно NOT RUN; новые maintenance процессы/HTTP/backup приняты на source уровне. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json. Полная приёмка задачи остаётся НЕ ГОТОВА.
 
 [ ] HIM-101. Ввести обязательные локали ru, en и de
 Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
@@ -553,7 +557,7 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-20261
 Дополнение CP-20261025-020 / HIM-102: CP-20261025-020: реализован безопасный browser local prerequisite upload: явный File, bounded raw streaming, signed size/SHA-256, private staging, opaque handles, cancel/interrupt, новый review/consents; исполнение использует прежние SDK/coordinator/lease. ru/en/de: 245 ключей, 39 Node групп (входят в pytest). Исправлены quota при неудачной очистке/открытом canceled writer, rollback временной plan reservation, подтверждённая SQLite zero-link sidecar race и Windows PID liveness без сигналов. Усилен test harness финализатора lease; старые FAIL сохранены. Полный Linux source/integration: 2309 PASS, 3 skip, 15 subtests, inputs unchanged. Установленные SDK/CLI и prerequisites: PASS; настоящий Chromium: 24 PASS. Во всех трёх wheel совпали 67 package files, разные SHA самих архивов явно сохранены. Windows10/Python3.14.3: 492 + 57 PASS (наборы раздельны), 4 POSIX skip; это НЕ Windows11 acceptance. CI CP019 реально выполнил Linux/Windows checks; Windows workflow расширен новыми regressions, текущий CI CP020 до push NOT RUN. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/local-artifact-upload-20261025-cp020.json. Полная приёмка карточки остаётся НЕ ГОТОВА.
 
 [ ] HIM-036. Связать fresh-транзакцию с реальными adapters
-Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-021
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-018, HIM-019, HIM-020, HIM-021, HIM-028, HIM-030; PROMPT: § 3, 12, 21, 28.
 Готово, когда: Работают реальные prepare/apply/verify и допустимые компенсации. Fresh создаёт только
@@ -562,6 +566,8 @@ dependencies или чужие данные.
 Доказательство / ограничения / следующий шаг: Frozen Linux GUI: реальный signed runtime, wheel/site-packages, SQLite migration, readiness, кнопка рабочего webapp. Первые ru/en/de экраны проверены в Chromium; все другие targets не приняты.
 Дополнение CP-008: Docker install добавлен в существующий executor: конкретный reviewed provisioning_spec, exact preloaded images, --pull=never, INTENT до RPC, inspect до receipt, signed recovery copy до create. Live acceptance и abort/compensation failed install открыты.
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
+
+Дополнение CP-20261025-021 / HIM-036: CP-20261025-021: подключён ExecutableProductAdapter к NativeEngine через явный trusted constructor opt-in только Linux/native/user start/stop/backup. Reviewed plan закрепляет signed descriptor/payload/runtime; readiness требует свежие release/installation/probe identity вместе с прежними owned PID/listener/HTTP. Durable quiesce intent и строгий ledger reconciliation не разрешают повтор UNKNOWN после утраты ledger или отсутствующей ожидаемой invocation. Backup использует настоящий полный encrypted архив. Исправлен воспроизведённый дефект: secondary recovery start/readiness больше не маскирует primary backup error, оба безопасных кода сохранены в native journal/public details. Все исходные FAIL и reverse-fault RED сохранены отдельно. Final source/integration: 2363 PASS, 3 skip, 15 subtests, inputs unchanged. Installed SDK/CLI и synthetic prerequisites PASS; actual Chromium установленного wheel: 24 PASS ru/en/de. Во всех трёх отдельных wheel совпадают 68 package files; SHA архивов различаются и не объявлены bit-reproducible. Windows10/Python3.14.3: 492 и отдельно57 PASS, 4 POSIX skip. Это не Windows11/platform acceptance. Installed ProductAdapter maintenance отдельно NOT RUN; новые maintenance процессы/HTTP/backup приняты на source уровне. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json. Полная приёмка задачи остаётся НЕ ГОТОВА.
 
 [ ] HIM-037. Собрать платформенный Windows Setup с выбором native/Docker
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -721,7 +727,7 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 ========================================================================
 
 [ ] HIM-050. Реализовать согласованный зашифрованный полный backup
-Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-021
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-015, HIM-018, HIM-019, HIM-020, HIM-040, HIM-041; PROMPT: § 11–13.
 Готово, когда: Backup включает согласованную БД, документы, конфигурацию, историю, нужные секреты/ключи
@@ -731,6 +737,8 @@ target, не ожидая недоступного runner другой ОС.
 Доказательство / ограничения / следующий шаг: AES-GCM/scrypt full snapshot, stopped writers и recovery payload. Frozen GUI backup(en) + restore(ru) PASS. Product DB adapters и все четыре targets остаются открыты.
 Дополнение CP-008: Linux update/rollback evidence сохранены. Новые Docker install/uninstall не предоставляют update/restore/rollback: эти actions явно unsupported, потребуется отдельная реализация поверх того же journal и product contracts.
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
+
+Дополнение CP-20261025-021 / HIM-050: CP-20261025-021: подключён ExecutableProductAdapter к NativeEngine через явный trusted constructor opt-in только Linux/native/user start/stop/backup. Reviewed plan закрепляет signed descriptor/payload/runtime; readiness требует свежие release/installation/probe identity вместе с прежними owned PID/listener/HTTP. Durable quiesce intent и строгий ledger reconciliation не разрешают повтор UNKNOWN после утраты ledger или отсутствующей ожидаемой invocation. Backup использует настоящий полный encrypted архив. Исправлен воспроизведённый дефект: secondary recovery start/readiness больше не маскирует primary backup error, оба безопасных кода сохранены в native journal/public details. Все исходные FAIL и reverse-fault RED сохранены отдельно. Final source/integration: 2363 PASS, 3 skip, 15 subtests, inputs unchanged. Installed SDK/CLI и synthetic prerequisites PASS; actual Chromium установленного wheel: 24 PASS ru/en/de. Во всех трёх отдельных wheel совпадают 68 package files; SHA архивов различаются и не объявлены bit-reproducible. Windows10/Python3.14.3: 492 и отдельно57 PASS, 4 POSIX skip. Это не Windows11/platform acceptance. Installed ProductAdapter maintenance отдельно NOT RUN; новые maintenance процессы/HTTP/backup приняты на source уровне. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json. Полная приёмка задачи остаётся НЕ ГОТОВА.
 
 [ ] HIM-051. Проверить безопасность форматов архива и распаковки
 Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
@@ -763,7 +771,7 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-054. Реализовать последовательные updates v1 → v2 → v3
-Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-021
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-018, HIM-020, HIM-021, HIM-050, HIM-052; PROMPT: § 12, 14, 16.
 Готово, когда: Update проходит staging, согласованный backup, миграцию, activation и readiness на
@@ -772,8 +780,10 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 Доказательство / ограничения / следующий шаг: Настоящий frozen GUI v1→v2→v3: migration SQLite1→2→3, application health/version и byte-preserved user file PASS в изолированном временном каталоге. Другие targets и повторная same-version GUI матрица открыты.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
+Дополнение CP-20261025-021 / HIM-054: CP-20261025-021: подключён ExecutableProductAdapter к NativeEngine через явный trusted constructor opt-in только Linux/native/user start/stop/backup. Reviewed plan закрепляет signed descriptor/payload/runtime; readiness требует свежие release/installation/probe identity вместе с прежними owned PID/listener/HTTP. Durable quiesce intent и строгий ledger reconciliation не разрешают повтор UNKNOWN после утраты ledger или отсутствующей ожидаемой invocation. Backup использует настоящий полный encrypted архив. Исправлен воспроизведённый дефект: secondary recovery start/readiness больше не маскирует primary backup error, оба безопасных кода сохранены в native journal/public details. Все исходные FAIL и reverse-fault RED сохранены отдельно. Final source/integration: 2363 PASS, 3 skip, 15 subtests, inputs unchanged. Installed SDK/CLI и synthetic prerequisites PASS; actual Chromium установленного wheel: 24 PASS ru/en/de. Во всех трёх отдельных wheel совпадают 68 package files; SHA архивов различаются и не объявлены bit-reproducible. Windows10/Python3.14.3: 492 и отдельно57 PASS, 4 POSIX skip. Это не Windows11/platform acceptance. Installed ProductAdapter maintenance отдельно NOT RUN; новые maintenance процессы/HTTP/backup приняты на source уровне. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json. Полная приёмка задачи остаётся НЕ ГОТОВА.
+
 [ ] HIM-055. Реализовать rollback и before-rollback
-Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-005
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-021
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-050, HIM-052, HIM-054; PROMPT: § 12–13, 16.
 Готово, когда: Перед откатом сохранено текущее состояние; проверена доступность старых
@@ -782,8 +792,10 @@ release/runtime/metadata. Поздний rollback учитывает новые 
 Доказательство / ограничения / следующий шаг: Frozen bad-health update→FAILED_ROLLED_BACK оставил v3/SQLite3; late rollback вернул v2/SQLite2. Before-rollback AES archive действительно содержит schema3. Новый bootstrap обслуживает signed active v2; archived credential refs не подменяются incoming refs, недоступный старый secret отклоняется до stop. Source и frozen receipts CP-005; остальные targets открыты.
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005); предыдущий CP-004 SYNC_CONFIRMED.
 
+Дополнение CP-20261025-021 / HIM-055: CP-20261025-021: подключён ExecutableProductAdapter к NativeEngine через явный trusted constructor opt-in только Linux/native/user start/stop/backup. Reviewed plan закрепляет signed descriptor/payload/runtime; readiness требует свежие release/installation/probe identity вместе с прежними owned PID/listener/HTTP. Durable quiesce intent и строгий ledger reconciliation не разрешают повтор UNKNOWN после утраты ledger или отсутствующей ожидаемой invocation. Backup использует настоящий полный encrypted архив. Исправлен воспроизведённый дефект: secondary recovery start/readiness больше не маскирует primary backup error, оба безопасных кода сохранены в native journal/public details. Все исходные FAIL и reverse-fault RED сохранены отдельно. Final source/integration: 2363 PASS, 3 skip, 15 subtests, inputs unchanged. Installed SDK/CLI и synthetic prerequisites PASS; actual Chromium установленного wheel: 24 PASS ru/en/de. Во всех трёх отдельных wheel совпадают 68 package files; SHA архивов различаются и не объявлены bit-reproducible. Windows10/Python3.14.3: 492 и отдельно57 PASS, 4 POSIX skip. Это не Windows11/platform acceptance. Installed ProductAdapter maintenance отдельно NOT RUN; новые maintenance процессы/HTTP/backup приняты на source уровне. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json. Полная приёмка задачи остаётся НЕ ГОТОВА.
+
 [ ] HIM-056. Реализовать и проверить resume после прерывания
-Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-008
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-021
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-018, HIM-034, HIM-054, HIM-055; PROMPT: § 12, 16, 28.
 Готово, когда: Реальный process-kill на существенных границах позволяет продолжить или восстановить
@@ -792,6 +804,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005);
 Доказательство / ограничения / следующий шаг: Настоящий frozen controller SIGKILL на stage и новый браузер нашли прежний operation_id; explicit resume завершил установку без automatic replay. Source tests покрывают effect boundaries. Сохранён также FAIL немедленного первого наблюдения RUNNING после kill; точные повторные результаты и область — receipt CP-005. Это не испытание отключения питания или reboot.
 Дополнение CP-008: Проверены Docker неизвестные create/remove outcomes, потеря исходного cache и retained signed recovery; prerequisites attempts/reconciliation; service pending journal. Исправлены full-payload review binding и ложный native fence после отклонённого service apply. Source interruption не равен power-loss/reboot.
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
+
+Дополнение CP-20261025-021 / HIM-056: CP-20261025-021: подключён ExecutableProductAdapter к NativeEngine через явный trusted constructor opt-in только Linux/native/user start/stop/backup. Reviewed plan закрепляет signed descriptor/payload/runtime; readiness требует свежие release/installation/probe identity вместе с прежними owned PID/listener/HTTP. Durable quiesce intent и строгий ledger reconciliation не разрешают повтор UNKNOWN после утраты ledger или отсутствующей ожидаемой invocation. Backup использует настоящий полный encrypted архив. Исправлен воспроизведённый дефект: secondary recovery start/readiness больше не маскирует primary backup error, оба безопасных кода сохранены в native journal/public details. Все исходные FAIL и reverse-fault RED сохранены отдельно. Final source/integration: 2363 PASS, 3 skip, 15 subtests, inputs unchanged. Installed SDK/CLI и synthetic prerequisites PASS; actual Chromium установленного wheel: 24 PASS ru/en/de. Во всех трёх отдельных wheel совпадают 68 package files; SHA архивов различаются и не объявлены bit-reproducible. Windows10/Python3.14.3: 492 и отдельно57 PASS, 4 POSIX skip. Это не Windows11/platform acceptance. Installed ProductAdapter maintenance отдельно NOT RUN; новые maintenance процессы/HTTP/backup приняты на source уровне. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json. Полная приёмка задачи остаётся НЕ ГОТОВА.
 
 [ ] HIM-057. Проверить переключение active release и аварийные состояния
 Статус: TODO | Проверки: NOT RUN | checkpoint_id: —
@@ -845,7 +859,7 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008);
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-062. Завершить общий API всех lifecycle actions
-Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-012
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-021
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-013, HIM-014, HIM-015, HIM-054, HIM-055, HIM-056, HIM-058, HIM-059, HIM-060, HIM-061;
 PROMPT: § 5, 28.
@@ -858,6 +872,8 @@ build/install/update/modify/repair/uninstall/backup/restore/rollback/start/stop 
 CP-20261025-011: Public opt-in background start/resume и bounded recovery listing в том же coordinator; from_bootstrap принимает trusted prerequisites. Installed wheel63files/5CLI planningcalls PASS. Prerequisite HTTP/CLI/GUI transport ещё NOT IMPLEMENTED в CP-011, следующий шаг.
 CP-20261025-012: Public prerequisites_busy(), HTTP route/OpenAPI/discovery/resource parity и фиксированные CLI команды. Installed wheel63 files/7 CLI calls PASS подтверждает planning/unconfigured refusal, но operational registered prerequisite lifecycle из wheel NOT RUN. Полнота всех lifecycle actions НЕ ГОТОВО.
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (до независимой проверки текущего ref/tree).
+
+Дополнение CP-20261025-021 / HIM-062: CP-20261025-021: подключён ExecutableProductAdapter к NativeEngine через явный trusted constructor opt-in только Linux/native/user start/stop/backup. Reviewed plan закрепляет signed descriptor/payload/runtime; readiness требует свежие release/installation/probe identity вместе с прежними owned PID/listener/HTTP. Durable quiesce intent и строгий ledger reconciliation не разрешают повтор UNKNOWN после утраты ledger или отсутствующей ожидаемой invocation. Backup использует настоящий полный encrypted архив. Исправлен воспроизведённый дефект: secondary recovery start/readiness больше не маскирует primary backup error, оба безопасных кода сохранены в native journal/public details. Все исходные FAIL и reverse-fault RED сохранены отдельно. Final source/integration: 2363 PASS, 3 skip, 15 subtests, inputs unchanged. Installed SDK/CLI и synthetic prerequisites PASS; actual Chromium установленного wheel: 24 PASS ru/en/de. Во всех трёх отдельных wheel совпадают 68 package files; SHA архивов различаются и не объявлены bit-reproducible. Windows10/Python3.14.3: 492 и отдельно57 PASS, 4 POSIX skip. Это не Windows11/platform acceptance. Installed ProductAdapter maintenance отдельно NOT RUN; новые maintenance процессы/HTTP/backup приняты на source уровне. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json. Полная приёмка задачи остаётся НЕ ГОТОВА.
 
 [ ] HIM-063. Проверить идемпотентность, события и совместимость API
 Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-020
@@ -881,7 +897,7 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-20261
 Дополнение CP-20261025-020 / HIM-063: CP-20261025-020: реализован безопасный browser local prerequisite upload: явный File, bounded raw streaming, signed size/SHA-256, private staging, opaque handles, cancel/interrupt, новый review/consents; исполнение использует прежние SDK/coordinator/lease. ru/en/de: 245 ключей, 39 Node групп (входят в pytest). Исправлены quota при неудачной очистке/открытом canceled writer, rollback временной plan reservation, подтверждённая SQLite zero-link sidecar race и Windows PID liveness без сигналов. Усилен test harness финализатора lease; старые FAIL сохранены. Полный Linux source/integration: 2309 PASS, 3 skip, 15 subtests, inputs unchanged. Установленные SDK/CLI и prerequisites: PASS; настоящий Chromium: 24 PASS. Во всех трёх wheel совпали 67 package files, разные SHA самих архивов явно сохранены. Windows10/Python3.14.3: 492 + 57 PASS (наборы раздельны), 4 POSIX skip; это НЕ Windows11 acceptance. CI CP019 реально выполнил Linux/Windows checks; Windows workflow расширен новыми regressions, текущий CI CP020 до push NOT RUN. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/local-artifact-upload-20261025-cp020.json. Полная приёмка карточки остаётся НЕ ГОТОВА.
 
 [ ] HIM-064. Сделать scaffold и инструменты подключения продукта
-Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-021
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-014, HIM-015, HIM-023, HIM-062; PROMPT: § 28.5–28.6.
 Готово, когда: Работают init-adapter/validate/capabilities/contract-test, пример Python и
@@ -890,8 +906,10 @@ generic/prebuilt либо JSON executable adapter. Примеры исполня
 Доказательство / ограничения / следующий шаг: hinstall init-adapter + scaffold.py, pinned installed SDK dependency, real artifact hashes, draft invalid production inputs и tests15PASS. INTEGRATION_GUIDE.md. Contract test read-only; независимые реальные JobPilot/Rent ещё не подключены.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
+Дополнение CP-20261025-021 / HIM-064: CP-20261025-021: подключён ExecutableProductAdapter к NativeEngine через явный trusted constructor opt-in только Linux/native/user start/stop/backup. Reviewed plan закрепляет signed descriptor/payload/runtime; readiness требует свежие release/installation/probe identity вместе с прежними owned PID/listener/HTTP. Durable quiesce intent и строгий ledger reconciliation не разрешают повтор UNKNOWN после утраты ledger или отсутствующей ожидаемой invocation. Backup использует настоящий полный encrypted архив. Исправлен воспроизведённый дефект: secondary recovery start/readiness больше не маскирует primary backup error, оба безопасных кода сохранены в native journal/public details. Все исходные FAIL и reverse-fault RED сохранены отдельно. Final source/integration: 2363 PASS, 3 skip, 15 subtests, inputs unchanged. Installed SDK/CLI и synthetic prerequisites PASS; actual Chromium установленного wheel: 24 PASS ru/en/de. Во всех трёх отдельных wheel совпадают 68 package files; SHA архивов различаются и не объявлены bit-reproducible. Windows10/Python3.14.3: 492 и отдельно57 PASS, 4 POSIX skip. Это не Windows11/platform acceptance. Installed ProductAdapter maintenance отдельно NOT RUN; новые maintenance процессы/HTTP/backup приняты на source уровне. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json. Полная приёмка задачи остаётся НЕ ГОТОВА.
+
 [ ] HIM-065. Завершить подробный офлайн-каталог ошибок
-Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-003
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-021
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-022, HIM-062; PROMPT: § 30.1.
 Готово, когда: Есть schema/version, стабильные codes и product namespaces, описание
@@ -899,6 +917,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 безопасный fallback, а не выдуманный диагноз.
 Доказательство / ограничения / следующий шаг: 43 стабильных codes на ru/en/de, добавлены signed adapter protocol ошибки. Source i18n parity и negative cases PASS. API/product coverage продолжается.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+
+Дополнение CP-20261025-021 / HIM-065: CP-20261025-021: подключён ExecutableProductAdapter к NativeEngine через явный trusted constructor opt-in только Linux/native/user start/stop/backup. Reviewed plan закрепляет signed descriptor/payload/runtime; readiness требует свежие release/installation/probe identity вместе с прежними owned PID/listener/HTTP. Durable quiesce intent и строгий ledger reconciliation не разрешают повтор UNKNOWN после утраты ledger или отсутствующей ожидаемой invocation. Backup использует настоящий полный encrypted архив. Исправлен воспроизведённый дефект: secondary recovery start/readiness больше не маскирует primary backup error, оба безопасных кода сохранены в native journal/public details. Все исходные FAIL и reverse-fault RED сохранены отдельно. Final source/integration: 2363 PASS, 3 skip, 15 subtests, inputs unchanged. Installed SDK/CLI и synthetic prerequisites PASS; actual Chromium установленного wheel: 24 PASS ru/en/de. Во всех трёх отдельных wheel совпадают 68 package files; SHA архивов различаются и не объявлены bit-reproducible. Windows10/Python3.14.3: 492 и отдельно57 PASS, 4 POSIX skip. Это не Windows11/platform acceptance. Installed ProductAdapter maintenance отдельно NOT RUN; новые maintenance процессы/HTTP/backup приняты на source уровне. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json. Полная приёмка задачи остаётся НЕ ГОТОВА.
 
 [ ] HIM-066. Реализовать DiagnosticStore и историю операций
 Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
@@ -921,7 +941,7 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-068. Сделать экран ошибки, поиск и безопасный support export
-Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-021
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-059, HIM-062, HIM-065, HIM-066, HIM-067; PROMPT: § 30.1–30.3.
 Готово, когда: Работают errors.describe/search, diagnostics.get/export и GUI с причинами,
@@ -929,6 +949,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 scripts. Экспорт показывает состав и исключает секреты/персональные данные.
 Доказательство / ограничения / следующий шаг: Настоящий browser: errors.search(INTEGRITY_FAILED), local stats, preview и подтверждённое скачивание support report PASS. Тест проверил отсутствие archive password/token. Экспорт не отправляется по сети автоматически.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
+
+Дополнение CP-20261025-021 / HIM-068: CP-20261025-021: подключён ExecutableProductAdapter к NativeEngine через явный trusted constructor opt-in только Linux/native/user start/stop/backup. Reviewed plan закрепляет signed descriptor/payload/runtime; readiness требует свежие release/installation/probe identity вместе с прежними owned PID/listener/HTTP. Durable quiesce intent и строгий ledger reconciliation не разрешают повтор UNKNOWN после утраты ledger или отсутствующей ожидаемой invocation. Backup использует настоящий полный encrypted архив. Исправлен воспроизведённый дефект: secondary recovery start/readiness больше не маскирует primary backup error, оба безопасных кода сохранены в native journal/public details. Все исходные FAIL и reverse-fault RED сохранены отдельно. Final source/integration: 2363 PASS, 3 skip, 15 subtests, inputs unchanged. Installed SDK/CLI и synthetic prerequisites PASS; actual Chromium установленного wheel: 24 PASS ru/en/de. Во всех трёх отдельных wheel совпадают 68 package files; SHA архивов различаются и не объявлены bit-reproducible. Windows10/Python3.14.3: 492 и отдельно57 PASS, 4 POSIX skip. Это не Windows11/platform acceptance. Installed ProductAdapter maintenance отдельно NOT RUN; новые maintenance процессы/HTTP/backup приняты на source уровне. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json. Полная приёмка задачи остаётся НЕ ГОТОВА.
 
 [ ] HIM-069. Реализовать локальную статистику и её проверку
 Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004

@@ -1,0 +1,29 @@
+{
+  "checkpoint": "CP-20261025-021",
+  "files": [
+    {
+      "path": "packaging/acceptance-evidence/cp021-intermediate-ledger-failure.json",
+      "raw_sha256": "f47a1b0123937b662029b49af1cb8efce94127a9dd01bc05bf0775480ba76437",
+      "published_sha256": "0de2f9b033c3e53e1ea17800294ad17478f68d09343c4d3a7783fc2cb4369b05",
+      "reason": "LF canonicalization / synthetic test parameter redaction; raw build attempts retained"
+    },
+    {
+      "path": "packaging/acceptance-evidence/cp021-source-final.xml",
+      "raw_sha256": "ec5eae9e37774b3a5b30116690d2d00cfa537e734f276b66993bb2b39b4cb3f1",
+      "published_sha256": "10c813424585115f746bcfcfc28e84826a77a70e33ed346d0cd1b04b0770cb53",
+      "reason": "LF canonicalization / synthetic test parameter redaction; raw build attempts retained"
+    },
+    {
+      "path": "packaging/acceptance-evidence/frozen-package-bytes-20261025-cp021.json",
+      "raw_sha256": "b8ec9e5d691e4597481b403548ecd11d3f036159b740179a2cb848c7fe0b551b",
+      "published_sha256": "498688219a5e78ecbace810787aafa77efb1383058ddda93579e06cfacfe0d4a",
+      "reason": "LF canonicalization / synthetic test parameter redaction; raw build attempts retained"
+    },
+    {
+      "path": "packaging/acceptance-evidence/windows-final-20261025-cp021.json",
+      "raw_sha256": "2ca8d64813f8902ff7ab86c5d626079e61cd4f0b7f53c530afb246d4dacc2e9a",
+      "published_sha256": "e56ecbbcec7db76db86b60a334ce97138e50d4f22274fa5dfcbbf995ecfecb16",
+      "reason": "LF canonicalization / synthetic test parameter redaction; raw build attempts retained"
+    }
+  ]
+}

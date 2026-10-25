@@ -1,0 +1,27 @@
+{
+  "checkpoint": "CP-20261025-021",
+  "status": "FAIL",
+  "exit_code": 1,
+  "expected_exit_code_for_regression_before_fix": 1,
+  "command": [
+    "/usr/local/bin/python",
+    "-B",
+    "-m",
+    "pytest",
+    "-q",
+    "integration_tests/test_native_product_adapter.py",
+    "-k",
+    "fault_with_existing_readiness_ledger"
+  ],
+  "duration_seconds": 5.612294264999946,
+  "source_parent": "4d6282dc4d983822e952c3b2c9cfb75eacbc7eae",
+  "source_transformation": "Isolated copied snapshot only: disable exactly the new missing invocation guard (if require_existing -> if False), reproducing pre-fix semantics; runtime checkout unchanged. No signature/hash/owner/consent checks disabled.",
+  "fixed_adapters_sha256": "9332301eb731cef5e95915cd3cbf844ead381f569726e2037a2f0302d36d4eaf",
+  "red_adapters_sha256": "209b8e7fcf4f69856693ee8048e9403704afaa44dfeb759fa224bab4ee4f0102",
+  "test_sha256": "9304be341596fb08e72b986fa2b48109699ea1f08a20c3011ef95756f7a3c1c6",
+  "scope": "Synthetic signed real process/HTTP known native intent + existing readiness DB but absent quiesce row. Before fix duplicate unexpectedly succeeded; regression expects RECOVERY_REQUIRED without effect.",
+  "log_sha256": "d704d889082dfed8ed79406a2e1a30e18fd82ad6a1cdb3ed063ad349f4eabf58",
+  "python": "3.14.3 (main, Apr  7 2026, 02:23:36) [GCC 12.2.0]",
+  "platform": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+  "production_ready": false
+}

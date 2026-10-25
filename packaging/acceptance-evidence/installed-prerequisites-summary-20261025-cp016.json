@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-016",
+  "author": "Serhii Khomenko",
+  "status": "PASS",
+  "production_ready": false,
+  "gate_closed": false,
+  "scope": "Installed signed synthetic prerequisite SDK/CLI lifecycle on a clean Linux x64 venv",
+  "source_parent": "fde526435a7061cf9037251bfeb87bcc04bbe3f1",
+  "harness_agent_commit": "39b2e6534cd2a5a590b32fc6e67705ccd4f01664",
+  "receipt": "packaging/acceptance-evidence/installed-prerequisites-20261025-cp016.json",
+  "receipt_sha256": "666f7b411489cceb9d99a137b83aeacdab32d7d422ce16918ffa000cdaa20686",
+  "elapsed_seconds": 7.362,
+  "clients_passed": 10,
+  "cli_commands": 11,
+  "package_files_checked": 63,
+  "dependency_files_checked": 161,
+  "wheel": {
+    "name": "homensai_install_module-0.1.0-py3-none-any.whl",
+    "sha256": "7cdf5f5e73054f3ccfbd2b7f6622cb390e114c1d21efb68b907553ce66a5a507",
+    "exact_files_checked": 63
+  },
+  "source_package_digest": "d2f311bc5b73143c26f68727dc49cee628a65a349f807eafeeb2d762092bf1e8",
+  "ordinary_client_denied_attempts": 0,
+  "raw_previous_attempts": [
+    {
+      "source": "/tmp/hinstall-installed-prerequisites-cp015-attempt1.json",
+      "persistent_path": "packaging/acceptance-evidence/installed-prerequisites-20261025-cp016-agent-fail1.json",
+      "sha256": "99958bbb3ccce0589a64a43904806e4fa743c392819efb3be4e7ea2d92cb1529",
+      "status": "FAIL",
+      "source_head": "8fd2424441afaeb2d6f7644182b923f937152864"
+    },
+    {
+      "source": "/tmp/hinstall-installed-prerequisites-cp015-attempt2.json",
+      "persistent_path": "packaging/acceptance-evidence/installed-prerequisites-20261025-cp016-agent-fail2.json",
+      "sha256": "8d860e3263088989f6138cb5facc8311cdaddb96f048b7cab586ec178bf0c40d",
+      "status": "FAIL",
+      "source_head": "8fd2424441afaeb2d6f7644182b923f937152864"
+    },
+    {
+      "source": "/tmp/hinstall-installed-prerequisites-cp015-attempt3.json",
+      "persistent_path": "packaging/acceptance-evidence/installed-prerequisites-20261025-cp016-agent-pass3.json",
+      "sha256": "21f63f138a1a02f67cbe2886b992128fa7cd19fe64265495e89348f223434743",
+      "status": "PASS",
+      "source_head": "8fd2424441afaeb2d6f7644182b923f937152864"
+    },
+    {
+      "source": "/tmp/hinstall-installed-prerequisites-cp015-verified.json",
+      "persistent_path": "packaging/acceptance-evidence/installed-prerequisites-20261025-cp016-agent-verified.json",
+      "sha256": "df187175ee75bf6d198dd39b8e67273daf9f29357af9195aac57b13c1209e46d",
+      "status": "PASS",
+      "source_head": "8fd2424441afaeb2d6f7644182b923f937152864"
+    }
+  ],
+  "previous_failure_classification": "Agent harness ожидал CLI envelope API_VERSION=1 вместо1.0. Исправлен client; оба исходных FAIL сохранены. Historical agent package CP013, не PASS текущих bytes.",
+  "source_regression_scope": {
+    "full_pytest_rerun": "NOT RUN in CP016; no runtime/API/test changes after CP015",
+    "matching_inputs": 142,
+    "input_manifest": "packaging/acceptance-evidence/source-20261025-cp015.json",
+    "input_digest": "9f4a2969d23b3888d6f219164d83bfa9d66990e884b35d9c2b28173957d25b50",
+    "result_reused_only_for_identical_bytes": "CP015 source1974PASS/3skips/10subtests and processHTTP5PASS; new harness executed independently here."
+  },
+  "design_review": {
+    "document": "docs/PREREQUISITES_NEXT_CORE_STEPS.md",
+    "implementation": "NOT IMPLEMENTED",
+    "new_tests": "NOT RUN",
+    "scope": "read-only design for common execution lease and durable measured progress"
+  },
+  "not_run": [
+    "Actual OS prerequisite installers",
+    "Windows/Docker/service/reboot/relogin",
+    "Process power-loss",
+    "Product install/update/restore/rollback",
+    "Executable product runtime",
+    "Frozen/GUI/HTTP transport",
+    "Production registry/signing/licence closure",
+    "Full G1/release acceptance"
+  ],
+  "ci": {
+    "status": "BLOCKED",
+    "tests": "NOT RUN",
+    "receipt": "packaging/acceptance-evidence/github-ci-20261025-cp015.json"
+  }
+}

@@ -396,3 +396,13 @@ CP-010: 63 целевых source tests PASS (1.69 s); отдельно уста�
 Подтверждён предыдущий GitHub `c3b3400461a38fdb8c3b92d2ba0512457988aa47`; текущий sync до ref/tree — SYNC_PENDING. Receipt: `packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json`.
 
 Следующий шаг: После подтверждения CP-015 в GitHub выполнить новый installed signed synthetic prerequisite SDK/CLI lifecycle из wheel вне checkout и сохранить CP-016. Затем общий атомарный product/prerequisite execution lease и durable measured byte progress; actual browser/platform acceptance остаётся обязательной.
+
+## CP-20261025-016 — Проверить установленный signed prerequisites SDK/CLI вне checkout
+
+Добавлен воспроизводимый offline installed harness: новый wheel, чистый venv, pinned security closure с require-hashes, внешние isolated clients без checkout/network/subprocess. Проверены manual→READY, dependency-order auto с postconditions, потерянный ACK/idempotent replay, cancel/restore, подпись/согласия, events/attempts/redaction и настоящий CLI parser с trusted injection. Сохранён read-only разбор общего execution lease и durable progress; эти механизмы не реализованы.
+
+Root current wheel: 10 независимых clients/11 CLI calls PASS (7.362 s), 63 package и 161 dependency files побайтно совпали до/после, ordinary denied attempts=0; отдельный guard self-test блокирует checkout/DNS/subprocess. Wheel 7cdf5f5e73054f3ccfbd2b7f6622cb390e114c1d21efb68b907553ce66a5a507. Два начальных agent harness FAIL и промежуточные PASS сохранены; ошибочно ожидалась CLI version1 вместо1.0. Все142 runtime/API/test inputs идентичны CP015; новый full pytest вCP016 не запускался, исходный scoped результат CP0151974PASS/3skips/10subtests +processHTTP5PASS не расширяется. Actual OS installers/process-kill/full product/frozen/browser/Windows/Docker NOT RUN. CI CP015 четыре jobs без runner/steps; full G1–G5 и production acceptance НЕ ГОТОВО.
+
+Подтверждён предыдущий GitHub `fde526435a7061cf9037251bfeb87bcc04bbe3f1`; текущий sync до ref/tree — SYNC_PENDING. Receipt: `packaging/acceptance-evidence/installed-prerequisites-summary-20261025-cp016.json`.
+
+Следующий шаг: Реализовать общий атомарный product/prerequisite execution lease для доверенно зарегистрированного execution domain: durable ownership/fencing, handoff до enqueue/worker и independent-process crash/cancel tests. Затем durable measured byte progress с обязательным storage writer и truthful verification semantics. Проект следующего шага: docs/PREREQUISITES_NEXT_CORE_STEPS.md; implementation/tests пока NOT IMPLEMENTED/NOT RUN. Actual browser/OS/platform acceptance обязательна.

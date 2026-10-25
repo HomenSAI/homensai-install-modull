@@ -1,6 +1,6 @@
 # Невыполненные проверки — обязательное задание следующему ИИ
 
-Автор: Serhii Khomenko. CP-20261025-015.
+Автор: Serhii Khomenko. CP-20261025-016.
 
 **Полная приёмка НЕ ГОТОВА; production_ready=false.** Этот документ и
 `verification-status.json` описывают проверки. Единственный список реализации —
@@ -27,6 +27,8 @@
 ранних попыток сохранять в истории, новый успех записывать отдельной квитанцией.
 
 ## Что подтверждено сейчас
+
+- CP-20261025-016: Root current wheel: 10 независимых clients/11 CLI calls PASS (7.362 s), 63 package и 161 dependency files побайтно совпали до/после, ordinary denied attempts=0; отдельный guard self-test блокирует checkout/DNS/subprocess. Wheel 7cdf5f5e73054f3ccfbd2b7f6622cb390e114c1d21efb68b907553ce66a5a507. Два начальных agent harness FAIL и промежуточные PASS сохранены; ошибочно ожидалась CLI version1 вместо1.0. Все142 runtime/API/test inputs идентичны CP015; новый full pytest вCP016 не запускался, исходный scoped результат CP0151974PASS/3skips/10subtests +processHTTP5PASS не расширяется. Actual OS installers/process-kill/full product/frozen/browser/Windows/Docker NOT RUN. CI CP015 четыре jobs без runner/steps; full G1–G5 и production acceptance НЕ ГОТОВО. Receipt: `packaging/acceptance-evidence/installed-prerequisites-summary-20261025-cp016.json`.
 
 - CP-20261025-015: Полный source на Python 3.14.3: 1974 PASS, 3 skips, 10 subtests (75.88 s). Два Linux skip отдельно вместе с тремя настоящими loopback HTTP: 5 PASS (2.58 s); Windows case NOT RUN. Настоящий JS в Node VM: 19 новых групп и 6 прежних PASS, они входят в pytest wrappers и не прибавляются к source count. Исходные polling/API-schema FAIL сохранены с последующим PASS; newline hypothesis явно не подтверждена. Current installed wheel/frozen/actual browser/OS acceptance NOT RUN; browser BLOCKED, CI CP-014 четыре jobs без runner/steps. Global lease, durable byte progress и browser local artifact selection NOT IMPLEMENTED. Receipt: `packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json`.
 
@@ -64,7 +66,7 @@
 прочитать и адаптировать к проверенному test fixture. Никаких реальных
 email/Telegram, пользовательских баз, чужих процессов или ports 8810/8811/8812.
 
-## Конкретные незавершённые механизмы — состояние CP-015
+## Конкретные незавершённые механизмы — состояние CP-016
 
 Наличие прошедших transport/source тестов не закрывает эти требования.
 Каждый пункт также записан в `verification-status.json` → `implementation_gaps`.
@@ -73,14 +75,19 @@ email/Telegram, пользовательских баз, чужих процес
 |---|---|---|
 | Общая атомарная блокировка product/prerequisite executors | NOT IMPLEMENTED / NOT RUN | Реализовать общий durable lease; проверить параллельные независимые процессы, обрыв, неизвестный эффект и безопасное освобождение. `busy()` проверяет состояние, но не выдаёт такой lease. |
 | GUI auto/manual/terms/progress/recovery | Source IMPLEMENTED; Node contract PASS; browser NOT RUN/BLOCKED | Выполнить actual browser rendering/focus/keyboard/localization и installed/platform acceptance на новых bytes. 19 новых и 6 прежних Node групп не заменяют браузер. |
+| Installed prerequisite SDK/CLI lifecycle | Synthetic installed profile PASS; real OS NOT RUN | Профиль CP016 повторять после изменения package bytes; настоящие installers/product lifecycle/platform scenarios принять отдельно. |
 | Durable progress скачанных байтов | NOT IMPLEMENTED / NOT RUN | Сохранять измеренные события с порядком/cursor; проверить reconnect/retry/повторы без ложного100%. |
 | Выбор локального prerequisite installer через браузер | NOT IMPLEMENTED / NOT RUN | Добавить безопасный явный выбор с проверкой signed pins; произвольные browser paths по-прежнему запрещены. |
 
 Текущая browser acceptance BLOCKED: официальный альтернативный архив получен
 и ZIP CRC проверен, но executable и `--version` падают с SIGSEGV; причина неизвестна.
-CI CP-014 также BLOCKED: четыре задания без runner/steps, тесты не запускались.
+CI CP-015 также BLOCKED: четыре задания без runner/steps, тесты не запускались.
 Факты и последующие действия: `packaging/acceptance-evidence/environment-20261025-cp012.json`
-и `packaging/acceptance-evidence/github-ci-20261025-cp014.json`.
+и `packaging/acceptance-evidence/github-ci-20261025-cp015.json`.
+
+Read-only разбор двух следующих core-шагов сохранён в
+`docs/PREREQUISITES_NEXT_CORE_STEPS.md`. Он не является реализацией lease/progress
+или результатом перечисленных там новых тестов: они NOT IMPLEMENTED/NOT RUN.
 
 ## Полные сценарии, которые ещё НЕ ГОТОВЫ
 

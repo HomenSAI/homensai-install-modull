@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-015",
+  "checkpoint_id": "CP-20261025-016",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
@@ -259,6 +259,24 @@
       "status": "BLOCKED",
       "scope": "Browser runtime remains unavailable; CI CP0144jobs runner_id0/steps[], tests NOT RUN.",
       "receipt": "packaging/acceptance-evidence/github-ci-20261025-cp014.json"
+    },
+    {
+      "id": "CP016-installed-signed-prerequisites",
+      "status": "PASS",
+      "scope": "Current wheel,10 independent isolated clients/11CLI;63module+161dependency exact bytes, no checkout/network/subprocess attempts in ordinary phases; synthetic installers only.",
+      "receipt": "packaging/acceptance-evidence/installed-prerequisites-20261025-cp016.json"
+    },
+    {
+      "id": "CP016-source-input-identity",
+      "status": "PASS",
+      "scope": "142 runtime/API/test input hashes match CP015 source manifest; full pytest not rerun inCP016. New installed harness separately executed.",
+      "receipt": "packaging/acceptance-evidence/installed-prerequisites-summary-20261025-cp016.json"
+    },
+    {
+      "id": "CP016-browser-ci-platform",
+      "status": "BLOCKED",
+      "scope": "Actual browser/Windows/liveDocker/realOS acceptance NOT RUN; CP015CI4jobs runner0/steps[].",
+      "receipt": "packaging/acceptance-evidence/github-ci-20261025-cp015.json"
     }
   ],
   "historical_evidence": [
@@ -412,8 +430,10 @@
         "tests/test_trust.py"
       ],
       "next_executor_action": "Проверить изменённые shipped bytes, manifest+payload, чужой ключ/publisher/target/channel/downgrade на каждом artifact; production доверие пока не принято.",
-      "current_artifact_evidence": [],
-      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+      "current_artifact_evidence": [
+        "packaging/acceptance-evidence/installed-prerequisites-summary-20261025-cp016.json"
+      ],
+      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-016: installed signed synthetic SDK/CLI проверил tampered signature refusal, отсутствующие согласия, idempotency/events/cursor и восстановление. Это не настоящий OS installer, browser accessibility или полный platform/product scenario."
     },
     {
       "scenario_id": "ACC-07",
@@ -434,9 +454,10 @@
         "packaging/acceptance-evidence/source-20261025-cp012.json",
         "packaging/acceptance-evidence/review-20261025-cp012.json",
         "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json",
-        "packaging/acceptance-evidence/environment-20261025-cp012.json"
+        "packaging/acceptance-evidence/environment-20261025-cp012.json",
+        "packaging/acceptance-evidence/installed-prerequisites-summary-20261025-cp016.json"
       ],
-      "note": "Полный сценарий НЕ ГОТОВ. Последние частичные проверки: CP-20261025-012; области и непроверенное указаны в receipts. Выполнить оставшуюся приёмку."
+      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-016: installed signed synthetic SDK/CLI проверил tampered signature refusal, отсутствующие согласия, idempotency/events/cursor и восстановление. Это не настоящий OS installer, browser accessibility или полный platform/product scenario."
     },
     {
       "scenario_id": "ACC-08",
@@ -597,9 +618,10 @@
         "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json",
         "packaging/acceptance-evidence/environment-20261025-cp012.json",
         "packaging/acceptance-evidence/recovery-20261025-cp013.json",
-        "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json"
+        "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json",
+        "packaging/acceptance-evidence/installed-prerequisites-summary-20261025-cp016.json"
       ],
-      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-014: Подтверждена только source/API/HTTP совместимость проекции требований; actual GUI/installed/OS приёмка остаётся обязательной."
+      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-016: installed signed synthetic SDK/CLI проверил tampered signature refusal, отсутствующие согласия, idempotency/events/cursor и восстановление. Это не настоящий OS installer, browser accessibility или полный platform/product scenario."
     },
     {
       "scenario_id": "ACC-17",
@@ -711,7 +733,13 @@
       "acceptance_status": "NOT RUN",
       "ready": false,
       "note": "Current busy() is a conservative read-only probe, not an atomic common lease across product/prerequisite executors.",
-      "next_executor_action": "Implement durable shared lease and synthetic independent-process tests for simultaneous starts, unknown effects, interruption and safe release. Never infer global exclusion from HTTP source PASS."
+      "next_executor_action": "Implement durable shared lease and synthetic independent-process tests for simultaneous starts, unknown effects, interruption and safe release. Never infer global exclusion from HTTP source PASS. See docs/PREREQUISITES_NEXT_CORE_STEPS.md; design is not implementation or acceptance.",
+      "design_review": {
+        "checkpoint": "CP-20261025-016",
+        "document": "docs/PREREQUISITES_NEXT_CORE_STEPS.md",
+        "scope": "Read-only source analysis and proposed protocol",
+        "new_concurrency_progress_tests": "NOT RUN"
+      }
     },
     {
       "id": "prerequisite-gui-flow",
@@ -739,7 +767,13 @@
       "test_code": "NOT IMPLEMENTED",
       "acceptance_status": "NOT RUN",
       "ready": false,
-      "next_executor_action": "Persist bounded measured byte progress with ordered cursors; test reconnect, retry, stale/duplicate pages and no false100% before verification."
+      "next_executor_action": "Persist bounded measured byte progress with ordered cursors; test reconnect, retry, stale/duplicate pages and no false100% before verification. See docs/PREREQUISITES_NEXT_CORE_STEPS.md; design is not implementation or acceptance.",
+      "design_review": {
+        "checkpoint": "CP-20261025-016",
+        "document": "docs/PREREQUISITES_NEXT_CORE_STEPS.md",
+        "scope": "Read-only source analysis and proposed protocol",
+        "new_concurrency_progress_tests": "NOT RUN"
+      }
     },
     {
       "id": "prerequisite-browser-local-artifact",

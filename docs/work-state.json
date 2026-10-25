@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-015",
+  "checkpoint_id": "CP-20261025-016",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -89,10 +89,10 @@
     "cloud_git": "SYNC_PENDING",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261025-014",
+    "last_confirmed_checkpoint": "CP-20261025-015",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
-  "next_step": "После подтверждения CP-015 в GitHub выполнить новый installed signed synthetic prerequisite SDK/CLI lifecycle из wheel вне checkout и сохранить CP-016. Затем общий атомарный product/prerequisite execution lease и durable measured byte progress; actual browser/platform acceptance остаётся обязательной.",
+  "next_step": "Реализовать общий атомарный product/prerequisite execution lease для доверенно зарегистрированного execution domain: durable ownership/fencing, handoff до enqueue/worker и independent-process crash/cancel tests. Затем durable measured byte progress с обязательным storage writer и truthful verification semantics. Проект следующего шага: docs/PREREQUISITES_NEXT_CORE_STEPS.md; implementation/tests пока NOT IMPLEMENTED/NOT RUN. Actual browser/OS/platform acceptance обязательна.",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
@@ -100,7 +100,7 @@
     "linux_native": "PARTIAL: frozen x64 user-session lifecycle/updates/rollback/repair/crash-resume PASS in scoped receipts; OS service/reboot/full matrix open",
     "linux_docker": "NOT RUN/BLOCKED live daemon: source install/uninstall/start/stop/backup tested with modeled daemon; images/host attestation/full lifecycle remain open"
   },
-  "last_confirmed_github_sha": "c3b3400461a38fdb8c3b92d2ba0512457988aa47",
+  "last_confirmed_github_sha": "fde526435a7061cf9037251bfeb87bcc04bbe3f1",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -132,7 +132,10 @@
     "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json",
     "packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json",
     "packaging/acceptance-evidence/source-20261025-cp015.json",
-    "packaging/acceptance-evidence/github-ci-20261025-cp014.json"
+    "packaging/acceptance-evidence/github-ci-20261025-cp014.json",
+    "packaging/acceptance-evidence/installed-prerequisites-summary-20261025-cp016.json",
+    "packaging/acceptance-evidence/installed-prerequisites-20261025-cp016.json",
+    "packaging/acceptance-evidence/github-ci-20261025-cp015.json"
   ],
   "environment": {
     "os": "linux",
@@ -166,28 +169,22 @@
   "checkpoint_policy": "После каждого проверенного шага TODO+RESUME+код в одном checkpoint, GitHub ref/tree подтверждён до следующего шага.",
   "latest_scoped_verification": [
     {
-      "id": "CP015-full-source",
+      "id": "CP016-installed-signed-prerequisites",
       "status": "PASS",
-      "scope": "1974 PASS/3 skips/10 subtests; current source bytes, Python3.14.3; Windows-only skip NOT RUN.",
-      "receipt": "packaging/acceptance-evidence/source-20261025-cp015.json"
+      "scope": "Current wheel,10 independent isolated clients/11CLI;63module+161dependency exact bytes, no checkout/network/subprocess attempts in ordinary phases; synthetic installers only.",
+      "receipt": "packaging/acceptance-evidence/installed-prerequisites-20261025-cp016.json"
     },
     {
-      "id": "CP015-process-http",
+      "id": "CP016-source-input-identity",
       "status": "PASS",
-      "scope": "Two source Linux skips plus three actual loopback HTTP cases: 5 PASS, no skips; synthetic installers.",
-      "receipt": "packaging/acceptance-evidence/process-http-20261025-cp015.json"
+      "scope": "142 runtime/API/test input hashes match CP015 source manifest; full pytest not rerun inCP016. New installed harness separately executed.",
+      "receipt": "packaging/acceptance-evidence/installed-prerequisites-summary-20261025-cp016.json"
     },
     {
-      "id": "CP015-gui-response-contract",
-      "status": "PASS",
-      "scope": "19 new and6 legacy Node groups, real shipped JS with injected DOM/fetch; polling regression FAIL then PASS; actual browser NOT RUN.",
-      "receipt": "packaging/acceptance-evidence/cp015-ui-independent-receipt.json"
-    },
-    {
-      "id": "CP015-browser-ci",
+      "id": "CP016-browser-ci-platform",
       "status": "BLOCKED",
-      "scope": "Browser runtime remains unavailable; CI CP0144jobs runner_id0/steps[], tests NOT RUN.",
-      "receipt": "packaging/acceptance-evidence/github-ci-20261025-cp014.json"
+      "scope": "Actual browser/Windows/liveDocker/realOS acceptance NOT RUN; CP015CI4jobs runner0/steps[].",
+      "receipt": "packaging/acceptance-evidence/github-ci-20261025-cp015.json"
     }
   ]
 }

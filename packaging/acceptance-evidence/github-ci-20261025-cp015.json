@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-015",
+  "status": "BLOCKED",
+  "tests_status": "NOT RUN",
+  "production_ready": false,
+  "observed": [
+    {
+      "run_id": 40213233636,
+      "head_sha": "fde526435a7061cf9037251bfeb87bcc04bbe3f1",
+      "url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40213233636",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-10-25T16:45:48Z",
+      "jobs": [
+        {
+          "job_id": 121228766809,
+          "name": "Linux source and user-process integration (no installer acceptance)",
+          "runner_id": 0,
+          "steps": [],
+          "status": "completed",
+          "conclusion": "failure",
+          "started_at": "2026-10-25T16:45:49Z",
+          "completed_at": "2026-10-25T16:45:51Z"
+        },
+        {
+          "job_id": 121228767002,
+          "name": "Windows portable source subset (no service installation)",
+          "runner_id": 0,
+          "steps": [],
+          "status": "completed",
+          "conclusion": "failure",
+          "started_at": "2026-10-25T16:45:49Z",
+          "completed_at": "2026-10-25T16:45:52Z"
+        }
+      ]
+    },
+    {
+      "run_id": 40213230066,
+      "head_sha": "fde526435a7061cf9037251bfeb87bcc04bbe3f1",
+      "url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40213230066",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-10-25T16:45:46Z",
+      "jobs": [
+        {
+          "job_id": 121228755201,
+          "name": "Windows portable source subset (no service installation)",
+          "runner_id": 0,
+          "steps": [],
+          "status": "completed",
+          "conclusion": "failure",
+          "started_at": "2026-10-25T16:45:46Z",
+          "completed_at": "2026-10-25T16:45:49Z"
+        },
+        {
+          "job_id": 121228755508,
+          "name": "Linux source and user-process integration (no installer acceptance)",
+          "runner_id": 0,
+          "steps": [],
+          "status": "completed",
+          "conclusion": "failure",
+          "started_at": "2026-10-25T16:45:46Z",
+          "completed_at": "2026-10-25T16:45:49Z"
+        }
+      ]
+    }
+  ],
+  "conclusion": "Четыре jobs завершились с failure до выделения runner/steps. Точная причина не установлена. Эти runs не являются выполненными source или Windows тестами.",
+  "next_action": "Подготовить рабочий runner и повторить workflows; billing/permissions/workflows по предположению не менять."
+}

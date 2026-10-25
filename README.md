@@ -3,7 +3,11 @@
 Общий подключаемый модуль установки и обслуживания веб-приложений.
 Автор: Serhii Khomenko / HomenS.AI. SDK `0.1.0`, API `1.0`.
 
-**Статус: версия разработки, CP-20261025-008; `production_ready=false`.**
+**Статус: версия разработки; `production_ready=false`.**
+Актуальная контрольная точка и текущие доказательства: [RESUME](docs/RESUME.md),
+[IMPLEMENTATION_STATUS](docs/IMPLEMENTATION_STATUS.md).
+
+Следующая сводка интеграции относится к историческому **CP-20261025-008**.
 В общий SDK интегрированы Docker install/uninstall, исполняемый systemd user port
 и coordinator подготовки зависимостей. Их source-проверки пройдены; настоящая
 приёмка Docker, OS services и Windows остаётся открытой. Frozen DEV-установщик

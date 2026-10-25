@@ -1,9 +1,9 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261025-021`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261025-022` (документация); код `CP-20261025-021`; ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый local/GitHub до создания CP-20261025-021:
-`e3482cc41c715f58eb09def91db3dd0d473d168e` (CP-20261025-020).
+Последний подтверждённый local/GitHub до создания CP-20261025-022:
+`7a3f8fe79fe64aff315e8bd529513121316819cd` (CP-20261025-021).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
@@ -21,7 +21,11 @@ dirty/staged files и активные процессы. Не сбрасыват
 только как source audit и design target matrix. Все G0–G5 OPEN.
 Список задач только в HomenSAI_Universal_Installer_TODO_RU.txt.
 
-## Текущий этап CP021
+## Текущее продолжение CP022
+
+CP-20261025-022 — только материалы продолжения: README теперь ведёт к актуальному RESUME и явно помечает обзор CP008 как исторический. Код и все68 package files совпадают с проверенным CP021; новых runtime-тестов для этой правки документации не запускали. Последний код: CP021, source2363PASS/3skip/15subtests; installed synthetic SDK/CLI, Chromium24cases и Windows492+57PASS/4POSIXskip сохранены с точными пределами. production_ready=false, всеG0–G5OPEN. Основная рабочая папка E:/homensai/homensai-install-modull; вспомогательный worktree E:/homensai/homensai-install-modull-core-cp021 сохраняет исходный проверенный черновик, интегрированный в основную ветку вместе с последующими исправлениями. Для продолжения использовать основную папку и её канонический ToDo. Собственные тестовые процессы завершены; отдельный Docker Git BLOCKED до URL и авторизации.
+
+## Последний этап кода CP021
 
 CP-20261025-021: подключён ExecutableProductAdapter к NativeEngine через явный trusted constructor opt-in только Linux/native/user start/stop/backup. Reviewed plan закрепляет signed descriptor/payload/runtime; readiness требует свежие release/installation/probe identity вместе с прежними owned PID/listener/HTTP. Durable quiesce intent и строгий ledger reconciliation не разрешают повтор UNKNOWN после утраты ledger или отсутствующей ожидаемой invocation. Backup использует настоящий полный encrypted архив. Исправлен воспроизведённый дефект: secondary recovery start/readiness больше не маскирует primary backup error, оба безопасных кода сохранены в native journal/public details. Все исходные FAIL и reverse-fault RED сохранены отдельно. Final source/integration: 2363 PASS, 3 skip, 15 subtests, inputs unchanged. Installed SDK/CLI и synthetic prerequisites PASS; actual Chromium установленного wheel: 24 PASS ru/en/de. Во всех трёх отдельных wheel совпадают 68 package files; SHA архивов различаются и не объявлены bit-reproducible. Windows10/Python3.14.3: 492 и отдельно57 PASS, 4 POSIX skip. Это не Windows11/platform acceptance. Installed ProductAdapter maintenance отдельно NOT RUN; новые maintenance процессы/HTTP/backup приняты на source уровне. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json.
 

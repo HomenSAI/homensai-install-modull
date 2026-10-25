@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import base64
 from itertools import combinations
-import ntpath
 from pathlib import PureWindowsPath
 import re
 
+from shared.datahome import _windows_reserved
 from shared.manifest import ManifestError, validate_manifest
 from shared.services import component_order, render_services
 
@@ -33,7 +33,7 @@ def _path(value: str, base: PureWindowsPath | None = None) -> PureWindowsPath:
     path = PureWindowsPath(text)
     if (text.startswith("\\") or "%" in text or ":" in text[2:] or ".." in text.split("\\")
             or (path.drive and not path.is_absolute())
-            or any(ntpath.isreserved(part) or part in ("", ".", "..")
+            or any(_windows_reserved(part) or part in ("", ".", "..")
                    for part in text.split("\\")[1 if path.drive else 0:])):
         raise ManifestError("Windows: небезопасный путь")
     if not path.is_absolute():
@@ -228,7 +228,7 @@ def render_windows(manifest: dict, *, install_root: str, modes: tuple[str, ...],
             raise ManifestError("Windows: недопустимый идентификатор")
     secret_names = sorted(item["name"] for item in manifest["secrets"])
     if any(re.fullmatch(r"[A-Z][A-Z0-9_]{0,127}", name) is None
-           or ntpath.isreserved(name) for name in secret_names):
+           or _windows_reserved(name) for name in secret_names):
         raise ManifestError("Windows: недопустимое имя секрета")
     xml = render_services(manifest, platform="windows", modes=modes,
                           install_root=str(root), winsw_payload=winsw_payload)

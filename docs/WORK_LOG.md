@@ -172,3 +172,31 @@ package resources повторно проверены по точным bytes.
 ту же op_e4a33118c10642058bfc85447bee5581, actual v1/SQLite1 ready=true.
 Продукт остановлен, собственные тестовые controller processes завершены; failed
 fixtures сохранены. Точный executable/inventory hash — CP-005 frozen receipt.
+
+
+## CP-20261025-006 — возобновление по поручению владельца и Python 3.12
+
+25.10.2026 владелец поручил проверить весь остаток и возобновить выполнение.
+Из GitHub восстановлены 205 файлов CP-005; каждый Git blob SHA, root tree
+67139a745a98af35c59d25b9944c2983f5426f41 и сам commit a04c615b8b511710cf0035a27a239cbfb129db93
+совпали побайтно. Импортирован shallow checkout без изменения старой истории.
+Работа продолжается в прежней ветке; параллельные участки изолированы в worktrees.
+
+В новой среде Python 3.12.14 + cryptography 50.0.2. Baseline: 1596 PASS,
+41 FAIL, 1 skip, 10 subtests (39.13 s). Все FAIL в Windows text renderer:
+прямой вызов ntpath.isreserved не существует на Python 3.12, хотя SDK заявляет
+>=3.12. Renderer теперь использует существующую совместимую строгую проверку
+shared.datahome._windows_reserved для путей и имён секретов. Защита от DOS
+устройств/ADS/trailing space не ослаблена. Focused regression:
+97 PASS + 10 subtests, 0.35 s. Это проверка исходников, не Windows installation.
+
+GitHub CI: три старых запуска completed/failure до runner/steps; точная причина
+не раскрыта. Официальные action SHA/Python/runner labels перепроверены; оснований
+менять workflow наугад нет. Документированные результаты не считаются новым
+GitHub CI PASS. Docker CLI/socket, Windows и systemd manager в этом хосте нет.
+
+Следом: Docker provisioning/lifecycle, systemd user manager, durable prerequisites
+manual/automatic/reboot/relogin и единый backend routing в SDK/CLI/GUI. Новый
+product audit проверяет актуальные GitHub sources read-only. Production ready=false.
+Git владельца в Docker по-прежнему SYNC_BLOCKED; GitHub этого checkpoint —
+SYNC_PENDING до проверки фактического remote ref.

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-005",
+  "checkpoint_id": "CP-20261025-006",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -82,10 +82,10 @@
     "cloud_git": "SYNC_PENDING",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261025-004",
+    "last_confirmed_checkpoint": "CP-20261025-005",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
-  "next_step": "Confirm CP005 Git ref/commit/tree; then implement OS services/full Docker provisioning/Windows native/prerequisite automation and accept actual products on target runners",
+  "next_step": "Integrate tested Docker provisioning, systemd manager and durable prerequisites through explicit backend routing; actual Windows/Docker/service acceptance requires target environments",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
@@ -93,11 +93,20 @@
     "linux_native": "PARTIAL: frozen x64 user-session lifecycle/updates/rollback/repair/crash-resume PASS in scoped receipts; OS service/reboot/full matrix open",
     "linux_docker": "NOT RUN: start/stop/backup source controller tested with modeled daemon only; full provisioning/lifecycle not implemented"
   },
-  "last_confirmed_github_sha": "9e0cb1d1ede5c288fa9c43f4048d4d42194dc924",
+  "last_confirmed_github_sha": "a04c615b8b511710cf0035a27a239cbfb129db93",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
     "packaging/acceptance-evidence/sdk-installed-20261025.json",
     "packaging/acceptance-evidence/github-ci-20261025-cp004.json"
-  ]
+  ],
+  "environment": {
+    "os": "linux",
+    "arch": "x64",
+    "python": "3.12.14",
+    "docker_cli": false,
+    "docker_socket": false,
+    "systemd_pid1": false,
+    "windows": false
+  }
 }

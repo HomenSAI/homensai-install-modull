@@ -1,0 +1,28 @@
+{
+  "checkpoint_id": "CP-20261025-006",
+  "baseline_sha": "a04c615b8b511710cf0035a27a239cbfb129db93",
+  "environment": {
+    "os": "Linux x64",
+    "python": "3.12.14",
+    "pytest": "9.1.1",
+    "cryptography": "50.0.2"
+  },
+  "baseline": {
+    "command": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -B -m pytest -q -p no:cacheprovider tests",
+    "passed": 1596,
+    "failed": 41,
+    "skipped": 1,
+    "subtests_passed": 10,
+    "seconds": 39.13,
+    "failure": "shared/windows_ps.py directly calls unavailable ntpath.isreserved on Python3.12"
+  },
+  "regression": {
+    "command": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -B -m pytest -q -p no:cacheprovider tests/test_windows_ps.py tests/test_path_compat.py",
+    "passed": 97,
+    "failed": 0,
+    "subtests_passed": 10,
+    "seconds": 0.35
+  },
+  "scope": "source validation only; no installed Windows/Docker/systemd acceptance",
+  "production_ready": false
+}

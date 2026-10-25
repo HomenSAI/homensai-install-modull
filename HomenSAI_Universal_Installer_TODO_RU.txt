@@ -79,12 +79,12 @@ HIM-001/002 проверены в текущей сессии; остальны�
 Состояния отражают текущую сессию; полный выпуск ещё не принят.
 
 Текущая реализация: API/SDK, Linux native recovery, GUI ru/en/de, диагностика и исходный Docker controller.
-Текущая контрольная точка: CP-20261025-005; актуальный SHA проверять по Git history и внешней sync receipt.
+Текущая контрольная точка: CP-20261025-006; актуальный SHA проверять по Git history и внешней sync receipt.
 Рабочая ветка: codex/universal-installer-20261025; исходный SHA: a16a55d58e65ccf64ed2ba0c853a0053baea6689.
 Канонический ToDo: HomenSAI_Universal_Installer_TODO_RU.txt;
 журнал: docs/WORK_LOG.md; продолжение: docs/RESUME.md и docs/work-state.json.
-Последний подтверждённый до создания CP-005 checkpoint_id: CP-20261025-004; GitHub SHA 9e0cb1d1ede5c288fa9c43f4048d4d42194dc924.
-Локальный Git / Docker Git / GitHub: SYNC_CONFIRMED / SYNC_BLOCKED / SYNC_CONFIRMED для CP-004. CP-005: SYNC_PENDING до независимой проверки ref/commit/tree.
+Последний подтверждённый до создания CP-006 checkpoint_id: CP-20261025-005; GitHub SHA a04c615b8b511710cf0035a27a239cbfb129db93.
+Локальный Git / Docker Git / GitHub: SYNC_CONFIRMED / SYNC_BLOCKED / SYNC_CONFIRMED для CP-005. CP-006: SYNC_PENDING до независимой проверки ref/commit/tree.
 Блокировки: локальный Forgejo/Docker владельца не подключён; GitHub CI завершился до runner/steps; production signing и юридические/лицензионные gates открыты.
 Следующий инженерный этап: system services, полный Docker provisioning/lifecycle, Windows native, auto prerequisites и реальная интеграция продуктов; затем platform acceptance. Точные действия — docs/RESUME.md.
 
@@ -583,12 +583,12 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005); предыдущий CP-004 SYNC_CONFIRMED.
 
 [ ] HIM-047. Проверить пользователей, пути и владение процессами
-Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-004
+Статус: IN_PROGRESS | Проверки: PASS | checkpoint_id: CP-20261025-006
 Зависимости: HIM-019, HIM-020, HIM-042, HIM-043, HIM-044, HIM-045; PROMPT: § 10–11, 16, 20, 24.
 Готово, когда: Проверены пробелы/кириллица, обычный пользователь, две OS-учётные записи, занятый чужой
 порт, повторный start и отдельный service profile, если заявлен. Нет чужого process kill, доступа к
 чужому DataHome или второго scheduler.
-Доказательство / ограничения / следующий шаг: Linux path/ownership, stale PID, foreign process/listener, orphan launch и child-writer quiescence покрыты реальными integration tests. Windows users/ACL/reparse/service scenarios остаются открыты.
+Доказательство / ограничения / следующий шаг: CP-006: baseline на Python 3.12.14 выявил 41 FAIL Windows text renderer; совместимый reserved-name validator исправлен, focused 97 PASS +10 subtests. Windows installed acceptance не выполнялась. Linux path/ownership, stale PID, foreign process/listener, orphan launch и child-writer quiescence покрыты реальными integration tests. Windows users/ACL/reparse/service scenarios остаются открыты.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-048. Проверить полноту preflight и безопасные отказы

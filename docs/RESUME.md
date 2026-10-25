@@ -1,9 +1,9 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261025-005`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261025-006`; ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый GitHub/local до создания CP-005:
-`9e0cb1d1ede5c288fa9c43f4048d4d42194dc924` (CP-004).
+Последний подтверждённый GitHub/local до создания CP-006:
+`a04c615b8b511710cf0035a27a239cbfb129db93` (CP-005).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
@@ -16,12 +16,21 @@ dirty/staged files и активные процессы. Не сбрасыват
 
 ## Среда и сохранение
 
-Облачный Linux x64; isolated build/test Python 3.14.3, host Python 3.12.
+Облачный Linux x64. В возобновлённой сессии Python 3.12.14; исторические CP-005
+receipts используют Python 3.14.3. Не смешивать результаты этих сред.
 Это не Windows владельца и не его Docker/Forgejo. Cloud Git не заменяет локальный
 Git владельца. GitHub доступен через connector; shell HTTPS credentials отсутствуют.
 Канонические commit/tree/parent/ref проверяются после каждого push. Транспорт
 connector сохраняет draft checkpoint ref и затем импортирует точный remote commit.
 В обычной среде используйте tools/checkpoint.py и docs/CHECKPOINTS.md.
+
+## Возобновлённая сессия CP-006
+
+Восстановление 205 blobs/точного commit/tree завершено. В Python 3.12.14
+исправлены 41 baseline failures Windows renderer через существующий совместимый
+reserved-name validator; focused 97 PASS +10 subtests. Полный повтор после интеграции.
+Активны независимые worktree Docker, services и prerequisites; их незакоммиченные
+изменения не удалять и не считать интегрированными до проверки root commit.
 
 ## Что не нужно выполнять заново без изменения соответствующего кода
 
@@ -54,7 +63,7 @@ connector сохраняет draft checkpoint ref и затем импортир
 
 ## Следующий инженерный этап
 
-1. Проверить фактический SHA CP-005 и оба доступных Git refs; Docker Git владельца
+1. Проверить фактический SHA CP-006 и оба доступных Git refs; Docker Git владельца
    подключать отдельно по реальной схеме доступа, не считать cloud loopback его хостом.
 2. Диагностировать GitHub CI: CP-004 run40170554823 завершился failure до выделения
    runner/steps. Это не падение source tests. Доступный API не раскрывает причину.

@@ -85,6 +85,7 @@ class PrerequisiteCoordinator:
                     and self._license_allowed(entry)):
                 automatic.append(entry["requirement"]["component_id"])
         return {**self.identity(), "signed_catalog": True, "manual_recheck": True, "durable_resume": True,
+                "background_execution": True, "durable_operation_listing": True,
                 "automatic_component_ids": automatic, "automatic_reboot": False,
                 "boundary_choice": True, "platform_acceptance": "not_verified"}
 
@@ -262,14 +263,31 @@ class PrerequisiteCoordinator:
             fail("PERMISSION_REQUIRED", "prerequisite_product_or_target_mismatch")
         return value
 
-    def _public(self, operation):
-        result = {key: deepcopy(value) for key, value in operation.items() if key not in {"plan", "consents"}}
-        result["events"] = self.store.events(operation["operation_id"], after=max(0, operation["revision"] - 100))
+    def _public(self, operation, *, summary=False):
+        from .prerequisite_async import execution_status
+        hidden = {"plan", "consents", "_dispatch", "_initial_validation_pending"}
+        if summary:
+            hidden |= {"steps", "checks", "blocking_components", "host_action", "observed_at"}
+        result = {key: deepcopy(value) for key, value in operation.items() if key not in hidden}
+        result["execution"] = execution_status(self, operation)
+        if result["execution"]["state"] == "recovery_required":
+            result["recorded_status"] = result["status"]
+            result["status"], result["ready"] = "RECOVERY_REQUIRED", False
+            result["required_action"] = ("reconcile_installer" if any(
+                step["state"] in _UNCERTAIN for step in operation["steps"].values()) else "resume")
+        if not summary:
+            result["events"] = self.store.events(operation["operation_id"], after=max(0, operation["revision"] - 100))
         return result
 
     def status(self, operation_id):
         """Historical durable status; performs no discovery/download/execution."""
         return self._public(self._get(operation_id))
+
+    def operations_list(self, *, unfinished_only=True, limit=100, after_id=None):
+        """Read-only recovery index for this exact owner/product/target/catalogue."""
+        operations, cursor = self.store.operations(self.identity(), unfinished_only=unfinished_only,
+                                                   limit=limit, after_id=after_id)
+        return {"operations": [self._public(item, summary=True) for item in operations], "next_cursor": cursor}
 
     def events(self, operation_id, *, after=0, limit=100):
         self._get(operation_id)
@@ -279,31 +297,52 @@ class PrerequisiteCoordinator:
         self._get(operation_id)
         return self.store.attempts(operation_id, component_id, after=after, limit=limit)
 
+    def _existing_start(self, operation_id, plan):
+        old = self.store.get(operation_id)
+        if old is not None and (old["owner_id"] != self.owner_id
+                or old["product_id"] != self.catalog.manifest["product_id"]
+                or old["target"] != self.catalog.target or old["plan_digest"] != plan["plan_digest"]):
+            fail("OPERATION_CONFLICT", "prerequisite_operation_plan_conflict")
+        return old
+
+    def _prepare_start(self, operation_id, plan, consents, *, defer_validation=False):
+        """Build a new record under controller lock; caller persists it once."""
+        if plan["catalog_digest"] != self.catalog.catalog_digest or plan["target"] != self.catalog.target:
+            fail("PLAN_STALE", "prerequisite_catalog_changed")
+        if not defer_validation:
+            current = self.plan(plan["choices"], locale=plan["locale"], offline=plan["offline"], local_artifacts=plan["local_artifacts"])
+            if current != plan:
+                fail("PLAN_STALE", "prerequisite_plan_changed_before_start")
+        return {"schema_version": 1, "operation_id": operation_id, "owner_id": self.owner_id,
+                "product_id": self.catalog.manifest["product_id"], "target": self.catalog.target,
+                "catalog_digest": plan["catalog_digest"], "plan_digest": plan["plan_digest"], "plan": plan,
+                "consents": consents, "status": "AWAITING_USER", "ready": False, "revision": 0,
+                "created_at": utcnow(), "checks": [], "blocking_components": [], "required_action": "resume",
+                "_initial_validation_pending": defer_validation,
+                "error": None, "cancel_requested": False, "system_changes_started": False,
+                "steps": {item["component_id"]: {"state": "SKIPPED" if item["choice"] == "skip" else "READY" if item["initial_ready"] else "PENDING",
+                    "attempt": 0, "ownership": item["ownership"], "receipt": None,
+                    "boundary_choice": None} for item in plan["components"]}}
+
     def start(self, operation_id, plan, *, consents):
         if not identifier(operation_id):
             fail("INVALID_REQUEST", "prerequisite_operation_id")
         plan, consents = self._validate_plan(plan, consents)
         with self.store.lock():
-            old = self.store.get(operation_id)
+            old = self._existing_start(operation_id, plan)
             if old is not None:
-                if (old["owner_id"] != self.owner_id or old["product_id"] != self.catalog.manifest["product_id"]
-                        or old["target"] != self.catalog.target or old["plan_digest"] != plan["plan_digest"]):
-                    fail("OPERATION_CONFLICT", "prerequisite_operation_plan_conflict")
                 return self._public(old)
-            current = self.plan(plan["choices"], locale=plan["locale"], offline=plan["offline"], local_artifacts=plan["local_artifacts"])
-            if current != plan:
-                fail("PLAN_STALE", "prerequisite_plan_changed_before_start")
-            operation = {"schema_version": 1, "operation_id": operation_id, "owner_id": self.owner_id,
-                "product_id": self.catalog.manifest["product_id"], "target": self.catalog.target,
-                "catalog_digest": plan["catalog_digest"], "plan_digest": plan["plan_digest"], "plan": plan,
-                "consents": consents, "status": "AWAITING_USER", "ready": False, "revision": 0,
-                "created_at": utcnow(), "checks": [], "blocking_components": [], "required_action": None,
-                "error": None, "cancel_requested": False, "system_changes_started": False,
-                "steps": {item["component_id"]: {"state": "SKIPPED" if item["choice"] == "skip" else "READY" if item["initial_ready"] else "PENDING",
-                    "attempt": 0, "ownership": item["ownership"], "receipt": None,
-                    "boundary_choice": None} for item in plan["components"]}}
+            operation = self._prepare_start(operation_id, plan, consents)
             operation = self._save(operation, "prerequisite_operation_created", create=True)
             return self._public(self._drive(operation, execute=True))
+
+    def start_background(self, operation_id, plan, *, consents):
+        from .prerequisite_async import start
+        return start(self, operation_id, plan, consents=consents)
+
+    def resume_background(self, operation_id, *, consents=None):
+        from .prerequisite_async import resume
+        return resume(self, operation_id, consents=consents)
 
     def _validated_context(self, operation):
         plan, _ = self._validate_plan(operation["plan"], operation["consents"])
@@ -450,6 +489,14 @@ class PrerequisiteCoordinator:
         if operation["status"] in _TERMINAL:
             return operation
         try:
+            if operation.get("_initial_validation_pending"):
+                plan = operation["plan"]
+                current = self.plan(plan["choices"], locale=plan["locale"], offline=plan["offline"],
+                                    local_artifacts=plan["local_artifacts"])
+                if current != plan:
+                    fail("PLAN_STALE", "prerequisite_plan_changed_before_start")
+                operation["_initial_validation_pending"] = False
+                operation = self._save(operation, "prerequisite_initial_plan_verified")
             entries, inventory = self._validated_context(operation)
             self._refresh(operation, entries, inventory)
             operation["error"] = None
@@ -554,13 +601,20 @@ class PrerequisiteCoordinator:
     def recheck(self, operation_id):
         """Read-only probes plus journal; no downloads, commands or host restart."""
         with self.store.lock():
-            return self._public(self._drive(self._get(operation_id), execute=False))
+            operation = self._get(operation_id)
+            if "_dispatch" in operation and operation["status"] not in _TERMINAL:
+                del operation["_dispatch"]
+                operation = self._save(operation, "prerequisite_synchronous_recheck")
+            return self._public(self._drive(operation, execute=False))
 
     def resume(self, operation_id, *, consents=None):
         with self.store.lock():
             operation = self._get(operation_id)
             if consents is not None:
                 _, operation["consents"] = self._validate_plan(operation["plan"], consents)
+            if "_dispatch" in operation and operation["status"] not in _TERMINAL:
+                del operation["_dispatch"]
+                operation = self._save(operation, "prerequisite_synchronous_resume")
             return self._public(self._drive(operation, execute=True))
 
     def choose_boundary(self, operation_id, when):

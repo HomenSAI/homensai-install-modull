@@ -189,6 +189,9 @@ GUI дополнительно требует `--docker-payload-options`: лок
 adapters, downloader и read-only discover. Произвольный dict/callback вместо
 coordinator не принимается. По умолчанию автоматический установщик зависимостей
 не создаётся: нужны настоящие pins, тексты условий, publisher/platform policy.
+Тот же явный coordinator принимает публичная factory
+`InstallerAPI.from_bootstrap(state_dir, prerequisites=coordinator, ...)`;
+это доверенная настройка приложения-хоста, не поле HTTP/manifest/options.
 
 ```python
 api = InstallerAPI(state_dir, engine=engine, prerequisites=coordinator)
@@ -204,24 +207,66 @@ state = api.prerequisites_start(operation_id, plan, consent_refs=accepted_refs)
 
 `operation_id` соответствует общему API ID: `[a-z][a-z0-9_-]{0,79}`.
 Повтор `start` с тем же ID и планом читает сохранённый результат; другая операция
-не обходит активный claim. Выполнение синхронное: это фасад существующего
-coordinator, дополнительный executor и второй журнал эффектов не создаются.
+не обходит активный claim. По умолчанию `start` и `resume` синхронны. Долгоживущий
+host может явно передать `background=True`: общий coordinator исполняется в
+ограниченном фоновом потоке с тем же journal, claim и OS lock. Второй журнал
+эффектов и самостоятельная машина состояний не создаются.
 
 | Метод | Поведение |
 | --- | --- |
 | `prerequisites_status(id)` | Историческое состояние без команд/discover |
+| `prerequisites_operations_list(unfinished_only=True, limit=100, after_id=None)` | Сводки операций exact owner/product/target/catalog; `next_cursor` для следующей страницы |
 | `prerequisites_events(id, after_sequence=0, limit=100)` | События и snapshot |
 | `prerequisites_attempts(id, component_id, after=0, limit=100)` | Сохранённые pins и результаты прежних попыток |
 | `prerequisites_recheck(id)` | Только probes и journal; ни download, ни installer |
-| `prerequisites_resume(id, consent_refs=None)` | Явное продолжение допустимых pending действий |
+| `prerequisites_resume(id, consent_refs=None, background=False)` | Явное продолжение допустимых pending действий; фон только по opt-in |
 | `prerequisites_choose_boundary(id, "now" / "later")` | Запись выбора reboot/relogin; сам host переход не выполняется |
 | `prerequisites_cancel(id)` | Запрос отмены на безопасной границе |
 | `prerequisites_replace_plan(id, new_plan, consent_refs)` | Новый review при изменившихся условиях; неизвестный эффект не стирается |
 
+Фоновый `start` сохраняет план, подтверждения, claim и запрос запуска **до ACK**;
+ответ содержит прежний `operation_id`, `plan_digest`, `catalog_digest` и
+`execution={mode, state, active}`. Медленный fresh discover, загрузка и installer
+выполняются после регистрации в потоке. ACK подтверждает принятую очередь;
+он не подтверждает свежесть плана или готовность зависимостей. Перед первым
+эффектом план точно сравнивается с заново построенным; незавершённая проверка
+сохраняется и обязательна также после обрыва и явного `resume`.
+
+| `execution.state` | Действие потребителя |
+| --- | --- |
+| `queued`, `running` | Продолжать polling, даже если snapshot пока `AWAITING_USER`; доступен cancel |
+| `finished`, `failed`, `superseded`, `idle` | Поток завершил этот запрос либо запрос заменён; обработать `status`, `error`, `required_action` |
+| `recovery_required` | Нет локальной очереди и controller lock доказанно свободен; требуется явное восстановление |
+| `unknown` | Другой процесс может держать controller lock либо lock недоступен; `active=None`, повторить status и проверить контроллер |
+
+При доказанном прерывании snapshot показывает `RECOVERY_REQUIRED` и исходный
+`recorded_status`; чтение не меняет journal. Свободный lock **не доказывает**,
+что внешний installer завершился: `INSTALLING`/`UNKNOWN` и точные receipts
+остаются до read-only reconciliation. Повтор `start`, `status`, `events`,
+`operations_list` и открытие нового API не запускают сохранённую операцию.
+При ошибке создания потока или непредвиденном падении worker сохраняется
+доступная для восстановления запись; `resume` требуется явно.
+
+`operations_list` возвращает только сводки, без плана, consent refs, локальных
+путей, steps/receipts и events. Identity-фильтр применяется **до** `limit`
+(1–100); `after_id` — последний ID предыдущей страницы, `next_cursor=None`
+означает конец. По умолчанию `READY`/`CANCELED` исключены. Каталог другой версии
+не показывает старую операцию, но её активный claim продолжает запрещать новую:
+для восстановления bootstrap должен открыть прежний подписанный каталог и
+тот же original owner/state directory, а не освобождать claim принудительно.
+
+Один prerequisite store получает не более одного локального worker; разные
+`InstallerAPI.state_dir` не обходят это ограничение. OS lock и durable claim
+остаются авторитетны между процессами. Поток живёт в процессе хоста и не
+восстанавливается автоматически после его выхода. Короткоживущий CLI должен
+использовать синхронный режим. Cancel возвращает сохранённый запрос без ожидания
+установщика; остановка происходит на безопасной границе, без убийства процесса
+и удаления общих компонентов. `recheck` пока синхронен и ничего не устанавливает.
+
 `READY` означает готовность выбранных prerequisites данной операции, а не
 установленное приложение. Перед product install bootstrap повторяет discover
-и строит новый reviewed product plan. GUI auto-flow, его неблокирующая host
-интеграция, Windows elevation/session providers и production catalog остаются
+и строит новый reviewed product plan. GUI auto-flow, HTTP/CLI transport для
+этого SDK, Windows elevation/session providers и production catalog остаются
 отдельными непринятыми работами. Эти новые методы сейчас доступны SDK;
 standalone CLI/HTTP не принимают команды, adapters или каталог из запросов.
 Полный platform contract и ограничения: `docs/PREREQUISITES.md`.

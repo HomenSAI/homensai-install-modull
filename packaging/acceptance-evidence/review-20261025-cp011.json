@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-011",
+  "implementation_commit": "a038204cb1ef497d2d9e5e20999b03f744e64164",
+  "reviewer": "independent recovery_audit",
+  "status": "PASS_WITH_SCOPE",
+  "production_ready": false,
+  "findings_fixed": [
+    "Queued cancellation revision race",
+    "Cancel after final dispatch commit before lock release; atomically settle and release claim",
+    "BaseException startup reservation leak",
+    "Prior FINISHED dispatch must be cleared for new synchronous resume/recheck"
+  ],
+  "independent_run": {
+    "command": "PYTHONPATH=. /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -m pytest -q --tb=short tests/test_prerequisites_async.py::test_cancel_at_dispatch_boundaries_is_consumed_without_another_resume tests/test_prerequisites_async.py::test_external_cancel_after_finish_commit_before_unlock_is_settled tests/test_prerequisites_async.py::test_thread_start_failure_is_durable_and_does_not_leak_reservation tests/test_prerequisites_async.py::test_sync_resume_after_background_does_not_reuse_finished_dispatch_for_cancel",
+    "passed": 7,
+    "duration_seconds": 1.36,
+    "scope": "Race-focused run before final small lock-probe hardening; final edits read-reviewed and covered by implementer's final185/root26 runs"
+  },
+  "prior_reproducer": {
+    "status": "FAIL",
+    "observed": "AWAITING_USER/cancel_requested=true/finished/active=false; claim held; zero installer calls",
+    "after_fix": "CANCELED; successor operation accepted; zero installer calls"
+  },
+  "reviewed_sha256": {
+    "homensai_install/prerequisite_async.py": "dd89a4f68f7c80738da6e5192fab5efc0c7fba9a446b514e2110944cc8f5293e",
+    "homensai_install/prerequisite_execution.py": "45146d1ff6d260b36e8836ed25bf4289dcd999f9878417eef706ea620dc74cec",
+    "homensai_install/prerequisite_state.py": "2fdd6c933c944de7e43d59534a5fd1c6862c54e6fd74f741414a2522a29f89e0",
+    "homensai_install/api/v1.py": "64b0dfb5cfcd427ae83982c65023d493ffdfdafca3c3f1fe4f2206fbcde7de54",
+    "tests/test_prerequisites_async.py": "7dc0935abe7fb7daedb952919ae15f0c1f6864d7bf6ecd8feb7a45f82000120e"
+  },
+  "not_run": [
+    "Actual Windows/OS installers/elevation/Docker",
+    "GUI/HTTP/CLI prerequisite transport",
+    "Production catalogue/platform acceptance"
+  ]
+}

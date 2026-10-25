@@ -15,7 +15,7 @@ import stat
 from .api.journal import owned_directory
 from .api.model import bounded_json, canonical, parse_json
 from .downloads import _open
-from .errors import utcnow
+from .errors import InstallerError, utcnow
 from .prerequisite_catalog import fail, identifier
 
 
@@ -90,6 +90,56 @@ class PrerequisiteStore:
                         fcntl.flock(descriptor, fcntl.LOCK_UN)
                 os.close(descriptor)
 
+    def controller_busy(self):
+        """Read-only lock observation: True/False/None, never installer proof.
+
+        Missing, inaccessible or unfamiliar lock state is unknown. In
+        particular a status request must not create a deleted lock file.
+        """
+        descriptor = None
+        locked = False
+        result = None
+        try:
+            descriptor = _open(self.directory / "controller.lock", os.O_RDWR)
+            if os.name == "nt":
+                import msvcrt
+                if os.fstat(descriptor).st_size >= 1:
+                    os.lseek(descriptor, 0, os.SEEK_SET)
+                    try:
+                        msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
+                    except OSError as error:
+                        result = True if error.errno == 13 else None
+                    else:
+                        locked, result = True, False
+            else:
+                import fcntl
+                try:
+                    fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    result = True
+                else:
+                    locked, result = True, False
+        except (OSError, InstallerError):
+            pass
+        finally:
+            if descriptor is not None:
+                try:
+                    if locked:
+                        if os.name == "nt":
+                            import msvcrt
+                            os.lseek(descriptor, 0, os.SEEK_SET)
+                            msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)
+                        else:
+                            import fcntl
+                            fcntl.flock(descriptor, fcntl.LOCK_UN)
+                except OSError:
+                    result = None
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    result = None
+        return result
+
     @contextmanager
     def connection(self, *, write=False):
         db = None
@@ -120,6 +170,36 @@ class PrerequisiteStore:
             row = db.execute("SELECT body FROM operations WHERE id=?", (operation_id,)).fetchone()
         return parse_json(row[0], error_code="INTEGRITY_FAILED") if row else None
 
+    def operations(self, identity, *, unfinished_only=True, limit=100, after_id=None):
+        """Filter immutable registration identity before keyset pagination."""
+        if (type(unfinished_only) is not bool or type(limit) is not int or not 1 <= limit <= 100
+                or (after_id is not None and not identifier(after_id))):
+            fail("INVALID_REQUEST", "prerequisite_operations_cursor")
+        query = ("SELECT body FROM operations WHERE id>?"
+                 " AND json_extract(body,'$.owner_id')=?"
+                 " AND json_extract(body,'$.product_id')=?"
+                 " AND json_extract(body,'$.target')=?"
+                 " AND json_extract(body,'$.catalog_digest')=?")
+        values = [after_id or "", identity["owner_id"], identity["product_id"],
+                  canonical(identity["target"]), identity["catalog_digest"]]
+        if unfinished_only:
+            query += " AND json_extract(body,'$.status') NOT IN ('READY','CANCELED')"
+        with self.connection() as db:
+            rows = db.execute(query + " ORDER BY id LIMIT ?", [*values, limit + 1]).fetchall()
+        operations = [parse_json(row[0], error_code="INTEGRITY_FAILED") for row in rows]
+        cursor = operations[limit - 1]["operation_id"] if len(operations) > limit else None
+        return operations[:limit], cursor
+
+    @staticmethod
+    def _settle_finished_cancel(operation):
+        """Close the last-cancel window after a background drive has ended."""
+        if (operation["cancel_requested"] and operation["status"] not in {"READY", "CANCELED"}
+                and operation.get("_dispatch", {}).get("state") in {"FINISHED", "FAILED", "SUPERSEDED"}):
+            uncertain = any(step["state"] in {"INSTALLING", "UNKNOWN"} for step in operation["steps"].values())
+            operation["ready"] = False
+            operation["status"] = "RECOVERY_REQUIRED" if uncertain else "CANCELED"
+            operation["required_action"] = "reconcile_installer" if uncertain else None
+
     def save(self, operation, message_code, *, create=False):
         operation = dict(operation)
         with self.connection(write=True) as db:
@@ -134,6 +214,7 @@ class PrerequisiteStore:
             # erase the request or reuse its event sequence.
             if previous:
                 operation["cancel_requested"] = operation["cancel_requested"] or previous["cancel_requested"]
+            self._settle_finished_cancel(operation)
             operation["revision"] = (previous["revision"] if previous else 0) + 1
             operation["updated_at"] = utcnow()
             event = {"type": "prerequisite_state", "phase": "prerequisites", "message_code": message_code,
@@ -173,12 +254,15 @@ class PrerequisiteStore:
                 return operation, None
             operation["cancel_requested"] = True
             operation["required_action"] = "wait_for_safe_boundary"
+            self._settle_finished_cancel(operation)
             operation["revision"] += 1
             operation["updated_at"] = utcnow()
             event = {"type": "prerequisite_state", "phase": "prerequisites", "message_code": "prerequisite_cancel_requested",
                      "status": operation["status"], "operation_id": operation_id,
                      "sequence": operation["revision"], "timestamp": operation["updated_at"]}
             db.execute("UPDATE operations SET body=? WHERE id=?", (canonical(operation), operation_id))
+            if operation["status"] == "CANCELED":
+                db.execute("DELETE FROM claim WHERE id=1 AND operation_id=?", (operation_id,))
             db.execute("INSERT INTO events VALUES (?,?,?)", (operation_id, operation["revision"], canonical(event)))
         return operation, event
 

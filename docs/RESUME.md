@@ -1,9 +1,9 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261025-010`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261025-011`; ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый local/GitHub до создания CP-20261025-010:
-`3571dd77dbc9f1adc805dd3a12e3efa915c7da7c` (CP-20261025-009).
+Последний подтверждённый local/GitHub до создания CP-20261025-011:
+`a2a4f37703c47b06b96369081f7a8268d1e7bbdd` (CP-20261025-010).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
@@ -72,13 +72,14 @@ CP-008 объединяет независимые source units в общем ro
 Изменения worktree уже включены в CP-008. Не cherry-pick их повторно вслепую;
 сначала проверить root tree/history. Главная очередь — канонический ToDo.
 
+
 ## Последний выполненный шаг
 
-CP-20261025-010: Добавлен InstallerAPI.from_bootstrap: общий существующий router настраивается через публичный SDK из доверенного bootstrap. CLI и scaffold используют ту же фабрику. Параметры доверия не принимаются из plan/HTTP options. Отдельный воспроизводимый harness собирает wheel и reference wheel офлайн, устанавливает SDK в новый venv вне checkout и проверяет настоящий native:user planning contract.
+CP-20261025-011: Добавлен явный background=True для prerequisite start/resume в общем SDK. Операция, план, согласия и claim сохраняются до ACK; свежая проверка плана выполняется перед первым эффектом и после обрыва. Status/list/cancel не ждут installer; повторный start не становится resume. Реальные process exits и гонки cancel/finish проверены; неизвестный эффект сохраняет RECOVERY_REQUIRED. Публичная фабрика принимает доверенный coordinator, list ограничен owner/product/target/catalog и не раскрывает private plan/receipts.
 
-CP-010: 63 целевых source tests PASS (1.69 s); отдельно установленный SDK/CLI PASS: 62 exact package files, 5 CLI commands, 4 SDK refusal cases, plan reload, 0 network/child-process attempts, нет product effects. Wheel SHA-256 46be06ff502e13975f49e8599283129af419959caf1d21b41f25532a3c737a28. Первые EPERM/test-harness FAIL сохранены в sdk-public-contract-20261025-cp010-attempts.json. Runtime fixture неисполняемый; reference wheel не исполнен; lifecycle/Windows/Docker/full G1 NOT RUN, НЕ ГОТОВО.
+Финальный source focused: 185 PASS (11.84 s), новые async cases: 17 PASS; независимый review: 7 race cases PASS; после интеграции root: 26 PASS (3.71 s). Новый installed SDK planning contract: 63 exact files/5 CLI calls PASS, wheel 931f6ec22a0550f5f5b8b6289dd3329adf1f959927f735d59996154c176c6535. Отдельный baseline CP-010 на Python 3.14.3: 1858 PASS/3 skips/10 subtests; 49 integration + 2 ранее пропущенных Linux cases = отдельный прогон 51 PASS/5 subtests. Windows case NOT RUN. Текущий новый full source/frozen/platform acceptance НЕ ГОТОВ; GUI browser BLOCKED (официальный endpoint вернул HTML), CI CP-010 без runner/steps. Exact scopes и предыдущие ошибки записаны в receipts.
 
-Следующий шаг: HIM-029/034/035: неблокирующий durable SDK запуска prerequisite operations с восстановлением, статусом и отменой; затем безопасный HTTP/CLI и GUI flow. G0–G5 остаются OPEN.
+Следующий шаг: HIM-029/035/062: безопасный HTTP и синхронный CLI transport для зарегистрированного coordinator; затем GUI auto/manual/terms/progress/recovery с новым product review после READY. Production registry и platform acceptance остаются открыты.
 
 ## Историческая проверка CP-008
 
@@ -108,7 +109,7 @@ late rollback и SIGKILL→new controller/browser→explicit resume. Стары�
 ## Следующие инженерные шаги
 
 1. Проверить текущий checkpoint по GitHub ref/tree и local receipt. После каждого следующего шага обновить canonical TODO/RESUME/реестр, сохранить и подтвердить GitHub до продолжения.
-2. Завершить prerequisites по цепочке: неблокирующий durable SDK → безопасный HTTP/CLI → GUI auto/manual/terms/progress/recovery. READY сбрасывает product review и требует fresh preflight; установка продукта сама не начинается. Production signed catalogue/pins/licences/host providers остаются отдельной работой.
+2. Завершить prerequisites по цепочке: безопасный HTTP/CLI поверх CP-011 → GUI auto/manual/terms/progress/recovery. READY сбрасывает product review и требует fresh preflight; установка продукта сама не начинается. Production signed catalogue/pins/licences/host providers остаются отдельной работой.
 3. Подключить подписанный ExecutableProductAdapter к NativeEngine: reviewed descriptor binding и fresh readiness observation, затем migration contract с настоящими backup receipts и fresh-empty precondition. Добавить независимый reference через публичный установленный пакет. Не заменять UNKNOWN автоматическим rollback.
 4. Docker: explicit abort/compensation interrupted install, trusted host attestation и image transport/import/offline bundle, update/restore/rollback/repair/reinstall. Live daemon в текущей среде BLOCKED.
 5. Windows native bootstrap и narrow elevation; Windows Docker/WSL2; systemd service integration с общим lock lease/execution ownership. Отсутствие runner не означает, что реализация закончена.

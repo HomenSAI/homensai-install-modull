@@ -348,3 +348,12 @@ CP-010: 63 целевых source tests PASS (1.69 s); отдельно уста�
 
 Предыдущий checkpoint CP-20261025-009 подтверждён: `3571dd77dbc9f1adc805dd3a12e3efa915c7da7c`.
 Текущий sync до проверки ref/tree — SYNC_PENDING. Следующий шаг: HIM-029/034/035: неблокирующий durable SDK запуска prerequisite operations с восстановлением, статусом и отменой; затем безопасный HTTP/CLI и GUI flow. G0–G5 остаются OPEN.
+
+## CP-20261025-011 — неблокирующий SDK зависимостей и восстановление очереди
+
+Добавлен явный background=True для prerequisite start/resume в общем SDK. Операция, план, согласия и claim сохраняются до ACK; свежая проверка плана выполняется перед первым эффектом и после обрыва. Status/list/cancel не ждут installer; повторный start не становится resume. Реальные process exits и гонки cancel/finish проверены; неизвестный эффект сохраняет RECOVERY_REQUIRED. Публичная фабрика принимает доверенный coordinator, list ограничен owner/product/target/catalog и не раскрывает private plan/receipts.
+
+Финальный source focused: 185 PASS (11.84 s), новые async cases: 17 PASS; независимый review: 7 race cases PASS; после интеграции root: 26 PASS (3.71 s). Новый installed SDK planning contract: 63 exact files/5 CLI calls PASS, wheel 931f6ec22a0550f5f5b8b6289dd3329adf1f959927f735d59996154c176c6535. Отдельный baseline CP-010 на Python 3.14.3: 1858 PASS/3 skips/10 subtests; 49 integration + 2 ранее пропущенных Linux cases = отдельный прогон 51 PASS/5 subtests. Windows case NOT RUN. Текущий новый full source/frozen/platform acceptance НЕ ГОТОВ; GUI browser BLOCKED (официальный endpoint вернул HTML), CI CP-010 без runner/steps. Exact scopes и предыдущие ошибки записаны в receipts.
+
+Предыдущий checkpoint CP-20261025-010 подтверждён: `a2a4f37703c47b06b96369081f7a8268d1e7bbdd`.
+Текущий sync до проверки ref/tree — SYNC_PENDING. Следующий шаг: HIM-029/035/062: безопасный HTTP и синхронный CLI transport для зарегистрированного coordinator; затем GUI auto/manual/terms/progress/recovery с новым product review после READY. Production registry и platform acceptance остаются открыты.

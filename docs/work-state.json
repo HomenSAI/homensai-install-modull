@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-010",
+  "checkpoint_id": "CP-20261025-011",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -89,10 +89,10 @@
     "cloud_git": "SYNC_PENDING",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261025-009",
+    "last_confirmed_checkpoint": "CP-20261025-010",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
-  "next_step": "HIM-029/034/035: неблокирующий durable SDK запуска prerequisite operations с восстановлением, статусом и отменой; затем безопасный HTTP/CLI и GUI flow. G0–G5 остаются OPEN.",
+  "next_step": "HIM-029/035/062: безопасный HTTP и синхронный CLI transport для зарегистрированного coordinator; затем GUI auto/manual/terms/progress/recovery с новым product review после READY. Production registry и platform acceptance остаются открыты.",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
@@ -100,7 +100,7 @@
     "linux_native": "PARTIAL: frozen x64 user-session lifecycle/updates/rollback/repair/crash-resume PASS in scoped receipts; OS service/reboot/full matrix open",
     "linux_docker": "NOT RUN/BLOCKED live daemon: source install/uninstall/start/stop/backup tested with modeled daemon; images/host attestation/full lifecycle remain open"
   },
-  "last_confirmed_github_sha": "3571dd77dbc9f1adc805dd3a12e3efa915c7da7c",
+  "last_confirmed_github_sha": "a2a4f37703c47b06b96369081f7a8268d1e7bbdd",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -116,7 +116,14 @@
     "packaging/acceptance-evidence/recovery-20261025-cp009.json",
     "packaging/acceptance-evidence/sdk-public-contract-20261025-cp010.json",
     "packaging/acceptance-evidence/sdk-public-contract-20261025-cp010-attempts.json",
-    "packaging/acceptance-evidence/source-20261025-cp010.json"
+    "packaging/acceptance-evidence/source-20261025-cp010.json",
+    "packaging/acceptance-evidence/source-20261025-cp011.json",
+    "packaging/acceptance-evidence/review-20261025-cp011.json",
+    "packaging/acceptance-evidence/sdk-public-contract-20261025-cp011.json",
+    "packaging/acceptance-evidence/source-baseline-cp010-python314.json",
+    "packaging/acceptance-evidence/runtime-download-20261025-cp011.json",
+    "packaging/acceptance-evidence/build-wheels-20261025-cp011.json",
+    "packaging/acceptance-evidence/environment-20261025-cp011.json"
   ],
   "environment": {
     "os": "linux",
@@ -141,23 +148,43 @@
     "integration_passed": 49,
     "integration_subtests": 5,
     "sdk_python_files": 44,
-    "sdk_resources": 18
+    "sdk_resources": 18,
+    "checkpoint_id": "CP-20261025-008",
+    "scope": "Исторический полный прогон; не PASS текущих изменённых bytes. Текущие проверки в latest_scoped_verification."
   },
   "verification_backlog": "docs/verification-status.json",
   "verification_instruction": "Обязательно выполнить NOT RUN/BLOCKED/FAIL при доступной среде; отсутствие harness явно NOT IMPLEMENTED. Непроверенное НЕ ГОТОВО.",
   "checkpoint_policy": "После каждого проверенного шага TODO+RESUME+код в одном checkpoint, GitHub ref/tree подтверждён до следующего шага.",
   "latest_scoped_verification": [
     {
-      "id": "CP010-public-bootstrap-source",
+      "id": "CP011-prerequisite-async-source",
       "status": "PASS",
-      "scope": "63 focused public bootstrap/API/scaffold/backend source tests; root bytes match verified 62-file SDK wheel inputs",
-      "receipt": "packaging/acceptance-evidence/source-20261025-cp010.json"
+      "scope": "185 focused source +17 async cases +independent7/root26 overlapping regressions; synthetic installers, actual threads/process exits",
+      "receipt": "packaging/acceptance-evidence/source-20261025-cp011.json"
     },
     {
-      "id": "CP010-installed-public-contract",
+      "id": "CP011-installed-sdk",
       "status": "PASS",
-      "scope": "External venv public SDK/CLI planning only; 62 files, 5 CLI calls; nonexecutable runtime fixture, no lifecycle acceptance",
-      "receipt": "packaging/acceptance-evidence/sdk-public-contract-20261025-cp010.json"
+      "scope": "63 exact package files and5CLI planning calls outsidecheckout; new async module shipped, no installed prerequisite lifecycle acceptance",
+      "receipt": "packaging/acceptance-evidence/sdk-public-contract-20261025-cp011.json"
+    },
+    {
+      "id": "CP010-full-baseline-py314",
+      "status": "PASS_WITH_EXPLICIT_SKIPS",
+      "scope": "Exact prior CP010:1858source/3skip/10subtests; separate51integration+realprocesscases/5subtests. Windows case NOT RUN. Not current CP011 full-suite evidence.",
+      "receipt": "packaging/acceptance-evidence/source-baseline-cp010-python314.json"
+    },
+    {
+      "id": "CP011-build-toolchain",
+      "status": "PASS",
+      "scope": "Pinned new DEV runtime archive hash and22wheel hashes; isolated14packageLinuxenv matches lock. No production approval.",
+      "receipt": "packaging/acceptance-evidence/environment-20261025-cp011.json"
+    },
+    {
+      "id": "CP011-browser-ci-environment",
+      "status": "BLOCKED",
+      "scope": "GUI browser NOT RUN: endpoint returns195byte HTML; CP010CI fourjobs no runner orsteps, testsNOT RUN",
+      "receipt": "packaging/acceptance-evidence/environment-20261025-cp011.json"
     }
   ]
 }

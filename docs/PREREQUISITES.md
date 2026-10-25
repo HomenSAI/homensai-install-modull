@@ -232,6 +232,83 @@ Cancel во время работы записывается транзакци�
 
 ## Проверка этого блока
 
+### Фоновый SDK и восстановление после обрыва
+
+`InstallerAPI.prerequisites_start(..., background=True)` и
+`prerequisites_resume(..., background=True)` явно включают фоновое выполнение
+того же coordinator. Синхронный режим остаётся по умолчанию; `recheck` также
+синхронен. `from_bootstrap(..., prerequisites=coordinator)` принимает только
+явно созданный доверенный coordinator. Ни HTTP-каталог, ни произвольная команда
+из запроса этим не разрешаются.
+
+Перед ACK транзакционно сохраняются операция, immutable plan/consents, active
+claim и очередь. Точная повторная проверка плана отложена в worker и отмечена
+в journal как незавершённая: она обязательна перед любым первым эффектом даже
+при восстановлении в новом процессе. ACK не означает READY. Snapshot включает
+`execution.mode/state/active`; `queued`/`running` означают продолжение polling,
+даже когда основной state ещё `AWAITING_USER`. Повторный `start` с тем же ID
+только читает запись и никогда не становится неявным `resume`.
+
+Registry ограничивает worker по canonical prerequisite directory, независимо
+от product `InstallerAPI.state_dir`. Межпроцессную защиту задают прежние OS lock
+и durable claim. Краткая проверка lock при чтении ничего не создаёт. Если lock
+доказанно свободен и локальной очереди нет, незавершённый dispatch проецируется
+в `RECOVERY_REQUIRED` с исходным `recorded_status`; SQLite не меняется. Если
+lock отсутствует/недоступен либо может принадлежать другому процессу,
+`execution.state="unknown", active=None` сохраняют неопределённость. Ни один из
+этих случаев не доказывает, что installer не выполнился. `INSTALLING`/`UNKNOWN`
+и receipts требуют прежнего reconciliation; чтение ничего не переисполняет.
+
+Ошибки создания потока и неожиданные исключения worker оставляют durable error
+без сырого текста исключения; резерв потока освобождается. Cancel не ждёт
+заблокированного discover/installer и сохраняет запрос отдельно. Уже запущенный
+installer заканчивает безопасную стадию; следующий dependency не запускается.
+Отмена на границе последнего dispatch commit также атомарно доводится до
+`CANCELED`, а неизвестный эффект сохраняет `RECOVERY_REQUIRED` и claim.
+
+`prerequisites_operations_list(unfinished_only=True, limit=100, after_id=None)`
+возвращает сводки и `next_cursor`; точные original owner, product, target и
+catalog digest проверяются до pagination (1–100). Нет plan, consents, local
+paths, events или receipts. SQLite JSON functions входят в проверенный Linux
+DEV runtime; совместимость других платформ должна подтверждаться отдельно.
+При другом каталоге старая активная операция скрыта этим точным фильтром,
+но продолжает удерживать claim: bootstrap восстанавливает прежние подписанные
+метаданные и owner, а не удаляет блокировку. Процесс хоста обязан оставаться
+живым; фоновый daemon thread не является OS service. После выхода нужно
+найти операцию через list/status и явно выбрать recheck/resume/cancel.
+
+Проверка CP011 на закреплённом DEV Python **3.14.3**:
+
+```text
+/workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -q -p no:cacheprovider tests/test_prerequisites_async.py
+```
+
+Результат 2026-10-25: **17 passed in 3.75s**. Проверены настоящие потоки,
+SQLite, барьеры в discover/installer и короткоживущие дочерние процессы,
+выходящие до `Thread.start` и после synthetic effect/сохранённого intent.
+Signed payload и installers остаются синтетическими. Дополнительно прежние
+`test_prerequisites_execution.py` + `test_prerequisites_api.py`: **38 passed
+in 6.12s**, тот же DEV Python. Это не production runtime/OS acceptance.
+
+Расширенный focused-прогон prerequisite suites, download/trust и публичного
+SDK/bootstrap/scaffold на том же DEV runtime: **185 passed in 11.84s**:
+
+```text
+/workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -q -p no:cacheprovider tests/test_prerequisites.py tests/test_prerequisites_execution.py tests/test_prerequisites_api.py tests/test_prerequisites_async.py tests/test_prerequisites_runner.py tests/test_downloads.py tests/test_trust.py tests/test_public_api.py tests/test_public_bootstrap.py tests/test_scaffold.py
+```
+
+Не выполненные проверки CP011 для следующего исполнителя:
+
+| Проверка | Состояние теста и ограничение |
+| --- | --- |
+| Windows threads/process locks/ACL с настоящим host coordinator | `NOT RUN / BLOCKED`: Windows runner отсутствует; отдельный acceptance harness CP011 не добавлен (`NOT IMPLEMENTED`) |
+| Настоящий OS installer и его дочерние процессы | `NOT RUN / BLOCKED`: доступны только synthetic installers; отдельный live acceptance harness CP011 не добавлен (`NOT IMPLEMENTED`) |
+| Power loss, filesystem/SQLite corruption во время dispatch | `NOT RUN`: отдельный fault-injection harness CP011 не реализован (`NOT IMPLEMENTED`); выход процесса в тесте не заменяет потерю питания |
+| Production signed catalog и реальные reboot/relogin | `NOT RUN / BLOCKED`: production pins/metadata и подходящая среда отсутствуют; отдельная приёмка CP011 не реализована (`NOT IMPLEMENTED`) |
+| Установленные HTTP/GUI/CLI с фоновыми prerequisites | `NOT RUN / NOT IMPLEMENTED`: transport и GUI flow не входят в этот checkpoint; последующий шаг должен добавить их и acceptance tests |
+
+Фоновый SDK не закрывает готовность GUI, production runtime или установку Docker.
+
 Focused-команда:
 
 ```text

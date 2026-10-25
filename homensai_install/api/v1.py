@@ -109,7 +109,7 @@ class InstallerAPI:
     def from_bootstrap(cls, state_dir: str | Path, *, trust_config: str | Path | None = None,
                        allow_development: bool = False, development_runtime: str | Path | None = None,
                        docker_cli_config: str | Path | None = None, secret_provider=None,
-                       locale: str = "ru") -> "InstallerAPI":
+                       locale: str = "ru", prerequisites=None) -> "InstallerAPI":
         """Создать общий router из доверенных локальных настроек bootstrap.
 
         Эти настройки задаёт приложение-хост, не manifest/options/HTTP body.
@@ -134,7 +134,7 @@ class InstallerAPI:
                                          docker_cli_config=docker_cli_config)
         except EngineError as error:
             raise InstallerError(error.code, details=error.details) from None
-        return cls(state_dir, engine=engine, locale=locale)
+        return cls(state_dir, engine=engine, locale=locale, prerequisites=prerequisites)
 
     def _engine(self):
         if self._engine_instance is None:
@@ -178,7 +178,8 @@ class InstallerAPI:
                          "registration": "explicit_bootstrap", "default": "native:user",
                          "selection": "reviewed_target", "implicit_fallback": False,
                          "availability": "capabilities_for_exact_target"},
-            "prerequisites": {"registration": "explicit_sdk", "execution": "synchronous",
+            "prerequisites": {"registration": "explicit_sdk", "execution": "synchronous_default_background_opt_in",
+                              "background_ack": "durable_queued_operation", "recovery_listing": True,
                               "automatic_default_factory": False, "gui_auto_flow": False,
                               "readiness": "source_contract", "production_ready": False},
             "operations": ["describe", "capabilities", "validate", "discover", "plan", "submit",
@@ -186,6 +187,7 @@ class InstallerAPI:
                            "diagnostics.get", "diagnostics.export", "statistics.query",
                            "prerequisites.capabilities", "prerequisites.identity", "prerequisites.license",
                            "prerequisites.plan", "prerequisites.start", "prerequisites.status",
+                           "prerequisites.operations.list",
                            "prerequisites.events", "prerequisites.attempts", "prerequisites.recheck",
                            "prerequisites.resume", "prerequisites.cancel", "prerequisites.choose_boundary",
                            "prerequisites.replace_plan"],
@@ -207,9 +209,9 @@ class InstallerAPI:
     def _prerequisite_call(self, method, *args, **kwargs):
         """Transport facade only: the registered coordinator owns every effect.
 
-        These synchronous SDK calls do not launch an additional worker or claim
-        product installation success. GUI bootstrap must supply its own reviewed
-        catalogue and nonblocking host integration before exposing an auto flow.
+        Background start/resume is explicitly opted in. A prerequisite READY
+        never claims product installation success. GUI bootstrap must supply its
+        own reviewed catalogue and transport before exposing an automatic flow.
         """
         if self._prerequisite_instance is None:
             fail("CAPABILITY_UNSUPPORTED", details={"reason": "prerequisites_not_configured"})
@@ -253,12 +255,19 @@ class InstallerAPI:
         return self._prerequisite_call("plan", bounded_json(choices), locale=self.locale if locale is None else locale,
                                        offline=offline, local_artifacts=bounded_json(local_artifacts))
 
-    def prerequisites_start(self, operation_id: str, plan: dict, consent_refs=()) -> dict:
-        return self._prerequisite_call("start", checked_id(operation_id), bounded_json(plan),
+    def prerequisites_start(self, operation_id: str, plan: dict, consent_refs=(), *, background: bool = False) -> dict:
+        if type(background) is not bool:
+            fail("INVALID_REQUEST")
+        return self._prerequisite_call("start_background" if background else "start", checked_id(operation_id), bounded_json(plan),
                                        consents=self._prerequisite_consents(consent_refs))
 
     def prerequisites_status(self, operation_id: str) -> dict:
         return self._prerequisite_call("status", checked_id(operation_id))
+
+    def prerequisites_operations_list(self, *, unfinished_only: bool = True, limit: int = 100,
+                                      after_id: str | None = None) -> dict:
+        return self._prerequisite_call("operations_list", unfinished_only=unfinished_only, limit=limit,
+                                       after_id=checked_id(after_id) if after_id is not None else None)
 
     def prerequisites_events(self, operation_id: str, *, after_sequence: int = 0, limit: int = 100) -> dict:
         events = self._prerequisite_call("events", checked_id(operation_id), after=after_sequence, limit=limit)
@@ -271,9 +280,11 @@ class InstallerAPI:
     def prerequisites_recheck(self, operation_id: str) -> dict:
         return self._prerequisite_call("recheck", checked_id(operation_id))
 
-    def prerequisites_resume(self, operation_id: str, consent_refs=None) -> dict:
+    def prerequisites_resume(self, operation_id: str, consent_refs=None, *, background: bool = False) -> dict:
+        if type(background) is not bool:
+            fail("INVALID_REQUEST")
         consents = self._prerequisite_consents(consent_refs) if consent_refs is not None else None
-        return self._prerequisite_call("resume", checked_id(operation_id), consents=consents)
+        return self._prerequisite_call("resume_background" if background else "resume", checked_id(operation_id), consents=consents)
 
     def prerequisites_cancel(self, operation_id: str) -> dict:
         return self._prerequisite_call("cancel", checked_id(operation_id))

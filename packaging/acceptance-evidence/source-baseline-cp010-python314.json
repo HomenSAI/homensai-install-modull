@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "recorded_in_checkpoint": "CP-20261025-011",
+  "source_checkpoint": "CP-20261025-010",
+  "source_sha": "a2a4f37703c47b06b96369081f7a8268d1e7bbdd",
+  "production_ready": false,
+  "environment": {
+    "python": "3.14.3",
+    "build_lock": "requirements-build.lock",
+    "build_env": "/workspace/scratch/1c36bef26117/dev-build-inputs/build-env",
+    "network": "Source tests forbid network; integration uses only synthetic loopback/private D-Bus"
+  },
+  "source": {
+    "status": "PASS_WITH_EXPLICIT_SKIPS",
+    "command": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -q -p no:cacheprovider tests",
+    "passed": 1858,
+    "skipped": 3,
+    "subtests_passed": 10,
+    "duration_seconds": 70.91
+  },
+  "skip_audit": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -q -rs -p no:cacheprovider tests/test_service_systemd.py tests/test_datahome.py",
+    "passed": 37,
+    "skipped": 3,
+    "duration_seconds": 0.64,
+    "cases": [
+      {
+        "id": "tests/test_datahome.py::test_foreign_posix_path_on_windows",
+        "status": "NOT RUN",
+        "reason": "Windows required; not applicable to Linux pass count but Windows acceptance remains open"
+      },
+      {
+        "id": "tests/test_service_systemd.py::test_kernel_process_identity_is_verified_against_real_child",
+        "initial": "SKIPPED: PID/proc namespace mismatch",
+        "subsequent": "PASS in scoped approved matched namespace run below"
+      },
+      {
+        "id": "tests/test_service_systemd.py::test_real_busctl_property_and_method_have_distinct_json_shapes",
+        "initial": "SKIPPED: namespace/environment guard",
+        "subsequent": "PASS with isolated private bus below"
+      }
+    ]
+  },
+  "integration": {
+    "status": "PASS",
+    "command": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -q -rs -p no:cacheprovider integration_tests tests/test_service_systemd.py::test_kernel_process_identity_is_verified_against_real_child tests/test_service_systemd.py::test_real_busctl_property_and_method_have_distinct_json_shapes",
+    "precondition": "assert Path('/proc/self').resolve().name == str(os.getpid()) before subprocess launch",
+    "execution": "Approved local synthetic processes; real loopback and private D-Bus; no user/system manager",
+    "passed": 51,
+    "integration_cases": 49,
+    "previously_skipped_cases": 2,
+    "subtests_passed": 5,
+    "duration_seconds": 42.52
+  },
+  "not_run": [
+    "Windows-specific path test and all actual Windows acceptance",
+    "GUI browser acceptance (browser official endpoint unavailable)",
+    "live Docker/systemd manager/reboot",
+    "new frozen artifact",
+    "full product/platform/language matrix",
+    "production approval"
+  ],
+  "note": "This baseline is exact CP010 before async changes. It must not be relabeled as full CP011 or later test evidence."
+}

@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "source_checkpoint": "CP-20261025-010",
+  "source_sha": "a2a4f37703c47b06b96369081f7a8268d1e7bbdd",
+  "production_ready": false,
+  "build_environment": {
+    "status": "PASS",
+    "python": "3.14.3",
+    "installed_packages": 14,
+    "pinned_packages": 17,
+    "wheel_files": 22,
+    "command": "/workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python tools/check_build_lock.py --installed --wheel-dir /workspace/scratch/1c36bef26117/dev-build-inputs/wheels",
+    "pip_check": "No broken requirements found",
+    "runtime_receipt": "runtime-download-20261025-cp011.json",
+    "wheel_receipt": "build-wheels-20261025-cp011.json",
+    "production_runtime_security_approval": "NOT DONE"
+  },
+  "browser_setup": {
+    "status": "BLOCKED",
+    "tests": "NOT RUN",
+    "playwright": "1.62.1",
+    "requested_browser": "Chromium Headless Shell 151.0.7922.34 (build 1234)",
+    "source_url": "https://cdn.playwright.dev/builds/cft/151.0.7922.34/linux64/chrome-headless-shell-linux64.zip",
+    "installer_exit": 1,
+    "observed_response": {
+      "http_status": 200,
+      "content_type": "text/html",
+      "bytes": 195,
+      "sha256": "5b131ca14aa96311d3432b0062c7443d3b0e6346ec279bd376a75f0a76bcd5d7",
+      "is_zip": false,
+      "body_title": "Site Unavailable"
+    },
+    "next_action": "Получить совместимый browser из доступного официального источника/runner и исполнить GUI tests; не считать HTTP 200 успешным скачиванием."
+  },
+  "ci": {
+    "status": "BLOCKED",
+    "tests": "NOT RUN",
+    "runs": [
+      40191812025,
+      40191808548
+    ],
+    "jobs": [
+      {
+        "id": 121164198646,
+        "run_id": 40191812025,
+        "name": "Windows portable source subset (no service installation)",
+        "status": "completed",
+        "conclusion": "failure",
+        "runner_id": 0,
+        "steps": []
+      },
+      {
+        "id": 121164198852,
+        "run_id": 40191812025,
+        "name": "Linux source and user-process integration (no installer acceptance)",
+        "status": "completed",
+        "conclusion": "failure",
+        "runner_id": 0,
+        "steps": []
+      },
+      {
+        "id": 121164187742,
+        "run_id": 40191808548,
+        "name": "Windows portable source subset (no service installation)",
+        "status": "completed",
+        "conclusion": "failure",
+        "runner_id": 0,
+        "steps": []
+      },
+      {
+        "id": 121164187929,
+        "run_id": 40191808548,
+        "name": "Linux source and user-process integration (no installer acceptance)",
+        "status": "completed",
+        "conclusion": "failure",
+        "runner_id": 0,
+        "steps": []
+      }
+    ],
+    "reason": "All four jobs runner_id=0 and steps=[]; exact service cause unavailable"
+  },
+  "recorded_at_utc": "2026-10-25T12:27:35.710185+00:00",
+  "observation_window_utc": [
+    "2026-10-25T12:08:00Z",
+    "2026-10-25T12:14:00Z"
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-010",
+  "checkpoint_id": "CP-20261025-011",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
@@ -151,6 +151,36 @@
       "status": "PASS",
       "scope": "External venv public SDK/CLI planning only; 62 files, 5 CLI calls; nonexecutable runtime fixture, no lifecycle acceptance",
       "receipt": "packaging/acceptance-evidence/sdk-public-contract-20261025-cp010.json"
+    },
+    {
+      "id": "CP011-prerequisite-async-source",
+      "status": "PASS",
+      "scope": "185 focused source +17 async cases +independent7/root26 overlapping regressions; synthetic installers, actual threads/process exits",
+      "receipt": "packaging/acceptance-evidence/source-20261025-cp011.json"
+    },
+    {
+      "id": "CP011-installed-sdk",
+      "status": "PASS",
+      "scope": "63 exact package files and5CLI planning calls outsidecheckout; new async module shipped, no installed prerequisite lifecycle acceptance",
+      "receipt": "packaging/acceptance-evidence/sdk-public-contract-20261025-cp011.json"
+    },
+    {
+      "id": "CP010-full-baseline-py314",
+      "status": "PASS_WITH_EXPLICIT_SKIPS",
+      "scope": "Exact prior CP010:1858source/3skip/10subtests; separate51integration+realprocesscases/5subtests. Windows case NOT RUN. Not current CP011 full-suite evidence.",
+      "receipt": "packaging/acceptance-evidence/source-baseline-cp010-python314.json"
+    },
+    {
+      "id": "CP011-build-toolchain",
+      "status": "PASS",
+      "scope": "Pinned new DEV runtime archive hash and22wheel hashes; isolated14packageLinuxenv matches lock. No production approval.",
+      "receipt": "packaging/acceptance-evidence/environment-20261025-cp011.json"
+    },
+    {
+      "id": "CP011-browser-ci-environment",
+      "status": "BLOCKED",
+      "scope": "GUI browser NOT RUN: endpoint returns195byte HTML; CP010CI fourjobs no runner orsteps, testsNOT RUN",
+      "receipt": "packaging/acceptance-evidence/environment-20261025-cp011.json"
     }
   ],
   "historical_evidence": [
@@ -172,6 +202,20 @@
       "scope": "runs 40188356899/40188360805: 4 jobs, runner_id=0, steps=[]; тесты НЕ ЗАПУСКАЛИСЬ",
       "source": "packaging/acceptance-evidence/recovery-20261025-cp009.json",
       "next_action": "Восстановить доступный runner и получить реальный run; не считать pipeline failure выполненным тестом."
+    },
+    {
+      "id": "cp010-ci",
+      "status": "BLOCKED",
+      "scope": "runs40191812025/40191808548:4jobs runner_id=0,steps=[]; testsNOT RUN",
+      "source": "packaging/acceptance-evidence/environment-20261025-cp011.json",
+      "next_action": "Получить реальный runner; точная причина недоступна, не менять billing по догадке."
+    },
+    {
+      "id": "cp011-browser-unavailable",
+      "status": "BLOCKED",
+      "scope": "Playwright1.62.1 Chromium download returned HTTP200 text/html195bytes, notZIP; GUI testsNOT RUN",
+      "source": "packaging/acceptance-evidence/environment-20261025-cp011.json",
+      "next_action": "Подготовить совместимый browser из доступного официального источника/runner и выполнить новые GUI tests; прежний frozen PASS не переносить."
     }
   ],
   "scenarios": [
@@ -182,11 +226,20 @@
       "ready": false,
       "test_code": "PARTIAL",
       "existing_partial_harnesses": [
-        "packaging/check_reference_gui.cjs"
+        "packaging/check_reference_gui.cjs",
+        "tests/test_prerequisites_async.py"
       ],
       "next_executor_action": "Собрать актуальные DEV artifacts; чистые desktop ОС без developer tools; выбрать auto/manual, проверить обязательные зависимости и результат установки. Production prerequisite registry и Windows bootstrap ещё требуют реализации.",
-      "current_artifact_evidence": [],
-      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+      "current_artifact_evidence": [
+        "packaging/acceptance-evidence/source-20261025-cp011.json",
+        "packaging/acceptance-evidence/review-20261025-cp011.json",
+        "packaging/acceptance-evidence/sdk-public-contract-20261025-cp011.json",
+        "packaging/acceptance-evidence/source-baseline-cp010-python314.json",
+        "packaging/acceptance-evidence/runtime-download-20261025-cp011.json",
+        "packaging/acceptance-evidence/build-wheels-20261025-cp011.json",
+        "packaging/acceptance-evidence/environment-20261025-cp011.json"
+      ],
+      "note": "Полный сценарий НЕ ГОТОВ. Последние частичные проверки: CP-20261025-011; области и непроверенное указаны в receipts. Выполнить оставшуюся приёмку."
     },
     {
       "scenario_id": "ACC-02",
@@ -273,11 +326,20 @@
       "test_code": "PARTIAL",
       "existing_partial_harnesses": [
         "tests/test_prerequisites_execution.py",
-        "tests/test_wizard_capabilities.py"
+        "tests/test_wizard_capabilities.py",
+        "tests/test_prerequisites_async.py"
       ],
       "next_executor_action": "Настоящие reboot/relogin, GUI close/reopen/refresh; сохранение operation identity, новый preflight, отсутствие ложного 100%. OS runners отсутствуют; не имитировать reboot сменой PID.",
-      "current_artifact_evidence": [],
-      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+      "current_artifact_evidence": [
+        "packaging/acceptance-evidence/source-20261025-cp011.json",
+        "packaging/acceptance-evidence/review-20261025-cp011.json",
+        "packaging/acceptance-evidence/sdk-public-contract-20261025-cp011.json",
+        "packaging/acceptance-evidence/source-baseline-cp010-python314.json",
+        "packaging/acceptance-evidence/runtime-download-20261025-cp011.json",
+        "packaging/acceptance-evidence/build-wheels-20261025-cp011.json",
+        "packaging/acceptance-evidence/environment-20261025-cp011.json"
+      ],
+      "note": "Полный сценарий НЕ ГОТОВ. Последние частичные проверки: CP-20261025-011; области и непроверенное указаны в receipts. Выполнить оставшуюся приёмку."
     },
     {
       "scenario_id": "ACC-09",
@@ -381,15 +443,23 @@
         "tests/test_public_api.py",
         "tests/test_backends.py",
         "packaging/check_installed_sdk.py",
-        "packaging/installed_sdk_client.py"
+        "packaging/installed_sdk_client.py",
+        "tests/test_prerequisites_async.py"
       ],
       "next_executor_action": "Установить wheel вне checkout; пройти публичные SDK/CLI/HTTP/openapi сценарии dry-run/unsupported/PLAN_STALE/idempotency/events; отдельно полный установленный lifecycle.",
       "current_artifact_evidence": [
         "packaging/acceptance-evidence/sdk-public-contract-20261025-cp010.json",
         "packaging/acceptance-evidence/sdk-public-contract-20261025-cp010-attempts.json",
-        "packaging/acceptance-evidence/source-20261025-cp010.json"
+        "packaging/acceptance-evidence/source-20261025-cp010.json",
+        "packaging/acceptance-evidence/source-20261025-cp011.json",
+        "packaging/acceptance-evidence/review-20261025-cp011.json",
+        "packaging/acceptance-evidence/sdk-public-contract-20261025-cp011.json",
+        "packaging/acceptance-evidence/source-baseline-cp010-python314.json",
+        "packaging/acceptance-evidence/runtime-download-20261025-cp011.json",
+        "packaging/acceptance-evidence/build-wheels-20261025-cp011.json",
+        "packaging/acceptance-evidence/environment-20261025-cp011.json"
       ],
-      "note": "Полный сценарий НЕ ГОТОВ. Последние частичные проверки: CP-20261025-010; области и непроверенное указаны в receipts. Выполнить оставшуюся приёмку."
+      "note": "Полный сценарий НЕ ГОТОВ. Последние частичные проверки: CP-20261025-011; области и непроверенное указаны в receipts. Выполнить оставшуюся приёмку."
     },
     {
       "scenario_id": "ACC-17",

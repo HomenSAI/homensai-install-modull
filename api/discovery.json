@@ -38,6 +38,7 @@
     "prerequisites.plan",
     "prerequisites.start",
     "prerequisites.status",
+    "prerequisites.operations.list",
     "prerequisites.events",
     "prerequisites.attempts",
     "prerequisites.recheck",
@@ -93,10 +94,12 @@
   },
   "prerequisites": {
     "registration": "explicit_sdk",
-    "execution": "synchronous",
+    "execution": "synchronous_default_background_opt_in",
     "automatic_default_factory": false,
     "gui_auto_flow": false,
     "readiness": "source_contract",
-    "production_ready": false
+    "production_ready": false,
+    "background_ack": "durable_queued_operation",
+    "recovery_listing": true
   }
 }

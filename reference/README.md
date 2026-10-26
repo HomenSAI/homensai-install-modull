@@ -24,3 +24,31 @@ marker и не является коммерческим production release.
 EULA в `legal/` — согласованные черновики ru/en/de для reference-проверок.
 Выпуск реального продукта блокируется до определения издателя, product license,
 юрисдикции, обязательств поддержки и юридического утверждения текстов.
+
+`homensai_reference.adapter` — исполняемый JSON ProductAdapter протокола 1.0.
+Первый принятый набор — `describe`, `readiness`, `quiesce`, `operation_status`.
+Readiness читает настоящий loopback HTTP и сохраняет наблюдённую identity;
+quiesce проверяет SQLite и фиксирует durable application receipt. Reference
+server имеет только читающие endpoints и не запускает фоновых писателей.
+Порт берётся из подписанного `adapter-config.json` текущего release.
+
+Независимый проверочный профиль:
+
+```text
+python packaging/check_installed_product_adapter.py --work-dir /tmp/new-maintenance-check --receipt /tmp/new-maintenance-receipt.json --wheelhouse /opt/wheelhouse
+```
+
+Нужны Linux x64, подготовленный build environment Python 3.14 и wheels из
+`requirements-build.lock`. Harness собирает новые SDK/reference wheels,
+устанавливает их вне checkout, использует отдельные процессы клиентов и
+проверяет настоящий start/stop/full encrypted backup с восстановлением в
+пустую candidate-папку. Обычные клиенты не могут читать checkout, обращаться
+к внешней сети или запускать executable вне собственного installed release.
+
+Первоначальная установка этого maintenance-профиля выполняется существующим
+legacy NativeEngine. Она не доказывает ProductAdapter fresh/update. Product
+venv содержит подписанный скопированный ELF, но использует stdlib, libpython
+и OS libraries DEV-контейнера; это не standalone payload и не приёмка чистой
+Ubuntu/Windows. Production signing, runtime/license closure, GUI и все G0–G5
+этой проверкой не закрываются. Каждая попытка получает новый work-dir и receipt;
+ранний FAIL сохраняется через `--previous-receipt`.

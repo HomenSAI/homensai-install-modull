@@ -79,3 +79,13 @@ nonzero до эффекта либо после business COMMIT. Во второ
 её снова. Начальная v1 здесь — явный legacy product fixture; trusted authorizer
 является синтетическим exact-request oracle. Этот результат нельзя использовать
 как доказательство реального backup proof или общего engine fresh/update.
+
+`packaging/check_installed_reference_lifecycle.py --profile preparation`
+проверяет public `InstallerAPI.prepare_migration` из SDK заданного Git SHA:
+fresh reservation с пустыми product roots; наблюдение upgrade 1→2 после явно
+названного legacy bootstrap; отказ на caller review ID, данных после fresh
+review и неизвестной непустой папке. Если install capability=false, preparation
+не превращает её в true. Профиль `fresh` требует отдельного SDK с принятым
+engine fresh path и публичным factory opt-in; до собственного PASS receipt
+он считается NOT RUN. Harness экспортирует reports/wheels рядом с receipt до
+завершения, поэтому Docker runner можно безопасно запускать с `--rm`.

@@ -70,7 +70,16 @@ SYNC_CONFLICT / SYNC_BLOCKED.
 Не создавай рекурсивные служебные commits ради записи SHA самого commit.
 
 ========================================================================
-НАЧАЛЬНАЯ ПАНЕЛЬ СОСТОЯНИЯ
+АКТУАЛЬНОЕ ПРОДОЛЖЕНИЕ CP-20261026-001 / HIM-009
+26.10.2026: Подготовлен план SOL 6.1 High на 12 часов: основной агент и два помощника, migration/backup/fresh-empty и independent installed reference в приоритете; добавлены project config, AGENTS и fresh-clone recipe. Runtime не изменён; production_ready=false, G0–G5 OPEN. Старое одноразовое shutdown-задание не действует. 12-часовая реализация ещё не запускалась.
+GitHub baseline CP023 подтверждён: c6aff96b9f4359097ba8cb17d44fe429d8e2dfec.
+Материалы: docs/START_HERE_RU.md, docs/SOL61_12H_PLAN_RU.md,
+SOL61_12H_START_PROMPT_RU.txt. Local/GitHub нового CP: SYNC_PENDING до receipt;
+отдельный Docker Git: SYNC_BLOCKED. Состав 106 задач и критерии не изменены.
+Текущая сводка по CP023: 8 DONE / 64 IN_PROGRESS / 3 BLOCKED / 31 TODO.
+Следующий инженерный шаг — migration/backup/fresh-empty и installed reference.
+
+ИСТОРИЧЕСКАЯ НАЧАЛЬНАЯ ПАНЕЛЬ СОСТОЯНИЯ
 ========================================================================
 
 Всего задач: 106. DONE: 8; IN_PROGRESS: 63; BLOCKED: 4; TODO: 31. Разработка продолжается; IN_PROGRESS не означает готовый выпуск.

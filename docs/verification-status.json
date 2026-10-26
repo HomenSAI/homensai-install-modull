@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-023",
+  "checkpoint_id": "CP-20261026-001",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
@@ -877,5 +877,13 @@
     "tested_head_checkpoint": "CP-20261025-022",
     "status": "PASS_SCOPED",
     "receipt": "packaging/acceptance-evidence/github-ci-20261025-cp022-final.json"
+  },
+  "cp20261026_001_plan": {
+    "status": "DOCUMENTATION_AND_CONFIG_ONLY",
+    "runtime_changed": false,
+    "full_runtime_suite": "NOT RUN: runtime unchanged",
+    "plan": "docs/SOL61_12H_PLAN_RU.md",
+    "receipt": "packaging/acceptance-evidence/handoff-20261026-cp001.json",
+    "production_ready": false
   }
 }

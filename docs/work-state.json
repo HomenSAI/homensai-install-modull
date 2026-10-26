@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261025-023",
+  "checkpoint_id": "CP-20261026-001",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -89,7 +89,7 @@
     "cloud_git": "NOT_APPLICABLE: работа ведётся в Windows workspace",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261025-022",
+    "last_confirmed_checkpoint": "CP-20261025-023",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
   "next_step": "Реализовать migration_plan/apply с настоящими backup receipts и fresh-empty, затем независимый installed reference artifact и полный lifecycle; выполнить оставшуюся реальную четырёхплатформенную приёмку.",
@@ -100,7 +100,7 @@
     "linux_native": "PARTIAL: frozen x64 user-session lifecycle/updates/rollback/repair/crash-resume PASS in scoped receipts; OS service/reboot/full matrix open",
     "linux_docker": "NOT RUN: daemon доступен; browser/source в DEV контейнере не являются product Docker backend acceptance"
   },
-  "last_confirmed_github_sha": "a6ffdb73ef2af916f36a3b733fa093ce9c704ed5",
+  "last_confirmed_github_sha": "c6aff96b9f4359097ba8cb17d44fe429d8e2dfec",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -224,19 +224,22 @@
     }
   ],
   "source_code_checkpoint": "CP-20261025-021",
-  "handoff_note": "CP-20261025-023 — окончательный статус по просьбе владельца, без новых задач. Все68 package files неизменны относительно проверенного CP021. Локальные результаты:2363PASS/3skip/15subtests; installed SDK/CLI и prerequisites PASS; Chromium24PASS ru/en/de; Windows492+57PASS/4POSIXskip. Последний код CP021 и документация CP022 подтверждены на GitHub. CP022 GitHub Actions push/PR завершились success: Linux2261source+102integration PASS,3skip,15subtests; Windows549PASS/4skip. Собственных процессов, активных контейнеров и слушающих TCP портов проекта не обнаружено; рабочая папка была чистой. Соседняя сессия остановлена по подтверждению владельца. После успешного сохранения и независимой проверки remote отправить ровно одну команду shutdown.exe /s /f /t30; результат хранить локальной квитанцией .git/hinstall-checkpoints/shutdown-20261025.json, не повторять автоматически. Этот doc-only checkpoint использует [skip ci] по указанию не запускать новые задачи. Production_ready=false, всеG0–G5OPEN; Docker Git BLOCKED до URL и авторизации. Следующая разработка: migration/backup-receipt/fresh-empty contract и independent installed reference lifecycle; возобновлять только по новому указанию владельца.",
+  "handoff_note": "Подготовлен план SOL 6.1 High на 12 часов: основной агент и два помощника, migration/backup/fresh-empty и independent installed reference в приоритете; добавлены project config, AGENTS и fresh-clone recipe. Runtime не изменён; production_ready=false, G0–G5 OPEN. Старое одноразовое shutdown-задание не действует. 12-часовая реализация ещё не запускалась.",
   "shutdown": {
-    "authorized": true,
-    "neighbor_stopped_confirmed_by_user": true,
-    "state": "PENDING_SINGLE_COMMAND_AFTER_VERIFIED_SAVE",
-    "command": [
-      "shutdown.exe",
-      "/s",
-      "/f",
-      "/t",
-      "30"
-    ],
-    "local_receipt": ".git/hinstall-checkpoints/shutdown-20261025.json",
+    "authorized": false,
+    "state": "HISTORICAL_REQUEST_NOT_APPLICABLE",
     "automatic_retry": false
+  },
+  "execution_plan": {
+    "path": "docs/SOL61_12H_PLAN_RU.md",
+    "prompt": "SOL61_12H_START_PROMPT_RU.txt",
+    "bootstrap": "docs/START_HERE_RU.md",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "total_agents": 3,
+    "window_hours": 12,
+    "status": "PREPARED_NOT_STARTED",
+    "started_at_utc": null,
+    "deadline_utc": null
   }
 }

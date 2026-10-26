@@ -1,11 +1,21 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261025-023` (итоговый статус); код `CP-20261025-021`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261026-001` (план и перенос); код `CP-20261025-021`; ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый local/GitHub до создания CP-20261025-023:
-`a6ffdb73ef2af916f36a3b733fa093ce9c704ed5` (CP-20261025-022).
+Последний подтверждённый local/GitHub до создания CP-20261026-001:
+`c6aff96b9f4359097ba8cb17d44fe429d8e2dfec` (CP-20261025-023).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
+
+## Новый запуск CP-20261026-001
+
+Подготовлен план SOL 6.1 High на 12 часов: основной агент и два помощника, migration/backup/fresh-empty и independent installed reference в приоритете; добавлены project config, AGENTS и fresh-clone recipe. Runtime не изменён; production_ready=false, G0–G5 OPEN. Старое одноразовое shutdown-задание не действует. 12-часовая реализация ещё не запускалась.
+
+Вход: [START_HERE_RU](START_HERE_RU.md), [12-часовой план](SOL61_12H_PLAN_RU.md),
+`SOL61_12H_START_PROMPT_RU.txt`. GitHub CP023 независимо подтверждён 26.10.2026:
+`c6aff96b9f4359097ba8cb17d44fe429d8e2dfec`. Новый checkpoint SYNC_PENDING до внешней квитанции.
+Все дальнейшие разделы CP023 и раньше — исторические. Указания выключить компьютер,
+остановить соседнюю сессию и не начинать новые задачи НЕ ПОВТОРЯТЬ.
 
 ## Восстановление контекста
 

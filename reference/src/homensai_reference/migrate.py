@@ -16,6 +16,7 @@ SEED_TEXT = "HomenSAI reference data — сохраняется после уд�
 BASE_COLUMNS = {"id", "text"}
 V2_COLUMNS = {"normalized_text", "text_length", "category"}
 V3_COLUMNS = {"content_sha256", "is_archived"}
+EFFECT_TABLE = "product_adapter_effects"
 
 
 def validate_schema(db: sqlite3.Connection, version: int) -> None:
@@ -69,7 +70,49 @@ def _v3(db):
                            ((note_id, term) for term in sorted(set(normalized.split()))))
 
 
-def migrate(data_home: str | Path, config_home: str | Path | None = None, *, profile: dict | None = None) -> dict:
+def _apply_schema(db, selected):
+    """Вызывающий код держит SQLite transaction; helper не выполняет COMMIT."""
+    target = selected["database_schema"]
+    current = db.execute("PRAGMA user_version").fetchone()[0]
+    if current > target:
+        raise ReferenceProductError("REFERENCE_DOWNGRADE_REQUIRES_SNAPSHOT_RESTORE")
+    if current not in {0, 1, 2, 3}:
+        raise ReferenceProductError("REFERENCE_DATABASE_SCHEMA_UNSUPPORTED")
+    if current:
+        validate_schema(db, current)
+    elif db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetchone():
+        raise ReferenceProductError("REFERENCE_DATABASE_STATE_UNRECOGNIZED")
+    db.execute("CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY, name TEXT NOT NULL)")
+    if current:
+        db.execute("INSERT OR IGNORE INTO schema_migrations(version,name) VALUES(?,?)", (current, "observed_existing_schema"))
+    steps = []
+    for version in range(current + 1, target + 1):
+        {1: _v1, 2: _v2, 3: _v3}[version](db)
+        db.execute("INSERT INTO schema_migrations(version,name) VALUES(?,?)",
+                   (version, {1: "create_notes", 2: "normalize_notes", 3: "hash_and_search_terms"}[version]))
+        db.execute("PRAGMA user_version=" + str(version))
+        steps.append(version)
+    validate_schema(db, target)
+    if selected["migration_failure"]:
+        raise ReferenceProductError("REFERENCE_MIGRATION_FAILURE_REQUESTED")
+    return steps
+
+
+def _effect_result(db, effect):
+    exists = db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (EFFECT_TABLE,)).fetchone()
+    if not exists:
+        return None
+    row = db.execute("SELECT request_digest,identity_sha256,result FROM product_adapter_effects WHERE effect_key=?",
+                     (effect["effect_key"],)).fetchone()
+    if row is None:
+        return None
+    if row[:2] != (effect["request_digest"], effect["identity_sha256"]):
+        raise ReferenceProductError("REFERENCE_ADAPTER_EFFECT_CONFLICT")
+    return json.loads(row[2])
+
+
+def migrate(data_home: str | Path, config_home: str | Path | None = None, *, profile: dict | None = None,
+            _effect: dict | None = None) -> dict:
     selected = load_profile() if profile is None else validate_profile(profile)
     home = safe_path(data_home)
     home.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -90,29 +133,12 @@ def migrate(data_home: str | Path, config_home: str | Path | None = None, *, pro
         db.execute("PRAGMA synchronous=FULL")
         db.execute("BEGIN IMMEDIATE")
         try:
-            current = db.execute("PRAGMA user_version").fetchone()[0]
-            if current > target:
-                raise ReferenceProductError("REFERENCE_DOWNGRADE_REQUIRES_SNAPSHOT_RESTORE")
-            if current not in {0, 1, 2, 3}:
-                raise ReferenceProductError("REFERENCE_DATABASE_SCHEMA_UNSUPPORTED")
-            if current:
-                validate_schema(db, current)
-            elif db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetchone():
-                raise ReferenceProductError("REFERENCE_DATABASE_STATE_UNRECOGNIZED")
-            db.execute("CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY, name TEXT NOT NULL)")
-            # У legacy v1 могло не быть таблицы markers. Это marker схемы, не выдуманная audit timestamp.
-            if current:
-                db.execute("INSERT OR IGNORE INTO schema_migrations(version,name) VALUES(?,?)", (current, "observed_existing_schema"))
-            steps = []
-            for version in range(current + 1, target + 1):
-                {1: _v1, 2: _v2, 3: _v3}[version](db)
-                db.execute("INSERT INTO schema_migrations(version,name) VALUES(?,?)",
-                           (version, {1: "create_notes", 2: "normalize_notes", 3: "hash_and_search_terms"}[version]))
-                db.execute("PRAGMA user_version=" + str(version))
-                steps.append(version)
-            validate_schema(db, target)
-            if selected["migration_failure"]:
-                raise ReferenceProductError("REFERENCE_MIGRATION_FAILURE_REQUESTED")
+            previous = _effect_result(db, _effect) if _effect is not None else None
+            steps = [] if previous is not None else _apply_schema(db, selected)
+            if _effect is not None and previous is None:
+                db.execute("CREATE TABLE IF NOT EXISTS product_adapter_effects (effect_key TEXT PRIMARY KEY, request_digest TEXT NOT NULL, identity_sha256 TEXT NOT NULL, result TEXT NOT NULL)")
+                db.execute("INSERT INTO product_adapter_effects VALUES (?,?,?,?)", (_effect["effect_key"],
+                    _effect["request_digest"], _effect["identity_sha256"], json.dumps(_effect["result"], sort_keys=True)))
             db.execute("COMMIT")
         except BaseException:
             if db.in_transaction:

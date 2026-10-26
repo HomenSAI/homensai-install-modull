@@ -61,6 +61,12 @@ def _digest(value):
     return hashlib.sha256(_canonical(value)).hexdigest()
 
 
+def _safe_error_code(error):
+    code = getattr(error, "code", None)
+    return (code if type(code) is str and 0 < len(code) <= 80
+            and all(c.isupper() or c.isdigit() or c == "_" for c in code) else "UNEXPECTED_ERROR")
+
+
 def _file_digest(path):
     with checked_path(path).open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
@@ -228,7 +234,7 @@ class NativeEngine:
                "rollback", "repair", "reinstall", "uninstall")
     MAINTENANCE_ACTIONS = {"start", "stop", "backup", "uninstall"}
 
-    ADAPTER_ACTIONS = {"install", "start", "stop", "backup"}
+    ADAPTER_ACTIONS = {"install", "update", "start", "stop", "backup"}
 
     def __init__(self, verifier=None, secret_provider=None, *, development_runtime=None,
                  product_adapter_descriptor=None):
@@ -270,7 +276,7 @@ class NativeEngine:
             "product_adapter": {"registered": self.product_adapter_descriptor is not None,
                                 "registration": "trusted_constructor",
                                 "migration_execution": bool(native and self.product_adapter_descriptor is not None),
-                                "migration_actions": ["install"] if native and self.product_adapter_descriptor is not None else [],
+                                "migration_actions": ["install", "update"] if native and self.product_adapter_descriptor is not None else [],
                                 "migration_max_steps": 1,
                                 "readiness_identity": "observed_release_and_installation_with_fresh_probe"}}
 
@@ -492,6 +498,9 @@ class NativeEngine:
                 result["migration_binding"] = self._migration_public_binding(options["migration_review_id"], review)
                 result["migration_product_plan"] = review["product_plan"]
                 if action == "update":
+                    source_adapter, _ = self._release_product_adapter(ctx, review["binding"]["from_release"])
+                    if not {"quiesce", "operation_status"} <= set(source_adapter.capabilities()["hooks"]):
+                        raise EngineError("CAPABILITY_UNSUPPORTED", "Source adapter не поддерживает безопасный quiesce")
                     result["product_adapter_source_binding"] = review["binding"]["from_adapter_binding"]
                     result["update_failure_policy"] = "preserve_forward_journal_no_automatic_restore"
         return result
@@ -522,7 +531,9 @@ class NativeEngine:
                     or other.get("status") not in ("SUCCEEDED", "FAILED_ROLLED_BACK")
                     or other.get("product_adapter_unknown") is True
                     or other.get("product_adapter_quiesce_started") is True
-                        and other.get("product_adapter_quiesce_complete") is not True):
+                        and other.get("product_adapter_quiesce_complete") is not True
+                    or any(value.get("started") is True and value.get("complete") is not True
+                           for value in other.get("product_adapter_quiesce_scopes", {}).values())):
                 raise EngineError("RECOVERY_REQUIRED", "Сначала нужен reconciliation незавершённой операции")
 
     def _fresh_empty_snapshot(self, ctx, *, staged_release=None, operation_token=None):
@@ -722,6 +733,14 @@ class NativeEngine:
                     or detail.get("migration_product_plan") != review["product_plan"]
                     or len(review["product_plan"]["steps"]) != 1):
                 raise ValueError("reviewed_plan_changed")
+            if ctx["action"] == "update":
+                if (review.get("schema_version") != 2
+                        or detail.get("product_adapter_source_binding") != review["binding"]["from_adapter_binding"]
+                        or detail.get("update_failure_policy") != "preserve_forward_journal_no_automatic_restore"):
+                    raise ValueError("update_review_policy_changed")
+                _, source = self._release_product_adapter(ctx, review["binding"]["from_release"])
+                if source != review["binding"]["from_adapter_binding"]:
+                    raise ValueError("source_adapter_changed")
             ctx.update(migration_review=review, migration_review_id=review_id)
         except Exception:
             raise EngineError("PLAN_STALE", "Нужен исходный immutable migration review") from None
@@ -738,12 +757,48 @@ class NativeEngine:
         def authorize(request):
             from .errors import InstallerError
             try:
-                return self._authorize_fresh_migration(ctx, request)
+                return (self._authorize_update_migration(ctx, request) if ctx.get("action") == "update"
+                        else self._authorize_fresh_migration(ctx, request))
             except EngineError as error:
                 raise InstallerError(error.code, phase="product_adapter",
                     details={"reason": "fresh_receipt_not_authorized"}) from None
         adapter.migration_authorizer = authorize
         return adapter
+
+    def _update_backup_binding(self, ctx):
+        binding = ctx["migration_review"]["binding"]
+        return {"product_id": binding["product_id"], "installation_id": binding["installation_id"],
+            "operation_id": "op_" + ctx["operation_token"], "from_release": binding["from_release"],
+            "from_manifest_sha256": binding["from_manifest_sha256"],
+            "from_inventory_sha256": binding["from_inventory_sha256"],
+            "from_schema_version": ctx["migration_review"]["product_plan"]["from_version"],
+            "plan_binding_sha256": _digest(ctx["migration_review"])}
+
+    def _authorize_update_migration(self, ctx, request):
+        """Вызывается под ledger transaction: только hashes/restore, без hooks."""
+        data, state = request["data"], ctx["operation_state"]
+        public = self._migration_public_binding(ctx["migration_review_id"], ctx["migration_review"])
+        record = state.get("product_adapter_backup_refs", {}).get(ctx.get("migration_backup_key"))
+        if (request["operation_id"] != "op_" + ctx["operation_token"]
+                or set(data) != {"migration_binding", "plan_digest", "backup_receipt_id"}
+                or data["migration_binding"] != public
+                or data["plan_digest"] != ctx["migration_review"]["product_plan"]["plan_digest"]
+                or not record or data["backup_receipt_id"] != record["receipt_id"]
+                or self._owner(ctx, required=True)["installation_id"] != public["installation_id"]
+                or not self._update_source_quiesced(ctx)
+                or self._records(ctx) or state.get("product_adapter_unknown") is True):
+            raise EngineError("PLAN_STALE", "Update request не совпадает с reviewed backup")
+        journal = checked_path(ctx["control"] / "operations" / (ctx["operation_token"] + ".json"))
+        info = journal.lstat()
+        if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
+                or info.st_uid != os.getuid() or info.st_mode & 0o077 or _read(journal) != state):
+            raise EngineError("RECOVERY_REQUIRED", "Исходный update intent изменён")
+        _, source = self._release_product_adapter(ctx, public["from_release"])
+        if source != ctx["migration_review"]["binding"]["from_adapter_binding"]:
+            raise EngineError("PLAN_STALE", "Source adapter изменён до migration")
+        self._backup_receipt_store(ctx, ctx["migration_backup_password"]).verify(
+            data["backup_receipt_id"], expected_binding=self._update_backup_binding(ctx))
+        return True
 
     def _fresh_receipt_binding(self, ctx):
         public = self._migration_public_binding(ctx["migration_review_id"], ctx["migration_review"])
@@ -771,6 +826,11 @@ class NativeEngine:
         if result.get("state_version") != ctx["migration_review"]["product_plan"]["to_version"]:
             raise _UncertainEffect()
         state = ctx["operation_state"]
+        if ctx.get("action") == "update":
+            scope = "migration_" + _digest([ctx["operation_token"], ctx["release"], "migration_apply"])
+            if state.get("product_adapter_unknown") is True and state.get("product_adapter_unknown_scope") != scope:
+                raise _UncertainEffect()
+            state.pop("product_adapter_unknown_scope", None)
         state.update(product_adapter_migration_complete=True, product_adapter_migration_result=result)
         state.pop("product_adapter_unknown", None)
         state.pop("product_adapter_migration_authorization_refused", None)
@@ -785,12 +845,21 @@ class NativeEngine:
         state = ctx["operation_state"]
         started = state.get("product_adapter_migration_started") is True
         key = "migration_" + _digest([ctx["operation_token"], ctx["release"], "migration_apply"])
-        if not started:
+        updating = ctx.get("action") == "update"
+        if (updating and state.get("product_adapter_unknown") is True
+                and state.get("product_adapter_unknown_scope") != key):
+            raise _UncertainEffect()
+        if updating and not started:
+            if self._observe_migration_plan(ctx, "update", ctx["migration_review"]["binding"]) != ctx["migration_review"]["product_plan"]:
+                raise EngineError("PLAN_STALE", "Schema или migration plan изменились до apply")
+        if not started and not updating:
             receipt = FreshEmptyReceiptStore(ctx["control"] / "fresh-receipts").issue(self._fresh_receipt_binding(ctx))
             state["fresh_receipt_id"] = receipt
+        proof = ({"backup_receipt_id": state["product_adapter_backup_refs"][ctx["migration_backup_key"]]["receipt_id"]}
+                 if updating else {"fresh_receipt_id": state["fresh_receipt_id"]})
         request = {"operation_id": "op_" + ctx["operation_token"], "idempotency_key": key,
             "phase": "execute", "data": {"plan_digest": ctx["migration_review"]["product_plan"]["plan_digest"],
-                "fresh_receipt_id": state["fresh_receipt_id"],
+                **proof,
                 "migration_binding": self._migration_public_binding(ctx["migration_review_id"], ctx["migration_review"])}}
         try:
             if started and state.get("product_adapter_migration_complete") is not True:
@@ -818,6 +887,8 @@ class NativeEngine:
             _write(ctx["control"] / "operations" / (ctx["operation_token"] + ".json"), state)
             raise EngineError(error.code, "Fresh authorization отказала до product effect") from None
         except InstallerError:
+            if updating:
+                state["product_adapter_unknown_scope"] = key
             raise _UncertainEffect() from None
 
     def _release_product_adapter(self, ctx, release):
@@ -832,7 +903,12 @@ class NativeEngine:
 
     def _installed_product_adapter(self, ctx):
         adapter, binding = self._release_product_adapter(ctx, self._pointer(ctx))
-        if binding != ctx.get("product_adapter_binding"):
+        expected = ctx.get("product_adapter_binding")
+        if ctx.get("action") == "update":
+            review = ctx["migration_review"]["binding"]
+            expected = (review["from_adapter_binding"] if self._pointer(ctx) == review["from_release"]
+                        else review["target_binding"] if self._pointer(ctx) == review["to_release"] else None)
+        if binding != expected:
             raise EngineError("PLAN_STALE", "ProductAdapter не совпадает с reviewed release")
         return adapter
 
@@ -850,6 +926,8 @@ class NativeEngine:
         return result
 
     def _adapter_quiesce(self, ctx):
+        if ctx.get("action") == "update":
+            return self._update_adapter_quiesce(ctx, ctx["update_stop_key"], self._pointer(ctx))
         from .errors import InstallerError
         adapter = self._installed_product_adapter(ctx)
         key = "quiesce_" + ctx["operation_token"]
@@ -899,6 +977,72 @@ class NativeEngine:
             state["product_adapter_quiesce_complete"] = True
             _write(ctx["control"] / "operations" / (ctx["operation_token"] + ".json"), state)
         return result
+
+    def _update_source_quiesced(self, ctx):
+        source = ctx["migration_review"]["binding"]["from_release"]
+        transaction = ctx.get("update_transaction")
+        if not transaction:
+            return False
+        key = "quiesce_" + _digest([ctx["operation_token"], transaction + "/stop", source])
+        record = ctx["operation_state"].get("product_adapter_quiesce_scopes", {}).get(key, {})
+        return record.get("release") == source and record.get("phase") == "stop" and record.get("complete") is True
+
+    def _update_adapter_quiesce(self, ctx, phase_key, release):
+        from .errors import InstallerError
+        adapter, binding = self._release_product_adapter(ctx, release)
+        review = ctx["migration_review"]["binding"]
+        expected = (review["from_adapter_binding"] if release == review["from_release"]
+                    else review["target_binding"] if release == review["to_release"] else None)
+        phase = phase_key.split("/", 1)[-1]
+        expected_release = (review["from_release"] if phase == "stop" else review["to_release"]
+                            if phase.startswith("candidate_cleanup:") else None)
+        if binding != expected or release != expected_release:
+            raise EngineError("PLAN_STALE", "Quiesce release не совпадает с reviewed binding")
+        state = ctx["operation_state"]
+        key = "quiesce_" + _digest([ctx["operation_token"], phase_key, release])
+        if state.get("product_adapter_unknown") is True and state.get("product_adapter_unknown_scope") != key:
+            raise _UncertainEffect()
+        scopes = state.setdefault("product_adapter_quiesce_scopes", {})
+        record = scopes.setdefault(key, {"release": release, "phase": phase_key.split("/", 1)[-1],
+                                       "started": False, "complete": False})
+        if record["complete"]:
+            if state.get("product_adapter_unknown") is True:
+                raise _UncertainEffect()
+            return record["result"]
+        started = record["started"]
+        request = {"operation_id": "op_" + ctx["operation_token"], "idempotency_key": key,
+            "phase": "execute", "data": {"installation_id": review["installation_id"],
+                "release": release, "data_home": str(ctx["home"].roots["data"])}}
+        try:
+            if state.get("product_adapter_unknown") is True and not ctx.get("adapter_resume"):
+                raise _UncertainEffect()
+            if started:
+                if not ctx.get("adapter_resume"):
+                    raise _UncertainEffect()
+                outcome = adapter.reconcile(key)
+                if outcome["outcome"] == "unknown":
+                    raise _UncertainEffect()
+                if outcome["outcome"] == "applied":
+                    result = outcome["result"]
+                else:
+                    request["phase"] = "resume"
+                    result = adapter.invoke("quiesce", request, existing_ledger=True)["result"]
+            else:
+                record["started"] = True
+                _write(ctx["control"] / "operations" / (ctx["operation_token"] + ".json"), state)
+                result = adapter.invoke("quiesce", request)["result"]
+            if result.get("quiesced") is not True or result.get("active_writers") != 0:
+                raise _UncertainEffect()
+            record.update(complete=True, result=result)
+            # Снимается только fence этого scoped quiesce; migration UNKNOWN не затрагивается.
+            if state.get("product_adapter_unknown_scope") == key:
+                state.pop("product_adapter_unknown", None)
+                state.pop("product_adapter_unknown_scope", None)
+            _write(ctx["control"] / "operations" / (ctx["operation_token"] + ".json"), state)
+            return result
+        except (InstallerError, _UncertainEffect):
+            state["product_adapter_unknown_scope"] = key
+            raise _UncertainEffect() from None
 
     def _password(self, ctx):
         reference = ctx["options"].get("backup_password_ref")
@@ -1573,8 +1717,17 @@ class NativeEngine:
                 "signature_file": str(recovery / "release.signature.json")})
             if inventory != metadata["inventory"]:
                 return False
+            if (ctx.get("action") == "update"
+                    and _digest(metadata) != ctx["migration_review"]["binding"]["from_metadata_sha256"]):
+                return False
             pointer = candidate / "roots/services" / metadata["manifest"]["update"]["pointer_file"]
-            return _read(pointer) == {"release": release}
+            if _read(pointer) != {"release": release}:
+                return False
+            if ctx.get("action") == "update":
+                from .migration_snapshot import assert_live_snapshot_matches
+                return assert_live_snapshot_matches(ctx["home"].roots, candidate,
+                    own_update_journal=ctx["home"].roots["services"] / ("update-" + ctx["operation_token"] + ".json"))
+            return True
         return BackupReceiptStore(ctx["control"] / "backup-receipts",
             password_provider=password, recovery_verifier=recovery)
 
@@ -1582,7 +1735,8 @@ class NativeEngine:
         release = self._pointer(ctx)
         if self.product_adapter_descriptor is not None:
             if (not release or self._records(ctx)
-                    or ctx.get("operation_state", {}).get("product_adapter_quiesce_complete") is not True):
+                    or (not self._update_source_quiesced(ctx) if ctx.get("action") == "update"
+                        else ctx.get("operation_state", {}).get("product_adapter_quiesce_complete") is not True)):
                 raise EngineError("RECOVERY_REQUIRED", "Backup receipt требует подтверждённой остановки писателей")
         if release:
             self._recovery_copy(ctx, release)
@@ -1604,7 +1758,8 @@ class NativeEngine:
                   "release": release, "encrypted": True, "includes_recovery_payload": bool(release)}
         if self.product_adapter_descriptor is not None:
             if (not release or self._records(ctx)
-                    or ctx.get("operation_state", {}).get("product_adapter_quiesce_complete") is not True):
+                    or (not self._update_source_quiesced(ctx) if ctx.get("action") == "update"
+                        else ctx.get("operation_state", {}).get("product_adapter_quiesce_complete") is not True)):
                 raise EngineError("RECOVERY_REQUIRED", "Backup receipt требует подтверждённой остановки писателей")
             metadata = self._installed(ctx, release)
             review = ctx.get("migration_review", {})
@@ -1612,7 +1767,7 @@ class NativeEngine:
                 "installation_id": binding["installation_id"], "operation_id": "op_" + ctx["operation_token"],
                 "from_release": release, "from_manifest_sha256": _digest(metadata["manifest"]),
                 "from_inventory_sha256": _digest(metadata["inventory"]),
-                "from_schema_version": review.get("from_version"),
+                "from_schema_version": review.get("product_plan", {}).get("from_version"),
                 "plan_binding_sha256": _digest(review) if review else None}
             result["backup_receipt"] = self._backup_receipt_store(ctx, password).issue(path, receipt_binding,
                 consistency_scope="owned_components_stopped_and_adapter_quiesced")
@@ -1638,7 +1793,20 @@ class NativeEngine:
                 current = engine._pointer(ctx)
                 if current:
                     engine._recovery_copy(ctx, current)
+                adapter_update = engine.product_adapter_descriptor is not None and ctx.get("action") == "update"
+                if adapter_update:
+                    path = self.archive_path(key)
+                    receipt = path.with_name(path.name + ".receipt.json")
+                    identity = {"operation": ctx["operation_token"],
+                        "installation_id": engine._owner(ctx, required=True)["installation_id"]}
+                    if not path.exists() and not receipt.exists():
+                        _write(receipt, identity)
                 super().backup(key, purpose, command)
+                if adapter_update:
+                    result = engine._backup(ctx, self.archive_path(key), password)
+                    ctx["operation_state"].setdefault("product_adapter_backup_refs", {})[key] = {
+                        "receipt_id": result["backup_receipt"]["receipt_id"], "purpose": purpose}
+                    _write(ctx["control"] / "operations" / (ctx["operation_token"] + ".json"), ctx["operation_state"])
                 self._end(purpose)
             def switch_pointer(self, key, release):
                 self._begin("activate")
@@ -1672,6 +1840,7 @@ class NativeEngine:
         ctx["secret_cache"] = {}
         password = (self._password(ctx) if action in {"update", "backup", "restore", "rollback", "repair", "reinstall"}
                     else None)
+        ctx["migration_backup_password"] = password
         if action != "install":
             self._owner(ctx, required=True)
         if action in {"install", "update", "repair", "reinstall"}:
@@ -1741,7 +1910,7 @@ class NativeEngine:
                 if reviewed != binding:
                     raise EngineError("PLAN_STALE", "Нужен reviewed ProductAdapter plan для этих signed bytes")
                 ctx["product_adapter_binding"] = binding
-                if action == "install":
+                if action in {"install", "update"}:
                     self._migration_execution_review(ctx, plan, previous)
             # A new controller/plan cannot evade an uncertain mutating adapter
             # effect by selecting a different API state directory or stop ID.
@@ -1753,7 +1922,9 @@ class NativeEngine:
                             or other.get("product_adapter_quiesce_started") is True
                             and other.get("product_adapter_quiesce_complete") is not True
                             or other.get("product_adapter_migration_started") is True
-                            and other.get("product_adapter_migration_complete") is not True)
+                            and other.get("product_adapter_migration_complete") is not True
+                            or any(value.get("started") is True and value.get("complete") is not True
+                                   for value in other.get("product_adapter_quiesce_scopes", {}).values()))
                             and other.get("status") not in {"SUCCEEDED", "FAILED_ROLLED_BACK"}):
                         raise EngineError("RECOVERY_REQUIRED", "Нужен reconciliation исходной ProductAdapter операции")
             self._prepare(ctx)
@@ -1920,17 +2091,68 @@ class NativeEngine:
             return {"status": "SUCCEEDED", "archive": result}
         if action == "update":
             ports = self._ports(ctx, inventory, password, emit)
-            txn = UpdatePlan(ctx["manifest"], ctx["root"], ports, release=ctx["release"], modes=ctx["modes"])
+            adapter_update = self.product_adapter_descriptor is not None
+            migration_ids = ((ctx["migration_review"]["product_plan"]["steps"][0]["id"],)
+                             if adapter_update else ("manifest",))
+            txn = UpdatePlan(ctx["manifest"], ctx["root"], ports, release=ctx["release"], modes=ctx["modes"],
+                migration_ids=migration_ids,
+                failure_policy="preserve_forward_journal_no_automatic_restore" if adapter_update else "automatic_restore")
             # Each API operation owns one original UpdatePlan journal; previous
             # complete transactions remain available under their own names.
             txn.state_path = ctx["home"].roots["services"] / ("update-" + token + ".json")
+            if adapter_update:
+                # Lock содержит PID владельца, меняющийся при resume. Он не
+                # является product data и не должен менять persistent snapshot.
+                locks = ctx["control"] / "update-locks"
+                _private_dir(locks)
+                txn.lock_path = locks / (token + ".lock")
             ports.state = txn.state_path
             checkpoint = txn.status()
+            if checkpoint:
+                ctx["update_transaction"] = checkpoint["transaction"]
             if checkpoint is None and ctx["release"] == active:
                 self._installed(ctx, active)
                 return {"status": "SUCCEEDED", "already_current": True, "release": active}
             self._installed(ctx, checkpoint["old_release"] if checkpoint else active)
-            state = txn.run()
+            if adapter_update and ctx["operation_state"].get("product_adapter_unknown") is True:
+                native = ctx["operation_state"]
+                scope = native.get("product_adapter_unknown_scope")
+                record = native.get("product_adapter_quiesce_scopes", {}).get(scope)
+                phase = txn.forward[checkpoint["index"]] if checkpoint else None
+                migration_scope = "migration_" + _digest([token, ctx["release"], "migration_apply"])
+                if record and record["phase"].startswith("candidate_cleanup:") and ctx.get("adapter_resume"):
+                    self._update_adapter_quiesce(ctx, checkpoint["transaction"] + "/" + record["phase"], record["release"])
+                elif not ((record and record["phase"] == "stop" and phase == "stop")
+                          or scope == migration_scope and phase == "migrate:0"):
+                    raise _UncertainEffect()
+            try:
+                state = txn.run()
+            except Exception as primary:
+                # Candidate health failure сохраняет новые данные и forward journal.
+                # Cleanup не исполняется при UNKNOWN/BaseException и не останавливает source.
+                if (adapter_update and ctx["operation_state"].get("phase") == "health"
+                        and self._pointer(ctx) == ctx["release"]):
+                    ctx["operation_state"]["primary_error_code"] = _safe_error_code(primary)
+                    try:
+                        attempt = ctx["operation_state"].get("candidate_health_attempt", 0)
+                        ctx["update_stop_key"] = txn._key(txn.status(), "candidate_cleanup:" + str(attempt))
+                        self._stop(ctx)
+                    except (Exception, _UncertainEffect) as cleanup:
+                        if isinstance(cleanup, _UncertainEffect):
+                            ctx["operation_state"]["product_adapter_unknown"] = True
+                            ctx["operation_state"]["cleanup_error_code"] = "RECOVERY_REQUIRED"
+                        else:
+                            ctx["operation_state"]["cleanup_error_code"] = _safe_error_code(cleanup)
+                        try:
+                            details = getattr(primary, "details", {})
+                            primary.details = {**(details if type(details) is dict else {}),
+                                "primary_error_code": _safe_error_code(primary),
+                                "cleanup_error": {"phase": "candidate_cleanup",
+                                    "code": ctx["operation_state"]["cleanup_error_code"]}}
+                        except (AttributeError, TypeError):
+                            pass
+                    _write(ctx["control"] / "operations" / (token + ".json"), ctx["operation_state"])
+                raise
             outcome = "SUCCEEDED" if state["outcome"] == "updated" else "FAILED_ROLLED_BACK"
             return {"status": outcome, "release": self._pointer(ctx), "transaction": state["transaction"],
                     "failed_phase": state["failed_phase"], "production_ready": False}
@@ -2076,16 +2298,26 @@ class _Effects:
         return result
 
     def stop(self, key, components):
+        self.ctx["update_stop_key"] = key
+        self.ctx["update_transaction"] = key.split("/", 1)[0]
         self._run("stop", lambda: self.engine._stop(self.ctx))
 
     def migrate(self, key, migration, command):
-        self._run("migrate", lambda: self.engine._hook(self.ctx, self.ctx["release"], command, key))
+        if self.engine.product_adapter_descriptor is not None and self.ctx.get("action") == "update":
+            self.ctx["migration_backup_key"] = key.rsplit("/", 1)[0] + "/backup:0"
+            self._run("migrate", lambda: self.engine._adapter_migrate(self.ctx))
+        else:
+            self._run("migrate", lambda: self.engine._hook(self.ctx, self.ctx["release"], command, key))
 
     def start(self, key, components, pre_start):
         self._run("start", lambda: self.engine._start(self.ctx))
 
     def health(self, key, url, timeout, checks):
         def health():
+            if self.engine.product_adapter_descriptor is not None and self.ctx.get("action") == "update":
+                state = self.ctx["operation_state"]
+                state["candidate_health_attempt"] = state.get("candidate_health_attempt", 0) + 1
+                _write(self.ctx["control"] / "operations" / (self.ctx["operation_token"] + ".json"), state)
             # After crash между start и health ребёнок мог завершиться;
             # reconciling start проверяет signed bytes и существующие PID.
             self.engine._start(self.ctx)

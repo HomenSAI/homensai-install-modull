@@ -169,7 +169,7 @@ class UpdatePlan:
                 or len(set(migration_ids)) != len(migration_ids)):
             raise UpdateError("Недопустимые публичные идентификаторы плана")
         self.release, self.migrations, self.ports = release, migration_ids, ports
-        if failure_policy not in {"automatic_restore", "preserve_forward_journal_no_automatic_restore"}:
+        if type(failure_policy) is not str or failure_policy not in {"automatic_restore", "preserve_forward_journal_no_automatic_restore"}:
             raise UpdateError("Неизвестная политика отказа обновления")
         self.failure_policy = failure_policy
         home = resolve_datahome(self.manifest, install_root)
@@ -220,6 +220,8 @@ class UpdatePlan:
                 or value["plan"] != self.digest or value["release"] != self.release
                 or not _identifier(value["old_release"]) or value["old_release"] == self.release
                 or value["direction"] not in ("forward", "rollback")
+                or self.failure_policy == "preserve_forward_journal_no_automatic_restore"
+                    and value["direction"] != "forward"
                 or type(value["index"]) is not int
                 or type(value["archive_ready"]) is not bool
                 or value["outcome"] not in ("running", "updated", "rolled_back")):

@@ -392,3 +392,18 @@ def test_unknown_failure_policy_is_rejected_before_effect(tmp_path, manifest):
     with pytest.raises(UpdateError):
         UpdatePlan(manifest, tmp_path, ports, release='new', modes=('autonomous',), failure_policy='unknown')
     assert ports.data['events'] == []
+
+
+def test_preserve_policy_rejects_well_formed_rollback_journal_before_effect(tmp_path, manifest):
+    ports = FakePorts(tmp_path)
+    legacy = plan(tmp_path, manifest, ports)
+    with pytest.raises(Crash):
+        plan(tmp_path, manifest, FakePorts(tmp_path, fail='health', crash='rollback_stop')).run()
+    saved = json.loads(legacy.state_path.read_text())
+    preserve = forward_plan(tmp_path, manifest, ports)
+    saved['plan'] = preserve.digest
+    legacy.state_path.write_text(json.dumps(saved))
+    before = ports.data
+    with pytest.raises(UpdateError):
+        preserve.run()
+    assert ports.data == before

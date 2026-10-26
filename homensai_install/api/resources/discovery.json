@@ -17,12 +17,17 @@
     "lifecycle_engine_registration": true,
     "lifecycle_registration": "trusted_native_engine_constructor",
     "lifecycle_engine_actions": [
+      "install",
       "start",
       "stop",
       "backup"
     ],
     "migration_preparation": "explicit_sdk_backend_extension",
-    "migration_execution": false,
+    "migration_execution": true,
+    "migration_actions": [
+      "install"
+    ],
+    "migration_max_steps": 1,
     "default_registration": false,
     "execution_platforms": [
       "linux"

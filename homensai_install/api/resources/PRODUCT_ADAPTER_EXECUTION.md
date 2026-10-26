@@ -1,6 +1,15 @@
-# Подключение ProductAdapter к native maintenance
+# ProductAdapter: подготовка, single-step fresh и native maintenance
 
 Автор: Serhii Khomenko. Контрольная точка: `CP-20261025-021`.
+
+Текущий development профиль после CP006: явный trusted Linux/native/user
+single-step fresh install и start/stop/backup. Fresh использует immutable review,
+собственный fresh-empty proof, точный durable native intent и signed staged bytes.
+Public factory и original-operation resume проверены source integration отдельно.
+Installed fresh сохраняет отдельный статус текущего receipt; clean-host/полная
+четырёхплатформенная приёмка не завершена. Update и прочие lifecycle actions
+пока unsupported. Исторические разделы CP021 ниже сохраняют исходные ограничения;
+актуальные расширения описаны в последних разделах.
 
 Этот этап подключает `ExecutableProductAdapter` к существующему `NativeEngine`
 для Linux x64 native/user-session обслуживания уже установленного подписанного
@@ -136,7 +145,7 @@ ledger. Сам по себе новый standalone constructor не умеет �
 Полная долговременная привязка файловой identity standalone ledger и доверенный
 перенос control journals на новую identity остаются отдельным открытым контрактом.
 
-## Что намеренно остаётся неподдержанным
+## Исторические ограничения CP021
 
 При enabled integration `install`, `update`, `restore`, `rollback`, `repair`,
 `reinstall`, `uninstall` заранее объявлены `supported=false` и отказывают до
@@ -220,3 +229,16 @@ resolved path и только если указан в signed descriptor allowli
 Это preparation/source контракт. Старые capability assertions сохраняются:
 adapter install/update execution остаётся unsupported до следующего проверенного
 пакета; CLI/HTTP preparation route ещё не добавлен. Полная G1/G2/G3 приёмка открыта.
+
+## Single-step fresh: текущий source-контракт
+
+Для install требуется ровно один prepared migration step. Engine до первого
+product write повторно проверяет inode/owner/mode пустых roots, installation
+metadata, исходный immutable review, exact native intent и signed target staging.
+Отдельный fresh_receipt_id является digest-bound локальным доказательством;
+он не выдаётся вместо обязательного backup существующих данных. Одновременная
+передача fresh и backup proof запрещена. Знакомый отказ authorizer до ledger
+intent отмечается как отсутствие product effect и допускает explicit resume.
+UNKNOWN после потери ACK требует reconciliation; пропавшая история не разрешает
+создать новый invocation. Public SDK resume сохраняет original operation ID.
+Реальные SIGKILL boundary tests — source process acceptance, не power-loss.

@@ -70,7 +70,10 @@ SYNC_CONFLICT / SYNC_BLOCKED.
 Не создавай рекурсивные служебные commits ради записи SHA самого commit.
 
 ========================================================================
-ТЕКУЩЕЕ СОХРАНЕНИЕ CP-20261026-006 / HIM-009 / HIM-013 / HIM-024
+ЗАВЕРШЕНИЕ CP-20261026-007 / HIM-015 / HIM-054
+Завершение по указанию владельца: source single-step adapter fresh интегрирован (4170936), публичные factory/resume и discovery проверены: 84 PASS за19.62s; root также проверил lost ACK и known-no-effect authorization refusal через original SDK operation. Source пакет агента:171PASS+5subtests; не суммировать с root. Installed fresh пока NOT RUN, будет один короткий завершающий artifact check; updatefalse. Новые задачи остановлены, shutdown не выполнять.
+
+ИСТОРИЯ СОХРАНЕНИЯ CP-20261026-006 / HIM-009 / HIM-013 / HIM-024
 По просьбе владельца сохранено текущее состояние. В основной ветке: явная SDK factory-регистрация ProductAdapter, 36 targeted PASS; установленная preparation на точном CP005 — 5 случаев PASS (69 SDK / 7 reference / 161 dependency files). Сохранён исходный harness FAIL неправильного имени capability, исправлено на registered. Fresh engine пакет ddbe107 прошёл 171 source PASS и 5 subtests, включая SIGKILL; он отправлен отдельной веткой GitHub и ещё не интегрирован root. Installed fresh и update по-прежнему NOT RUN; capabilities основной ветки не расширены этим source-only пакетом. Агентские ветки и основной handoff сохранены; активных тестовых процессов нет. production_ready=false, все G0–G5 OPEN. Продолжение: интегрировать ddbe107 с независимым review/public SDK resume/factory, затем installed fresh и updates 1→2→3. Исходное окно UTC08:25:06–20:25:06 сохраняется.
 Agent refs: core ddbe107 / acceptance bbbbd8f, оба SYNC_CONFIRMED. Main CP:SYNC_PENDING до receipt.
 

@@ -1,0 +1,27 @@
+{
+  "checkpoint": "CP-20261026-007",
+  "recorded_at_utc": "2026-10-26T09:44:52.585631+00:00",
+  "status": "PASS_SCOPED",
+  "scope": "merged fresh source and public SDK factory/resume; not installed final artifact or platform acceptance",
+  "source_parent": "4170936fd5f1b1eab68a6576e109463b79cbcdbe",
+  "dirty": true,
+  "counts": {
+    "passed": 84,
+    "elapsed_seconds": 19.62
+  },
+  "command": "docker run --rm --network none --mount main:/workspace,readonly hinstall-dev:verification python -m pytest -q -p no:cacheprovider tests/test_native_product_adapter_contract.py tests/test_backends.py integration_tests/test_native_migration_api.py tests/test_migration_preparation_api.py tests/test_scaffold.py",
+  "exit_code": 0,
+  "file_sha256": {
+    "homensai_install/adapters.py": "497888b13cd8afaa8e34de8bd0e2df1916fbc6ed6162a317674d620efbbf9f40",
+    "homensai_install/engine.py": "c9138f9788b40f920effb70dab7adfa4f58447dad77d9287150f693e2c8d1216",
+    "homensai_install/migration_receipts.py": "90921a6ace796edc85a53d5968c205b4c202a4516a6590d2f9cdc77a8163793f",
+    "homensai_install/api/v1.py": "a07f09d1c88f7282058aadfbfedd1dd1cc192f4c43128ffc924d3acc9d1dcc93",
+    "homensai_install/backends.py": "584108bda7577eef2b5201fcaaf999208c8c204d985705a722486af6d20a5bc3",
+    "integration_tests/test_native_migration_api.py": "f46139989fb1085845f53b8f6d69d9ab18778fedd42951d456d8dac2940a2765",
+    "tests/test_native_product_adapter_contract.py": "8a4c5a639639bbe2c1a993f02d2299afc1b18848d26420cf0cc3c25692ef7448",
+    "tests/test_backends.py": "a8e6fd58609faf3be801f828b9096a24377cb99f58229003c94136e07aea102b"
+  },
+  "full_source_suite": "NOT RUN after CP004; intermediate scoped checks are recorded separately",
+  "installed_fresh": "NOT RUN at source freeze",
+  "production_ready": false
+}

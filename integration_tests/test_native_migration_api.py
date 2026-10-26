@@ -1,6 +1,8 @@
 """Public SDK preparation against a real signed process/SQLite product probe."""
 import hashlib
 import json
+import base64
+import sys
 
 import pytest
 
@@ -8,6 +10,7 @@ from homensai_install.api.v1 import InstallerAPI
 from homensai_install.backends import BackendRouter
 from homensai_install.errors import InstallerError
 from test_native_migration import migration
+from test_native_migration import migration_effect_count
 
 
 def product_files(root):
@@ -62,3 +65,49 @@ def test_preparation_does_not_accept_unresolved_or_unknown_native_journal(migrat
         api.prepare_migration('update', new['manifest'], migration.target, new['options'])
     assert error.value.code == 'RECOVERY_REQUIRED'
     assert product_files(migration.root) == before
+
+
+def public_fresh(migration, tmp_path, *, fault=None):
+    value = migration.release('release-1', 'schema_1', config=True, **({'fault': fault} if fault else {}))
+    trust = tmp_path / 'trusted-public-keys.json'
+    trust.write_text(json.dumps({'schema_version': 1, 'keys': {
+        name: base64.b64encode(key).decode() for name, key in migration.engine.verifier._keys.items()}}), encoding='utf-8')
+    api = InstallerAPI.from_bootstrap(tmp_path / 'public-fresh-state', trust_config=trust,
+        allow_development=True, development_runtime=sys.executable,
+        product_adapter_descriptor='installer/adapter.json', secret_provider=migration.engine.secret_provider)
+    prepared = api.prepare_migration('install', value['manifest'], migration.target, value['options'])
+    options = {**value['options'], 'migration_review_id': prepared['migration_review_id']}
+    plan = api.plan('install', value['manifest'], migration.target, options=options)
+    return api, plan, {**value, 'options': options}
+
+
+def test_public_factory_fresh_lost_ack_resumes_original_operation_without_second_migration(migration, tmp_path):
+    api, plan, prepared = public_fresh(migration, tmp_path, fault='after_apply')
+    operation = api.submit(plan['plan_id'], plan['plan_digest'],
+        [plan['review_consent_ref'], *plan['required_consents']], idempotency_key='reviewed-fresh', background=False)
+    assert operation['status'] == 'RECOVERY_REQUIRED'
+    assert migration_effect_count(migration) == 1
+    resumed = api.resume(operation['operation_id'], background=False)
+    migration.current = prepared
+    assert resumed['operation_id'] == operation['operation_id'] and resumed['status'] == 'SUCCEEDED'
+    assert migration_effect_count(migration) == 1
+    assert api.submit(plan['plan_id'], plan['plan_digest'],
+        [plan['review_consent_ref'], *plan['required_consents']], idempotency_key='reviewed-fresh', background=False)['operation_id'] == operation['operation_id']
+    assert migration_effect_count(migration) == 1
+
+
+def test_public_sdk_resume_after_known_no_effect_fresh_authorization_refusal(migration, tmp_path, monkeypatch):
+    from homensai_install.migration_receipts import FreshEmptyReceiptStore
+    api, plan, prepared = public_fresh(migration, tmp_path)
+    verify = FreshEmptyReceiptStore.verify
+    def refuse(*args, **kwargs):
+        raise InstallerError('PLAN_STALE')
+    monkeypatch.setattr(FreshEmptyReceiptStore, 'verify', refuse)
+    operation = api.submit(plan['plan_id'], plan['plan_digest'],
+        [plan['review_consent_ref'], *plan['required_consents']], idempotency_key='refused-before-effect', background=False)
+    assert operation['status'] == 'RECOVERY_REQUIRED' and operation['error']['code'] == 'PLAN_STALE'
+    assert migration_effect_count(migration) == 0
+    monkeypatch.setattr(FreshEmptyReceiptStore, 'verify', verify)
+    resumed = api.resume(operation['operation_id'], background=False)
+    migration.current = prepared
+    assert resumed['status'] == 'SUCCEEDED' and migration_effect_count(migration) == 1

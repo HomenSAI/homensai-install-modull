@@ -584,8 +584,9 @@ Job Object backend и приёмки. Версия/entrypoint доступны �
 Пакет не импортирует adapter по URL и не выдаёт ему admin-права. Доверенный host
 может явно включить `NativeEngine(verifier=signed_verifier,
 product_adapter_descriptor="installer/adapter.json")`. Эта регистрация доступна
-только для Linux/native/user и действий `start`, `stop`, `backup`; SDK по умолчанию
-её не включает. Остальные действия при включённом adapter заранее отклоняются.
+только для Linux/native/user: single-step fresh `install`, `start`, `stop`, `backup`.
+SDK по умолчанию её не включает. Update/restore/rollback/repair/reinstall/uninstall
+при включённом adapter заранее отклоняются.
 Без регистрации сохраняется прежний native путь manifest v2.
 
 План закрепляет descriptor и verified release; перед эффектами binding проверяется
@@ -593,8 +594,9 @@ product_adapter_descriptor="installer/adapter.json")`. Эта регистрац
 сохраняя проверки owned PID/listener/HTTP. Quiesce использует durable intent и
 существующий adapter journal: UNKNOWN, потерянный ledger или отсутствующая
 ожидаемая invocation не разрешают повтор. Backup остаётся настоящим полным
-проверенным зашифрованным архивом прежнего ядра. Миграции, fresh-empty и полный
-install/update/restore lifecycle через этот adapter ещё не реализованы.
+проверенным зашифрованным архивом прежнего ядра. Fresh install выполняет один reviewed migration step после настоящего fresh-empty
+proof и явного prepare_migration. Update/restore/rollback/repair/reinstall/uninstall
+через этот adapter ещё не приняты.
 Подробный контракт: `PRODUCT_ADAPTER_EXECUTION.md` в ресурсах установленного SDK
 и [документ проекта](docs/PRODUCT_ADAPTER_EXECUTION.md). Общий lifecycle в продукт
 не копируется; полная приёмка HIM-015/023 остаётся открытой.
@@ -673,7 +675,8 @@ NativeEngine реализует подготовку только при явн�
 вызывается подписанный read-only migration_plan и сохраняется immutable review.
 Fresh preparation создаёт только installer ownership reservation и пустые каталоги,
 без active release и продуктовых данных. Неизвестный/неразрешённый прежний журнал
-требует reconciliation. Наличие review не означает готовность adapter install/update.
+требует reconciliation. Для принятого single-step fresh нужен именно этот review. Update и полный lifecycle
+по-прежнему требуют отдельной реализации и приёмки.
 
 Результат поддерживающего backend: `migration_review_id`, `action`,
 `product_plan` (from_version/to_version/steps/plan_digest), `from_release`,

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261026-006",
+  "checkpoint_id": "CP-20261026-007",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -89,7 +89,7 @@
     "cloud_git": "NOT_APPLICABLE: работа ведётся в Windows workspace",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261026-005",
+    "last_confirmed_checkpoint": "CP-20261026-006",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
   "next_step": "Интегрировать source fresh ddbe10717ce8215ccea8925816488a69606b4f03 из подтверждённой GitHub agent-ветки; проверить public SDK factory/resume и обновить discovery/capabilities только после независимой проверки. Выполнить packaging/check_installed_reference_lifecycle.py --profile fresh на итоговом immutable SDK; затем single-step updates1→2→3.",
@@ -100,7 +100,7 @@
     "linux_native": "PARTIAL: installed SDK ProductAdapter maintenance8clientsPASS CP004 with legacy bootstrap and borrowed ELF runtime; adapter fresh/update/full platform NOT RUN",
     "linux_docker": "NOT RUN: daemon доступен; browser/source в DEV контейнере не являются product Docker backend acceptance"
   },
-  "last_confirmed_github_sha": "2024434b59c477773ad2b44d00ae77ec508ff8b8",
+  "last_confirmed_github_sha": "85acee1aea939b20e83498be633e779b0e62261c",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -230,8 +230,8 @@
       "receipt": "packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json"
     }
   ],
-  "source_code_checkpoint": "CP-20261026-006",
-  "handoff_note": "По просьбе владельца сохранено текущее состояние. В основной ветке: явная SDK factory-регистрация ProductAdapter, 36 targeted PASS; установленная preparation на точном CP005 — 5 случаев PASS (69 SDK / 7 reference / 161 dependency files). Сохранён исходный harness FAIL неправильного имени capability, исправлено на registered. Fresh engine пакет ddbe107 прошёл 171 source PASS и 5 subtests, включая SIGKILL; он отправлен отдельной веткой GitHub и ещё не интегрирован root. Installed fresh и update по-прежнему NOT RUN; capabilities основной ветки не расширены этим source-only пакетом. Агентские ветки и основной handoff сохранены; активных тестовых процессов нет. production_ready=false, все G0–G5 OPEN. Продолжение: интегрировать ddbe107 с независимым review/public SDK resume/factory, затем installed fresh и updates 1→2→3. Исходное окно UTC08:25:06–20:25:06 сохраняется.",
+  "source_code_checkpoint": "CP-20261026-007",
+  "handoff_note": "Завершение по указанию владельца: source single-step adapter fresh интегрирован (4170936), публичные factory/resume и discovery проверены: 84 PASS за19.62s; root также проверил lost ACK и known-no-effect authorization refusal через original SDK operation. Source пакет агента:171PASS+5subtests; не суммировать с root. Installed fresh пока NOT RUN, будет один короткий завершающий artifact check; updatefalse. Новые задачи остановлены, shutdown не выполнять.",
   "shutdown": {
     "authorized": false,
     "state": "HISTORICAL_REQUEST_NOT_APPLICABLE",
@@ -245,7 +245,7 @@
     "reasoning_effort": "high",
     "total_agents": 3,
     "window_hours": 12,
-    "status": "RUNNING",
+    "status": "STOP_REQUESTED_FINISHING_CHECKPOINT",
     "started_at_utc": "2026-10-26T08:25:06Z",
     "deadline_utc": "2026-10-26T20:25:06Z",
     "baseline_sha": "cd319a03f47fe9b7e4888afffe88f311329a3ce9",

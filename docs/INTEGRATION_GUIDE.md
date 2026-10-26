@@ -112,7 +112,7 @@ Publisher после review создаёт окончательные `payload.i
 
 ## 4. Executable ProductAdapter protocol 1.0
 
-`homensai_install.adapters.ExecutableProductAdapter` реализует существующий `api.model.ProductAdapter`. Доверенный SDK/bootstrap явно регистрирует его через `InstallerAPI.from_bootstrap(..., product_adapter_descriptor="installer/adapter.json")` либо прямой trusted `NativeEngine` для Linux native/user `start`, `stop`, `backup`. Без opt-in используется прежний manifest lifecycle. Браузер и HTTP options не включают регистрацию; автоматической регистрации нет. `InstallerAPI.validate`, `discover` и `plan` не запускают hooks: план читает только подписанный статический descriptor. Остальные adapter lifecycle действия пока отклоняются до эффектов; текущая граница описана в `PRODUCT_ADAPTER_EXECUTION.md`.
+`homensai_install.adapters.ExecutableProductAdapter` реализует существующий `api.model.ProductAdapter`. Доверенный SDK/bootstrap явно регистрирует его через `InstallerAPI.from_bootstrap(..., product_adapter_descriptor="installer/adapter.json")` либо прямой trusted `NativeEngine` для Linux native/user single-step `install` и `start`, `stop`, `backup`. Без opt-in используется прежний manifest lifecycle. Браузер и HTTP options не включают регистрацию; автоматической регистрации нет. `InstallerAPI.validate`, `discover` и `plan` не запускают hooks: план читает только подписанный статический descriptor. Update/restore/rollback/repair/reinstall/uninstall пока отклоняются до эффектов; текущая граница описана в `PRODUCT_ADAPTER_EXECUTION.md`.
 
 В текущей версии реальный execution backend адаптера поддерживает Linux native/user. Target Docker или service scope возвращает `CAPABILITY_UNSUPPORTED` до запуска; автоматического fallback на host execution нет. Windows execution также возвращает `CAPABILITY_UNSUPPORTED`: нужен отдельно принятый Job Object backend и Windows tests. Это не скрытая попытка выполнить `.cmd` через shell и не обещание уже пройденной Windows-приёмки.
 
@@ -249,5 +249,19 @@ replay и read-only UNKNOWN reconciliation не требуют повторно�
 active pointer и signed recovery payload. Maintenance receipt имеет неизвестную
 schema/review, `migration_eligible=false`, `verification_scope=recovery_only`:
 он подтверждает recovery, но не разрешает изменение БД. Для будущего update нужен
-отдельный reviewed migration plan с наблюдённой schema. Adapter install/update
-по-прежнему unsupported до своей приёмки.
+отдельный reviewed migration plan с наблюдённой schema. Single-step adapter fresh теперь имеет отдельный proof; update и остальные lifecycle
+действия по-прежнему unsupported до своей приёмки.
+
+
+### Single-step fresh
+
+Сначала explicit prepare_migration, затем обычный review/plan и submit с реальными
+согласиями. Установка допускает ровно один migration step и отдельный
+`fresh_receipt_id` вместо фиктивного backup несуществующих данных. Перед первой
+продуктовой записью engine повторно проверяет immutable review, root/owner identity,
+пустоту всех persistent roots, signed staged release и точный native intent.
+В migration_apply передаётся либо fresh_receipt_id, либо backup_receipt_id;
+оба proof одновременно запрещены. UNKNOWN и потерянный ledger запрещают слепой
+повтор; явный resume первоначальной операции выполняет read-only reconciliation.
+Public SDK factory/resume проверены отдельно от прямых engine вызовов. Полная
+installed/clean-host приёмка этого пути сохраняет отдельный статус.

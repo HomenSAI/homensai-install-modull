@@ -1,0 +1,15 @@
+Traceback (most recent call last):
+  File "/tmp/hinstall-update-red02-cp009/external_client.py", line 495, in <module>
+    main()
+    ~~~~^^
+  File "/tmp/hinstall-update-red02-cp009/external_client.py", line 293, in main
+    update_plan = current.plan("update", manifest, target, options=update_options)
+  File "/tmp/hinstall-update-red02-cp009/environment/lib/python3.14/site-packages/homensai_install/api/v1.py", line 427, in plan
+    self._supported(action, target)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/tmp/hinstall-update-red02-cp009/environment/lib/python3.14/site-packages/homensai_install/api/v1.py", line 419, in _supported
+    fail("CAPABILITY_UNSUPPORTED", details={"action": action, "target": target})
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/hinstall-update-red02-cp009/environment/lib/python3.14/site-packages/homensai_install/api/model.py", line 25, in fail
+    raise InstallerError(code, **context)
+homensai_install.errors.InstallerError: CAPABILITY_UNSUPPORTED

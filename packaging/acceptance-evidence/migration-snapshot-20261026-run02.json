@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "receipt_id": "migration-snapshot-20261026-run02",
+  "checkpoint_id": "CP-20261026-ACCEPTANCE-RUN02-002",
+  "task_ids": [
+    "HIM-015",
+    "HIM-050",
+    "HIM-054",
+    "HIM-063"
+  ],
+  "scenario_ids": [
+    "ACC-09",
+    "ACC-10",
+    "ACC-12",
+    "ACC-16"
+  ],
+  "author": "Serhii Khomenko",
+  "recorded_at_utc": "2026-10-26T14:53:17.997631+00:00",
+  "status": "PASS",
+  "scope_ru": "Source-проверка нового Linux helper live snapshot equality перед migration. Без engine integration, product hooks, SQLite connections и installed update acceptance.",
+  "baseline_commit": "47874414d1276e0173e87680a2441b5c1ad0f9d3",
+  "source_inputs_sha256": {
+    "homensai_install/migration_snapshot.py": "34e0146c9c663e4f76ae8291a1384ee593aa0902eb3e70b1b467e9d5274744a9",
+    "tests/test_migration_snapshot.py": "e331a92de85251a826436bc7d4915024ab74dd81bd72c09dfb11d0a7c230c34c",
+    "homensai_install/errors.py": "05f438a1ed6439cb0886248ed24251a08915353db5538307d7f2497fe5cd5cca",
+    "shared/archive.py": "8fe1608c7b32cbf4a68a3f4dea5c51754b9f3a76a1fd7f7441532e2925074ff1",
+    "shared/datahome.py": "d098a741fad91d3f049142e562888dcec1ab81b26122177b2b03f2383c85a0f8",
+    "tests/test_migration_receipts.py": "b691c5aed6bb334d60365af6d38bb591101e61e950e45959b54d7de0390b3762",
+    "tests/test_archive.py": "8218bb5c41827e64c568e5865429e9438094715161b514b34695ec7e1575b529",
+    "tests/test_datahome.py": "9a98f8c3a4810aebda6ad59a952545607a6a0ad944bace20db14d6a5cbc63fa4",
+    "requirements-build.lock": "f1ca895ac9579efcd1eb43a3f19c5439ae07dff7b7f8db51f8ac1a131e3a49ed"
+  },
+  "environment": {
+    "image": "hinstall-dev:verification",
+    "image_id": "sha256:1b3529768706aaacabb525d6fd3168680cc2b0ffa1aee6994a3d2e5cdb8fd4c1",
+    "python": "3.14.3",
+    "uid": 1000,
+    "network": "none",
+    "checkout_mount": "readonly",
+    "work": "real temporary Linux filesystem trees"
+  },
+  "command": "python -B -m pytest -q -p no:cacheprovider --tb=short --junitxml=/evidence/migration-snapshot-final.xml tests/test_migration_snapshot.py tests/test_migration_receipts.py tests/test_archive.py tests/test_datahome.py",
+  "exit_code": 0,
+  "result": {
+    "passed": 149,
+    "skipped": 1,
+    "duration_seconds": 13.79,
+    "new_snapshot_cases": 59,
+    "skip": "tests/test_datahome.py::test_foreign_posix_path_on_windows — Windows-only POSIX path test"
+  },
+  "contract_ru": [
+    "Все пять persistent roots обязательны, непересекающиеся абсолютные пути.",
+    "Сравниваются все имена каталогов, size/SHA-256 файлов; live/restored inode и mode не сравниваются.",
+    "Исключаются только bytes ровно services/update-<32 lowercase hex>.json; файл обязателен на обеих сторонах и остаётся под проверками безопасности.",
+    "Никаких исключений для operation.lock, чужих update journals или product ledgers.",
+    "Dir-fd traversal от / с O_NOFOLLOW; тип/owner/nonsharedwrite/nlink/reparse проверяются до и после открытого fd.",
+    "Изменение fd/path signatures, directory membership и повторных inventories приводит к RECOVERY_REQUIRED.",
+    "Нет безопасного fd backend — RECOVERY_REQUIRED, небезопасного Windows fallback нет.",
+    "Вызывающий engine обязан держать installation lock и остановить писателей."
+  ],
+  "earlier_attempts": [
+    {
+      "status": "FAIL",
+      "result": "1 PASS / 54 FAIL",
+      "reason_ru": "Ошибка assertions тестового harness: InstallerError не имеет .details, правильное поле .context[details]. Сам helper отклонял отрицательные случаи. Исправлен только test assertion.",
+      "log": "migration-snapshot-20261026-run02/red.log"
+    }
+  ],
+  "evidence": {
+    "red.log": {
+      "path": "packaging/acceptance-evidence/migration-snapshot-20261026-run02/red.log",
+      "sha256": "5818d7cc8023b075c287e2ee1ca55b79da3cd2d13b55ed5a666058fc62e0fae4"
+    },
+    "final.log": {
+      "path": "packaging/acceptance-evidence/migration-snapshot-20261026-run02/final.log",
+      "sha256": "d3cad830570e39464b650ac73f55f87ba4195bb4349b8aa5cfdf217ce11d582b"
+    },
+    "final.xml": {
+      "path": "packaging/acceptance-evidence/migration-snapshot-20261026-run02/final.xml",
+      "sha256": "6fe630e9f077611ccdaa2948f29c7f1a1e1a72c7f3f618d3fca278b302286afc"
+    }
+  },
+  "not_run": [
+    "Вызов helper настоящим engine backup authorizer",
+    "Installed update 1→2→3 и update fault acceptance",
+    "Windows filesystem/backend",
+    "Clean-host/production G0–G5"
+  ],
+  "production_ready": false,
+  "next_step_ru": "Координатор интегрирует helper; core вызывает assert_live_snapshot_matches(ctx[home].roots, restored_candidate, own_update_journal=exact services/update-token.json) только до нового migration effect. После freeze повторить source и installed update acceptance."
+}

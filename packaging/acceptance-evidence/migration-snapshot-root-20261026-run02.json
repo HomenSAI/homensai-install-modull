@@ -1,0 +1,12 @@
+{
+  "checkpoint_id": "CP-20261026-010",
+  "status": "PASS_SCOPED",
+  "command": "docker run --rm --network none --user 1000:1000 [readonly workspace mount] hinstall-dev:verification python -m pytest -q -p no:cacheprovider tests/test_migration_snapshot.py integration_tests/test_native_adapter_update_independent.py",
+  "exit_code": 0,
+  "passed": 59,
+  "skipped": 2,
+  "seconds": 2.53,
+  "tested_helper_commit": "0afeab6cafecac9bcbb7fa5cfa6b39362f897bcf",
+  "scope": "Root independent Linux source check; two future actual update fault tests skipped while capability=false; no current full lifecycle acceptance",
+  "production_ready": false
+}

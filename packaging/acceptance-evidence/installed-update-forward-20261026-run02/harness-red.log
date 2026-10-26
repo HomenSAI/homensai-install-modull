@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/tmp/hinstall-update-red-cp009/external_client.py", line 481, in <module>
+    main()
+    ~~~~^^
+  File "/tmp/hinstall-update-red-cp009/external_client.py", line 275, in main
+    assert source_executable.is_relative_to(root / "releases" / source_release)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

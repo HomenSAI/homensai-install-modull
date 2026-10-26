@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261026-009",
+  "checkpoint_id": "CP-20261026-010",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "f90a20acbe824bede0174acd8ed241896b47581a",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -88,8 +88,8 @@
   "sync": {
     "cloud_git": "NOT_APPLICABLE: работа ведётся в Windows workspace",
     "docker_git": "SYNC_BLOCKED",
-    "github": "SYNC_PENDING for CP-20261026-009",
-    "last_confirmed_checkpoint": "CP-20261026-008",
+    "github": "SYNC_PENDING for CP-20261026-010",
+    "last_confirmed_checkpoint": "CP-20261026-009",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
   "next_step": "Реализовать adapter update execution с отдельными source/target bindings и phase-scoped quiesce; Ports.backup выдаёт настоящий encrypted BackupReceiptStore receipt, authorizer сравнивает live roots со snapshot. UpdatePlan сохраняет forward journal без automatic legacy restore. Включать capability только после1→2→3/faults; после15:42UTC freeze на финальный suite, в16:00UTC handoff/GitHub/стоп.",
@@ -100,7 +100,7 @@
     "linux_native": "PARTIAL PASS: actual installed single-step reference fresh/start/stop/backup via SDK a5130d1, DEV Linux user; borrowed runtime, no clean-host/full lifecycle",
     "linux_docker": "NOT RUN: daemon доступен; browser/source в DEV контейнере не являются product Docker backend acceptance"
   },
-  "last_confirmed_github_sha": "f90a20acbe824bede0174acd8ed241896b47581a",
+  "last_confirmed_github_sha": "e4f8dbc2743476acebd62c13090dc1e28743fec8",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -167,7 +167,11 @@
     "packaging/acceptance-evidence/baseline-20261026-run02.json",
     "packaging/acceptance-evidence/core-update-20261026-run02.json",
     "packaging/acceptance-evidence/core-update-root-review-20261026-run02.json",
-    "packaging/acceptance-evidence/installed-update-readiness-20261026-run02.json"
+    "packaging/acceptance-evidence/installed-update-readiness-20261026-run02.json",
+    "packaging/acceptance-evidence/migration-snapshot-20261026-run02.json",
+    "packaging/acceptance-evidence/migration-snapshot-root-20261026-run02.json",
+    "packaging/acceptance-evidence/installed-update-readiness-20261026-cp009.json",
+    "packaging/acceptance-evidence/installed-update-forward-20261026-run02.json"
   ],
   "environment": {
     "os": "Windows 10 Home 10.0.19045",
@@ -235,8 +239,8 @@
       "receipt": "packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json"
     }
   ],
-  "source_code_checkpoint": "CP-20261026-009",
-  "handoff_note": "Возобновлена работа по новому указанию владельца до 17:00 Berlin (16:00UTC), старое окно архивировано. Полный baseline CP008/f90a20a:2497PASS/3skip/15subtests,542.76s,431inputs unchanged. Добавлены private update review schema2/from_adapter_binding и source adapter/failure policy в read-only engine plan; fresh schema1 и public7fields сохранены. Исходный RED4FAIL/2PASS сохранён; core112PASS/1XFAIL и отдельно64PASS, root11PASS/1XFAIL (наборы пересекаются). Installed update-readiness на SDKf90a20a: PASS, 69SDK/7reference/161dependency files unchanged; public fresh и readonly update preparation, отказы v2/reviewed-v2/v3 до mutation, effectcount1. Update execution/capability пока выключены, полный1→2→3 XFAIL/NOT RUN. Следующий пакет: scoped quiesce, реальный backup/receipt, live snapshot comparison и fail-closed forward journal без automatic legacy restore. Production_ready=false, G0–G5 OPEN.",
+  "source_code_checkpoint": "CP-20261026-010",
+  "handoff_note": "Интегрирован Linux-only helper безопасного сравнения всех пяти live persistent roots со restored backup: bytes+dirs, fd-relative O_NOFOLLOW, links/hardlinks/reparse/гонки fail-closed; исключаются только bytes точного own update journal. Agent149PASS/1Windows-onlyskip (59 новых helper cases), root59PASS/2SKIP; два root fault tests ждут update capability, это НЕ PASS lifecycle. Installed update-readiness повторён на immutable SDKCP009/e4f8dbc:69SDK/7reference/161dependency files unchanged, fresh/preparation и три отказа update PASS. Полный update execution ещё в отдельном core worktree, публичная capability основной ветки false. По запросу владельца создана private веб-страница статуса; публикация Sites succeeded. Production_ready=false, все G0–G5 OPEN; baseline2497PASS относится к CP008/f90a20a, новый полный suite ещё NOT RUN.",
   "shutdown": {
     "authorized": false,
     "state": "HISTORICAL_REQUEST_NOT_APPLICABLE",
@@ -260,7 +264,7 @@
       "core_lifecycle": ".local-state/agents/core02: update RED и source binding prerequisite",
       "platform_acceptance": ".local-state/agents/acceptance02: installed update-readiness refusal profile; new migration_snapshot.py + tests helper ownership"
     },
-    "current_package": "Update prerequisites verified; next execution slice after CP009 sync",
+    "current_package": "Snapshot helper integrated/source verified; core full update execution in progress in core02",
     "active_test_processes": []
   },
   "startup": {
@@ -340,5 +344,25 @@
     "full_suite_on_changed_runtime": "NOT RUN",
     "core_commit": "231342498cebdd0a2c075288eb43960c447c71e3",
     "acceptance_commit": "47874414d1276e0173e87680a2441b5c1ad0f9d3"
+  },
+  "status_site": {
+    "project_id": "appgprj_6adf6a1e6b4c819195800ccc83cd3731",
+    "url": "https://homensai-installer-work-20261026.hoseskhom.chatgpt.site",
+    "audience": "owner-private",
+    "version1_source_sha": "fcfafaf1e8ca269bab9eb6223c4acd1297f902c8",
+    "documentation": "docs/WORK_STATUS_SITE_RU.md",
+    "refresh_before_final_handoff": true
+  },
+  "run02_snapshot": {
+    "helper_commit": "0afeab6cafecac9bcbb7fa5cfa6b39362f897bcf",
+    "agent_passed": 149,
+    "agent_skipped": 1,
+    "root_passed": 59,
+    "root_update_faults_skipped": 2,
+    "installed_cp009_receipt_commit": "5673145c9c9924e4afef1bd3ef01c49c1c269d79",
+    "update_capability": false,
+    "current_full_source": "NOT RUN",
+    "update_harness_commit": "69b271f64e31e2b91b40510e1a35319298469862",
+    "installed_forward_profile": "PENDING; actual CP009 RED CAPABILITY_UNSUPPORTED saved, source capability remains false"
   }
 }

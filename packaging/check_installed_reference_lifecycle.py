@@ -162,7 +162,8 @@ def main(argv=None):
         del private
         receipt["signed_bundles"] = signed_bundles
         config.update(site_packages=str(site), checkout=str(ROOT), client_report=str(work / "client-report.json"),
-                      bundle_options=bundle_options, profile=args.profile)
+                      bundle_options=bundle_options, profile=args.profile,
+                      runtime_sha256=signed_bundles["1"]["runtime/bin/python"])
         config_path = work / "client-config.json"
         write_json(config_path, config)
         config_path.chmod(0o600)

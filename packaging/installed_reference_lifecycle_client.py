@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import socket
 import sqlite3
 import sys
 from urllib.request import ProxyHandler, build_opener
@@ -14,6 +15,25 @@ def sha(value):
 
 def tree(root):
     return {path.relative_to(root).as_posix(): sha(path.read_bytes()) for path in root.rglob("*") if path.is_file()}
+
+
+def canonical(value):
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+
+
+def notes(database):
+    connection = sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)
+    try:
+        assert connection.execute("PRAGMA quick_check").fetchall() == [("ok",)]
+        return {"schema": connection.execute("PRAGMA user_version").fetchone()[0],
+                "notes": [list(row) for row in connection.execute("SELECT id,text FROM notes ORDER BY id")]}
+    finally:
+        connection.close()
+
+
+def listener_stopped(port):
+    with socket.socket() as probe:
+        assert probe.connect_ex(("127.0.0.1", port)) != 0, "Owned listener остался после stop"
 
 
 def main():
@@ -90,24 +110,120 @@ def main():
         observations.append({"case": "caller_review_id_rejected_before_hook", "status": "PASS"})
         if config["profile"] == "fresh":
             assert supported, "Этот SDK revision ещё не поддерживает adapter fresh install"
+            for changed, expected_error in (({**prepared, "migration_review_id": "e" * 64}, "PLAN_STALE"),
+                    ({**prepared, "fresh_receipt_id": "a" * 64}, "INVALID_REQUEST")):
+                before = tree(root)
+                try:
+                    current.plan("install", manifest, target, options=changed)
+                except InstallerError as error:
+                    assert error.code == expected_error
+                else:
+                    raise AssertionError("Caller-controlled proof/review принят")
+                assert tree(root) == before
             plan, operation = run_action(current, "install", prepared, "true-adapter-fresh")
             result = operation["result"]
             assert result["health"]["ready"] and result["health"]["product_adapter"]["ready"]
-            with sqlite3.connect(root / "data/reference.sqlite") as db:
-                assert db.execute("PRAGMA user_version").fetchone() == (1,)
-                assert db.execute("SELECT count(*) FROM product_adapter_effects").fetchone() == (1,)
+            database = root / "data/reference.sqlite"
+            connection = sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)
+            try:
+                assert connection.execute("PRAGMA user_version").fetchone() == (1,)
+                business_effects = connection.execute("SELECT request_digest,result FROM product_adapter_effects").fetchall()
+                assert len(business_effects) == 1
+            finally:
+                connection.close()
             assert not (root / "data/FORBIDDEN_LEGACY_MIGRATION").exists()
             receipts = list((root / ".hinstall/fresh-receipts").glob("*.json"))
             assert len(receipts) == 1
+            fresh_receipt = json.loads(receipts[0].read_text())
+            assert receipts[0].stem == sha(canonical(fresh_receipt))
+            assert fresh_receipt["kind"] == "fresh_empty" and fresh_receipt["schema_version"] == 1
+            assert fresh_receipt["verification_scope"] == "owned_empty_roots_before_first_product_write"
+            assert fresh_receipt["binding"]["installation_id"] == review["installation_id"]
+            assert fresh_receipt["binding"]["migration_review_id"] == review["migration_review_id"]
+            assert fresh_receipt["binding"]["from_release"] is None
+            assert fresh_receipt["binding"]["from_version"] == "empty" and fresh_receipt["binding"]["to_version"] == "1"
+            assert fresh_receipt["binding"]["plan_digest"] == review["product_plan"]["plan_digest"]
+            journals = [json.loads(path.read_text()) for path in (root / ".hinstall/operations").glob("*.json")]
+            installed = [state for state in journals if state["action"] == "install"]
+            assert len(installed) == 1 and installed[0]["product_adapter_migration_complete"] is True
+            assert installed[0]["fresh_receipt_id"] == receipts[0].stem
+            assert installed[0]["migration_review_id"] == review["migration_review_id"]
+            connection = sqlite3.connect((root / ".hinstall/product-adapter/reference-v1/adapter-invocations.sqlite3").as_uri() + "?mode=ro", uri=True)
+            try:
+                adapter_effects = connection.execute("SELECT request_digest,result,state FROM calls WHERE hook='migration_apply'").fetchall()
+                assert len(adapter_effects) == 1 and adapter_effects[0][2] == "SUCCEEDED"
+                assert business_effects[0][0] == adapter_effects[0][0]
+                assert json.loads(business_effects[0][1]) == json.loads(adapter_effects[0][1]) == installed[0]["product_adapter_migration_result"]
+            finally:
+                connection.close()
+            assert json.loads((root / "services" / manifest["update"]["pointer_file"]).read_text())["release"] == "reference-v1"
+            assert json.loads((root / ".hinstall/installation.json").read_text())["installed"] is True
+            run_action(current, "stop", bundles["1"], "fresh-stop-before-start")
+            listener_stopped(config["port"])
+            run_action(current, "start", bundles["1"], "fresh-start-after-stop")
             owned_pid = json.loads((root / ".hinstall/processes.json").read_text())["web"]["pid"]
+            executable = Path("/proc/" + str(owned_pid) + "/exe").resolve()
+            assert executable.is_relative_to(root / "releases") and sha(executable.read_bytes()) == config["runtime_sha256"]
+            commandline = Path("/proc/" + str(owned_pid) + "/cmdline").read_bytes()
+            assert config["product_secret"].encode() not in commandline and config["archive_password"].encode() not in commandline
             run_action(current, "start", bundles["1"], "fresh-duplicate-start")
             assert json.loads((root / ".hinstall/processes.json").read_text())["web"]["pid"] == owned_pid
+            with build_opener(ProxyHandler({})).open("http://127.0.0.1:" + str(config["port"]) + "/healthz", timeout=3) as response:
+                health = json.load(response)
+            assert health["installation_id"] == review["installation_id"] and health["release"] == "reference-v1"
+            assert health["ready"] and health["database_schema"] == 1 and health["api_key_configured"]
+            document = root / "data/user-files/Личные документы.txt"
+            document.write_text("Synthetic installed document — сохранить\n", encoding="utf-8")
+            credential = root / "data/synthetic-secret.txt"
+            credential.write_text(config["product_secret"], encoding="utf-8")
+            credential.chmod(0o600)
+            settings = root / "config/settings.json"
+            value = json.loads(settings.read_text())
+            value.update(site_title="Настройки installed lifecycle", language="de")
+            settings.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
+            connection = sqlite3.connect(database)
+            try:
+                connection.execute("INSERT INTO notes(id,text) VALUES(2,?)", ("  Installed USER note  ",))
+                connection.commit()
+            finally:
+                connection.close()
+            data_before = notes(database)
+            retained = {"document": sha(document.read_bytes()), "credential": sha(credential.read_bytes()), "settings": sha(settings.read_bytes())}
             _, backup = run_action(current, "backup", bundles["1"], "fresh-backup")
-            assert backup["result"]["archive"]["encrypted"]
+            archive = backup["result"]["archive"]
+            assert archive["encrypted"] and archive["includes_recovery_payload"]
+            assert sha(Path(archive["path"]).read_bytes()) == archive["sha256"]
+            # Независимый installed archive reader — только oracle, не adapter restore.
+            from shared import archive_crypto
+            assert archive_crypto.is_encrypted(archive["path"])
+            candidate = work / "fresh-archive-verification"
+            candidate.mkdir(mode=0o700)
+            archive_crypto.restore_archive(archive["path"], candidate, password_provider=lambda: config["archive_password"],
+                                           expected_product_id=manifest["product_id"])
+            restored = candidate / "roots"
+            assert notes(restored / "data/reference.sqlite") == data_before
+            assert sha((restored / "data/user-files/Личные документы.txt").read_bytes()) == retained["document"]
+            assert sha((restored / "data/synthetic-secret.txt").read_bytes()) == retained["credential"]
+            assert sha((restored / "config/settings.json").read_bytes()) == retained["settings"]
+            assert (restored / "runtime/recovery/reference-v1/payload/runtime/bin/python").is_file()
+            assert notes(database) == data_before
             run_action(current, "stop", bundles["1"], "fresh-stop")
+            listener_stopped(config["port"])
+            for directory in (root / ".hinstall", work / "fresh-sdk-state"):
+                for path in directory.rglob("*"):
+                    if path.is_file():
+                        raw = path.read_bytes()
+                        assert config["archive_password"].encode() not in raw and config["product_secret"].encode() not in raw
             observations.append({"case": "true_adapter_fresh_install", "status": "PASS", "schema": 1,
                 "business_effect_rows": 1, "fresh_receipts": 1, "legacy_migration_forbidden_marker_absent": True,
-                "owned_pid_stable_on_start": True, "real_encrypted_backup": True, "owned_listener_stopped": True})
+                "fresh_receipt_matches_native_journal_and_application_result": True,
+                "caller_proof_and_foreign_review_rejected": True,
+                "constructor": "InstallerAPI.from_bootstrap trusted descriptor",
+                "authorizer": "NativeEngine real fresh receipt verifier, no synthetic authorizer callback",
+                "owned_pid_stable_on_start": True, "real_encrypted_backup_restored_as_oracle": True,
+                "database_documents_settings_and_synthetic_credential_preserved": True,
+                "actual_signed_runtime_sha256": sha(executable.read_bytes()), "secrets_absent_from_argv_and_control_logs": True,
+                "owned_listener_stopped": True})
         else:
             legacy_root = work / "Legacy fixture с пробелами"
             def legacy_options(version):

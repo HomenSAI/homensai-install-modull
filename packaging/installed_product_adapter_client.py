@@ -227,7 +227,10 @@ def run(config, phase):
         observation = {"same_operation_id": True, "no_repeated_quiesce": True}
     elif phase == "unsupported":
         for name in ("install", "update", "restore", "rollback", "repair", "reinstall", "uninstall"):
-            assert api.capabilities(config["target"])["actions"][name]["supported"] is False
+            if name != "install":
+                assert api.capabilities(config["target"])["actions"][name]["supported"] is False
+            # Backend может поддерживать fresh в целом; этот signed descriptor
+            # объявляет лишь maintenance и обязан отказать до product effects.
             try:
                 api.plan(name, manifest, config["target"], options=options)
             except InstallerError as error:

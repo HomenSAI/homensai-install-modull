@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261026T152200Z-corecaptest02",
+  "task_ids": [
+    "HIM-015",
+    "HIM-054"
+  ],
+  "source_sha": "091c0f4cdd2ab97a1c46aae985aa9d3f84f9dae9",
+  "dirty": true,
+  "scope": "Test-only adjustment к принятому adapter update capability; runtime не менялся.",
+  "initial": {
+    "status": "FAIL",
+    "observed": "Старый param update ошибочно продолжал требовать supported=false после capability flip.",
+    "counts": "1 failed, 222 passed, 1 deselected in191.25s",
+    "raw_log_local": ".local-state/attempts/core02-update/final-regression.log"
+  },
+  "final": {
+    "status": "PASS",
+    "command": "docker run --rm --network none --name hinstall-core02-maintenance-cap-test --mount type=bind,source=E:/homensai/homensai-install-modull/.local-state/agents/core02,target=/workspace,readonly hinstall-dev:verification python -m pytest -q -p no:cacheprovider integration_tests/test_native_product_adapter.py -k 'unimplemented_adapter or requires_signed_migration'",
+    "exit_code": 0,
+    "passed": 6,
+    "deselected": 31,
+    "elapsed_seconds": 6.57
+  },
+  "implementation": "Unsupported actions list исключает update; новый regression требует cap update=true, отвергает maintenance-only descriptor приplan и unreviewedupdate execution до hooks. Restore/rollback/repair/reinstall/uninstall остаются disabled.",
+  "production_ready": false
+}

@@ -243,7 +243,7 @@ def test_direct_unreviewed_opt_in_execution_fails_before_hooks(installed):
     assert caught.value.code=='PLAN_STALE' and state(fixture)['ready']==0
 
 
-@pytest.mark.parametrize('action',['update','restore','rollback','repair','reinstall','uninstall'])
+@pytest.mark.parametrize('action',['restore','rollback','repair','reinstall','uninstall'])
 def test_unimplemented_adapter_lifecycle_rejected_before_effects(installed,action):
     fixture,bundle,_=installed
     assert fixture.engine.capabilities(fixture.target)['actions'][action]['supported'] is False
@@ -251,6 +251,16 @@ def test_unimplemented_adapter_lifecycle_rejected_before_effects(installed,actio
     assert caught.value.code=='CAPABILITY_UNSUPPORTED'
     with pytest.raises(EngineError) as caught:fixture.engine.execute(fixture.operation_plan(action,bundle))
     assert caught.value.code=='CAPABILITY_UNSUPPORTED'
+    assert state(fixture)['ready']==0 and state(fixture)['quiesce']==0
+
+
+def test_update_requires_signed_migration_hooks_and_review_before_effects(installed):
+    fixture,bundle,_=installed
+    assert fixture.engine.capabilities(fixture.target)['actions']['update']['supported'] is True
+    with pytest.raises(EngineError) as caught:fixture.reviewed_plan('update',bundle)
+    assert caught.value.code=='CAPABILITY_UNSUPPORTED'  # Maintenance-only descriptor.
+    with pytest.raises(EngineError) as caught:fixture.engine.execute(fixture.operation_plan('update',bundle))
+    assert caught.value.code=='PLAN_STALE'
     assert state(fixture)['ready']==0 and state(fixture)['quiesce']==0
 
 

@@ -1,0 +1,110 @@
+{
+  "scope": "offline source+Linux user process integration in Docker DEV Debian; not product platform acceptance",
+  "source_sha": "2370812bb482ee441662a7d0d47df7399294db2b",
+  "command": [
+    "python",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "no:cacheprovider",
+    "tests",
+    "integration_tests",
+    "--junitxml=/run-io/candidate-cp004.xml"
+  ],
+  "exit_code": 0,
+  "status": "PASS",
+  "inputs_unchanged": true,
+  "input_count": 166,
+  "input_digest": "2f60f8829e46e9e3c878d1dc6d7fe5176102ba80efc70891ba87abd6cdf6e63d",
+  "elapsed_seconds": 685.3038679910001,
+  "checked_at_utc": "2026-10-26T09:01:23.963004+00:00",
+  "production_ready": false,
+  "checkpoint": "CP-20261026-004",
+  "counts": {
+    "passed": 2416,
+    "skipped": 3,
+    "subtests_passed": 15
+  },
+  "snapshot_tar_sha256": "85920219af583c6180faf38be3a6a95a43da4258eb3bfc266d707dd64af7b3bd",
+  "source_worktree_dirty": true,
+  "post_suite_documentation_eof_normalization": {
+    "INSTALLER_API.md": {
+      "tested_snapshot_sha256": "30dcc47b9c28ab7e2df51ffb7a3eced515f413c781d93061b2ce92c2469786f3",
+      "final_sha256": "364584f0616cf017cb951666949f84b4e9b22025e570608c9da018ec3136a672"
+    },
+    "homensai_install/api/resources/INSTALLER_API.md": {
+      "tested_snapshot_sha256": "30dcc47b9c28ab7e2df51ffb7a3eced515f413c781d93061b2ce92c2469786f3",
+      "final_sha256": "364584f0616cf017cb951666949f84b4e9b22025e570608c9da018ec3136a672"
+    }
+  },
+  "checkout_crlf_vs_git_archive_lf": {
+    "CONTINUE_DEVELOPMENT_PROMPT_RU.txt": {
+      "tested_snapshot_sha256": "ac06ca1df7619784f75e51b30ccb707c11788237c735f9318efc79be701aa8e2",
+      "final_sha256": "30da0a7e7f0b7ff56c32e54f155da213ecc263eb2458b92eb219850c21d06b83"
+    },
+    "README.md": {
+      "tested_snapshot_sha256": "4834a3579187843e0da5a7cdf624d416af68fb5100ac62c84b8a9d5fd3e2ef11",
+      "final_sha256": "825f17c3def197286e84a55ccc5c8b2d80b8895e85bd8278c6098da964700c74"
+    },
+    "packaging/acceptance-evidence/baseline-20261026-cp003.json": {
+      "tested_snapshot_sha256": "12b71651c4fe091ec30bf9fbf73ff93f0bfc7330992e4109d33e28acc3207b99",
+      "final_sha256": "a0457db55723e42fd49e7d2ff2255c480c883a05400c2383a4e69073cc094385"
+    },
+    "packaging/acceptance-evidence/baseline-environment-20261025-cp019.json": {
+      "tested_snapshot_sha256": "c8afa3770c0af688d100066453498b12c4317285a1db3d311a45eaf13b888781",
+      "final_sha256": "1544de1c32dec9e898e42fe33ec56d30313c38320553d8e7d70fd99aed68feb6"
+    },
+    "packaging/acceptance-evidence/core-review-backup-primary-error-20261025-cp021.json": {
+      "tested_snapshot_sha256": "2bb995535be3d22a37fede58c3e8576e2f372c5e5029cdbf8d809bc253068d89",
+      "final_sha256": "2e0569aa1de439b6dc959dd82f628bd528264c509b277906e8384337f8f4addb"
+    },
+    "packaging/acceptance-evidence/cp019-windows-profile-0.log": {
+      "tested_snapshot_sha256": "9261363b733079a641c2e4cc9bc46ffa1d8336945a87f807b6cf68847dbc9b09",
+      "final_sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf"
+    },
+    "packaging/acceptance-evidence/cp019-windows-profile-1.log": {
+      "tested_snapshot_sha256": "8db56409f8c8878eac22f3c125ba26982ce81d5d8064e6794b5c23d246b7bde3",
+      "final_sha256": "319017a80887fefba0c79b4a50a76ebe6832ca7904d157e26aa8931e44cfea45"
+    },
+    "packaging/acceptance-evidence/cp019-windows-profile-2.log": {
+      "tested_snapshot_sha256": "abf23905ffc646f297f5537c54dbd21bfc3fd3840fa747672718aec6e0044cc6",
+      "final_sha256": "76203c34778f3ff13bd1becc17a395452e6d16c66e2814a980ed52ed8decd012"
+    },
+    "packaging/acceptance-evidence/cp019-windows-profile.json": {
+      "tested_snapshot_sha256": "a843855de669aefb3144e1195e04b599f4bb247c2c2ef1265a458bcf3dbe971c",
+      "final_sha256": "8ef3c9f8a0c11d53f4e9063ae95d3fac0f33442e3cb4b4347b294f9d9f6d01fd"
+    },
+    "packaging/acceptance-evidence/cp019-windows-runtime-download.json": {
+      "tested_snapshot_sha256": "1cbecd599306e331cdb7a441110ec761a1b9ef2eaf92dd9258346b8f4a360cc0",
+      "final_sha256": "577be713da5e7567f822064dd3595c9bb992a5fda98b4ca44ee70a5fa774b9f3"
+    },
+    "packaging/acceptance-evidence/github-ci-baseline-20261026-cp003.json": {
+      "tested_snapshot_sha256": "9547c76088094eeb69ab586893ae13ce76e5991c1b0041551ae526e52d3dc6fb",
+      "final_sha256": "6cadd3b8c2c9235e8d1fb6ab13ad2d8442c5bd5793a3251638fdee63dadc08f6"
+    },
+    "packaging/acceptance-evidence/handoff-20261026-cp001.json": {
+      "tested_snapshot_sha256": "8dfca0d6cc5b92a455de094d64266f8906d274f58d368c67983d6b41f47c3146",
+      "final_sha256": "04070f25115b8eee34d3955cfcaadbd2d016c7111532f2a344bb9b0c4d54ef02"
+    }
+  },
+  "affected_validation": {
+    "command": "docker run --rm --network none --mount main:/workspace,readonly hinstall-dev:verification python -m pytest -q -p no:cacheprovider tests/test_migration_preparation_api.py tests/test_public_api.py tests/test_backends.py tests/test_scaffold.py",
+    "passed": 78,
+    "elapsed_seconds": 18.21,
+    "exit_code": 0,
+    "overlaps_full_suite": true
+  },
+  "final_installed_receipt": "installed-product-adapter-20261026-cp004.json",
+  "junit_publication": {
+    "redacted_test_parameters": 5,
+    "raw_junit_sha256": "b4b982d6003e038e8a93e689dee4bb09aa375205d53426111e7e12cc8d171235",
+    "raw_location": ".local-state/run01/candidate-cp004.xml"
+  },
+  "limitations": [
+    "Full source run used frozen Git-normalized snapshot before final Markdown EOF normalization in two files; affected contract/resource checks and final installed wheel were repeated.",
+    "Installed maintenance bootstraps via legacy NativeEngine; no adapter fresh/update execution accepted.",
+    "Copied product ELF borrows DEV stdlib/libpython; no standalone/clean-host claim.",
+    "NativeEngine migration preparation not yet implemented in this checkpoint; SDK bridge refuses unsupported backend."
+  ]
+}

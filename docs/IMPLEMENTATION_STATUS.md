@@ -1,12 +1,16 @@
 # Фактическое состояние реализации
 
-Дата: 25.10.2026. Checkpoint: **CP-20261025-021**.
+Дата: 26.10.2026. Checkpoint: **CP-20261026-004**.
 Ветка `codex/universal-installer-20261025`. **`production_ready=false`.**
 Исходный commit: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
 
 
 
-## Текущий выполненный этап CP021
+## Текущий этап CP-20261026-004
+
+Интегрированы настоящие encrypted BackupReceiptStore с проверкой восстановленного signed payload/installation identity и default-deny migration authorizer. Maintenance receipt recovery_only не разрешает миграцию. Добавлен explicit SDK/BackendRouter prepare_migration bridge; NativeEngine preparation/install/update ещё unsupported в этом CP. Independent installed reference maintenance:8clientsPASS/69SDK files/7reference files, реальные process/HTTP/SQLite/archive restore, UID1000, source/package/deps unchanged; bootstraplegacy и runtime borrowed явно ограничены. Full frozen source/integration:2416PASS/3skip/15subtests,682.08s; после нормализацииEOF в двух docs выполнены78overlappingcontract checks и новыйinstalledwheelPASS. Все G0–G5OPEN, production_ready=false. Окно продолжается; следующий пакет explicit migration preparation/fresh witness, затем single-step apply.
+
+## Исторический этап CP021
 
 CP-20261025-021: подключён ExecutableProductAdapter к NativeEngine через явный trusted constructor opt-in только Linux/native/user start/stop/backup. Reviewed plan закрепляет signed descriptor/payload/runtime; readiness требует свежие release/installation/probe identity вместе с прежними owned PID/listener/HTTP. Durable quiesce intent и строгий ledger reconciliation не разрешают повтор UNKNOWN после утраты ledger или отсутствующей ожидаемой invocation. Backup использует настоящий полный encrypted архив. Исправлен воспроизведённый дефект: secondary recovery start/readiness больше не маскирует primary backup error, оба безопасных кода сохранены в native journal/public details. Все исходные FAIL и reverse-fault RED сохранены отдельно. Final source/integration: 2363 PASS, 3 skip, 15 subtests, inputs unchanged. Installed SDK/CLI и synthetic prerequisites PASS; actual Chromium установленного wheel: 24 PASS ru/en/de. Во всех трёх отдельных wheel совпадают 68 package files; SHA архивов различаются и не объявлены bit-reproducible. Windows10/Python3.14.3: 492 и отдельно57 PASS, 4 POSIX skip. Это не Windows11/platform acceptance. Installed ProductAdapter maintenance отдельно NOT RUN; новые maintenance процессы/HTTP/backup приняты на source уровне. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json.
 

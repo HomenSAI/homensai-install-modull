@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261026-003",
+  "checkpoint_id": "CP-20261026-004",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -89,18 +89,18 @@
     "cloud_git": "NOT_APPLICABLE: работа ведётся в Windows workspace",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261026-002",
+    "last_confirmed_checkpoint": "CP-20261026-003",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
-  "next_step": "Реализовать migration_plan/apply с настоящими backup receipts и fresh-empty, затем независимый installed reference artifact и полный lifecycle; выполнить оставшуюся реальную четырёхплатформенную приёмку.",
+  "next_step": "Интегрировать e693025 NativeEngine explicit migration preparation и 3db7995 reference migration_plan, проверить общий SDK bridge; затем fresh schema1 и последовательные single-step update1→2→3 с настоящими receipts и strict UNKNOWN reconciliation.",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
     "windows_docker": "BLOCKED",
-    "linux_native": "PARTIAL: frozen x64 user-session lifecycle/updates/rollback/repair/crash-resume PASS in scoped receipts; OS service/reboot/full matrix open",
+    "linux_native": "PARTIAL: installed SDK ProductAdapter maintenance8clientsPASS CP004 with legacy bootstrap and borrowed ELF runtime; adapter fresh/update/full platform NOT RUN",
     "linux_docker": "NOT RUN: daemon доступен; browser/source в DEV контейнере не являются product Docker backend acceptance"
   },
-  "last_confirmed_github_sha": "cd319a03f47fe9b7e4888afffe88f311329a3ce9",
+  "last_confirmed_github_sha": "97d333ee1fed03060fb63e54445ced62ac930438",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -157,7 +157,9 @@
     "packaging/acceptance-evidence/local-artifact-upload-20261025-cp020.json",
     "packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json",
     "packaging/acceptance-evidence/baseline-20261026-cp003.json",
-    "packaging/acceptance-evidence/github-ci-baseline-20261026-cp003.json"
+    "packaging/acceptance-evidence/github-ci-baseline-20261026-cp003.json",
+    "packaging/acceptance-evidence/source-20261026-cp004.json",
+    "packaging/acceptance-evidence/installed-product-adapter-20261026-cp004.json"
   ],
   "environment": {
     "os": "Windows 10 Home 10.0.19045",
@@ -225,8 +227,8 @@
       "receipt": "packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json"
     }
   ],
-  "source_code_checkpoint": "CP-20261025-021",
-  "handoff_note": "Начато 12-часовое окно 26.10.2026 08:25:06Z–20:25:06Z (10:25–22:25 Europe/Berlin); основной и два SOL6.1High работают. Baseline cd319a0:2363PASS/3skip/15subtests,525.37s,157inputs unchanged в Docker CPython3.14.3. GitHub baseline push/PR CI success; это source/scoped проверки. Исправлено устаревшее описание явного NativeEngine opt-in в integration guide и SDK resource. Старый cp021 worktree удалён после сохранения черновика Git stash8d32829; новые рабочие копии только внутри .local-state/agents. Следующий пакет: реальная backup receipt authorization и installed maintenance/reference. Production_ready=false, G0–G5OPEN.",
+  "source_code_checkpoint": "CP-20261026-004",
+  "handoff_note": "Интегрированы настоящие encrypted BackupReceiptStore с проверкой восстановленного signed payload/installation identity и default-deny migration authorizer. Maintenance receipt recovery_only не разрешает миграцию. Добавлен explicit SDK/BackendRouter prepare_migration bridge; NativeEngine preparation/install/update ещё unsupported в этом CP. Independent installed reference maintenance:8clientsPASS/69SDK files/7reference files, реальные process/HTTP/SQLite/archive restore, UID1000, source/package/deps unchanged; bootstraplegacy и runtime borrowed явно ограничены. Full frozen source/integration:2416PASS/3skip/15subtests,682.08s; после нормализацииEOF в двух docs выполнены78overlappingcontract checks и новыйinstalledwheelPASS. Все G0–G5OPEN, production_ready=false. Окно продолжается; следующий пакет explicit migration preparation/fresh witness, затем single-step apply.",
   "shutdown": {
     "authorized": false,
     "state": "HISTORICAL_REQUEST_NOT_APPLICABLE",
@@ -248,7 +250,10 @@
       "root": "contract review, integration, docs/API exports, GitHub",
       "core_lifecycle": ".local-state/agents/core: migration/receipt/fresh-empty engine/adapters and tests",
       "platform_acceptance": ".local-state/agents/acceptance: reference and installed harness"
-    }
+    },
+    "current_package": "receipt/maintenance+SDK bridge verified; native preparation and single-step fresh apply next",
+    "timezone": "Europe/Berlin",
+    "local_window": "2026-10-26 09:25:06–21:25:06 CET (UTC+01:00)"
   },
   "startup": {
     "entrypoint": "AI_START_HERE.md",

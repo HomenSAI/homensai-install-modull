@@ -74,7 +74,13 @@
       "additionalProperties": false
     },
     "options": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "migration_review_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
     },
     "inventory_fingerprint": {
       "type": "string",

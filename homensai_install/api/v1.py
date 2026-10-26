@@ -25,7 +25,7 @@ OPTION_KEYS = frozenset({"install_root", "data_home", "release", "modes", "paylo
                          "inventory", "inventory_file", "signature", "signature_file",
                          "runtime_executable", "work_dir", "backup_password_ref", "secret_refs", "archive_path",
                          "acknowledge_data_loss", "development_runtime", "eula_digest", "eula_locale", "eula_version",
-                         "language", "start_after_install", "port", "product_version"})
+                         "language", "start_after_install", "port", "product_version", "migration_review_id"})
 EVENT_KEYS = frozenset({"type", "phase", "component_id", "step_id", "status", "percent", "current",
                         "total", "completed", "bytes_done", "bytes_total", "progress", "message_code", "error",
                         "duration_ms", "unit", "bytes_delta", "attempt_id", "retryable"})
@@ -78,7 +78,13 @@ def _options(options: dict | None) -> dict:
     value = bounded_json(options or {})
     if type(value) is not dict or set(value) - OPTION_KEYS:
         fail("INVALID_REQUEST", details={"field_path": "options"})
+    if "migration_review_id" in value and not _sha256_identifier(value["migration_review_id"]):
+        fail("INVALID_REQUEST", details={"field_path": "options.migration_review_id"})
     return value
+
+
+def _sha256_identifier(value) -> bool:
+    return type(value) is str and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
 
 
 class InstallerAPI:
@@ -181,6 +187,7 @@ class InstallerAPI:
                                 "lifecycle_engine_registration": True,
                                 "lifecycle_registration": "trusted_native_engine_constructor",
                                 "lifecycle_engine_actions": ["start", "stop", "backup"],
+                                "migration_preparation": "explicit_sdk_backend_extension",
                                 "migration_execution": False, "default_registration": False,
                                 "execution_platforms": ["linux"], "execution_mode": "native",
                                 "execution_scope": "user"},
@@ -200,7 +207,7 @@ class InstallerAPI:
                               "durable_byte_progress": True,
                               "automatic_default_factory": False, "gui_auto_flow": True,
                               "readiness": "source_contract", "production_ready": False},
-            "operations": ["describe", "capabilities", "validate", "discover", "plan", "submit",
+            "operations": ["describe", "capabilities", "validate", "discover", "prepare_migration", "plan", "submit",
                            "operations.list", "status", "events", "cancel", "resume", "errors.describe", "errors.search",
                            "diagnostics.get", "diagnostics.export", "statistics.query",
                            "prerequisites.capabilities", "prerequisites.identity", "prerequisites.busy", "prerequisites.license",
@@ -352,6 +359,46 @@ class InstallerAPI:
         facts = result.get("fingerprint_data", {key: value for key, value in result.items()
                                                if key not in {"fingerprint", "timestamp", "observed_at"}})
         return {**result, "fingerprint": digest(facts), "target": target}
+
+    def prepare_migration(self, action: str, manifest: dict | str | Path,
+                          target: dict | None = None, options: dict | None = None) -> dict:
+        """Explicit SDK preparation; plan/discover never invoke product hooks.
+
+        Only a trusted registered backend can run the signed read-only product
+        migration probe and save its immutable local review. This method does
+        not apply migrations or grant consent for subsequent lifecycle effects.
+        CLI/HTTP transports do not expose it implicitly.
+        """
+        if type(action) is not str or action not in {"install", "update"}:
+            fail("INVALID_REQUEST", details={"field_path": "action"})
+        source = self.validate(manifest)["source_manifest"]
+        target = target_model(target)
+        options = _options(options)
+        if "migration_review_id" in options:
+            fail("INVALID_REQUEST", details={"field_path": "options.migration_review_id"})
+        if not callable(getattr(self._engine(), "prepare_migration", None)):
+            fail("CAPABILITY_UNSUPPORTED", details={"reason": "migration_preparation_not_configured"})
+        result = bounded_json(self._engine_call("prepare_migration", action, source, target, options))
+        required = {"migration_review_id", "action", "product_plan", "from_release",
+                    "to_release", "installation_id", "binding_sha256"}
+        if (type(result) is not dict or set(result) != required or result["action"] != action
+                or not _sha256_identifier(result["migration_review_id"])
+                or not _sha256_identifier(result["binding_sha256"])
+                or type(result["product_plan"]) is not dict
+                or type(result["installation_id"]) is not str or not result["installation_id"]
+                or type(result["to_release"]) is not str or not result["to_release"]
+                or result["to_release"] != options.get("release")
+                or (result["from_release"] is not None and
+                    (type(result["from_release"]) is not str or not result["from_release"]))
+                or (action == "install" and result["from_release"] is not None)
+                or (action == "update" and result["from_release"] is None)):
+            fail("UNEXPECTED_ERROR", details={"reason": "migration_preparation_result_invalid"})
+        product_plan = result["product_plan"]
+        if (not _sha256_identifier(product_plan.get("plan_digest"))
+                or digest({k: v for k, v in product_plan.items() if k != "plan_digest"})
+                    != product_plan["plan_digest"]):
+            fail("UNEXPECTED_ERROR", details={"reason": "migration_preparation_plan_digest_invalid"})
+        return result
 
     def _supported(self, action: str, target: dict):
         if action not in ALL_ACTIONS:

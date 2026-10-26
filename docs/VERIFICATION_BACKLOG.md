@@ -6,6 +6,10 @@
 `verification-status.json` описывают проверки. Единственный список реализации —
 `HomenSAI_Universal_Installer_TODO_RU.txt`; его ID/критерии не заменяются этим реестром.
 
+## Проверенный первый пакет CP-20261026-004
+
+Интегрированы настоящие encrypted BackupReceiptStore с проверкой восстановленного signed payload/installation identity и default-deny migration authorizer. Maintenance receipt recovery_only не разрешает миграцию. Добавлен explicit SDK/BackendRouter prepare_migration bridge; NativeEngine preparation/install/update ещё unsupported в этом CP. Independent installed reference maintenance:8clientsPASS/69SDK files/7reference files, реальные process/HTTP/SQLite/archive restore, UID1000, source/package/deps unchanged; bootstraplegacy и runtime borrowed явно ограничены. Full frozen source/integration:2416PASS/3skip/15subtests,682.08s; после нормализацииEOF в двух docs выполнены78overlappingcontract checks и новыйinstalledwheelPASS. Все G0–G5OPEN, production_ready=false. Окно продолжается; следующий пакет explicit migration preparation/fresh witness, затем single-step apply.
+
 ## Baseline активного запуска CP-20261026-003
 
 Начато 12-часовое окно 26.10.2026 08:25:06Z–20:25:06Z (10:25–22:25 Europe/Berlin); основной и два SOL6.1High работают. Baseline cd319a0:2363PASS/3skip/15subtests,525.37s,157inputs unchanged в Docker CPython3.14.3. GitHub baseline push/PR CI success; это source/scoped проверки. Исправлено устаревшее описание явного NativeEngine opt-in в integration guide и SDK resource. Старый cp021 worktree удалён после сохранения черновика Git stash8d32829; новые рабочие копии только внутри .local-state/agents. Следующий пакет: реальная backup receipt authorization и installed maintenance/reference. Production_ready=false, G0–G5OPEN.

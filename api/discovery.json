@@ -10,16 +10,67 @@
   "normalized_model_version": 1,
   "sdk": "homensai_install.api.v1.InstallerAPI",
   "cli": "hinstall",
+  "product_adapter": {
+    "sdk": "homensai_install.adapters.ExecutableProductAdapter",
+    "protocol_version": "1.0",
+    "registration": "explicit_sdk",
+    "lifecycle_engine_registration": true,
+    "lifecycle_registration": "trusted_native_engine_constructor",
+    "lifecycle_engine_actions": [
+      "start",
+      "stop",
+      "backup"
+    ],
+    "migration_preparation": "explicit_sdk_backend_extension",
+    "migration_execution": false,
+    "default_registration": false,
+    "execution_platforms": [
+      "linux"
+    ],
+    "execution_mode": "native",
+    "execution_scope": "user"
+  },
+  "scaffold": {
+    "sdk": "homensai_install.scaffold.scaffold_product",
+    "cli": "hinstall init-adapter",
+    "missing_inputs": "DRAFT_BLOCKED"
+  },
   "locales": [
     "ru",
     "en",
     "de"
   ],
+  "backends": {
+    "sdk": "homensai_install.backends.BackendRouter",
+    "bootstrap_sdk": "homensai_install.api.v1.InstallerAPI.from_bootstrap",
+    "registration": "explicit_bootstrap",
+    "default": "native:user",
+    "selection": "reviewed_target",
+    "implicit_fallback": false,
+    "availability": "capabilities_for_exact_target"
+  },
+  "prerequisites": {
+    "registration": "explicit_sdk",
+    "execution": "synchronous_default_background_opt_in",
+    "background_ack": "durable_queued_operation",
+    "recovery_listing": true,
+    "http_transport": "explicit_wizard_session",
+    "http_plan_input": "server_plan_id",
+    "cli_transport": "explicit_trusted_sdk",
+    "cli_execution": "synchronous",
+    "busy_probe": "registered_store_claim_or_controller",
+    "durable_byte_progress": true,
+    "automatic_default_factory": false,
+    "gui_auto_flow": true,
+    "readiness": "source_contract",
+    "production_ready": false
+  },
   "operations": [
     "describe",
     "capabilities",
     "validate",
     "discover",
+    "prepare_migration",
     "plan",
     "submit",
     "operations.list",
@@ -62,59 +113,5 @@
     "json_depth": 48,
     "event_page_size": 1000,
     "operation_list_size": 200
-  },
-  "documentation": {
-    "entrypoint": "INSTALLER_API.md",
-    "openapi": "api/openapi.yaml",
-    "integration_guide": "docs/INTEGRATION_GUIDE.md"
-  },
-  "product_adapter": {
-    "sdk": "homensai_install.adapters.ExecutableProductAdapter",
-    "protocol_version": "1.0",
-    "registration": "explicit_sdk",
-    "lifecycle_engine_registration": true,
-    "execution_platforms": [
-      "linux"
-    ],
-    "execution_mode": "native",
-    "execution_scope": "user",
-    "lifecycle_registration": "trusted_native_engine_constructor",
-    "lifecycle_engine_actions": [
-      "start",
-      "stop",
-      "backup"
-    ],
-    "migration_execution": false,
-    "default_registration": false
-  },
-  "scaffold": {
-    "sdk": "homensai_install.scaffold.scaffold_product",
-    "cli": "hinstall init-adapter",
-    "missing_inputs": "DRAFT_BLOCKED"
-  },
-  "backends": {
-    "sdk": "homensai_install.backends.BackendRouter",
-    "registration": "explicit_bootstrap",
-    "default": "native:user",
-    "selection": "reviewed_target",
-    "implicit_fallback": false,
-    "availability": "capabilities_for_exact_target",
-    "bootstrap_sdk": "homensai_install.api.v1.InstallerAPI.from_bootstrap"
-  },
-  "prerequisites": {
-    "registration": "explicit_sdk",
-    "execution": "synchronous_default_background_opt_in",
-    "automatic_default_factory": false,
-    "gui_auto_flow": true,
-    "readiness": "source_contract",
-    "production_ready": false,
-    "background_ack": "durable_queued_operation",
-    "recovery_listing": true,
-    "http_transport": "explicit_wizard_session",
-    "http_plan_input": "server_plan_id",
-    "cli_transport": "explicit_trusted_sdk",
-    "cli_execution": "synchronous",
-    "durable_byte_progress": true,
-    "busy_probe": "registered_store_claim_or_controller"
   }
 }

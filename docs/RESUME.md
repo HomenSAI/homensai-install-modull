@@ -1,13 +1,22 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261026-003` (активный запуск и baseline); код `CP-20261025-021`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261026-004` (backup receipts, installed maintenance, SDK bridge); ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый local/GitHub до создания CP-20261026-003:
-`cd319a03f47fe9b7e4888afffe88f311329a3ce9` (CP-20261026-002).
+Последний подтверждённый local/GitHub до создания CP-20261026-004:
+`97d333ee1fed03060fb63e54445ced62ac930438` (CP-20261026-003).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
-## Активное выполнение CP-20261026-003
+## Активное выполнение CP-20261026-004
+
+Интегрированы настоящие encrypted BackupReceiptStore с проверкой восстановленного signed payload/installation identity и default-deny migration authorizer. Maintenance receipt recovery_only не разрешает миграцию. Добавлен explicit SDK/BackendRouter prepare_migration bridge; NativeEngine preparation/install/update ещё unsupported в этом CP. Independent installed reference maintenance:8clientsPASS/69SDK files/7reference files, реальные process/HTTP/SQLite/archive restore, UID1000, source/package/deps unchanged; bootstraplegacy и runtime borrowed явно ограничены. Full frozen source/integration:2416PASS/3skip/15subtests,682.08s; после нормализацииEOF в двух docs выполнены78overlappingcontract checks и новыйinstalledwheelPASS. Все G0–G5OPEN, production_ready=false. Окно продолжается; следующий пакет explicit migration preparation/fresh witness, затем single-step apply.
+
+Next: NativeEngine prep e693025 + reference plan3db7995, затем fresh/apply.
+Окно UTC08:25:06–20:25:06; Europe/Berlin09:25:06–21:25:06CET.
+Уточнение к CP003: локальное время ранее ошибочно записано10:25–22:25; UTC deadline не менялся.
+GitHub новогоCP:SYNC_PENDING до внешней receipt.
+
+## История выполнения CP-20261026-003
 
 Начато 12-часовое окно 26.10.2026 08:25:06Z–20:25:06Z (10:25–22:25 Europe/Berlin); основной и два SOL6.1High работают. Baseline cd319a0:2363PASS/3skip/15subtests,525.37s,157inputs unchanged в Docker CPython3.14.3. GitHub baseline push/PR CI success; это source/scoped проверки. Исправлено устаревшее описание явного NativeEngine opt-in в integration guide и SDK resource. Старый cp021 worktree удалён после сохранения черновика Git stash8d32829; новые рабочие копии только внутри .local-state/agents. Следующий пакет: реальная backup receipt authorization и installed maintenance/reference. Production_ready=false, G0–G5OPEN.
 

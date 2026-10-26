@@ -660,3 +660,24 @@ owner меняет journal только при совпадении ранее �
 возрастающий sequence. Задержанный status не перезаписывает новую попытку даже
 при resume в том же процессе.
 Повторная отмена terminal operation не меняет историю и не создаёт второй event.
+
+### Явная подготовка миграции в SDK
+
+`InstallerAPI.prepare_migration(action, manifest, target=None, options=None)` —
+отдельный явный SDK-вызов для `install`/`update`. Он делегирует только явно
+зарегистрированному backend, который реализует `prepare_migration`. Общие
+`discover`/`plan` не вызывают этот метод или продуктовые hooks. Backend без
+подготовки возвращает `CAPABILITY_UNSUPPORTED`; fallback на другой target нет.
+На первом этапе backup receipts NativeEngine ещё не реализует подготовку:
+наличие SDK-метода не означает готовность adapter install/update.
+
+Результат поддерживающего backend: `migration_review_id`, `action`,
+`product_plan` (from_version/to_version/steps/plan_digest), `from_release`,
+`to_release`, `installation_id`, `binding_sha256`. Оба ID/digest — 64 hex-символа.
+`options.release` должен совпасть с `to_release`; fresh имеет from_release=null,
+update требует существующий from_release. При preparation старый review ID
+передавать нельзя. Последующий общий `plan` принимает только opaque
+`options.migration_review_id`, а не путь к review-файлу или callback.
+Сам review не заменяет обязательные согласия перед lifecycle-исполнением.
+CLI/HTTP подготовку не предоставляют автоматически; произвольный subprocess
+через этот метод не выбирается. Доступность фактического backend — отдельный gate.

@@ -230,3 +230,24 @@ Scaffold tests проверяют реальные bytes/hash-пины, wheel me
 Подпись подтверждает происхождение и целостность принятого кода, но не делает вредоносный код безопасным. Product adapter исполняется с правами владельца и не является OS sandbox. Системные библиотеки/runtime closure, доверие publisher, проверка лицензий, защищённая сборка и отдельные платформенные E2E остаются обязательными release gates. Автоматической антивирусной гарантии и произвольной загрузки/исполнения GitHub-компонентов здесь нет.
 
 Форматы и свойства используемых механизмов: [Python subprocess](https://docs.python.org/3/library/subprocess.html), [PyPA wheel specification](https://packaging.python.org/en/latest/specifications/binary-distribution-format/), [Python os.waitid](https://docs.python.org/3/library/os.html#os.waitid). Документация проверена 25 октября 2026 года; возможности данной реализации подтверждаются указанными тестами отдельно от готовности конечного продукта.
+
+
+### Backup receipts и запрет неподтверждённой миграции
+
+Standalone `ExecutableProductAdapter` теперь отказывает в новом `migration_apply`
+без явного trusted constructor `migration_authorizer(request)`, вернувшего True.
+Callback не передаётся через manifest/options/HTTP. Для новой миграции host обязан
+проверить реальные backup bytes и reviewed binding через `BackupReceiptStore`;
+произвольная строка receipt ID не является разрешением. Исторический SUCCEEDED
+replay и read-only UNKNOWN reconciliation не требуют повторной авторизации и
+не исполняют миграцию заново. Семантика exactly-once произвольного продукта
+не обещается; lost ACK требует явного reconciliation.
+
+При opt-in NativeEngine backup возвращает additive `archive.backup_receipt`.
+Приватный store хранит путь; public body содержит digest и binding. Архив реально
+расшифровывается и распаковывается в private candidate, проверяются identity,
+active pointer и signed recovery payload. Maintenance receipt имеет неизвестную
+schema/review, `migration_eligible=false`, `verification_scope=recovery_only`:
+он подтверждает recovery, но не разрешает изменение БД. Для будущего update нужен
+отдельный reviewed migration plan с наблюдённой schema. Adapter install/update
+по-прежнему unsupported до своей приёмки.

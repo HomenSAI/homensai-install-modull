@@ -9,6 +9,9 @@
       "$ref": "#/$defs/discover"
     },
     {
+      "$ref": "#/$defs/prepare_migration"
+    },
+    {
       "$ref": "#/$defs/plan"
     },
     {
@@ -74,7 +77,13 @@
           "additionalProperties": false
         },
         "options": {
-          "type": "object"
+          "type": "object",
+          "properties": {
+            "migration_review_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
         }
       },
       "required": [
@@ -144,7 +153,13 @@
           "type": "object"
         },
         "options": {
-          "type": "object"
+          "type": "object",
+          "properties": {
+            "migration_review_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
         }
       },
       "required": [
@@ -193,6 +208,69 @@
         }
       },
       "required": [],
+      "additionalProperties": false
+    },
+    "prepare_migration": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "enum": [
+            "install",
+            "update"
+          ]
+        },
+        "manifest": {
+          "type": "object"
+        },
+        "target": {
+          "type": "object",
+          "properties": {
+            "os": {
+              "enum": [
+                "linux",
+                "windows"
+              ]
+            },
+            "arch": {
+              "enum": [
+                "x64",
+                "arm64"
+              ]
+            },
+            "mode": {
+              "enum": [
+                "native",
+                "docker"
+              ]
+            },
+            "scope": {
+              "enum": [
+                "user",
+                "service"
+              ]
+            }
+          },
+          "required": [
+            "os",
+            "arch",
+            "mode",
+            "scope"
+          ],
+          "additionalProperties": false
+        },
+        "options": {
+          "type": "object",
+          "not": {
+            "required": [
+              "migration_review_id"
+            ]
+          }
+        }
+      },
+      "required": [
+        "action",
+        "manifest"
+      ],
       "additionalProperties": false
     }
   }

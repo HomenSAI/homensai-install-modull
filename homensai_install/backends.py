@@ -72,6 +72,13 @@ class BackendRouter:
         method = getattr(backend, "status", backend.discover)
         return method(manifest, target, options)
 
+    def prepare_migration(self, action, manifest, target, options):
+        target, backend = self._select(target)
+        method = getattr(backend, "prepare_migration", None)
+        if not callable(method):
+            raise EngineError("CAPABILITY_UNSUPPORTED", details={"reason": "migration_preparation_not_configured"})
+        return method(action, manifest, target, options)
+
     def plan(self, action, manifest, target, inventory, options):
         target, backend = self._select(target)
         result = deepcopy(backend.plan(action, manifest, target, inventory, options))

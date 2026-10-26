@@ -164,3 +164,32 @@ protocol shape и trusted constructor boundary. Existing adapter/native/service
 должны браться из receipt текущего запуска. Это source/synthetic integration,
 не installed/frozen/browser/platform acceptance. Авария перед созданием adapter
 ledger моделируется fault injection; это не SIGKILL, reboot, relogin или power-loss.
+
+
+## Backup receipt этап 26.10.2026
+
+Standalone migration_apply теперь требует explicit trusted constructor
+`migration_authorizer(request)`, который до нового mutating intent проверяет
+реальный архив и reviewed binding. Без него CAPABILITY_UNSUPPORTED; callback
+не выбирается через options/HTTP. Авторизация выполняется только для нового
+эффекта/explicit not_applied resume. SUCCEEDED replay и UNKNOWN reconciliation
+читают прежние доказательства и не зависят от сохранности backup после завершения.
+
+`BackupReceiptStore` сохраняет private archive reference и public digest body;
+перед выдачей/проверкой расшифровывает и восстанавливает snapshot в новый private
+candidate. NativeEngine сверяет installation marker, manifest/inventory digests,
+signed recovery payload и active pointer. При чтении snapshot/receipt применяются
+проверки fd identity, owner/mode/nlink, O_NOFOLLOW и bounded reads.
+
+Maintenance backup включает additive `archive.backup_receipt`; schema/review здесь
+не наблюдались, поэтому `migration_eligible=false`, `verification_scope=recovery_only`.
+Это не разрешение на migration_apply. Доверенный host обязан связать фактическую
+schema и reviewed product plan; строка receipt сама такого доказательства не даёт.
+Наблюдение согласованности ограничено остановкой собственных процессов и
+подтверждением product quiesce, а не всеми возможными внешними writers.
+
+SDK предоставляет explicit `prepare_migration` extension для backend с таким
+методом; NativeEngine preparation/install/update пока неподдержаны в этом этапе.
+Текущие supported lifecycle actions остаются start/stop/backup. Новые installed
+maintenance проверки описаны в reference/README и packaging/check_installed_product_adapter.py;
+их legacy bootstrap и borrowed runtime не закрывают adapter fresh или clean-host G1.

@@ -338,3 +338,57 @@ def test_lock_path_collision_rejected(tmp_path, manifest, field):
     manifest["update"][field] = "operation.lock"
     with pytest.raises(UpdateError):
         plan(tmp_path, manifest, FakePorts(tmp_path))
+
+
+PRESERVE_FORWARD = 'preserve_forward_journal_no_automatic_restore'
+
+
+def forward_plan(root, manifest, ports):
+    return UpdatePlan(manifest, root, ports, release='new', modes=('autonomous',),
+                      migration_ids=('schema-1', 'schema-2'), failure_policy=PRESERVE_FORWARD)
+
+
+@pytest.mark.parametrize('phase', FORWARD)
+@pytest.mark.parametrize('after', [False, True])
+def test_preserve_forward_failure_never_restores_or_rewinds_data(tmp_path, manifest, phase, after):
+    ports = FakePorts(tmp_path, fail=phase, after=after)
+    update = forward_plan(tmp_path, manifest, ports)
+    with pytest.raises(RuntimeError):
+        update.run()
+    state = update.status()
+    assert state['direction'] == 'forward' and state['index'] == FORWARD.index(phase)
+    assert state['outcome'] == 'running' and state['failed_phase'] is None
+    assert not set(ROLLBACK).intersection(phases(ports))
+    before = list(phases(ports))
+    ports = FakePorts(tmp_path)
+    assert forward_plan(tmp_path, manifest, ports).run()['outcome'] == 'updated'
+    assert phases(ports) == FORWARD
+    assert phases(ports)[:len(before)] == before
+
+
+@pytest.mark.parametrize('first_preserves', [False, True])
+def test_failure_policy_is_pinned_in_journal_before_next_effect(tmp_path, manifest, first_preserves):
+    constructor = forward_plan if first_preserves else plan
+    with pytest.raises(Crash):
+        constructor(tmp_path, manifest, FakePorts(tmp_path, crash='migrate:0')).run()
+    ports = FakePorts(tmp_path)
+    before = ports.data
+    other = plan if first_preserves else forward_plan
+    with pytest.raises(UpdateError):
+        other(tmp_path, manifest, ports).run()
+    assert ports.data == before
+
+
+def test_default_failure_policy_keeps_legacy_plan_digest(tmp_path, manifest):
+    import hashlib
+    update = plan(tmp_path, manifest, FakePorts(tmp_path))
+    legacy = {'manifest': update.manifest, 'release': 'new', 'modes': ['autonomous'],
+              'migrations': ('schema-1', 'schema-2')}
+    assert update.digest == hashlib.sha256(json.dumps(legacy, sort_keys=True, ensure_ascii=True).encode()).hexdigest()
+
+
+def test_unknown_failure_policy_is_rejected_before_effect(tmp_path, manifest):
+    ports = FakePorts(tmp_path)
+    with pytest.raises(UpdateError):
+        UpdatePlan(manifest, tmp_path, ports, release='new', modes=('autonomous',), failure_policy='unknown')
+    assert ports.data['events'] == []

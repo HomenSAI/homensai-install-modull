@@ -160,7 +160,8 @@ class UpdatePlan:
 
     def __init__(self, manifest: dict[str, Any], install_root: Path,
                  ports: UpdatePorts, *, release: str, modes: tuple[str, ...],
-                 migration_ids: tuple[str, ...] = ("manifest",)):
+                 migration_ids: tuple[str, ...] = ("manifest",),
+                 failure_policy: str = "automatic_restore"):
         self.manifest = validate_manifest(manifest)
         self.components = component_order(self.manifest, modes)
         if (not _identifier(release) or type(migration_ids) is not tuple
@@ -168,6 +169,9 @@ class UpdatePlan:
                 or len(set(migration_ids)) != len(migration_ids)):
             raise UpdateError("Недопустимые публичные идентификаторы плана")
         self.release, self.migrations, self.ports = release, migration_ids, ports
+        if failure_policy not in {"automatic_restore", "preserve_forward_journal_no_automatic_restore"}:
+            raise UpdateError("Неизвестная политика отказа обновления")
+        self.failure_policy = failure_policy
         home = resolve_datahome(self.manifest, install_root)
         services = home.roots["services"]
         self.state_path = checked_path(services / self.manifest["update"]["state_file"].replace("\\", "/"))
@@ -184,6 +188,10 @@ class UpdatePlan:
                          "rollback_start", "rollback_health"]
         public_plan = {"manifest": self.manifest, "release": release,
                        "modes": sorted(modes), "migrations": migration_ids}
+        # Default сохраняет digest существующих legacy journals. Opt-in связан
+        # с persisted state.plan и не допускает смену rollback policy при resume.
+        if failure_policy != "automatic_restore":
+            public_plan["failure_policy"] = failure_policy
         self.digest = hashlib.sha256(json.dumps(public_plan, sort_keys=True,
                                                ensure_ascii=True).encode()).hexdigest()
 
@@ -300,6 +308,8 @@ class UpdatePlan:
                 try:
                     self._execute(state, phase)
                 except Exception:
+                    if self.failure_policy == "preserve_forward_journal_no_automatic_restore":
+                        raise
                     if state["direction"] == "rollback":
                         raise UpdateError("Откат приостановлен; повторите run после устранения причины") from None
                     state.update(direction="rollback", index=0, failed_phase=phase)

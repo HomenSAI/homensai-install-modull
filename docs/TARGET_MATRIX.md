@@ -37,7 +37,16 @@ Systemd не является prerequisite для Linux user-session. User servi
 Native/user и зарегистрированные service writers не должны одновременно
 управлять DataHome: общий lifecycle lock и service receipt fence проверены.
 
-## Фактические среды текущего запуска
+## Наблюдение текущего запуска CP-20261026-003
+
+26.10.2026: Windows workspace владельца, Docker daemon29.9.2 доступен. DEV image
+CPython3.14.3/Debian подтвердил baseline2363PASS/3skip/15subtests. GitHub baseline
+cd319a0 Linux source/integration и Windows portable subset реально success.
+Это не Windows11/Ubuntu24.04 clean-host или product Docker/service acceptance.
+Текущий отдельный Forgejo remote отсутствует. Исторические строки ниже не являются
+повторной проверкой среды нового запуска. Receipt: baseline-20261026-cp003.json.
+
+## Исторические среды CP008
 
 | Среда | Доступ | Что доказано / чего она не доказывает |
 | --- | --- | --- |

@@ -1,13 +1,21 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261026-002` (вход ИИ и лицензии); код `CP-20261025-021`; ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261026-003` (активный запуск и baseline); код `CP-20261025-021`; ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый local/GitHub до создания CP-20261026-002:
-`dab98657e134cb4bed580fe4ff111766fed6a97a` (CP-20261026-001).
+Последний подтверждённый local/GitHub до создания CP-20261026-003:
+`cd319a03f47fe9b7e4888afffe88f311329a3ce9` (CP-20261026-002).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
-## Актуальный вход CP-20261026-002
+## Активное выполнение CP-20261026-003
+
+Начато 12-часовое окно 26.10.2026 08:25:06Z–20:25:06Z (10:25–22:25 Europe/Berlin); основной и два SOL6.1High работают. Baseline cd319a0:2363PASS/3skip/15subtests,525.37s,157inputs unchanged в Docker CPython3.14.3. GitHub baseline push/PR CI success; это source/scoped проверки. Исправлено устаревшее описание явного NativeEngine opt-in в integration guide и SDK resource. Старый cp021 worktree удалён после сохранения черновика Git stash8d32829; новые рабочие копии только внутри .local-state/agents. Следующий пакет: реальная backup receipt authorization и installed maintenance/reference. Production_ready=false, G0–G5OPEN.
+
+Receipt: `packaging/acceptance-evidence/baseline-20261026-cp003.json`.
+Не завершать запуск после baseline; продолжать core/acceptance пакеты.
+GitHub этого CP: SYNC_PENDING до внешней квитанции.
+
+## История входа CP-20261026-002
 
 Добавлена единая точка входа AI_START_HERE.md через AGENTS/CLAUDE: восстановление состояния, конкретная первая задача, три агента и продолжение без повторного планирования. Зафиксировано разрешение брать GitHub-модули только после проверки лицензии точной версии и выполнения условий распространения; существующий license gate не ослаблен. Runtime не менялся, 12-часовое выполнение не запускалось.
 

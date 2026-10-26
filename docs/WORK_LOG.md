@@ -473,3 +473,9 @@ Read-only аудит выполнен основным и двумя агент�
 
 Добавлена единая точка входа AI_START_HERE.md через AGENTS/CLAUDE: восстановление состояния, конкретная первая задача, три агента и продолжение без повторного планирования. Зафиксировано разрешение брать GitHub-модули только после проверки лицензии точной версии и выполнения условий распространения; существующий license gate не ослаблен. Runtime не менялся, 12-часовое выполнение не запускалось.
 Проверены локальные ссылки, JSON, согласованность маршрута запуска и неизменность runtime/license checker/policy. Git diff --check пройден. Runtime suite не повторялся для документации. Sync receipt хранится вне tracked tree.
+
+
+## CP-20261026-003 / HIM-009 / HIM-014 — активный запуск и baseline
+
+Начато 12-часовое окно 26.10.2026 08:25:06Z–20:25:06Z (10:25–22:25 Europe/Berlin); основной и два SOL6.1High работают. Baseline cd319a0:2363PASS/3skip/15subtests,525.37s,157inputs unchanged в Docker CPython3.14.3. GitHub baseline push/PR CI success; это source/scoped проверки. Исправлено устаревшее описание явного NativeEngine opt-in в integration guide и SDK resource. Старый cp021 worktree удалён после сохранения черновика Git stash8d32829; новые рабочие копии только внутри .local-state/agents. Следующий пакет: реальная backup receipt authorization и installed maintenance/reference. Production_ready=false, G0–G5OPEN.
+Два helper worktree: .local-state/agents/core и acceptance. Удалённая старая папка имела dirty draft; он сохранён refs/stash8d32829b33d8813b42c4eb35872e3dfcf04c9ca4, уникальных commits сверх основной ветки не было. Runtime исходного baseline не менялся; guide resource документирует уже существующую CP021 функцию. Изменения агентов ещё не интегрированы.

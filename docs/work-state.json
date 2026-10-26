@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261026-002",
+  "checkpoint_id": "CP-20261026-003",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -89,7 +89,7 @@
     "cloud_git": "NOT_APPLICABLE: работа ведётся в Windows workspace",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261026-001",
+    "last_confirmed_checkpoint": "CP-20261026-002",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
   "next_step": "Реализовать migration_plan/apply с настоящими backup receipts и fresh-empty, затем независимый installed reference artifact и полный lifecycle; выполнить оставшуюся реальную четырёхплатформенную приёмку.",
@@ -100,7 +100,7 @@
     "linux_native": "PARTIAL: frozen x64 user-session lifecycle/updates/rollback/repair/crash-resume PASS in scoped receipts; OS service/reboot/full matrix open",
     "linux_docker": "NOT RUN: daemon доступен; browser/source в DEV контейнере не являются product Docker backend acceptance"
   },
-  "last_confirmed_github_sha": "dab98657e134cb4bed580fe4ff111766fed6a97a",
+  "last_confirmed_github_sha": "cd319a03f47fe9b7e4888afffe88f311329a3ce9",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -155,7 +155,9 @@
     "packaging/acceptance-evidence/github-ci-20261025-cp017.json",
     "packaging/acceptance-evidence/baseline-environment-20261025-cp019.json",
     "packaging/acceptance-evidence/local-artifact-upload-20261025-cp020.json",
-    "packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json"
+    "packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json",
+    "packaging/acceptance-evidence/baseline-20261026-cp003.json",
+    "packaging/acceptance-evidence/github-ci-baseline-20261026-cp003.json"
   ],
   "environment": {
     "os": "Windows 10 Home 10.0.19045",
@@ -224,7 +226,7 @@
     }
   ],
   "source_code_checkpoint": "CP-20261025-021",
-  "handoff_note": "Добавлена единая точка входа AI_START_HERE.md через AGENTS/CLAUDE: восстановление состояния, конкретная первая задача, три агента и продолжение без повторного планирования. Зафиксировано разрешение брать GitHub-модули только после проверки лицензии точной версии и выполнения условий распространения; существующий license gate не ослаблен. Runtime не менялся, 12-часовое выполнение не запускалось.",
+  "handoff_note": "Начато 12-часовое окно 26.10.2026 08:25:06Z–20:25:06Z (10:25–22:25 Europe/Berlin); основной и два SOL6.1High работают. Baseline cd319a0:2363PASS/3skip/15subtests,525.37s,157inputs unchanged в Docker CPython3.14.3. GitHub baseline push/PR CI success; это source/scoped проверки. Исправлено устаревшее описание явного NativeEngine opt-in в integration guide и SDK resource. Старый cp021 worktree удалён после сохранения черновика Git stash8d32829; новые рабочие копии только внутри .local-state/agents. Следующий пакет: реальная backup receipt authorization и installed maintenance/reference. Production_ready=false, G0–G5OPEN.",
   "shutdown": {
     "authorized": false,
     "state": "HISTORICAL_REQUEST_NOT_APPLICABLE",
@@ -238,9 +240,15 @@
     "reasoning_effort": "high",
     "total_agents": 3,
     "window_hours": 12,
-    "status": "PREPARED_NOT_STARTED",
-    "started_at_utc": null,
-    "deadline_utc": null
+    "status": "RUNNING",
+    "started_at_utc": "2026-10-26T08:25:06Z",
+    "deadline_utc": "2026-10-26T20:25:06Z",
+    "baseline_sha": "cd319a03f47fe9b7e4888afffe88f311329a3ce9",
+    "assignments": {
+      "root": "contract review, integration, docs/API exports, GitHub",
+      "core_lifecycle": ".local-state/agents/core: migration/receipt/fresh-empty engine/adapters and tests",
+      "platform_acceptance": ".local-state/agents/acceptance: reference and installed harness"
+    }
   },
   "startup": {
     "entrypoint": "AI_START_HERE.md",

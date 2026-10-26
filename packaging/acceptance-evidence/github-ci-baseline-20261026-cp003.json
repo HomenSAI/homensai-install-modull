@@ -1,0 +1,156 @@
+{
+  "source_sha": "cd319a03f47fe9b7e4888afffe88f311329a3ce9",
+  "checked_at_utc": "2026-10-26T08:34:08.749695+00:00",
+  "run_id": 40291942415,
+  "scope": "historical baseline commit push CI source checks, not product acceptance",
+  "jobs": [
+    {
+      "id": 121468820201,
+      "name": "Linux source and user-process integration (no installer acceptance)",
+      "status": "completed",
+      "conclusion": "success",
+      "runner_name": "GitHub Actions 1000002218",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Checkout reviewed source",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Select CPython 3.14.9 x64 with GIL",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Isolate build tools",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install exact hashed wheels",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run complete offline source suite",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run Linux user-process and loopback integration",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Build SDK and reference wheels without dependency resolution",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Record source and wheel inputs locally",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Explain this job's boundary",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Select CPython 3.14.9 x64 with GIL",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Checkout reviewed source",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 121468820720,
+      "name": "Windows portable source subset (no service installation)",
+      "status": "completed",
+      "conclusion": "success",
+      "runner_name": "GitHub Actions 1000002219",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Preserve checked-in LF golden files on this ephemeral runner",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Checkout reviewed source",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Select CPython 3.14.9 x64 with GIL",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Isolate build tools",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install exact hashed wheels",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run portable source subset",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Build SDK and reference wheels without dependency resolution",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Record source and wheel inputs locally",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Explain this job's boundary",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Select CPython 3.14.9 x64 with GIL",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Checkout reviewed source",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ]
+}

@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import shutil
 import sqlite3
+import subprocess
 import sys
 
 import pytest
@@ -20,10 +21,9 @@ from homensai_install.trust import SignedPayloadVerifier, canonical_bytes, hash_
 
 
 SCRIPT = r'''
-import hashlib,json,os,pathlib,sqlite3,sys
+import hashlib,json,os,pathlib,sqlite3,sys,urllib.request
 request=json.load(sys.stdin);data=request['data'];hook=request['hook']
 home=pathlib.Path(os.environ['HOMENSAI_DATA_HOME']);database=home/'schema.sqlite'
-if hook!='migration_plan': raise AssertionError('only explicit read-only preparation implemented')
 profile=json.loads(pathlib.Path('profile.json').read_text());target=profile['target_schema']
 current='empty'
 if database.exists():
@@ -31,9 +31,47 @@ if database.exists():
   version=db.execute('PRAGMA user_version').fetchone()[0]
  if version not in (1,2,3): raise AssertionError('unknown schema is not empty')
  current='schema_'+str(version)
-steps=[] if current==target else [{'id':'to_'+target,'backup_required':current!='empty','reversible':False}]
-result={'from_version':current,'to_version':target,'steps':steps}
-result['plan_digest']=hashlib.sha256(json.dumps(result,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
+if hook=='migration_plan':
+ steps=[] if current==target else [{'id':'to_'+target,'backup_required':current!='empty','reversible':False}]
+ if profile.get('multiple_steps'): steps.append({'id':'extra','backup_required':current!='empty','reversible':False})
+ result={'from_version':current,'to_version':target,'steps':steps}
+ result['plan_digest']=hashlib.sha256(json.dumps(result,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
+elif hook=='migration_apply':
+ binding=data['migration_binding'];fault=profile.get('fault')
+ if fault=='before_apply': sys.exit(21)
+ assert binding['to_version']==target and binding['to_release']==profile['release']
+ with sqlite3.connect(database) as db:
+  db.execute('CREATE TABLE IF NOT EXISTS adapter_effects(call_id TEXT PRIMARY KEY,request_digest TEXT,hook TEXT,result TEXT)')
+  old=db.execute('SELECT request_digest,result FROM adapter_effects WHERE call_id=?',(request['idempotency_key'],)).fetchone()
+  if old:
+   assert old[0]==request['request_digest'];result=json.loads(old[1])
+  else:
+   assert current==binding['from_version']
+   db.execute('PRAGMA user_version='+target.split('_')[-1])
+   result={'applied':True,'receipt_id':'effect_'+request['idempotency_key'][-32:],'state_version':target}
+   db.execute('INSERT INTO adapter_effects VALUES(?,?,?,?)',(request['idempotency_key'],request['request_digest'],hook,json.dumps(result)))
+ config=pathlib.Path(os.environ['HOMENSAI_CONFIG_HOME'])
+ for path,content in ((home/'document.txt','Синтетический документ'),(config/'settings.json','{"test":true}')):
+  try:
+   with path.open('x') as output: output.write(content)
+  except FileExistsError: pass
+ if fault in ('after_apply','unknown'): sys.exit(22)
+elif hook=='operation_status':
+ old=None
+ if database.exists():
+  with sqlite3.connect(database.resolve().as_uri()+'?mode=ro',uri=True) as db:
+   try: old=db.execute('SELECT request_digest,result FROM adapter_effects WHERE call_id=?',(request['idempotency_key'],)).fetchone()
+   except sqlite3.OperationalError: pass
+ result={'outcome':'unknown','request_digest':request['request_digest']}
+ if old and profile.get('fault')!='unknown':
+  assert old[0]==request['request_digest'];result.update(outcome='applied',result=json.loads(old[1]))
+elif hook=='readiness':
+ opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
+ with opener.open('http://127.0.0.1:'+str(profile['port'])+'/healthz',timeout=1) as response: observed=json.load(response)
+ identity={key:observed[key] for key in ('product_id','installation_id','release')};identity['probe_id']=data['probe_id']
+ result={'ready':current==target,'checks':[{'id':'schema','status':'ok' if current==target else 'failed'}],'observed_identity':identity}
+elif hook=='quiesce': result={'quiesced':True,'active_writers':0}
+else: raise AssertionError('unexpected hook')
 response={key:request[key] for key in ('protocol_version','product_id','request_id','request_digest','hook')}
 response.update(status='ok',result=result);print(json.dumps(response))
 '''
@@ -50,11 +88,12 @@ def migration(tmp_path):
     verifier=SignedPayloadVerifier({'synthetic':public},allow_test_keys=True)
     fixture.engine=NativeEngine(verifier,lambda ref:'synthetic-archive-passphrase',development_runtime=sys.executable,
                                product_adapter_descriptor='installer/adapter.json')
-    def release(name, target_schema, *, config=False):
+    def release(name, target_schema, *, config=False, fault=None, multiple_steps=False):
         value=fixture.bundle(name);payload=Path(value['options']['payload_dir'])
         shutil.copy2(Path('/usr/bin/python3').resolve(),payload/'runtime/python');(payload/'runtime/python').chmod(0o700)
         (payload/'adapter.py').write_text(SCRIPT)
-        (payload/'profile.json').write_text(json.dumps({'target_schema':target_schema}))
+        (payload/'profile.json').write_text(json.dumps({'target_schema':target_schema,'release':name,'port':fixture.port,
+                                                      'fault':fault,'multiple_steps':multiple_steps}))
         (payload/'installer').mkdir()
         descriptor={'schema_version':1,'protocol_version':'1.0','product_id':value['manifest']['product_id'],
             'adapter_id':'migration-reference','adapter_version':'0.1.0','command':['runtime/python','-I','-B','adapter.py'],
@@ -77,6 +116,7 @@ def migration(tmp_path):
         fixture.engine=engine
         with sqlite3.connect(fixture.root/'data/schema.sqlite') as db: db.execute('PRAGMA user_version=1')
     fixture.release=release;fixture.legacy_install=legacy_install
+    fixture.public_key=public
     try: yield fixture
     finally:
         if fixture.current:
@@ -101,7 +141,7 @@ def test_fresh_preparation_has_no_fake_release_or_product_data_and_binds_immutab
     assert migration.engine._pointer(ctx) is None
     assert migration.engine._owner(ctx,required=True)['installed'] is False
     assert not any(ctx['home'].roots['data'].iterdir())
-    assert migration.engine.capabilities(migration.target)['actions']['install']['supported'] is False
+    assert migration.engine.capabilities(migration.target)['actions']['update']['supported'] is False
 
 
 @pytest.mark.parametrize('content',['sqlite','document','unknown_directory'])
@@ -192,3 +232,165 @@ def test_config_environment_is_trusted_and_only_enabled_by_signed_allowlist(migr
     adapter,_=migration.engine._product_adapter(ctx)
     assert ('HOMENSAI_CONFIG_HOME' in adapter.environment) is config
     if config: assert adapter.environment['HOMENSAI_CONFIG_HOME']==str(migration.root/'config')
+
+
+def fresh_plan(fixture,value):
+    review=prepare(fixture,'install',value)
+    prepared={**value,'options':{**value['options'],'migration_review_id':review['migration_review_id']}}
+    return fixture.reviewed_plan('install',prepared),prepared
+
+
+def migration_effect_count(fixture):
+    database=fixture.root/'data/schema.sqlite'
+    if not database.exists(): return 0
+    with sqlite3.connect(database.resolve().as_uri()+'?mode=ro',uri=True) as db:
+        return db.execute("SELECT count(*) FROM adapter_effects WHERE hook='migration_apply'").fetchone()[0]
+
+
+def test_true_adapter_fresh_install_applies_reviewed_plan_once_without_legacy_migration(migration):
+    value=migration.release('release-1','schema_1',config=True);plan,prepared=fresh_plan(migration,value)
+    result=migration.engine.execute(plan);migration.current=prepared
+    assert result['status']=='SUCCEEDED' and result['health']['product_adapter']['ready']
+    assert (migration.root/'data/document.txt').read_text()=='Синтетический документ'
+    assert json.loads((migration.root/'config/settings.json').read_text())=={'test':True}
+    assert not (migration.root/'data/product.sqlite').exists() and not (migration.root/'data/migration-runs.txt').exists()
+    assert migration.engine.execute(plan)==result and migration_effect_count(migration)==1
+
+
+@pytest.mark.parametrize('fault',['after_apply','unknown'])
+def test_fresh_lost_ack_reconciles_or_fences_without_repeating_mutation(migration,fault):
+    value=migration.release('release-1','schema_1',config=True,fault=fault);plan,prepared=fresh_plan(migration,value)
+    with pytest.raises(EngineError) as caught: migration.engine.execute(plan)
+    assert caught.value.code=='RECOVERY_REQUIRED' and migration_effect_count(migration)==1
+    if fault=='unknown':
+        with pytest.raises(EngineError): migration.engine.resume(plan,{})
+    else:
+        result=migration.engine.resume(plan,{});migration.current=prepared
+        assert result['status']=='SUCCEEDED'
+    assert migration_effect_count(migration)==1
+
+
+def test_fresh_cancel_after_stage_resumes_original_review_once(migration):
+    value=migration.release('release-1','schema_1',config=True);plan,prepared=fresh_plan(migration,value)
+    canceled=[False]
+    def emit(event):
+        if event['phase']=='stage' and event['status']=='SUCCEEDED': canceled[0]=True
+    result=migration.engine.execute(plan,emit,lambda:canceled[0])
+    assert result['status']=='CANCELED' and migration_effect_count(migration)==0
+    result=migration.engine.resume(plan,{});migration.current=prepared
+    assert result['status']=='SUCCEEDED' and migration_effect_count(migration)==1
+
+
+def test_multi_step_migration_is_explicitly_unsupported_in_first_engine_slice(migration):
+    value=migration.release('release-1','schema_1',config=True,multiple_steps=True)
+    review=prepare(migration,'install',value)
+    prepared={**value,'options':{**value['options'],'migration_review_id':review['migration_review_id']}}
+    with pytest.raises(EngineError) as caught: migration.reviewed_plan('install',prepared)
+    assert caught.value.code=='CAPABILITY_UNSUPPORTED' and migration_effect_count(migration)==0
+
+
+def test_authorization_refusal_is_known_no_effect_and_explicit_resume_can_retry(migration,monkeypatch):
+    from homensai_install.migration_receipts import FreshEmptyReceiptStore
+    from homensai_install.errors import InstallerError
+    value=migration.release('release-1','schema_1',config=True);plan,prepared=fresh_plan(migration,value)
+    verify=FreshEmptyReceiptStore.verify
+    def refuse(*args,**kwargs): raise InstallerError('PLAN_STALE')
+    monkeypatch.setattr(FreshEmptyReceiptStore,'verify',refuse)
+    with pytest.raises(EngineError) as caught: migration.engine.execute(plan)
+    assert caught.value.code=='PLAN_STALE' and migration_effect_count(migration)==0
+    journal=next((migration.root/'.hinstall/operations').glob('*.json'));state=json.loads(journal.read_text())
+    assert state['product_adapter_migration_started'] is False and not state.get('product_adapter_unknown')
+    monkeypatch.setattr(FreshEmptyReceiptStore,'verify',verify)
+    assert migration.engine.resume(plan,{})['status']=='SUCCEEDED';migration.current=prepared
+    assert migration_effect_count(migration)==1
+
+
+def test_foreign_data_arriving_after_stage_is_never_initialized_as_fresh(migration):
+    value=migration.release('release-1','schema_1',config=True);plan,_=fresh_plan(migration,value)
+    def emit(event):
+        if event['phase']=='migrate' and event['status']=='RUNNING':
+            (migration.root/'data/foreign.sqlite').write_bytes(b'never overwrite this unknown database')
+    with pytest.raises(EngineError) as caught: migration.engine.execute(plan,emit)
+    assert caught.value.code in {'RECOVERY_REQUIRED','PLAN_STALE'} and migration_effect_count(migration)==0
+    assert (migration.root/'data/foreign.sqlite').read_bytes()==b'never overwrite this unknown database'
+
+
+KILL_CONTROLLER = r'''
+import base64,json,os,signal,sys
+from pathlib import Path
+from homensai_install.engine import NativeEngine
+from homensai_install.trust import SignedPayloadVerifier
+from homensai_install.adapters import ExecutableProductAdapter,_Ledger
+value=json.loads(Path(sys.argv[1]).read_text());phase=value['kill_phase']
+class Controller(NativeEngine):
+ def _adapter_migration_completed(self,ctx,result):
+  if phase=='after_apply': os.kill(os.getpid(),signal.SIGKILL)
+  return super()._adapter_migration_completed(ctx,result)
+original_begin=_Ledger.begin
+def begin(self,key,request_digest,operation_id,hook,**kwargs):
+ if hook=='migration_apply' and phase=='before_ledger': os.kill(os.getpid(),signal.SIGKILL)
+ return original_begin(self,key,request_digest,operation_id,hook,**kwargs)
+_Ledger.begin=begin
+original_execute=ExecutableProductAdapter._execute
+def execute(self,hook,*args,**kwargs):
+ if hook=='migration_apply' and phase=='after_ledger': os.kill(os.getpid(),signal.SIGKILL)
+ return original_execute(self,hook,*args,**kwargs)
+ExecutableProductAdapter._execute=execute
+def emit(event):
+ if phase=='after_stage' and event['phase']=='stage' and event['status']=='SUCCEEDED': os.kill(os.getpid(),signal.SIGKILL)
+engine=Controller(SignedPayloadVerifier({'synthetic':base64.b64decode(value['public_key'])},allow_test_keys=True),
+ lambda ref:'synthetic-archive-passphrase',development_runtime=sys.executable,product_adapter_descriptor='installer/adapter.json')
+engine.execute(value['plan'],emit)
+raise AssertionError('expected owned controller SIGKILL')
+'''
+
+
+def kill_controller(fixture,plan,phase):
+    source=fixture.base/'kill-controller.json'
+    source.write_text(json.dumps({'plan':plan,'kill_phase':phase,'public_key':base64.b64encode(fixture.public_key).decode()}))
+    result=subprocess.run([sys.executable,'-c',KILL_CONTROLLER,str(source)],cwd=Path(__file__).resolve().parents[1],
+        stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=25)
+    assert result.returncode == -9, result.stderr.decode(errors='replace')
+
+
+@pytest.mark.parametrize('phase',['after_stage','before_ledger','after_ledger','after_apply'])
+def test_actual_controller_sigkill_boundaries_resume_without_duplicate_fresh_migration(migration,phase):
+    value=migration.release('release-1','schema_1',config=True);plan,prepared=fresh_plan(migration,value)
+    kill_controller(migration,plan,phase)
+    assert migration_effect_count(migration)==(1 if phase=='after_apply' else 0)
+    if phase in {'before_ledger','after_ledger'}:
+        with pytest.raises(EngineError) as caught: migration.engine.resume(plan,{})
+        assert caught.value.code=='RECOVERY_REQUIRED' and migration_effect_count(migration)==0
+    else:
+        assert migration.engine.resume(plan,{})['status']=='SUCCEEDED';migration.current=prepared
+        assert migration_effect_count(migration)==1
+
+
+@pytest.mark.parametrize('missing',['receipt','ledger'])
+def test_lost_ack_with_lost_receipt_or_ledger_never_repeats_actual_effect(migration,missing):
+    value=migration.release('release-1','schema_1',config=True);plan,prepared=fresh_plan(migration,value)
+    kill_controller(migration,plan,'after_apply')
+    if missing=='ledger':
+        (migration.root/'.hinstall/product-adapter/release-1/adapter-invocations.sqlite3').unlink()
+        with pytest.raises(EngineError): migration.engine.resume(plan,{})
+    else:
+        for path in (migration.root/'.hinstall/fresh-receipts').glob('*.json'): path.unlink()
+        assert migration.engine.resume(plan,{})['status']=='SUCCEEDED';migration.current=prepared
+    assert migration_effect_count(migration)==1
+
+
+@pytest.mark.parametrize('change',['missing','changed'])
+def test_expected_native_intent_is_required_at_authorization_boundary(migration,monkeypatch,change):
+    from homensai_install.adapters import _Ledger
+    value=migration.release('release-1','schema_1',config=True);plan,_=fresh_plan(migration,value)
+    original=_Ledger.begin
+    def tamper(self,key,request_digest,operation_id,hook,**kwargs):
+        if hook=='migration_apply':
+            journal=next((migration.root/'.hinstall/operations').glob('*.json'))
+            if change=='missing': journal.unlink()
+            else:
+                state=json.loads(journal.read_text());state['migration_review_id']='0'*64;journal.write_text(json.dumps(state));journal.chmod(0o600)
+        return original(self,key,request_digest,operation_id,hook,**kwargs)
+    monkeypatch.setattr(_Ledger,'begin',tamper)
+    with pytest.raises(EngineError) as caught: migration.engine.execute(plan)
+    assert caught.value.code=='RECOVERY_REQUIRED' and migration_effect_count(migration)==0

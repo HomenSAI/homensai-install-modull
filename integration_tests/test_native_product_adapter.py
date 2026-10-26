@@ -18,8 +18,11 @@ from cryptography.hazmat.primitives import serialization
 
 from homensai_install.adapters import HOOKS
 from homensai_install.engine import NativeEngine, EngineError
+from homensai_install.errors import InstallerError
 from homensai_install.trust import SignedPayloadVerifier, canonical_bytes, hash_manifest
 from shared import archive_crypto
+from shared.datahome import DataHome
+from shared.update_plan import operation_lock
 
 
 SCRIPT = r'''
@@ -143,7 +146,72 @@ def test_quiesce_and_real_encrypted_backup_preserve_data_and_restart(installed):
     assert archive_crypto.is_encrypted(result['archive']['path'])
     assert result['archive']['sha256']==hashlib.sha256(Path(result['archive']['path']).read_bytes()).hexdigest()
     assert result['archive']['includes_recovery_payload'] and user.read_text()=='synthetic user data'
+    receipt = result['archive']['backup_receipt']
+    assert receipt['migration_eligible'] is False and receipt['verification_scope'] == 'recovery_only'
+    assert receipt['from_schema_version'] is None and receipt['plan_binding_sha256'] is None
+    assert receipt['archive_sha256'] == result['archive']['sha256']
+    assert receipt['installation_id'] == fixture.engine._owner(fixture.engine._context(
+        bundle['manifest'], fixture.target, bundle['options']), required=True)['installation_id']
     assert state(fixture)['quiesce']==1 and state(fixture)['ready']==1
+
+
+@pytest.mark.parametrize('change', ['installation', 'release', 'payload', 'inventory'])
+def test_receipt_rejects_decryptable_same_product_archive_with_foreign_or_tampered_recovery(installed, change):
+    fixture, bundle, _ = installed
+    result = fixture.engine.execute(fixture.reviewed_plan('backup', bundle))['archive']
+    ctx = fixture.engine._context(bundle['manifest'], fixture.target, bundle['options'])
+    store = fixture.engine._backup_receipt_store(ctx, lambda: 'synthetic-archive-passphrase')
+    keys = ('product_id', 'installation_id', 'operation_id', 'from_release',
+            'from_manifest_sha256', 'from_inventory_sha256', 'from_schema_version', 'plan_binding_sha256')
+    expected = {key: result['backup_receipt'][key] for key in keys}
+    expected.update(from_schema_version='v1', plan_binding_sha256='e' * 64)
+    valid = store.issue(result['path'], expected, consistency_scope='owned_components_stopped_and_adapter_quiesced')
+    assert store.verify(valid['receipt_id'], expected_binding=expected)['migration_eligible']
+    candidate = fixture.base / ('receipt-foreign-' + change); candidate.mkdir(mode=0o700)
+    archive_crypto.restore_archive(result['path'], candidate,
+        password_provider=lambda: 'synthetic-archive-passphrase', expected_product_id=bundle['manifest']['product_id'])
+    recovery = candidate / 'roots/runtime/recovery/v1'
+    if change == 'installation':
+        marker = recovery / 'installation.json'; value = json.loads(marker.read_text())
+        value['installation_id'] = '0' * 32; marker.write_text(json.dumps(value))
+    elif change == 'release':
+        marker = recovery / 'release.json'; value = json.loads(marker.read_text())
+        value['release'] = 'other-release'; marker.write_text(json.dumps(value))
+    elif change == 'payload': (recovery / 'payload/adapter.py').write_text('modified signed payload')
+    else:
+        marker = recovery / 'release.inventory.json'; value = json.loads(marker.read_text())
+        value['files']['adapter.py'] = '0' * 64; marker.write_text(json.dumps(value))
+    foreign = fixture.base / ('foreign-' + change + '.hsac')
+    archived_home = DataHome(ctx['home'].product_id, candidate / 'app', candidate / 'releases',
+        {key: candidate / 'roots' / key for key in ctx['home'].roots})
+    archived_home.app.mkdir(); archived_home.releases.mkdir()
+    archive_crypto.build_encrypted_archive(archived_home, foreign,
+        password_provider=lambda: 'synthetic-archive-passphrase')
+    with pytest.raises(InstallerError) as caught:
+        store.issue(foreign, expected, consistency_scope='owned_components_stopped_and_adapter_quiesced')
+    assert caught.value.code == ('INTEGRITY_FAILED' if change in {'payload', 'inventory'} else 'RECOVERY_REQUIRED')
+
+
+def test_verified_historical_recovery_gets_additive_identity_marker_and_foreign_marker_is_preserved(installed):
+    fixture, bundle, _ = installed
+    ctx = fixture.engine._context(bundle['manifest'], fixture.target, bundle['options'])
+    with operation_lock(fixture.base / 'recovery-test.lock'):
+        destination = fixture.engine._recovery_copy(ctx, 'v1')
+        marker = destination / 'installation.json'; original = json.loads(marker.read_text()); marker.unlink()
+        assert fixture.engine._recovery_copy(ctx, 'v1') == destination
+        assert json.loads(marker.read_text()) == original
+        foreign = {**original, 'installation_id': '0' * 32}; marker.write_text(json.dumps(foreign))
+        with pytest.raises(EngineError): fixture.engine._recovery_copy(ctx, 'v1')
+        assert json.loads(marker.read_text()) == foreign
+
+
+def test_backup_receipt_requires_durable_quiescence_before_archive_creation(installed):
+    fixture, bundle, _ = installed
+    ctx = fixture.engine._context(bundle['manifest'], fixture.target, bundle['options'])
+    path = fixture.base / 'must-not-exist.hsac'
+    with pytest.raises(EngineError) as caught:
+        fixture.engine._backup(ctx, path, lambda: 'synthetic-archive-passphrase')
+    assert caught.value.code == 'RECOVERY_REQUIRED' and not path.exists()
 
 
 def test_unknown_quiesce_blocks_new_plans_and_explicit_resume_reconciles_without_repeating(installed):

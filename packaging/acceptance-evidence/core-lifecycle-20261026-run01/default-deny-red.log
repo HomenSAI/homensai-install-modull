@@ -1,0 +1,19 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____ test_fabricated_backup_receipt_never_authorizes_standalone_migration _____
+
+bundle = {'payload': PosixPath('/tmp/pytest-of-root/pytest-0/test_fabricated_backup_receipt0/payload'), 'private': <cryptograph...'archive_before_replace': True, ...}, 'target': {'os': 'linux', 'arch': 'x64', 'mode': 'native', 'scope': 'user'}, ...}
+
+    def test_fabricated_backup_receipt_never_authorizes_standalone_migration(bundle):
+        from test_adapters_protocol import mutation
+        subject = ExecutableProductAdapter(bundle['manifest'], bundle['target'], bundle['options'],
+            verifier=bundle['verifier'], state_dir=bundle['state_dir'],
+            environment={'HINSTALL_TEST_STATE': str(bundle['app_state'])})
+>       with pytest.raises(InstallerError) as caught:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE InstallerError
+
+tests/test_native_product_adapter_contract.py:81: Failed
+=========================== short test summary info ============================
+FAILED tests/test_native_product_adapter_contract.py::test_fabricated_backup_receipt_never_authorizes_standalone_migration
+1 failed, 22 deselected in 1.27s

@@ -156,7 +156,7 @@ class _Ledger:
         return {"request_digest": row[0], "operation_id": row[1], "hook": row[2], "state": row[3],
                 "result": parse_json(row[4]) if row[4] is not None else None, "owner_pid": row[5]}
 
-    def begin(self, key, request_digest, operation_id, hook, *, resume, require_existing=False):
+    def begin(self, key, request_digest, operation_id, hook, *, resume, require_existing=False, authorize=None):
         with self.transaction() as db:
             old = self._read(db, key)
             if old:
@@ -167,11 +167,15 @@ class _Ledger:
                 if old["state"] != "NOT_APPLIED" or not resume:
                     code = "OPERATION_CONFLICT" if old["state"] == "RUNNING" and _process_alive(old["owner_pid"]) else "RECOVERY_REQUIRED"
                     _fail(code, "adapter_outcome_requires_reconciliation")
+                if authorize is not None:
+                    authorize()
                 db.execute("UPDATE calls SET state='RUNNING',owner_pid=?,updated_at=? WHERE call_id=?",
                            (os.getpid(), now(), key))
             else:
                 if require_existing:
                     _fail("RECOVERY_REQUIRED", "adapter_expected_invocation_missing")
+                if authorize is not None:
+                    authorize()
                 db.execute("INSERT INTO calls VALUES (?,?,?,?,?,?,?,?)",
                            (key, request_digest, operation_id, hook, "RUNNING", None, os.getpid(), now()))
         return None
@@ -205,7 +209,7 @@ class ExecutableProductAdapter:
     def __init__(self, manifest: dict, target: dict, options: dict, *,
                  verifier: SignedPayloadVerifier, state_dir: str | Path,
                  descriptor: str = "installer/adapter.json", environment: Mapping[str, str] | None = None,
-                 timeout: float = 30):
+                 timeout: float = 30, migration_authorizer=None):
         if not isinstance(verifier, SignedPayloadVerifier):
             _fail("INTEGRITY_FAILED", "signed_payload_verifier_required")
         if type(timeout) not in (int, float) or not 0 < timeout <= 60:
@@ -217,6 +221,11 @@ class ExecutableProductAdapter:
         self.state_dir = Path(state_dir).absolute()
         self.descriptor_path = _relative(descriptor)
         self.timeout = float(timeout)
+        if migration_authorizer is not None and not callable(migration_authorizer):
+            _fail("INVALID_REQUEST", "adapter_migration_authorizer_callable")
+        # Trusted constructor injection only. Request/options cannot select or
+        # disable the authorization boundary for a new migration side effect.
+        self.migration_authorizer = migration_authorizer
         if environment is not None and not isinstance(environment, Mapping):
             _fail("INVALID_REQUEST", "adapter_environment_mapping")
         self.environment = dict(environment or {})
@@ -335,7 +344,9 @@ class ExecutableProductAdapter:
         ledger = _Ledger(self.state_dir, create=not existing_ledger)
         key = self._identity(request["idempotency_key"])
         old_result = ledger.begin(key, request_digest, request["operation_id"], hook,
-                                  resume=request["phase"] == "resume", require_existing=existing_ledger)
+                                  resume=request["phase"] == "resume", require_existing=existing_ledger,
+                                  authorize=(lambda: self._authorize_migration(request))
+                                  if hook == "migration_apply" else None)
         if old_result is not None:
             return {"hook": hook, "request_digest": request_digest, "result": old_result, "replayed": True}
         try:
@@ -348,6 +359,18 @@ class ExecutableProductAdapter:
             if isinstance(error, Exception) and not isinstance(error, InstallerError):
                 _fail("ADAPTER_PROTOCOL_INVALID", "adapter_transport_or_response_invalid")
             raise
+
+    def _authorize_migration(self, request):
+        if self.migration_authorizer is None:
+            _fail("CAPABILITY_UNSUPPORTED", "migration_requires_trusted_receipt_authorizer")
+        try:
+            authorized = self.migration_authorizer(deepcopy(request))
+        except InstallerError:
+            raise
+        except Exception:
+            _fail("RECOVERY_REQUIRED", "migration_receipt_verification_failed")
+        if authorized is not True:
+            _fail("RECOVERY_REQUIRED", "migration_receipt_not_authorized")
 
     def reconcile(self, idempotency_key: str) -> Mapping[str, object]:
         self.capabilities()

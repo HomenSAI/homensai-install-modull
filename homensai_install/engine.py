@@ -1186,13 +1186,27 @@ class NativeEngine:
 
     def _recovery_copy(self, ctx, release):
         destination = checked_path(ctx["home"].roots["runtime"] / "recovery" / release)
+        owner = self._owner(ctx, required=True)
+        def bind_identity():
+            path = destination / "installation.json"
+            if path.exists():
+                original = _read(path)
+                if any(original.get(key) != owner[key] for key in ("product_id", "installation_id", "owner", "mode")):
+                    raise EngineError("OPERATION_CONFLICT", "Recovery payload принадлежит другой установке")
+            else:
+                # Existing verified CP021 recovery sets predate this additive
+                # identity marker. Bind only after signed payload validation.
+                _write(path, owner)
         if not self._release(ctx, release).exists() and destination.exists():
             meta = _read(destination / "release.json")
+            if meta.get("release") != release or meta.get("manifest", {}).get("product_id") != owner["product_id"]:
+                raise EngineError("INTEGRITY_FAILED", "Recovery metadata не соответствует установке")
             self._verify(meta["manifest"], meta["target"], {
                 "payload_dir": str(destination / "payload"), "release": release,
                 "runtime_executable": meta["runtime_executable"],
                 "inventory_file": str(destination / "release.inventory.json"),
                 "signature_file": str(destination / "release.signature.json")})
+            bind_identity()
             return destination
         meta = self._installed(ctx, release)
         _private_dir(destination)
@@ -1204,10 +1218,43 @@ class NativeEngine:
             raise EngineError("INTEGRITY_FAILED", "Recovery payload не совпадает с release")
         for suffix in (".json", ".inventory.json", ".signature.json"):
             _copy_file(ctx["control"] / "releases" / (release + suffix), destination / ("release" + suffix))
+        # Archive identity is part of the encrypted snapshot, independent of
+        # the mutable external receipt. Same-product archives from another
+        # installation cannot prove this installation's recovery state.
+        bind_identity()
         return destination
+
+    def _backup_receipt_store(self, ctx, password):
+        from .migration_receipts import BackupReceiptStore
+        def recovery(candidate, expected):
+            release = expected["from_release"]
+            recovery = checked_path(candidate / "roots/runtime/recovery" / release)
+            owner = _read(recovery / "installation.json")
+            metadata = _read(recovery / "release.json")
+            if (owner.get("product_id") != expected["product_id"]
+                    or owner.get("installation_id") != expected["installation_id"]
+                    or metadata.get("release") != release
+                    or _digest(metadata.get("manifest")) != expected["from_manifest_sha256"]
+                    or _digest(metadata.get("inventory")) != expected["from_inventory_sha256"]):
+                return False
+            inventory = self._verify(metadata["manifest"], metadata["target"], {
+                "payload_dir": str(recovery / "payload"), "release": release,
+                "runtime_executable": metadata["runtime_executable"],
+                "inventory_file": str(recovery / "release.inventory.json"),
+                "signature_file": str(recovery / "release.signature.json")})
+            if inventory != metadata["inventory"]:
+                return False
+            pointer = candidate / "roots/services" / metadata["manifest"]["update"]["pointer_file"]
+            return _read(pointer) == {"release": release}
+        return BackupReceiptStore(ctx["control"] / "backup-receipts",
+            password_provider=password, recovery_verifier=recovery)
 
     def _backup(self, ctx, path, password):
         release = self._pointer(ctx)
+        if self.product_adapter_descriptor is not None:
+            if (not release or self._records(ctx)
+                    or ctx.get("operation_state", {}).get("product_adapter_quiesce_complete") is not True):
+                raise EngineError("RECOVERY_REQUIRED", "Backup receipt требует подтверждённой остановки писателей")
         if release:
             self._recovery_copy(ctx, release)
         path = checked_path(path)
@@ -1224,8 +1271,23 @@ class NativeEngine:
             path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             archive_crypto.build_encrypted_archive(ctx["home"], path, password_provider=password)
             _write(receipt, binding, private_parent=False)
-        return {"path": str(path), "sha256": _file_digest(path),
-                "release": release, "encrypted": True, "includes_recovery_payload": bool(release)}
+        result = {"path": str(path), "sha256": _file_digest(path),
+                  "release": release, "encrypted": True, "includes_recovery_payload": bool(release)}
+        if self.product_adapter_descriptor is not None:
+            if (not release or self._records(ctx)
+                    or ctx.get("operation_state", {}).get("product_adapter_quiesce_complete") is not True):
+                raise EngineError("RECOVERY_REQUIRED", "Backup receipt требует подтверждённой остановки писателей")
+            metadata = self._installed(ctx, release)
+            review = ctx.get("migration_review", {})
+            receipt_binding = {"product_id": ctx["manifest"]["product_id"],
+                "installation_id": binding["installation_id"], "operation_id": "op_" + ctx["operation_token"],
+                "from_release": release, "from_manifest_sha256": _digest(metadata["manifest"]),
+                "from_inventory_sha256": _digest(metadata["inventory"]),
+                "from_schema_version": review.get("from_version"),
+                "plan_binding_sha256": _digest(review) if review else None}
+            result["backup_receipt"] = self._backup_receipt_store(ctx, password).issue(path, receipt_binding,
+                consistency_scope="owned_components_stopped_and_adapter_quiesced")
+        return result
 
     def _ports(self, ctx, inventory, password, emit):
         engine = self

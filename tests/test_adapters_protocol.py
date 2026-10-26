@@ -130,6 +130,9 @@ def bundle(tmp_path):
 
 def adapter(bundle, **kwargs):
     environment = {'HINSTALL_TEST_STATE': str(bundle['app_state']), **kwargs.pop('environment', {})}
+    # These are protocol/ledger tests, not backup acceptance. The trusted test
+    # callback is explicit; real receipts are exercised separately.
+    kwargs.setdefault('migration_authorizer', lambda request: True)
     return ExecutableProductAdapter(bundle['manifest'], bundle['target'], bundle['options'],
         verifier=bundle['verifier'], state_dir=bundle['state_dir'], environment=environment, **kwargs)
 
@@ -139,8 +142,8 @@ def request(key='one', *, phase='execute', **data):
 
 
 def mutation(key='one', *, phase='execute', **data):
-    return request(key, phase=phase, plan_digest=digest({'synthetic': 'migration'}),
-                   backup_receipt_id='synthetic_backup_receipt', **data)
+    return request(key, phase=phase, **{'plan_digest': digest({'synthetic': 'migration'}),
+                   'backup_receipt_id': 'synthetic_backup_receipt', **data})
 
 
 def test_signed_capabilities_are_static_and_protocol_compatible(bundle, monkeypatch):

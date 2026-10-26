@@ -73,6 +73,17 @@ def test_existing_ledger_invocation_never_initializes_a_missing_database(bundle)
     assert not bundle['state_dir'].exists()
 
 
+def test_fabricated_backup_receipt_never_authorizes_standalone_migration(bundle):
+    from test_adapters_protocol import mutation
+    subject = ExecutableProductAdapter(bundle['manifest'], bundle['target'], bundle['options'],
+        verifier=bundle['verifier'], state_dir=bundle['state_dir'],
+        environment={'HINSTALL_TEST_STATE': str(bundle['app_state'])})
+    with pytest.raises(InstallerError) as caught:
+        subject.invoke('migration_apply', mutation())
+    assert caught.value.code == 'CAPABILITY_UNSUPPORTED'
+    assert not bundle['app_state'].exists()
+
+
 @pytest.mark.skipif(os.name == 'nt', reason='POSIX file identity/mode/symlink profile; native adapter execution is Linux only')
 @pytest.mark.parametrize('change',['missing','replacement','hardlink','symlink','mode'])
 def test_live_ledger_instance_rechecks_authoritative_file_before_transactions(tmp_path,change):

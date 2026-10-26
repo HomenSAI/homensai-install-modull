@@ -8,6 +8,7 @@ Application ledger хранится отдельно от SQLite бизнес-д
 from __future__ import annotations
 
 from contextlib import contextmanager
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -18,11 +19,12 @@ from urllib.error import HTTPError
 from urllib.request import ProxyHandler, Request, build_opener
 
 from .archive import verify_database
-from .profile import ReferenceProductError, read_json, safe_path
+from .migrate import validate_schema
+from .profile import ReferenceProductError, load_profile, read_json, safe_path
 
 
 VERSION = "0.1.0"
-HOOKS = ("describe", "operation_status", "quiesce", "readiness")
+HOOKS = ("describe", "migration_plan", "operation_status", "quiesce", "readiness")
 MAX_BYTES = 256 * 1024
 LEDGER = "reference-adapter.sqlite3"
 
@@ -114,6 +116,55 @@ def _readiness(request, config):
             "observed_identity": {**identity, "probe_id": probe_id}}
 
 
+def _migration_plan(request, home):
+    """Наблюдение схемы без инициализации БД, sidecars или application ledger."""
+    data = request["data"]
+    if (set(data) != {"installation_id", "from_release", "to_release", "mode"}
+            or type(data["installation_id"]) is not str or not data["installation_id"]
+            or type(data["to_release"]) is not str or not data["to_release"]
+            or data["mode"] not in {"fresh_empty", "upgrade"}):
+        raise ReferenceProductError("REFERENCE_MIGRATION_REQUEST_INVALID")
+    if data["mode"] == "fresh_empty":
+        if data["from_release"] is not None or home.exists() and (not home.is_dir() or any(home.iterdir())):
+            raise ReferenceProductError("REFERENCE_FRESH_DATA_NOT_EMPTY")
+        current = 0
+    else:
+        if type(data["from_release"]) is not str or not data["from_release"]:
+            raise ReferenceProductError("REFERENCE_MIGRATION_REQUEST_INVALID")
+        database = safe_path(home / "reference.sqlite")
+        info = database.lstat()
+        if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
+                or (os.name != "nt" and info.st_uid != os.getuid())):
+            raise ReferenceProductError("REFERENCE_DATABASE_FILE_INVALID")
+        # Читающий plan не должен создавать SQLite shared-memory sidecar или
+        # игнорировать ещё не checkpoint-нутый WAL. Этот reference пишет DELETE.
+        if any(database.with_name(database.name + suffix).exists() for suffix in ("-wal", "-shm", "-journal")):
+            raise ReferenceProductError("REFERENCE_MIGRATION_DATABASE_BUSY")
+        with database.open("rb") as stream:
+            header = stream.read(100)
+        if (len(header) < 100 or header[:16] != b"SQLite format 3\0"
+                or header[18:20] != b"\x01\x01"):
+            raise ReferenceProductError("REFERENCE_MIGRATION_DATABASE_STATE_UNSUPPORTED")
+        connection = sqlite3.connect(database.as_uri() + "?mode=ro", uri=True, timeout=2)
+        try:
+            connection.execute("BEGIN")
+            current = connection.execute("PRAGMA user_version").fetchone()[0]
+            validate_schema(connection, current)
+            if connection.execute("PRAGMA quick_check").fetchall() != [("ok",)]:
+                raise ReferenceProductError("REFERENCE_DATABASE_INTEGRITY_FAILED")
+        finally:
+            connection.close()
+    target = load_profile()["database_schema"]
+    if current > target:
+        raise ReferenceProductError("REFERENCE_DOWNGRADE_REQUIRES_SNAPSHOT_RESTORE")
+    names = {1: "create_notes", 2: "normalize_notes", 3: "hash_and_search_terms"}
+    result = {"from_version": str(current) if current else "empty", "to_version": str(target),
+              "steps": [{"id": names[version], "backup_required": bool(current), "reversible": False}
+                        for version in range(current + 1, target + 1)]}
+    result["plan_digest"] = hashlib.sha256(canonical(result).encode("utf-8")).hexdigest()
+    return result
+
+
 def execute(request):
     if (type(request) is not dict or request.get("protocol_version") != "1.0"
             or request.get("hook") not in HOOKS or type(request.get("data")) is not dict):
@@ -124,11 +175,17 @@ def execute(request):
         raise ReferenceProductError("REFERENCE_ADAPTER_CONFIG_INVALID")
     hook = request["hook"]
     if hook == "describe":
+        descriptor = read_json(Path.cwd() / "installer/adapter.json")
+        capabilities = descriptor["capabilities"]
+        if type(capabilities) is not dict or set(capabilities) - set(HOOKS) or descriptor["adapter_version"] != VERSION:
+            raise ReferenceProductError("REFERENCE_ADAPTER_CONFIG_INVALID")
         return {"protocol_version": "1.0", "product_id": config["product_id"],
-                "adapter_version": VERSION, "capabilities": sorted(HOOKS)}
+                "adapter_version": VERSION, "capabilities": sorted(capabilities)}
     if hook == "readiness":
         return _readiness(request, config)
     home = safe_path(Path(os.environ["HOMENSAI_DATA_HOME"]))
+    if hook == "migration_plan":
+        return _migration_plan(request, home)
     if hook == "operation_status":
         return _operation_status(request, home)
     return _quiesce(request, home)

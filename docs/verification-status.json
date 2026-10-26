@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261026-006",
+  "checkpoint_id": "CP-20261026-008",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
@@ -937,6 +937,19 @@
       "installed_fresh": "NOT RUN"
     },
     "fresh_installed": "NOT RUN",
+    "production_ready": false
+  },
+  "cp20261026_008": {
+    "status": "PASS_SCOPED_STOPPED_BY_USER",
+    "sdk_revision": "a5130d19343bfa4475147d8af34f653f7c30f7f2",
+    "source_targeted_passed": 84,
+    "core_source_passed": 171,
+    "core_subtests_passed": 5,
+    "counts_overlap": true,
+    "installed_fresh_receipt": "packaging/acceptance-evidence/installed-reference-fresh-20261026-agent01.json",
+    "installed_fresh": "PASS: actual NativeEngine proof; borrowed DEV runtime",
+    "update": "NOT IMPLEMENTED / NOT RUN",
+    "full_source_after_latest_changes": "NOT RUN",
     "production_ready": false
   }
 }

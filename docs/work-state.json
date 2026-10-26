@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261026-007",
+  "checkpoint_id": "CP-20261026-008",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -92,12 +92,12 @@
     "last_confirmed_checkpoint": "CP-20261026-006",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
-  "next_step": "Интегрировать source fresh ddbe10717ce8215ccea8925816488a69606b4f03 из подтверждённой GitHub agent-ветки; проверить public SDK factory/resume и обновить discovery/capabilities только после независимой проверки. Выполнить packaging/check_installed_reference_lifecycle.py --profile fresh на итоговом immutable SDK; затем single-step updates1→2→3.",
+  "next_step": "По новой инструкции владельца прочитать docs/NEXT_AI_HANDOFF_RU.md. Начать integration_tests/test_native_adapter_update.py: real fresh1→update2→update3, ожидаемый RED CAPABILITY_UNSUPPORTED; затем private update review schema2/source adapter binding, phase-namespaced quiesce и реальные encrypted backup receipts. Новых задач автоматически не запускать.",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
     "windows_docker": "BLOCKED",
-    "linux_native": "PARTIAL: installed SDK ProductAdapter maintenance8clientsPASS CP004 with legacy bootstrap and borrowed ELF runtime; adapter fresh/update/full platform NOT RUN",
+    "linux_native": "PARTIAL PASS: actual installed single-step reference fresh/start/stop/backup via SDK a5130d1, DEV Linux user; borrowed runtime, no clean-host/full lifecycle",
     "linux_docker": "NOT RUN: daemon доступен; browser/source в DEV контейнере не являются product Docker backend acceptance"
   },
   "last_confirmed_github_sha": "85acee1aea939b20e83498be633e779b0e62261c",
@@ -162,7 +162,8 @@
     "packaging/acceptance-evidence/installed-product-adapter-20261026-cp004.json",
     "packaging/acceptance-evidence/migration-preparation-20261026-cp005.json",
     "packaging/acceptance-evidence/installed-reference-preparation-20261026-agent01.json",
-    "packaging/acceptance-evidence/bootstrap-registration-20261026-cp006.json"
+    "packaging/acceptance-evidence/bootstrap-registration-20261026-cp006.json",
+    "packaging/acceptance-evidence/installed-reference-fresh-20261026-agent01.json"
   ],
   "environment": {
     "os": "Windows 10 Home 10.0.19045",
@@ -231,7 +232,7 @@
     }
   ],
   "source_code_checkpoint": "CP-20261026-007",
-  "handoff_note": "Завершение по указанию владельца: source single-step adapter fresh интегрирован (4170936), публичные factory/resume и discovery проверены: 84 PASS за19.62s; root также проверил lost ACK и known-no-effect authorization refusal через original SDK operation. Source пакет агента:171PASS+5subtests; не суммировать с root. Installed fresh пока NOT RUN, будет один короткий завершающий artifact check; updatefalse. Новые задачи остановлены, shutdown не выполнять.",
+  "handoff_note": "Работа остановлена по явному указанию владельца перед выключением. Single-step fresh Linux/native/user завершён: source171PASS+5subtests; root84targetedPASS; installed true fresh PASS на immutable SDK a5130d19343bfa4475147d8af34f653f7c30f7f2, 69 SDK/7 reference/161 dependency files и 3 signed bundle trees неизменны. Public factory→prepare→plan→submit, настоящий fresh proof, один migration effect, start/stop/duplicate start и encrypted full backup restore проверены. Legacy migration sentinel не исполнился; синтетический authorizer в этой приёмке не использовался. Runtime borrowed из DEV image: это не clean-host/standalone acceptance. Update1→2→3 ещё NOT IMPLEMENTED/NOT RUN, capability=false; полный suite после последнего fresh не повторялся (CP004 2416PASS исторический). Все G0–G5 OPEN, production_ready=false. Следующее точное действие — docs/NEXT_AI_HANDOFF_RU.md: RED adapter update test и source/target bindings + real backup per step. Агенты и тесты остановлены, компьютер владелец выключает сам.",
   "shutdown": {
     "authorized": false,
     "state": "HISTORICAL_REQUEST_NOT_APPLICABLE",
@@ -245,7 +246,7 @@
     "reasoning_effort": "high",
     "total_agents": 3,
     "window_hours": 12,
-    "status": "STOP_REQUESTED_FINISHING_CHECKPOINT",
+    "status": "STOPPED_BY_USER",
     "started_at_utc": "2026-10-26T08:25:06Z",
     "deadline_utc": "2026-10-26T20:25:06Z",
     "baseline_sha": "cd319a03f47fe9b7e4888afffe88f311329a3ce9",
@@ -254,11 +255,14 @@
       "core_lifecycle": ".local-state/agents/core: migration/receipt/fresh-empty engine/adapters and tests",
       "platform_acceptance": ".local-state/agents/acceptance: reference and installed harness"
     },
-    "current_package": "User-requested snapshot saved; source fresh pending root integration, installed preparation accepted on CP005",
+    "current_package": "Final installed fresh accepted; next update package not started",
     "timezone": "Europe/Berlin",
     "local_window": "2026-10-26 09:25:06–21:25:06 CET (UTC+01:00)",
     "last_user_save_at_utc": "2026-10-26T09:33:51.801572+00:00",
-    "active_test_processes": []
+    "active_test_processes": [],
+    "stopped_at_utc": "2026-10-26T09:51:26.025347+00:00",
+    "stop_reason": "Owner requested finish/save/handoff before shutting down computer",
+    "resume_policy": "A new explicit continue command authorizes a new working window; archive previous run times and record new UTC start/deadline. Do not resume automatically on opening the folder."
   },
   "startup": {
     "entrypoint": "AI_START_HERE.md",
@@ -276,18 +280,19 @@
       "branch": "codex/core-lifecycle-20261026-run01",
       "commit": "ddbe10717ce8215ccea8925816488a69606b4f03",
       "sync": "SYNC_CONFIRMED",
-      "status": "SOURCE_PASS_PENDING_ROOT_INTEGRATION",
+      "status": "INTEGRATED_AS_4170936_STOPPED",
       "source_passed": 171,
       "subtests_passed": 5,
       "installed_fresh": "NOT RUN"
     },
     "platform_acceptance": {
       "branch": "codex/platform-acceptance-20261026-run01",
-      "commit": "bbbbd8f82f5aada2022085cc904c99b6b39d2f21",
+      "commit": "3a868cbdde4c263ac414bfc9446afc32f8fecce2",
       "sync": "SYNC_CONFIRMED",
-      "status": "INTEGRATED_AS_7779b5e",
+      "status": "INTEGRATED_AS_6ab46a7_STOPPED",
       "installed_preparation_cases_passed": 5,
-      "sdk_revision": "2024434b59c477773ad2b44d00ae77ec508ff8b8"
+      "sdk_revision": "2024434b59c477773ad2b44d00ae77ec508ff8b8",
+      "installed_fresh": "PASS on SDK a5130d19343bfa4475147d8af34f653f7c30f7f2"
     }
   },
   "housekeeping": {
@@ -296,5 +301,6 @@
     "stopped_agent_containers": "REMOVED after evidence export",
     "obsolete_temporary_work_directory": ".local-state/agents/acceptance/.local-state/attempts/maintenance-01/work",
     "temporary_work_cleanup": "BLOCKED_BY_AUTOMATIC_REVIEW: blocked by policy; directory retained, no further retries"
-  }
+  },
+  "handoff_document": "docs/NEXT_AI_HANDOFF_RU.md"
 }

@@ -1,13 +1,25 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261026-006` (сохранение по запросу владельца); ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261026-008` — ОСТАНОВЛЕНО ВЛАДЕЛЬЦЕМ, финальное сохранение перед выключением.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый local/GitHub до создания CP-20261026-006:
-`2024434b59c477773ad2b44d00ae77ec508ff8b8` (CP-20261026-005).
+Последний подтверждённый local/GitHub до создания CP-20261026-008:
+`85acee1aea939b20e83498be633e779b0e62261c` (CP-20261026-006).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
-## Текущее сохранённое состояние CP-20261026-006
+## Финальный handoff CP-20261026-008
+
+Работа остановлена по явному указанию владельца перед выключением. Single-step fresh Linux/native/user завершён: source171PASS+5subtests; root84targetedPASS; installed true fresh PASS на immutable SDK a5130d19343bfa4475147d8af34f653f7c30f7f2, 69 SDK/7 reference/161 dependency files и 3 signed bundle trees неизменны. Public factory→prepare→plan→submit, настоящий fresh proof, один migration effect, start/stop/duplicate start и encrypted full backup restore проверены. Legacy migration sentinel не исполнился; синтетический authorizer в этой приёмке не использовался. Runtime borrowed из DEV image: это не clean-host/standalone acceptance. Update1→2→3 ещё NOT IMPLEMENTED/NOT RUN, capability=false; полный suite после последнего fresh не повторялся (CP004 2416PASS исторический). Все G0–G5 OPEN, production_ready=false. Следующее точное действие — docs/NEXT_AI_HANDOFF_RU.md: RED adapter update test и source/target bindings + real backup per step. Агенты и тесты остановлены, компьютер владелец выключает сам.
+
+**Новый ИИ: сначала [NEXT_AI_HANDOFF_RU.md](NEXT_AI_HANDOFF_RU.md).**
+SDK freeze: `a5130d19343bfa4475147d8af34f653f7c30f7f2`; installed receipt:
+`packaging/acceptance-evidence/installed-reference-fresh-20261026-agent01.json`.
+Независимо сохранённые agent refs: core ddbe107, acceptance3a868cb.
+Текущий CP GitHub SYNC_PENDING до внешней квитанции/ref/tree; собственного SHA здесь нет.
+Старое 12-часовое окно остановлено досрочно по владельцу. Новая работа — только
+по новому запросу; не повторять shutdown и не запускать тесты после этого handoff.
+
+## История сохранения CP-20261026-006
 
 По просьбе владельца сохранено текущее состояние. В основной ветке: явная SDK factory-регистрация ProductAdapter, 36 targeted PASS; установленная preparation на точном CP005 — 5 случаев PASS (69 SDK / 7 reference / 161 dependency files). Сохранён исходный harness FAIL неправильного имени capability, исправлено на registered. Fresh engine пакет ddbe107 прошёл 171 source PASS и 5 subtests, включая SIGKILL; он отправлен отдельной веткой GitHub и ещё не интегрирован root. Installed fresh и update по-прежнему NOT RUN; capabilities основной ветки не расширены этим source-only пакетом. Агентские ветки и основной handoff сохранены; активных тестовых процессов нет. production_ready=false, все G0–G5 OPEN. Продолжение: интегрировать ddbe107 с независимым review/public SDK resume/factory, затем installed fresh и updates 1→2→3. Исходное окно UTC08:25:06–20:25:06 сохраняется.
 

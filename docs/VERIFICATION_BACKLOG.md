@@ -6,6 +6,10 @@
 `verification-status.json` описывают проверки. Единственный список реализации —
 `HomenSAI_Universal_Installer_TODO_RU.txt`; его ID/критерии не заменяются этим реестром.
 
+## Финальная scoped приёмка CP-20261026-008
+
+Работа остановлена по явному указанию владельца перед выключением. Single-step fresh Linux/native/user завершён: source171PASS+5subtests; root84targetedPASS; installed true fresh PASS на immutable SDK a5130d19343bfa4475147d8af34f653f7c30f7f2, 69 SDK/7 reference/161 dependency files и 3 signed bundle trees неизменны. Public factory→prepare→plan→submit, настоящий fresh proof, один migration effect, start/stop/duplicate start и encrypted full backup restore проверены. Legacy migration sentinel не исполнился; синтетический authorizer в этой приёмке не использовался. Runtime borrowed из DEV image: это не clean-host/standalone acceptance. Update1→2→3 ещё NOT IMPLEMENTED/NOT RUN, capability=false; полный suite после последнего fresh не повторялся (CP004 2416PASS исторический). Все G0–G5 OPEN, production_ready=false. Следующее точное действие — docs/NEXT_AI_HANDOFF_RU.md: RED adapter update test и source/target bindings + real backup per step. Агенты и тесты остановлены, компьютер владелец выключает сам.
+
 ## Сохранённое состояние CP-20261026-006
 
 По просьбе владельца сохранено текущее состояние. В основной ветке: явная SDK factory-регистрация ProductAdapter, 36 targeted PASS; установленная preparation на точном CP005 — 5 случаев PASS (69 SDK / 7 reference / 161 dependency files). Сохранён исходный harness FAIL неправильного имени capability, исправлено на registered. Fresh engine пакет ddbe107 прошёл 171 source PASS и 5 subtests, включая SIGKILL; он отправлен отдельной веткой GitHub и ещё не интегрирован root. Installed fresh и update по-прежнему NOT RUN; capabilities основной ветки не расширены этим source-only пакетом. Агентские ветки и основной handoff сохранены; активных тестовых процессов нет. production_ready=false, все G0–G5 OPEN. Продолжение: интегрировать ddbe107 с независимым review/public SDK resume/factory, затем installed fresh и updates 1→2→3. Исходное окно UTC08:25:06–20:25:06 сохраняется.

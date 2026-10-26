@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261026-001",
+  "checkpoint_id": "CP-20261026-002",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -89,7 +89,7 @@
     "cloud_git": "NOT_APPLICABLE: работа ведётся в Windows workspace",
     "docker_git": "SYNC_BLOCKED",
     "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261025-023",
+    "last_confirmed_checkpoint": "CP-20261026-001",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
   "next_step": "Реализовать migration_plan/apply с настоящими backup receipts и fresh-empty, затем независимый installed reference artifact и полный lifecycle; выполнить оставшуюся реальную четырёхплатформенную приёмку.",
@@ -100,7 +100,7 @@
     "linux_native": "PARTIAL: frozen x64 user-session lifecycle/updates/rollback/repair/crash-resume PASS in scoped receipts; OS service/reboot/full matrix open",
     "linux_docker": "NOT RUN: daemon доступен; browser/source в DEV контейнере не являются product Docker backend acceptance"
   },
-  "last_confirmed_github_sha": "c6aff96b9f4359097ba8cb17d44fe429d8e2dfec",
+  "last_confirmed_github_sha": "dab98657e134cb4bed580fe4ff111766fed6a97a",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -224,7 +224,7 @@
     }
   ],
   "source_code_checkpoint": "CP-20261025-021",
-  "handoff_note": "Подготовлен план SOL 6.1 High на 12 часов: основной агент и два помощника, migration/backup/fresh-empty и independent installed reference в приоритете; добавлены project config, AGENTS и fresh-clone recipe. Runtime не изменён; production_ready=false, G0–G5 OPEN. Старое одноразовое shutdown-задание не действует. 12-часовая реализация ещё не запускалась.",
+  "handoff_note": "Добавлена единая точка входа AI_START_HERE.md через AGENTS/CLAUDE: восстановление состояния, конкретная первая задача, три агента и продолжение без повторного планирования. Зафиксировано разрешение брать GitHub-модули только после проверки лицензии точной версии и выполнения условий распространения; существующий license gate не ослаблен. Runtime не менялся, 12-часовое выполнение не запускалось.",
   "shutdown": {
     "authorized": false,
     "state": "HISTORICAL_REQUEST_NOT_APPLICABLE",
@@ -241,5 +241,16 @@
     "status": "PREPARED_NOT_STARTED",
     "started_at_utc": null,
     "deadline_utc": null
+  },
+  "startup": {
+    "entrypoint": "AI_START_HERE.md",
+    "instruction_files": [
+      "AGENTS.md",
+      "CLAUDE.md"
+    ],
+    "start_command": "Продолжай работу по проекту",
+    "first_task": "migration_plan/apply + verified backup receipt + fresh-empty; independent installed reference lifecycle",
+    "third_party_policy": "docs/THIRD_PARTY_POLICY_RU.md",
+    "github_modules": "Allowed only after exact-version redistribution license and obligations verification"
   }
 }

@@ -467,3 +467,9 @@ CP-20261025-023 — окончательный статус по просьбе 
 
 Подготовлен план SOL 6.1 High на 12 часов: основной агент и два помощника, migration/backup/fresh-empty и independent installed reference в приоритете; добавлены project config, AGENTS и fresh-clone recipe. Runtime не изменён; production_ready=false, G0–G5 OPEN. Старое одноразовое shutdown-задание не действует. 12-часовая реализация ещё не запускалась.
 Read-only аудит выполнен основным и двумя агентами gpt-6.1-sol/high. Docker29.9.2 доступен; build lock в существующем DEV image PASS (Python3.14.3). GitHub baseline CP023 совпал с HEAD. Полный runtime suite для изменения документации не повторялся. Подтверждение нового push — внешняя checkpoint receipt.
+
+
+## CP-20261026-002 / HIM-009 / HIM-088 — вход ИИ и лицензии
+
+Добавлена единая точка входа AI_START_HERE.md через AGENTS/CLAUDE: восстановление состояния, конкретная первая задача, три агента и продолжение без повторного планирования. Зафиксировано разрешение брать GitHub-модули только после проверки лицензии точной версии и выполнения условий распространения; существующий license gate не ослаблен. Runtime не менялся, 12-часовое выполнение не запускалось.
+Проверены локальные ссылки, JSON, согласованность маршрута запуска и неизменность runtime/license checker/policy. Git diff --check пройден. Runtime suite не повторялся для документации. Sync receipt хранится вне tracked tree.

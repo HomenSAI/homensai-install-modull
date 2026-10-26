@@ -1,0 +1,20 @@
+................................................F....................... [ 32%]
+........................................................................ [ 64%]
+........................................................................ [ 96%]
+.......                                                                  [100%]
+=================================== FAILURES ===================================
+_____ test_unimplemented_adapter_lifecycle_rejected_before_effects[update] _____
+
+installed = (<adapter_native_fixture.NativeLifecycleTests testMethod=runTest>, {'manifest': {'schema_version': 2, 'product_name': ...rjst/source-v1', 'runtime_executable': 'runtime/python', ...}}, <function installed.<locals>.resign at 0x7aeaef40a560>)
+action = 'update'
+
+    @pytest.mark.parametrize('action',['update','restore','rollback','repair','reinstall','uninstall'])
+    def test_unimplemented_adapter_lifecycle_rejected_before_effects(installed,action):
+        fixture,bundle,_=installed
+>       assert fixture.engine.capabilities(fixture.target)['actions'][action]['supported'] is False
+E       assert True is False
+
+integration_tests/test_native_product_adapter.py:249: AssertionError
+=========================== short test summary info ============================
+FAILED integration_tests/test_native_product_adapter.py::test_unimplemented_adapter_lifecycle_rejected_before_effects[update]
+1 failed, 222 passed, 1 deselected in 191.25s (0:03:11)

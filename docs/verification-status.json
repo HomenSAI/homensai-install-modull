@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261026-011",
+  "checkpoint_id": "CP-20261026-012",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
@@ -985,6 +985,22 @@
     "public_update_capability": true,
     "full_source": "PENDING",
     "installed_full": "PENDING",
+    "production_ready": false
+  },
+  "cp20261026_012": {
+    "status": "PASS_SCOPED_STOPPED_BY_USER",
+    "sdk_source_sha": "6edcbb83a018e72d235cc3eb192864e238a82755",
+    "full_source": {
+      "passed": 2625,
+      "skipped": 3,
+      "subtests_passed": 15
+    },
+    "source_receipt": "packaging/acceptance-evidence/source-20261026-cp012.json",
+    "installed_receipt": "packaging/acceptance-evidence/installed-update-forward-20261026-cp011.json",
+    "installed_fresh_update": "PASS: public1→2→3; 4archive restore oracles; borrowedDEVruntime",
+    "installed_update_faults": "NOT RUN",
+    "adapter_restore_rollback": "NOT IMPLEMENTED",
+    "all_release_gates": "OPEN",
     "production_ready": false
   }
 }

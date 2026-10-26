@@ -70,7 +70,12 @@ SYNC_CONFLICT / SYNC_BLOCKED.
 Не создавай рекурсивные служебные commits ради записи SHA самого commit.
 
 ========================================================================
-ТЕКУЩИЙ КАНДИДАТ CP-20261026-011 / HIM-015 / HIM-023 / HIM-050 / HIM-054 / HIM-056 / HIM-063
+ФИНАЛЬНОЕ СОХРАНЕНИЕ CP-20261026-012 / HIM-009 / HIM-015 / HIM-023 / HIM-050 / HIM-054 / HIM-056 / HIM-063
+Работа завершена по указанию владельца в окне до17:00Berlin/16:00UTC. Single-step adapter update Linux/native/user реализован и принят в DEV scope. Полный frozen source/integration: 2625PASS/3skip/15subtests, 1181.13s,208inputs unchanged. Installed public factory→fresh1→update2→update3 на immutable SDK6edcbb83 PASS:70SDK/7reference/161dependency files unchanged; effects1/2/3, source/target runtime+health identity, данные/settings/syntheticcredential сохранны. Все4update encrypted archives действительно decrypt/restored в oracle. Root2datafaultPASS/25contractPASS; core180PASS и отдельно223PASS/1root-exportdeselect (пересекаются с full, не складывать). CI SDKCP011:Linux/Windows source jobs success. Forward journal не делает automatic legacy restore; UNKNOWN/missingledger не разрешает повтор. Public restore/rollback/repair/reinstall/uninstall adapter capabilities остаютсяfalse. BorrowedDEVruntime, это не clean-host/standalone acceptance. Production_ready=false, G0–G5 OPEN. Веб-страница текущей работы опубликована privately; финальная публикация её результатов выполняется после этого checkpoint и хранится внешнейreceipt.
+Следующий шаг: На immutable SDKCP011 добавить independent installed update fault profile: lostACK/UNKNOWN/missingledger, tampered/foreign backup, live data drift и candidate health/cleanup failure через original public SDK operation. Затем реализовать отдельный verified before-restore/before-rollback backup protocol и adapter restore/rollback; capabilities не включать заранее. Windows11/Ubuntu24cleanhost, productDocker/services, GUI12locale-target сочетаний, JobPilot/Rent и production trust/licences остаются отдельными обязательными gates. Новое окно — только по явной команде владельца.
+Sync текущегоCP:local/GitHub PENDING до внешнейreceipt;DockerGitBLOCKED. Статусы106задач и G0–G5 не закрыты этим scoped результатом.
+
+ИСТОРИЯ: ТЕКУЩИЙ КАНДИДАТ CP-20261026-011 / HIM-015 / HIM-023 / HIM-050 / HIM-054 / HIM-056 / HIM-063
 Интегрирован core runtime freeze091c0f4: single-step Linux/native/user adapter update с отдельными source/target bindings, phase-scoped quiesce, реальными encrypted backup receipts archive+backup:0 и live snapshot comparison. UpdatePlan сохраняет forward journal без automatic legacy restore; UNKNOWN требует original-operation reconciliation, missing ledger не разрешает повтор; health error сохраняет данные/отдельные primary+cleanupcodes. Public capability update включена как development. Public no-override1→2→3/identity/sourcequiesce/health5PASS; precap177PASS/1XFAIL, root2actualdatafaultPASS и25contractPASS (исходныйAPIdeclarationFAIL сохранён иисправлен). Полный финальный source и independent installed update на этом SDK ещё PENDING. Production_ready=false, G0–G5 OPEN.
 Evidence: update-independent-root-20261026-run02.json; core-update-execution-20261026-run02.json; github-ci-20261026-cp010.json.
 GitHubCP011:SYNC_PENDING; DockerGit:SYNC_BLOCKED.
@@ -339,8 +344,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (до н�
 Дополнение CP-20261026-004 / HIM-014: Интегрированы настоящие encrypted BackupReceiptStore с проверкой восстановленного signed payload/installation identity и default-deny migration authorizer. Maintenance receipt recovery_only не разрешает миграцию. Добавлен explicit SDK/BackendRouter prepare_migration bridge; NativeEngine preparation/install/update ещё unsupported в этом CP. Independent installed reference maintenance:8clientsPASS/69SDK files/7reference files, реальные process/HTTP/SQLite/archive restore, UID1000, source/package/deps unchanged; bootstraplegacy и runtime borrowed явно ограничены. Full frozen source/integration:2416PASS/3skip/15subtests,682.08s; после нормализацииEOF в двух docs выполнены78overlappingcontract checks и новыйinstalledwheelPASS. Все G0–G5OPEN, production_ready=false. Окно продолжается; следующий пакет explicit migration preparation/fresh witness, затем single-step apply.
 
 [ ] HIM-015. Опубликовать минимальный ProductAdapter protocol
-Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-011
-Текущий scoped результат CP-20261026-011: single-step adapter update source/faults проверены; installed/full candidate PENDING. Полная карточка НЕ ГОТОВА; актуальные receipts в docs/RESUME.md.
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-012
+Текущий scoped результат CP-20261026-012: полный source и installed public fresh1→update2→update3 PASS на SDK6edcbb83; реальные4backup archives восстановлены. Полная target/lifecycle матрица НЕ ГОТОВА; receipts в docs/RESUME.md.
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-012, HIM-013; PROMPT: § 3–4, 28.5.
 Готово, когда: Определены capabilities и необходимые product hooks; есть Python protocol и версия JSON
@@ -440,8 +445,8 @@ error сохраняется без выдуманной причины.
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-023. Подготовить reference application и тестовые версии
-Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-011
-Текущий scoped результат CP-20261026-011: single-step adapter update source/faults проверены; installed/full candidate PENDING. Полная карточка НЕ ГОТОВА; актуальные receipts в docs/RESUME.md.
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-012
+Текущий scoped результат CP-20261026-012: полный source и installed public fresh1→update2→update3 PASS на SDK6edcbb83; реальные4backup archives восстановлены. Полная target/lifecycle матрица НЕ ГОТОВА; receipts в docs/RESUME.md.
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-013, HIM-015, HIM-019; PROMPT: § 15–16.
 Готово, когда: Маленькое веб-приложение имеет SQLite, пользовательский файл, настройку, синтетический
@@ -818,8 +823,8 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 ========================================================================
 
 [ ] HIM-050. Реализовать согласованный зашифрованный полный backup
-Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-011
-Текущий scoped результат CP-20261026-011: single-step adapter update source/faults проверены; installed/full candidate PENDING. Полная карточка НЕ ГОТОВА; актуальные receipts в docs/RESUME.md.
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-012
+Текущий scoped результат CP-20261026-012: полный source и installed public fresh1→update2→update3 PASS на SDK6edcbb83; реальные4backup archives восстановлены. Полная target/lifecycle матрица НЕ ГОТОВА; receipts в docs/RESUME.md.
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-015, HIM-018, HIM-019, HIM-020, HIM-040, HIM-041; PROMPT: § 11–13.
 Готово, когда: Backup включает согласованную БД, документы, конфигурацию, историю, нужные секреты/ключи
@@ -867,8 +872,8 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-054. Реализовать последовательные updates v1 → v2 → v3
-Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-011
-Текущий scoped результат CP-20261026-011: single-step adapter update source/faults проверены; installed/full candidate PENDING. Полная карточка НЕ ГОТОВА; актуальные receipts в docs/RESUME.md.
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-012
+Текущий scoped результат CP-20261026-012: полный source и installed public fresh1→update2→update3 PASS на SDK6edcbb83; реальные4backup archives восстановлены. Полная target/lifecycle матрица НЕ ГОТОВА; receipts в docs/RESUME.md.
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-018, HIM-020, HIM-021, HIM-050, HIM-052; PROMPT: § 12, 14, 16.
 Готово, когда: Update проходит staging, согласованный backup, миграцию, activation и readiness на
@@ -900,8 +905,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-005);
 Дополнение CP-20261025-021 / HIM-055: CP-20261025-021: подключён ExecutableProductAdapter к NativeEngine через явный trusted constructor opt-in только Linux/native/user start/stop/backup. Reviewed plan закрепляет signed descriptor/payload/runtime; readiness требует свежие release/installation/probe identity вместе с прежними owned PID/listener/HTTP. Durable quiesce intent и строгий ledger reconciliation не разрешают повтор UNKNOWN после утраты ledger или отсутствующей ожидаемой invocation. Backup использует настоящий полный encrypted архив. Исправлен воспроизведённый дефект: secondary recovery start/readiness больше не маскирует primary backup error, оба безопасных кода сохранены в native journal/public details. Все исходные FAIL и reverse-fault RED сохранены отдельно. Final source/integration: 2363 PASS, 3 skip, 15 subtests, inputs unchanged. Installed SDK/CLI и synthetic prerequisites PASS; actual Chromium установленного wheel: 24 PASS ru/en/de. Во всех трёх отдельных wheel совпадают 68 package files; SHA архивов различаются и не объявлены bit-reproducible. Windows10/Python3.14.3: 492 и отдельно57 PASS, 4 POSIX skip. Это не Windows11/platform acceptance. Installed ProductAdapter maintenance отдельно NOT RUN; новые maintenance процессы/HTTP/backup приняты на source уровне. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json. Полная приёмка задачи остаётся НЕ ГОТОВА.
 
 [ ] HIM-056. Реализовать и проверить resume после прерывания
-Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-011
-Текущий scoped результат CP-20261026-011: single-step adapter update source/faults проверены; installed/full candidate PENDING. Полная карточка НЕ ГОТОВА; актуальные receipts в docs/RESUME.md.
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-012
+Текущий scoped результат CP-20261026-012: полный source и installed public fresh1→update2→update3 PASS на SDK6edcbb83; реальные4backup archives восстановлены. Полная target/lifecycle матрица НЕ ГОТОВА; receipts в docs/RESUME.md.
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-018, HIM-034, HIM-054, HIM-055; PROMPT: § 12, 16, 28.
 Готово, когда: Реальный process-kill на существенных границах позволяет продолжить или восстановить
@@ -986,8 +991,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (до н�
 Дополнение CP-20261025-021 / HIM-062: CP-20261025-021: подключён ExecutableProductAdapter к NativeEngine через явный trusted constructor opt-in только Linux/native/user start/stop/backup. Reviewed plan закрепляет signed descriptor/payload/runtime; readiness требует свежие release/installation/probe identity вместе с прежними owned PID/listener/HTTP. Durable quiesce intent и строгий ledger reconciliation не разрешают повтор UNKNOWN после утраты ledger или отсутствующей ожидаемой invocation. Backup использует настоящий полный encrypted архив. Исправлен воспроизведённый дефект: secondary recovery start/readiness больше не маскирует primary backup error, оба безопасных кода сохранены в native journal/public details. Все исходные FAIL и reverse-fault RED сохранены отдельно. Final source/integration: 2363 PASS, 3 skip, 15 subtests, inputs unchanged. Installed SDK/CLI и synthetic prerequisites PASS; actual Chromium установленного wheel: 24 PASS ru/en/de. Во всех трёх отдельных wheel совпадают 68 package files; SHA архивов различаются и не объявлены bit-reproducible. Windows10/Python3.14.3: 492 и отдельно57 PASS, 4 POSIX skip. Это не Windows11/platform acceptance. Installed ProductAdapter maintenance отдельно NOT RUN; новые maintenance процессы/HTTP/backup приняты на source уровне. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json. Полная приёмка задачи остаётся НЕ ГОТОВА.
 
 [ ] HIM-063. Проверить идемпотентность, события и совместимость API
-Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-011
-Текущий scoped результат CP-20261026-011: single-step adapter update source/faults проверены; installed/full candidate PENDING. Полная карточка НЕ ГОТОВА; актуальные receipts в docs/RESUME.md.
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-012
+Текущий scoped результат CP-20261026-012: полный source и installed public fresh1→update2→update3 PASS на SDK6edcbb83; реальные4backup archives восстановлены. Полная target/lifecycle матрица НЕ ГОТОВА; receipts в docs/RESUME.md.
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-017, HIM-018, HIM-022, HIM-035, HIM-062; PROMPT: § 28.3–28.4.
 Готово, когда: Проверены same-key/same-request, конфликт содержимого, PLAN_STALE, consent refs,

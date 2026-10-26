@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261026T153419Z-7af6bba9af26",
+  "task_ids": [
+    "HIM-015",
+    "HIM-023",
+    "HIM-050",
+    "HIM-054",
+    "HIM-056",
+    "HIM-063"
+  ],
+  "checked_at_utc": "2026-10-26T15:34:19Z",
+  "status": "PASS_SCOPED_SOURCE",
+  "production_ready": false,
+  "source_code_freeze": "091c0f4cdd2ab97a1c46aae985aa9d3f84f9dae9",
+  "source_test_head": "8ffbd1020836bb0c7d7dc735234955eb2ff0c22e",
+  "coordinator_reported_integrated_checkpoint": "6edcbb83a018e72d235cc3eb192864e238a82755",
+  "coordinator_checkpoint_scope": "Root сообщает ref/tree PASS и independently проверяет API/2faults/full suite; эти результаты не подменяются агентскими проверками.",
+  "closes_pending_record": "core-update-execution-20261026-run02.json",
+  "pending_record_preserved": true,
+  "environment": {
+    "image": "hinstall-dev:verification",
+    "image_id": "sha256:1b3529768706aaacabb525d6fd3168680cc2b0ffa1aee6994a3d2e5cdb8fd4c1",
+    "python": "3.14.3",
+    "os": "Debian12 DEV Linux x64",
+    "uid": 0,
+    "network": "none",
+    "source_mount": "readonly"
+  },
+  "verification": [
+    {
+      "status": "PASS",
+      "command": "docker run --rm --network none --name hinstall-core02-final-update --mount type=bind,source=E:/homensai/homensai-install-modull/.local-state/agents/core02,target=/workspace,readonly hinstall-dev:verification python -m pytest -q -p no:cacheprovider integration_tests/test_native_adapter_update.py tests/test_update_plan.py",
+      "exit_code": 0,
+      "passed": 180,
+      "xfailed": 0,
+      "elapsed_seconds": 440.71,
+      "raw_log": "core-update-execution-20261026-run02-final-update.log",
+      "scope": "Public capability true: 40 binding/lifecycle/fault cases +140 UpdatePlan cases; real fresh1→update2→update3, encrypted per-phase backup, exact3field apply, data preservation, foreign/missing/tampered archive/receipt, data/schema/identity drift, source/candidate UNKNOWN, lost ACK/missing ledger, SIGKILL archive/backup/stage/ledger/apply/pointer boundaries. Positive lifecycle не подменяет capability или authorizer."
+    },
+    {
+      "status": "PASS",
+      "command": "docker run --rm --network none --name hinstall-core02-final-regression2 --mount type=bind,source=E:/homensai/homensai-install-modull/.local-state/agents/core02,target=/workspace,readonly hinstall-dev:verification python -m pytest -q -p no:cacheprovider integration_tests/test_native_migration.py integration_tests/test_native_product_adapter.py integration_tests/test_native_migration_api.py tests/test_migration_preparation_api.py tests/test_migration_receipts.py tests/test_migration_snapshot.py tests/test_adapters_protocol.py tests/test_native_product_adapter_contract.py --deselect tests/test_native_product_adapter_contract.py::test_discovery_documents_opt_in_single_step_fresh_and_maintenance_scope",
+      "exit_code": 0,
+      "passed": 223,
+      "deselected": 1,
+      "elapsed_seconds": 253.9,
+      "raw_log": "core-update-execution-20261026-run02-final-regression.log",
+      "scope": "Fresh/maintenance/public migration API, encrypted receipts, snapshot helper, executable protocol, adapter contract. Один static discovery assertion принадлежит root exports и проверяется координатором.",
+      "deselection": "tests/test_native_product_adapter_contract.py::test_discovery_documents_opt_in_single_step_fresh_and_maintenance_scope"
+    },
+    {
+      "status": "PASS",
+      "command": "docker run --rm --network none --name hinstall-core02-public-positive --mount type=bind,source=E:/homensai/homensai-install-modull/.local-state/agents/core02,target=/workspace,readonly hinstall-dev:verification python -m pytest -q -x -p no:cacheprovider integration_tests/test_native_adapter_update.py -k 'adapter_update_release1 or installation_identity or source_without_quiesce or health_failure'",
+      "exit_code": 0,
+      "passed": 5,
+      "deselected": 35,
+      "elapsed_seconds": 62.33,
+      "capability_override": false,
+      "authorizer_override": false,
+      "raw_log": "core-update-execution-20261026-run02-public-positive.log",
+      "counts_overlap": "Эти5случаев входят в180 и не складываются."
+    }
+  ],
+  "retained_attempts": [
+    {
+      "status": "FAIL_THEN_FIXED",
+      "observed": "SIGKILL after backup обнаружил changing services/operation.lock PID bytes. Adapter UpdatePlan lock перемещён в private .hinstall/update-locks/native-token.lock; helper exceptions не расширены.",
+      "raw_log": "core-update-execution-20261026-run02-red.log"
+    },
+    {
+      "status": "PASS_PRECAP_ONLY",
+      "passed": 177,
+      "xfailed": 1,
+      "elapsed_seconds": 351.59,
+      "raw_log": "core-update-execution-20261026-run02-precap.log",
+      "note": "До public capability flip; pending public lifecycle XFAIL при capfalse. Execution tests использовали temporary instance capability opt-in; не public acceptance."
+    },
+    {
+      "status": "STALE_TEST_EXPECTATION_FIXED",
+      "observed": "После capability flip старый maintenance test ожидал update supported=false; новый test требует captrue и отказывает missing migration hooks/unreviewed execution до effects.",
+      "passed": 222,
+      "failed": 1,
+      "deselected": 1,
+      "elapsed_seconds": 191.25,
+      "raw_log": "core-update-execution-20261026-run02-regression-initial.log",
+      "fix_commit": "8ffbd1020836bb0c7d7dc735234955eb2ff0c22e"
+    }
+  ],
+  "included_helper_sha": "0afeab6cafecac9bcbb7fa5cfa6b39362f897bcf",
+  "input_sha256": {
+    "homensai_install/engine.py": "99df91810806aea41d7e2457e0080ac6820a57d5699911713c69e0aa7071ecc2",
+    "homensai_install/adapters.py": "497888b13cd8afaa8e34de8bd0e2df1916fbc6ed6162a317674d620efbbf9f40",
+    "homensai_install/migration_receipts.py": "90921a6ace796edc85a53d5968c205b4c202a4516a6590d2f9cdc77a8163793f",
+    "homensai_install/migration_snapshot.py": "34e0146c9c663e4f76ae8291a1384ee593aa0902eb3e70b1b467e9d5274744a9",
+    "shared/update_plan.py": "36c8e0c4b500bd8b4a06ba8a0d9f8f52b436937dde856f83bc9a9c35c8477064",
+    "integration_tests/test_native_adapter_update.py": "e3bed4ccd63665b78db9c6775189204e89a642fc909f9cbd443dab2b648c9be2",
+    "integration_tests/test_native_migration.py": "4b7e49a1a1a34af46fbdc374abbf31762a800740399c1fcd2e41841fd578e465",
+    "tests/test_update_plan.py": "a5c6f077d01799cc67d9ec4db1fb8f78556055e1cc23e74875a956e3ebc46b20",
+    "integration_tests/test_native_product_adapter.py": "59f68852322ded4c31b97238dc0ef3af81f2a8a772e212250d58a25301ba22b6"
+  },
+  "inputs_unchanged": true,
+  "input_scope": "8 freeze runtime/test inputs до/после совпали; дополнительно закреплён единственный изменённый stale-capability regression file.",
+  "update_capability": true,
+  "restore_rollback_capabilities": false,
+  "full_source_suite": "NOT RUN этим агентом; root выполняет frozen full candidate отдельно",
+  "installed_artifact_acceptance": "NOT RUN этим агентом; отдельный installed reference profile выполняет platform_acceptance",
+  "clean_host_acceptance": "NOT RUN",
+  "G0_G5": "OPEN",
+  "handoff": "Runtime заморожен. Новые задачи остановлены; root интегрирует только новый receipt/logs, подтверждает full suite и installed artifact. Source проверка не означает production-ready."
+}

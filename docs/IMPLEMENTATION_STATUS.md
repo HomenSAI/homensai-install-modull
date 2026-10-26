@@ -1,6 +1,14 @@
 # Фактическое состояние реализации
 
-## Текущий кандидат CP-20261026-011
+## Финальный handoff CP-20261026-012
+
+Работа завершена по указанию владельца в окне до17:00Berlin/16:00UTC. Single-step adapter update Linux/native/user реализован и принят в DEV scope. Полный frozen source/integration: 2625PASS/3skip/15subtests, 1181.13s,208inputs unchanged. Installed public factory→fresh1→update2→update3 на immutable SDK6edcbb83 PASS:70SDK/7reference/161dependency files unchanged; effects1/2/3, source/target runtime+health identity, данные/settings/syntheticcredential сохранны. Все4update encrypted archives действительно decrypt/restored в oracle. Root2datafaultPASS/25contractPASS; core180PASS и отдельно223PASS/1root-exportdeselect (пересекаются с full, не складывать). CI SDKCP011:Linux/Windows source jobs success. Forward journal не делает automatic legacy restore; UNKNOWN/missingledger не разрешает повтор. Public restore/rollback/repair/reinstall/uninstall adapter capabilities остаютсяfalse. BorrowedDEVruntime, это не clean-host/standalone acceptance. Production_ready=false, G0–G5 OPEN. Веб-страница текущей работы опубликована privately; финальная публикация её результатов выполняется после этого checkpoint и хранится внешнейreceipt.
+
+Следующий шаг: На immutable SDKCP011 добавить independent installed update fault profile: lostACK/UNKNOWN/missingledger, tampered/foreign backup, live data drift и candidate health/cleanup failure через original public SDK operation. Затем реализовать отдельный verified before-restore/before-rollback backup protocol и adapter restore/rollback; capabilities не включать заранее. Windows11/Ubuntu24cleanhost, productDocker/services, GUI12locale-target сочетаний, JobPilot/Rent и production trust/licences остаются отдельными обязательными gates. Новое окно — только по явной команде владельца.
+
+Receipts: source-20261026-cp012.json; installed-update-forward-20261026-cp011.json. Текущий sync pending до внешней checkpoint receipt; собственного будущего SHA здесь нет.
+
+## История кандидата CP-20261026-011
 
 Интегрирован core runtime freeze091c0f4: single-step Linux/native/user adapter update с отдельными source/target bindings, phase-scoped quiesce, реальными encrypted backup receipts archive+backup:0 и live snapshot comparison. UpdatePlan сохраняет forward journal без automatic legacy restore; UNKNOWN требует original-operation reconciliation, missing ledger не разрешает повтор; health error сохраняет данные/отдельные primary+cleanupcodes. Public capability update включена как development. Public no-override1→2→3/identity/sourcequiesce/health5PASS; precap177PASS/1XFAIL, root2actualdatafaultPASS и25contractPASS (исходныйAPIdeclarationFAIL сохранён иисправлен). Полный финальный source и independent installed update на этом SDK ещё PENDING. Production_ready=false, G0–G5 OPEN.
 
@@ -18,7 +26,7 @@
 
 Окно: 2026-10-26T14:35:31Z–16:00:00Z; Europe/Berlin15:35:31–17:00CET. Текущий sync pending до внешней квитанции. Нижележащие остановки CP008 — история.
 
-Дата: 26.10.2026. Checkpoint: **CP-20261026-008**.
+Дата: 26.10.2026. Checkpoint: **CP-20261026-012**.
 Ветка `codex/universal-installer-20261025`. **`production_ready=false`.**
 Исходный commit: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
 

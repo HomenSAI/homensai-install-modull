@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261026-011",
+  "checkpoint_id": "CP-20261026-012",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "f90a20acbe824bede0174acd8ed241896b47581a",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -88,19 +88,19 @@
   "sync": {
     "cloud_git": "NOT_APPLICABLE: работа ведётся в Windows workspace",
     "docker_git": "SYNC_BLOCKED",
-    "github": "SYNC_PENDING for CP-20261026-011",
-    "last_confirmed_checkpoint": "CP-20261026-010",
+    "github": "SYNC_PENDING for CP-20261026-012",
+    "last_confirmed_checkpoint": "CP-20261026-011",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
-  "next_step": "На immutable CP011 выполнить installed public profile update (fresh1→2→3, реальные backups+restore oracle) и полный source/integration. Если FAIL исправить и проверить затронутое; к16:00UTC/17:00Berlin финальный handoff, GitHub, обновить private status Site и остановиться.",
+  "next_step": "На immutable SDKCP011 добавить independent installed update fault profile: lostACK/UNKNOWN/missingledger, tampered/foreign backup, live data drift и candidate health/cleanup failure через original public SDK operation. Затем реализовать отдельный verified before-restore/before-rollback backup protocol и adapter restore/rollback; capabilities не включать заранее. Windows11/Ubuntu24cleanhost, productDocker/services, GUI12locale-target сочетаний, JobPilot/Rent и production trust/licences остаются отдельными обязательными gates. Новое окно — только по явной команде владельца.",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
     "windows_docker": "BLOCKED",
-    "linux_native": "PARTIAL PASS: actual installed single-step reference fresh/start/stop/backup via SDK a5130d1, DEV Linux user; borrowed runtime, no clean-host/full lifecycle",
+    "linux_native": "PARTIAL PASS: public adapter fresh1→update2→update3/start/stop/backup, 4 actual archive restores on SDK6edcbb83; borrowedDEVruntime, no clean-host/full lifecycle",
     "linux_docker": "NOT RUN: daemon доступен; browser/source в DEV контейнере не являются product Docker backend acceptance"
   },
-  "last_confirmed_github_sha": "6bf5a1b4fd6d6bf75ea344341e1305b99e3f34f3",
+  "last_confirmed_github_sha": "6edcbb83a018e72d235cc3eb192864e238a82755",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -175,7 +175,11 @@
     "packaging/acceptance-evidence/update-independent-root-20261026-run02.json",
     "packaging/acceptance-evidence/core-update-execution-20261026-run02.json",
     "packaging/acceptance-evidence/core-update-policy-20261026-run02.json",
-    "packaging/acceptance-evidence/github-ci-20261026-cp010.json"
+    "packaging/acceptance-evidence/github-ci-20261026-cp010.json",
+    "packaging/acceptance-evidence/source-20261026-cp012.json",
+    "packaging/acceptance-evidence/installed-update-forward-20261026-cp011.json",
+    "packaging/acceptance-evidence/core-update-execution-final-20261026-run02.json",
+    "packaging/acceptance-evidence/github-ci-20261026-cp011.json"
   ],
   "environment": {
     "os": "Windows 10 Home 10.0.19045",
@@ -194,13 +198,14 @@
     "TODO": 31
   },
   "source_verification": {
-    "checkpoint_id": "CP-20261025-021",
-    "source_and_integration_passed": 2363,
+    "checkpoint_id": "CP-20261026-012",
+    "source_sha": "6edcbb83a018e72d235cc3eb192864e238a82755",
+    "source_and_integration_passed": 2625,
     "skipped": 3,
     "subtests_passed": 15,
-    "elapsed_seconds": 454.78326788899994,
-    "scope": "Source/integration в изолированном Debian bookworm Docker, синтетические процессы и loopback. Не Ubuntu/Windows platform acceptance.",
-    "receipt": "packaging/acceptance-evidence/source-20261025-cp021.json"
+    "elapsed_seconds": 1181.13,
+    "scope": "Полный source/integration CP011 в offline Debian DEV Docker. Не clean-host/Windows11/Ubuntu24/product Docker/service/production acceptance.",
+    "receipt": "packaging/acceptance-evidence/source-20261026-cp012.json"
   },
   "verification_backlog": "docs/verification-status.json",
   "verification_instruction": "Обязательно выполнить NOT RUN/BLOCKED/FAIL при доступной среде; отсутствие harness явно NOT IMPLEMENTED. Непроверенное НЕ ГОТОВО.",
@@ -244,7 +249,7 @@
     }
   ],
   "source_code_checkpoint": "CP-20261026-011",
-  "handoff_note": "Интегрирован core runtime freeze091c0f4: single-step Linux/native/user adapter update с отдельными source/target bindings, phase-scoped quiesce, реальными encrypted backup receipts archive+backup:0 и live snapshot comparison. UpdatePlan сохраняет forward journal без automatic legacy restore; UNKNOWN требует original-operation reconciliation, missing ledger не разрешает повтор; health error сохраняет данные/отдельные primary+cleanupcodes. Public capability update включена как development. Public no-override1→2→3/identity/sourcequiesce/health5PASS; precap177PASS/1XFAIL, root2actualdatafaultPASS и25contractPASS (исходныйAPIdeclarationFAIL сохранён иисправлен). Полный финальный source и independent installed update на этом SDK ещё PENDING. Production_ready=false, G0–G5 OPEN.",
+  "handoff_note": "Работа завершена по указанию владельца в окне до17:00Berlin/16:00UTC. Single-step adapter update Linux/native/user реализован и принят в DEV scope. Полный frozen source/integration: 2625PASS/3skip/15subtests, 1181.13s,208inputs unchanged. Installed public factory→fresh1→update2→update3 на immutable SDK6edcbb83 PASS:70SDK/7reference/161dependency files unchanged; effects1/2/3, source/target runtime+health identity, данные/settings/syntheticcredential сохранны. Все4update encrypted archives действительно decrypt/restored в oracle. Root2datafaultPASS/25contractPASS; core180PASS и отдельно223PASS/1root-exportdeselect (пересекаются с full, не складывать). CI SDKCP011:Linux/Windows source jobs success. Forward journal не делает automatic legacy restore; UNKNOWN/missingledger не разрешает повтор. Public restore/rollback/repair/reinstall/uninstall adapter capabilities остаютсяfalse. BorrowedDEVruntime, это не clean-host/standalone acceptance. Production_ready=false, G0–G5 OPEN. Веб-страница текущей работы опубликована privately; финальная публикация её результатов выполняется после этого checkpoint и хранится внешнейreceipt.",
   "shutdown": {
     "authorized": false,
     "state": "HISTORICAL_REQUEST_NOT_APPLICABLE",
@@ -256,7 +261,7 @@
     "model": "gpt-6.1-sol",
     "reasoning_effort": "high",
     "total_agents": 3,
-    "status": "RUNNING",
+    "status": "STOPPED_BY_USER",
     "started_at_utc": "2026-10-26T14:35:31Z",
     "deadline_utc": "2026-10-26T16:00:00Z",
     "timezone": "Europe/Berlin",
@@ -268,8 +273,10 @@
       "core_lifecycle": ".local-state/agents/core02: update RED и source binding prerequisite",
       "platform_acceptance": ".local-state/agents/acceptance02: installed update-readiness refusal profile; new migration_snapshot.py + tests helper ownership"
     },
-    "current_package": "Stable core update integrated; independent root faults PASS; full/installed candidate verification PENDING",
-    "active_test_processes": []
+    "current_package": "Implementation/final verification complete; final checkpoint and status Site publication",
+    "active_test_processes": [],
+    "stopped_at_utc": "2026-10-26T15:53:41.437342+00:00",
+    "stop_reason": "Owner requested final save/GitHub and stop by17:00Berlin; no further implementation after frozen candidate"
   },
   "startup": {
     "entrypoint": "AI_START_HERE.md",
@@ -300,6 +307,19 @@
       "installed_preparation_cases_passed": 5,
       "sdk_revision": "2024434b59c477773ad2b44d00ae77ec508ff8b8",
       "installed_fresh": "PASS on SDK a5130d19343bfa4475147d8af34f653f7c30f7f2"
+    },
+    "core_lifecycle_run02": {
+      "branch": "codex/core-lifecycle-20261026-run02",
+      "commit": "f4fec48e59cbc5e54111312c12f44b5a8bc10f3e",
+      "sync": "SYNC_CONFIRMED",
+      "status": "RUNTIME_INTEGRATED_CP011_EVIDENCE_CP012_STOPPED"
+    },
+    "platform_acceptance_run02": {
+      "branch": "codex/platform-acceptance-20261026-run02",
+      "commit": "d87ee11c782a9936d79f3d70026e236c4883b7b0",
+      "sync": "SYNC_CONFIRMED",
+      "status": "INTEGRATED_CP012_STOPPED",
+      "installed_sdk_sha": "6edcbb83a018e72d235cc3eb192864e238a82755"
     }
   },
   "housekeeping": {
@@ -355,7 +375,8 @@
     "audience": "owner-private",
     "version1_source_sha": "fcfafaf1e8ca269bab9eb6223c4acd1297f902c8",
     "documentation": "docs/WORK_STATUS_SITE_RU.md",
-    "refresh_before_final_handoff": true
+    "refresh_before_final_handoff": true,
+    "final_publication": "PENDING_AFTER_CP012; verify Sites native result/external .git receipt before final response"
   },
   "run02_snapshot": {
     "helper_commit": "0afeab6cafecac9bcbb7fa5cfa6b39362f897bcf",
@@ -375,7 +396,9 @@
     "scope": "development Linux/native/user single migration step; restore/rollback remain unsupported",
     "root_data_faults_passed": 2,
     "root_contract_passed": 25,
-    "full_source": "PENDING",
-    "installed_full": "PENDING"
+    "full_source": "PASS",
+    "installed_full": "PASS_SCOPED: happy1→2→3 with real archive restore; installed faults NOT RUN",
+    "accepted_sdk_sha": "6edcbb83a018e72d235cc3eb192864e238a82755",
+    "accepted_wheel_sha256": "44bba27101bf1397ad3ebd5379f1e4adcf921b035cd2559979dc14daa8a90f0d"
   }
 }

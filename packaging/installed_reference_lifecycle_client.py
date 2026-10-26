@@ -375,7 +375,8 @@ def main():
                         recovery_runtime = saved / "runtime/recovery" / source_release / "payload/runtime/bin/python"
                         assert sha(recovery_runtime.read_bytes()) == config["runtime_sha256"]
                         verified_backups.append({"purpose": reference["purpose"], "receipt_id": reference["receipt_id"],
-                            "archive_sha256": body["archive_sha256"], "restored_source_schema": source_version})
+                            "archive_sha256": body["archive_sha256"], "restored_source_schema": source_version,
+                            "backup_receipt_body": body})
                     process = json.loads((root / ".hinstall/processes.json").read_text())["web"]
                     executable = Path("/proc/" + str(process["pid"]) + "/exe").resolve()
                     assert executable.is_relative_to(root / "releases" / ("app-" + target_release))
@@ -393,6 +394,11 @@ def main():
                         "source_release": source_release, "target_release": target_release,
                         "source_runtime_sha256": sha(source_executable.read_bytes()),
                         "target_runtime_sha256": sha(executable.read_bytes()), "verified_backups": verified_backups,
+                        "migration_review_id": update_review["migration_review_id"],
+                        "migration_review_sha256": sha(canonical(private_review)),
+                        "native_operation_token": native_path.stem, "native_journal_sha256": sha(canonical(state)),
+                        "update_transaction": forward["transaction"], "source_notes_sha256": sha(canonical(source_data["notes"])),
+                        "retained_user_files_sha256": dict(retained),
                         "public_factory_prepare_plan_submit": True, "real_native_authorizer": True,
                         "source_and_target_live_health_identity": True,
                         "user_data_and_config_preserved": True, "forward_journal_no_rollback": True,

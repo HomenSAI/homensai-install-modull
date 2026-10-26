@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "started_at_utc": "2026-10-26T14:39:25.106246+00:00",
+  "status": "FAIL",
+  "profile": "update-readiness",
+  "production_ready": false,
+  "gate_closed": false,
+  "author": "Serhii Khomenko",
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "-c",
+        "safe.directory=/checkout",
+        "--git-dir=/git",
+        "--work-tree=/checkout",
+        "rev-parse",
+        "f90a20a81fd43fcf58b2c5e1d8de449e44401250^{tree}"
+      ],
+      "cwd": "/checkout",
+      "exit_code": 128,
+      "log_sha256": "b87d5a92a440e08dff64d140696a1347cda23e1cea655472e1e5eec4aaa46a87"
+    }
+  ],
+  "scope": "installed public SDK reference update-readiness, Linux/native/user DEV container",
+  "sdk_source_revision": "f90a20a81fd43fcf58b2c5e1d8de449e44401250",
+  "environment": {
+    "python": "3.14.3 (main, Apr  7 2026, 02:23:36) [GCC 12.2.0]",
+    "uid": 1000,
+    "network_downloads": false,
+    "venv_system_site_packages": false,
+    "work_dir": "/tmp/hinstall-update-readiness-run02",
+    "runtime_closure": "signed copied DEV ELF; borrowed container stdlib/libpython/OS libraries"
+  },
+  "not_run": [
+    "Adapter update/restore/rollback/repair/uninstall",
+    "Clean Ubuntu/Windows/Docker/service/reboot",
+    "Standalone runtime/security/license closure",
+    "GUI",
+    "Production signing",
+    "Full G1-G5"
+  ],
+  "harness_files": {
+    "check_installed_reference_lifecycle.py": "5140d4b8c9f6c4915a3b539da810751b3ee2a5a604e48e3b3b713b0113076b50",
+    "installed_reference_lifecycle_client.py": "14f77836f927699b56e6e90a98e413fbf3d4666839b3baf41e507f89e2158318",
+    "check_installed_product_adapter.py": "3051d62270f31d4d88cc094216ae56e492f6277423b31d91856bf7913185bcde",
+    "check_installed_sdk.py": "e0f15c2fa675f314b6d7beaf79ad1a3f4305f2a1965cc3a5bd9b32d1a328a4d4",
+    "check_installed_prerequisites.py": "9e33c432149390513847e251cf69b698804a213782ca615ee8fa2a6187c7e7f1"
+  },
+  "error": {
+    "type": "RuntimeError",
+    "message": "Команда 1: f90a20a81fd43fcf58b2c5e1d8de449e44401250^{tree}\nfatal: ambiguous argument 'f90a20a81fd43fcf58b2c5e1d8de449e44401250^{tree}': unknown revision or path not in the working tree.\nUse '--' to separate paths from revisions, like this:\n'git <command> [<revision>...] -- [<file>...]'\n"
+  },
+  "exported_evidence": "/acceptance/installed-update-readiness-attempt01-evidence",
+  "finished_at_utc": "2026-10-26T14:39:25.194081+00:00"
+}

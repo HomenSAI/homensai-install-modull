@@ -54,7 +54,7 @@ def main():
     observations, actions, legacy_root = [], [], None
 
     def api(state, *, registered=True):
-        if registered and config["profile"] == "fresh":
+        if registered and config["profile"] in {"fresh", "update-readiness"}:
             return InstallerAPI.from_bootstrap(work / state, trust_config=config["trust"], allow_development=True,
                 product_adapter_descriptor="installer/adapter.json", secret_provider=secret, locale="ru")
         engine = NativeEngine(verifier, secret, **({"product_adapter_descriptor": "installer/adapter.json"} if registered else {}))
@@ -108,7 +108,7 @@ def main():
             raise AssertionError("Caller review ID passed preparation input validation")
         assert tree(root) == before
         observations.append({"case": "caller_review_id_rejected_before_hook", "status": "PASS"})
-        if config["profile"] == "fresh":
+        if config["profile"] in {"fresh", "update-readiness"}:
             assert supported, "Этот SDK revision ещё не поддерживает adapter fresh install"
             for changed, expected_error in (({**prepared, "migration_review_id": "e" * 64}, "PLAN_STALE"),
                     ({**prepared, "fresh_receipt_id": "a" * 64}, "INVALID_REQUEST")):
@@ -224,6 +224,44 @@ def main():
                 "database_documents_settings_and_synthetic_credential_preserved": True,
                 "actual_signed_runtime_sha256": sha(executable.read_bytes()), "secrets_absent_from_argv_and_control_logs": True,
                 "owned_listener_stopped": True})
+            if config["profile"] == "update-readiness":
+                # Этот профиль доказывает только запрет update. Включение capability
+                # требует отдельной полной installed 1→2→3 приёмки и нового профиля.
+                assert current.capabilities(target)["actions"]["update"]["supported"] is False, (
+                    "Update capability включена: нужна полная installed 1→2→3 приёмка")
+                persistent_before = {name: tree(root / name) for name in manifest["paths"]}
+                pointer = root / "services" / manifest["update"]["pointer_file"]
+                pointer_before = pointer.read_bytes()
+                update_review = current.prepare_migration("update", manifest, target, options=bundles["2"])
+                assert update_review["from_release"] == "reference-v1" and update_review["to_release"] == "reference-v2"
+                product_plan = update_review["product_plan"]
+                assert product_plan["from_version"] == "1" and product_plan["to_version"] == "2"
+                assert len(product_plan["steps"]) == 1 and product_plan["steps"][0]["backup_required"] is True
+                assert {name: tree(root / name) for name in manifest["paths"]} == persistent_before
+                assert pointer.read_bytes() == pointer_before and notes(database) == data_before
+                rejected = []
+                for version, options in (("2", bundles["2"]),
+                        ("2-reviewed", {**bundles["2"], "migration_review_id": update_review["migration_review_id"]}),
+                        ("3", bundles["3"])):
+                    before = tree(root)
+                    try:
+                        current.plan("update", manifest, target, options=options)
+                    except InstallerError as error:
+                        assert error.code == "CAPABILITY_UNSUPPORTED", error.code
+                        rejected.append({"target": version, "error_code": error.code})
+                    else:
+                        raise AssertionError("Unsupported update получил исполнимый plan")
+                    assert tree(root) == before, "Отклонённый update изменил installation root"
+                assert notes(database) == data_before and pointer.read_bytes() == pointer_before
+                with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
+                    assert db.execute("SELECT count(*) FROM product_adapter_effects").fetchone() == (1,)
+                listener_stopped(config["port"])
+                observations.append({"case": "installed_update_fail_closed", "status": "PASS",
+                    "adapter_update_capability": False, "update_lifecycle_status": "NOT RUN",
+                    "update_v2_preparation_status": "PASS", "rejected_plans": rejected,
+                    "source_release": "reference-v1", "source_schema": 1, "business_effect_rows": 1,
+                    "persistent_roots_pointer_and_user_data_unchanged": True,
+                    "future_requirement": "Полная installed fresh1→update2→update3 с настоящим backup каждого шага"})
         else:
             legacy_root = work / "Legacy fixture с пробелами"
             def legacy_options(version):
@@ -287,7 +325,7 @@ def main():
                     origins[name] = path.relative_to(site).as_posix()
         report.update(status="PASS", module_origins=origins)
     finally:
-        for cleanup_root, version in ((legacy_root, "1"), (root if config["profile"] == "fresh" else None, "1")):
+        for cleanup_root, version in ((legacy_root, "1"), (root if config["profile"] in {"fresh", "update-readiness"} else None, "1")):
             if cleanup_root is not None and (cleanup_root / ".hinstall/installation.json").exists():
                 try:
                     run_action(api("cleanup-" + str(len(str(cleanup_root))), registered=False), "stop",

@@ -31,7 +31,7 @@ def main(argv=None):
     parser.add_argument("--wheelhouse", type=Path, required=True)
     parser.add_argument("--sdk-revision", required=True)
     parser.add_argument("--source-git-dir", type=Path)
-    parser.add_argument("--profile", choices=("preparation", "fresh"), default="preparation")
+    parser.add_argument("--profile", choices=("preparation", "fresh", "update-readiness"), default="preparation")
     args = parser.parse_args(argv)
     work, output = args.work_dir.resolve(), args.receipt.absolute()
     exported = output.with_name(output.stem + "-evidence")
@@ -121,7 +121,7 @@ def main(argv=None):
         descriptor["environment_allowlist"].append("HOMENSAI_CONFIG_HOME")
         write_json(payload / "installer/adapter.json", descriptor)
         manifest = json.loads((work / "manifest.json").read_text())
-        if args.profile == "fresh":
+        if args.profile in {"fresh", "update-readiness"}:
             (payload / "forbidden_legacy_migration.py").write_text("import os\nfrom pathlib import Path\n(Path(os.environ['HOMENSAI_DATA_HOME'])/'FORBIDDEN_LEGACY_MIGRATION').write_text('unexpected legacy hook')\nraise SystemExit(87)\n", encoding="utf-8")
             manifest["migrations"]["cmd"] = ["python", "-I", "-B", "forbidden_legacy_migration.py"]
             write_json(work / "manifest.json", manifest)

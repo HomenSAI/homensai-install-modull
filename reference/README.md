@@ -52,3 +52,11 @@ venv содержит подписанный скопированный ELF, н�
 Ubuntu/Windows. Production signing, runtime/license closure, GUI и все G0–G5
 этой проверкой не закрываются. Каждая попытка получает новый work-dir и receipt;
 ранний FAIL сохраняется через `--previous-receipt`.
+
+Реализованный read-only `migration_plan` принимает `installation_id`,
+`from_release`, `to_release`, `mode` (`fresh_empty` или `upgrade`). Начальную
+схему он наблюдает в SQLite, целевую читает из подписанного reference profile.
+Fresh возвращает отдельный `from_version="empty"` и не создаёт каталоги или БД.
+Неизвестная/повреждённая БД, WAL/journal и downgrade требуют отдельного решения
+и отвергаются до изменений. Дескриптор maintenance-проверки этот hook пока не
+объявляет; installed adapter fresh/update остаётся NOT RUN.

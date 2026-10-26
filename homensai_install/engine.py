@@ -475,20 +475,25 @@ class NativeEngine:
         if self.product_adapter_descriptor is not None:
             adapter, binding = self._product_adapter(ctx)
             required = {"readiness"} if action == "start" else {"quiesce", "operation_status"}
-            if action == "install":
+            if action in {"install", "update"}:
                 required = {"readiness", "migration_plan", "migration_apply", "operation_status"}
+                if action == "update":
+                    required.add("quiesce")
             if action == "backup":
                 required.add("readiness")
             if not required <= set(adapter.capabilities()["hooks"]):
                 raise EngineError("CAPABILITY_UNSUPPORTED", "Нужные ProductAdapter hooks не объявлены")
             result["product_adapter_binding"] = binding
             result["product_adapter_hooks"] = sorted(required)
-            if action == "install":
+            if action in {"install", "update"}:
                 review = self._checked_migration_review(ctx, action, options.get("migration_review_id"))
                 if len(review["product_plan"]["steps"]) != 1:
                     raise EngineError("CAPABILITY_UNSUPPORTED", "Первый migration slice требует ровно один шаг")
                 result["migration_binding"] = self._migration_public_binding(options["migration_review_id"], review)
                 result["migration_product_plan"] = review["product_plan"]
+                if action == "update":
+                    result["product_adapter_source_binding"] = review["binding"]["from_adapter_binding"]
+                    result["update_failure_policy"] = "preserve_forward_journal_no_automatic_restore"
         return result
 
     def _product_adapter(self, ctx):
@@ -596,13 +601,16 @@ class NativeEngine:
                     or source["target"] != ctx["target"] or tuple(source["modes"]) != ctx["modes"]):
                 raise EngineError("CAPABILITY_UNSUPPORTED", "Migration не меняет DataHome, pointer, modes или target")
             fresh = None
-        return {"product_id": ctx["manifest"]["product_id"], "installation_id": owner["installation_id"],
+        binding = {"product_id": ctx["manifest"]["product_id"], "installation_id": owner["installation_id"],
             "action": action, "from_release": active, "to_release": ctx["release"],
             "from_metadata_sha256": _digest(source) if source else None,
             "from_manifest_sha256": _digest(source["manifest"]) if source else None,
             "from_inventory_sha256": _digest(source["inventory"]) if source else None,
             "target_binding": target_binding, "fresh_empty_sha256": _digest(fresh) if fresh else None,
             "installation_root_sha256": _digest(str(ctx["root"]))}
+        if action == "update":
+            _, binding["from_adapter_binding"] = self._release_product_adapter(ctx, active)
+        return binding
 
     def _observe_migration_plan(self, ctx, action, binding):
         adapter, _ = self._product_adapter(ctx)
@@ -650,7 +658,8 @@ class NativeEngine:
                 after = self._migration_base_binding(ctx, action)
                 if before != after:
                     raise EngineError("PLAN_STALE", "Состояние установки изменилось во время preparation")
-                body = {"schema_version": 1, "binding": before, "product_plan": product_plan}
+                body = {"schema_version": 2 if action == "update" else 1,
+                        "binding": before, "product_plan": product_plan}
                 review_id = MigrationReviewStore(ctx["control"] / "migration-reviews").issue(body)
                 return {"migration_review_id": review_id, "action": action, "product_plan": product_plan,
                     "from_release": before["from_release"], "to_release": before["to_release"],
@@ -667,7 +676,8 @@ class NativeEngine:
         try:
             body = MigrationReviewStore(ctx["control"] / "migration-reviews").read(review_id)
             if (set(body) != {"schema_version", "binding", "product_plan"}
-                    or type(body["schema_version"]) is not int or body["schema_version"] != 1
+                    or type(body["schema_version"]) is not int
+                    or body["schema_version"] != (2 if action == "update" else 1)
                     or body["binding"] != self._migration_base_binding(ctx, action)):
                 raise ValueError("review_binding_changed")
             adapter, _ = self._product_adapter(ctx)
@@ -810,15 +820,18 @@ class NativeEngine:
         except InstallerError:
             raise _UncertainEffect() from None
 
-    def _installed_product_adapter(self, ctx):
-        release = self._pointer(ctx)
+    def _release_product_adapter(self, ctx, release):
+        """Закрепить adapter по собственным signed metadata выбранного выпуска."""
         meta = self._installed(ctx, release)
         options = {**ctx["options"], "release": release, "payload_dir": str(self._release(ctx, release)),
                    "runtime_executable": meta["runtime_executable"],
                    "inventory_file": str(ctx["control"] / "releases" / (release + ".inventory.json")),
                    "signature_file": str(ctx["control"] / "releases" / (release + ".signature.json"))}
-        adapter, binding = self._product_adapter({**ctx, "manifest": meta["manifest"], "target": meta["target"],
-                                                  "release": release, "options": options})
+        return self._product_adapter({**ctx, "manifest": meta["manifest"], "target": meta["target"],
+                                      "release": release, "options": options})
+
+    def _installed_product_adapter(self, ctx):
+        adapter, binding = self._release_product_adapter(ctx, self._pointer(ctx))
         if binding != ctx.get("product_adapter_binding"):
             raise EngineError("PLAN_STALE", "ProductAdapter не совпадает с reviewed release")
         return adapter

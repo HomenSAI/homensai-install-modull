@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "checked_at_utc": "2026-10-26T09:11:34.4443712Z",
+  "status": "PASS",
+  "scope": "Reference application SQLite migration hooks, source fault injection; installed transport separately scoped",
+  "source_head": "3db7995f193869a6b5ed5bcc7363c350b2981fda",
+  "source_inputs_dirty": true,
+  "source_files": {
+    "reference/src/homensai_reference/adapter.py": "3f33111d475212c08e88a1bb9433145b72d28f3554b46df16413d4d104675250",
+    "reference/src/homensai_reference/migrate.py": "ee0195cd17d8e81715d1df289a6067f2f2508fb1fe990160da01c62f07d077e2",
+    "integration_tests/test_reference_migration_apply.py": "4387a263eb4ed267869b0815905bc9f90b2f133bc7cb23dc6b159b1bc04230fe",
+    "integration_tests/test_reference_migration_plan.py": "b0eafeb377dfdb526232dd4f4db8b8768ec118f1b542fbb8e3acb57aaeff271e",
+    "integration_tests/test_reference_product_adapter.py": "281f25e2c23382111297bbbb769e25743c457f533d437e86436657cee8e98184",
+    "tests/test_reference_product.py": "5519b81199884c8b6be32f578247a5ad4e5c5d124a1096be6afb8e6d89e6cba9"
+  },
+  "source_tests": {
+    "failed": 0,
+    "command": "python -m pytest -q -p no:cacheprovider integration_tests/test_reference_migration_apply.py integration_tests/test_reference_migration_plan.py integration_tests/test_reference_product_adapter.py tests/test_reference_product.py --junitxml=/acceptance/reference-migration-apply.xml",
+    "skipped": 0,
+    "passed": 77,
+    "junit": "packaging/acceptance-evidence/reference-migration-apply-20261026-agent01.xml"
+  },
+  "environment": {
+    "image": "hinstall-dev:verification",
+    "uid": 1000,
+    "network": "none",
+    "docker_socket": false,
+    "privileged": false
+  },
+  "original_red": [
+    "packaging/acceptance-evidence/reference-apply-readonly-red-20261026-agent01.xml",
+    "packaging/acceptance-evidence/reference-apply-wal-red-20261026-agent01.xml"
+  ],
+  "installed_transport": "packaging/acceptance-evidence/installed-reference-effects-20261026-agent01.json",
+  "limits": [
+    "Source crash injection is not process kill or power loss",
+    "Installed effect transport uses exact-request synthetic authorizer and explicit legacy v1 fixture",
+    "Real engine fresh/update/backup proof not accepted by this receipt"
+  ],
+  "production_ready": false,
+  "gate_closed": false,
+  "public_evidence_transformations": [
+    {
+      "path": "packaging\\acceptance-evidence\\reference-apply-readonly-red-20261026-agent01.xml",
+      "raw_sha256": "9efcc6eaed1add0f3b334bb291fdaa3097603775c928016ede3f85963f08b40d",
+      "operation": "Trim trailing spaces in published failure text; original XML preserved in private attempt directory",
+      "published_sha256": "449f5ca54c425ca9b1afcf3f5df2490c4ea79dbc15af6974f6989dcbab70420f"
+    },
+    {
+      "path": "packaging\\acceptance-evidence\\reference-apply-wal-red-20261026-agent01.xml",
+      "raw_sha256": "43d34b631ca073963618426f7624ec41e7dccad1422b9e179e178f6365554207",
+      "operation": "Trim trailing spaces in published failure text; original XML preserved in private attempt directory",
+      "published_sha256": "74623723075bbbcbdff0499eb25a5c37c7a73f158daa078bba0d19e63c2d2909"
+    }
+  ]
+}

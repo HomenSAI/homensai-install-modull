@@ -1,0 +1,559 @@
+{
+  "schema_version": 1,
+  "started_at_utc": "2026-10-26T09:09:47.514351+00:00",
+  "status": "PASS",
+  "production_ready": false,
+  "gate_closed": false,
+  "author": "Serhii Khomenko",
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "-c",
+        "safe.directory=/workspace",
+        "--git-dir=/source-git/worktrees/homensai-install-modull-acceptance-20261026-run01",
+        "--work-tree=/workspace",
+        "rev-parse",
+        "e693025b2bded46ba480e557fcf7dcbab6486cfb^{tree}"
+      ],
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "log_sha256": "7c763fd53cadeb449751c86da0cdf654c59f9293cd57a4a18ae10ae86fa04161"
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "safe.directory=/workspace",
+        "--git-dir=/source-git/worktrees/homensai-install-modull-acceptance-20261026-run01",
+        "--work-tree=/workspace",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "log_sha256": "f4d42829923f720dd59c964fdbe63bcd689768230bb09bb382311a52d9374713"
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "safe.directory=/workspace",
+        "--git-dir=/source-git/worktrees/homensai-install-modull-acceptance-20261026-run01",
+        "--work-tree=/workspace",
+        "status",
+        "--porcelain"
+      ],
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "log_sha256": "3ee2cacc0b256e68dfd007b54c08e7b4869878d993cc6f70632da6d64f46d60f"
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "safe.directory=/workspace",
+        "--git-dir=/source-git/worktrees/homensai-install-modull-acceptance-20261026-run01",
+        "--work-tree=/workspace",
+        "archive",
+        "--format=zip",
+        "--output=/tmp/hinstall-effects02/sdk-source.zip",
+        "e693025b2bded46ba480e557fcf7dcbab6486cfb",
+        "--",
+        "homensai_install",
+        "shared",
+        "pyproject.toml",
+        "INSTALLER_API.md"
+      ],
+      "cwd": "/workspace",
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/local/bin/python",
+        "-I",
+        "-B",
+        "-m",
+        "pip",
+        "wheel",
+        "--no-index",
+        "--no-deps",
+        "--no-cache-dir",
+        "--no-build-isolation",
+        "--wheel-dir",
+        "/tmp/hinstall-effects02/wheels",
+        "/tmp/hinstall-effects02/sdk-source"
+      ],
+      "cwd": "/tmp/hinstall-effects02",
+      "exit_code": 0,
+      "log_sha256": "b6fa75dc530f50487c0caffaac12c2b44f05cd13cc2cac9c9bf54a521eed4475"
+    },
+    {
+      "argv": [
+        "/usr/local/bin/python",
+        "-I",
+        "-B",
+        "-m",
+        "pip",
+        "wheel",
+        "--no-index",
+        "--no-deps",
+        "--no-cache-dir",
+        "--no-build-isolation",
+        "--wheel-dir",
+        "/tmp/hinstall-effects02/wheels",
+        "/tmp/hinstall-effects02/reference-source/reference"
+      ],
+      "cwd": "/tmp/hinstall-effects02",
+      "exit_code": 0,
+      "log_sha256": "c2c5060c917d244d61d8f261ffac529a41f61ab57d24135c386548ab9589524c"
+    },
+    {
+      "argv": [
+        "/usr/local/bin/python",
+        "-I",
+        "-B",
+        "-m",
+        "venv",
+        "/tmp/hinstall-effects02/environment"
+      ],
+      "cwd": "/tmp/hinstall-effects02",
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/tmp/hinstall-effects02/environment/bin/python",
+        "-I",
+        "-B",
+        "-c",
+        "import importlib.util;assert all(importlib.util.find_spec(n) is None for n in ('homensai_install','cryptography','homensai_reference'))"
+      ],
+      "cwd": "/tmp/hinstall-effects02",
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/tmp/hinstall-effects02/environment/bin/python",
+        "-I",
+        "-B",
+        "-m",
+        "pip",
+        "install",
+        "--no-index",
+        "--no-deps",
+        "--no-compile",
+        "--no-cache-dir",
+        "--require-hashes",
+        "--only-binary=:all:",
+        "--find-links",
+        "/tmp/hinstall-effects02/security-wheels",
+        "-r",
+        "/tmp/hinstall-effects02/security-wheels/security.lock"
+      ],
+      "cwd": "/tmp/hinstall-effects02",
+      "exit_code": 0,
+      "log_sha256": "2ea9b3ebe172cf52f8d30272962bab944fb7ed18786c9fc5ed33db4ed1791845"
+    },
+    {
+      "argv": [
+        "/tmp/hinstall-effects02/environment/bin/python",
+        "-I",
+        "-B",
+        "-m",
+        "pip",
+        "install",
+        "--no-index",
+        "--no-deps",
+        "--no-compile",
+        "--no-cache-dir",
+        "/tmp/hinstall-effects02/wheels/homensai_install_module-0.1.0-py3-none-any.whl"
+      ],
+      "cwd": "/tmp/hinstall-effects02",
+      "exit_code": 0,
+      "log_sha256": "c36ba051a9a050e335d8e38de30bce8fadba641ca953f58575df6ed6a95c131a"
+    },
+    {
+      "argv": [
+        "/tmp/hinstall-effects02/environment/bin/python",
+        "-I",
+        "-B",
+        "-c",
+        "import sysconfig;print(sysconfig.get_path('purelib'))"
+      ],
+      "cwd": "/tmp/hinstall-effects02",
+      "exit_code": 0,
+      "log_sha256": "4e23fb2f9fb91d560046ba4c16a4434ddc7090a5219e5469594fad120fc16993"
+    },
+    {
+      "argv": [
+        "/usr/local/bin/python",
+        "-I",
+        "-B",
+        "-m",
+        "venv",
+        "--copies",
+        "--without-pip",
+        "/tmp/hinstall-effects02/payload/runtime"
+      ],
+      "cwd": "/tmp/hinstall-effects02",
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/usr/local/bin/python",
+        "-I",
+        "-B",
+        "-m",
+        "pip",
+        "--python",
+        "/tmp/hinstall-effects02/payload/runtime/bin/python",
+        "install",
+        "--no-index",
+        "--no-deps",
+        "--no-compile",
+        "--no-cache-dir",
+        "/tmp/hinstall-effects02/wheels/homensai_reference-1.0.0-py3-none-any.whl"
+      ],
+      "cwd": "/tmp/hinstall-effects02",
+      "exit_code": 0,
+      "log_sha256": "ec9d5b85f3afb9b8b336bc743e8f36ea3200d5a2cf88f1013498a683a44cf29d"
+    },
+    {
+      "argv": [
+        "/tmp/hinstall-effects02/payload/runtime/bin/python",
+        "-I",
+        "-B",
+        "-c",
+        "import sysconfig;print(sysconfig.get_path('purelib'))"
+      ],
+      "cwd": "/tmp/hinstall-effects02",
+      "exit_code": 0,
+      "log_sha256": "a65eb6cbd0e28207f5dae25ed01a6ff448ecfa22121d7501c25a0010c018f2c8"
+    },
+    {
+      "argv": [
+        "/tmp/hinstall-effects02/payload/runtime/bin/python",
+        "-I",
+        "-B",
+        "-c",
+        "import sys;from pathlib import Path;from homensai_reference.migrate import migrate;from homensai_reference.profile import DEFAULT_PROFILE;migrate(Path(sys.argv[1]),Path(sys.argv[2]),profile=DEFAULT_PROFILE)",
+        "/tmp/hinstall-effects02/data-denied",
+        "/tmp/hinstall-effects02/config-denied"
+      ],
+      "cwd": "/tmp/hinstall-effects02",
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/tmp/hinstall-effects02/payload/runtime/bin/python",
+        "-I",
+        "-B",
+        "-c",
+        "import sys;from pathlib import Path;from homensai_reference.migrate import migrate;from homensai_reference.profile import DEFAULT_PROFILE;migrate(Path(sys.argv[1]),Path(sys.argv[2]),profile=DEFAULT_PROFILE)",
+        "/tmp/hinstall-effects02/data-pre",
+        "/tmp/hinstall-effects02/config-pre"
+      ],
+      "cwd": "/tmp/hinstall-effects02",
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/tmp/hinstall-effects02/payload/runtime/bin/python",
+        "-I",
+        "-B",
+        "-c",
+        "import sys;from pathlib import Path;from homensai_reference.migrate import migrate;from homensai_reference.profile import DEFAULT_PROFILE;migrate(Path(sys.argv[1]),Path(sys.argv[2]),profile=DEFAULT_PROFILE)",
+        "/tmp/hinstall-effects02/data-post",
+        "/tmp/hinstall-effects02/config-post"
+      ],
+      "cwd": "/tmp/hinstall-effects02",
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/tmp/hinstall-effects02/environment/bin/python",
+        "-I",
+        "-B",
+        "/tmp/hinstall-effects02/external_client.py",
+        "/tmp/hinstall-effects02/client-config.json"
+      ],
+      "cwd": "/tmp/hinstall-effects02",
+      "exit_code": 0,
+      "log_sha256": "87366e9afda9a7e710f63e55404e5e14bed637a2245ab3f35754c82b7dc0357d"
+    }
+  ],
+  "scope": "installed reference migration hook transport with synthetic trusted authorizer; actual subprocess nonzero faults",
+  "sdk_source_revision": "e693025b2bded46ba480e557fcf7dcbab6486cfb",
+  "environment": {
+    "python": "3.14.3 (main, Apr  7 2026, 02:23:36) [GCC 12.2.0]",
+    "uid": 1000,
+    "network_downloads": false,
+    "venv_system_site_packages": false,
+    "work_dir": "/tmp/hinstall-effects02",
+    "runtime_closure": "signed copied DEV ELF; borrowed container stdlib/libpython/OS libraries"
+  },
+  "authorizer": "SYNTHETIC exact-request fixture, NOT real archive/fresh proof",
+  "not_run": [
+    "Actual engine fresh/update",
+    "Real backup/fresh receipt authorization",
+    "Process kill/power loss",
+    "Standalone runtime",
+    "Clean Ubuntu/Windows/Docker/services",
+    "GUI",
+    "Production signing/licenses",
+    "Full G1-G5"
+  ],
+  "harness_files": {
+    "check_installed_reference_effects.py": "12578ac60eb6ee479de47cf35cb16ba9fb7074c09e90fa4567a40c447917a75d",
+    "installed_reference_effects_client.py": "89c3c9f2ec7a7db0a0ec504ad38ab89560015b8e975630b0d57c423d994eff3f",
+    "check_installed_product_adapter.py": "3051d62270f31d4d88cc094216ae56e492f6277423b31d91856bf7913185bcde",
+    "check_installed_sdk.py": "e0f15c2fa675f314b6d7beaf79ad1a3f4305f2a1965cc3a5bd9b32d1a328a4d4",
+    "check_installed_prerequisites.py": "9e33c432149390513847e251cf69b698804a213782ca615ee8fa2a6187c7e7f1"
+  },
+  "sdk_source_tree": "225b3bddc37bf4b0df5db3684b0b8be9281fe763",
+  "reference_source_head": "3db7995f193869a6b5ed5bcc7363c350b2981fda",
+  "reference_source_status": [
+    " M reference/README.md",
+    " M reference/src/homensai_reference/adapter.py",
+    " M reference/src/homensai_reference/migrate.py",
+    "?? integration_tests/test_reference_migration_apply.py",
+    "?? packaging/check_installed_reference_effects.py",
+    "?? packaging/installed_reference_effects_client.py"
+  ],
+  "sdk_source_archive_sha256": "84a5705108a5666014fb58da3da2d7cdb1e84688e9e5928c5b3b0f16e1a117fc",
+  "sdk_source_package_files": {
+    "homensai_install/__init__.py": "23319568614d158aa4b9d9d38fb824f4fca7d6cf941647536d5e25dd2d86b366",
+    "homensai_install/__main__.py": "935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d",
+    "homensai_install/adapters.py": "b67db7780dc6a88cc6cd0e223abcc82dc8a9cb692628e17a91f095efec3e668d",
+    "homensai_install/api/__init__.py": "d90cb75adf5f560ed2bc563961e22c71a3254dfc9fd68c8996acf51e8adf240e",
+    "homensai_install/api/journal.py": "e7e0e71fb6576847639871dbf1ac7bb7b7842c0be2a886460250afec5914c801",
+    "homensai_install/api/model.py": "ae38ba380cdef51a1c4955511953c6f7c9696e6996b8c3be6ee2e9e44cd56c82",
+    "homensai_install/api/resources/INSTALLER_API.md": "40ae76a2fb7d1969ecfa1513737318b03c69f6b84b04ab4f9a3288fb08b49e54",
+    "homensai_install/api/resources/INTEGRATION_GUIDE.md": "65785f7f96ca257442d7b0031b82b2d0efec10f30134129201a9bf07a4827919",
+    "homensai_install/api/resources/PRODUCT_ADAPTER_EXECUTION.md": "cc8c69f75e2ee85890840f8dcaf35d1f39fadfdeff51853cd1c46916ac0d30f3",
+    "homensai_install/api/resources/discovery.json": "bb73028ad3efc0d1695b5bfd3dad618f15afb28beb413633fa016ca7a9cc2aa7",
+    "homensai_install/api/resources/openapi.yaml": "918ac80d3fab0a9a7adf28d58f24ea1db1c1b6258315a33805fcb28224468574",
+    "homensai_install/api/schemas/event.schema.json": "98d27aea1422ab94df888fee3ac6d7bdc56f7a5bcec55c2139113017a5da4767",
+    "homensai_install/api/schemas/normalized.schema.json": "0377695226479804b3f9e9cb7543ad1941261bcbafef92f810367cb761baaaea",
+    "homensai_install/api/schemas/operation.schema.json": "f6d6a8969df040eab98b03fcc5625da8fd53107c72f989d0d379da03c70788f6",
+    "homensai_install/api/schemas/plan.schema.json": "13d603c20072f31cfca9f4690748661faaa3d6c33a37439394901dc877beed11",
+    "homensai_install/api/schemas/request.schema.json": "2aa3d8bf2a66a78519833468919da1504221f1bbe587dd19ebac2dab57127ca2",
+    "homensai_install/api/v1.py": "d13ea36005f87d18fae58d2d2b9bb3cf7cca9af61ac4ea150d6917385e3c4476",
+    "homensai_install/backends.py": "24c2cd89f48e9f64f580274c46d5d2d058bde4ea1913cf1bb6ce94cac08833f3",
+    "homensai_install/catalog/errors.v1.json": "33288134e406a1907e83cf0d06682a780346ccddb1a354ab900a858e8d3e4582",
+    "homensai_install/cli.py": "50ba071b46b0e9b530b3f5233afcd9790758d241db7257760d64e2b02499762e",
+    "homensai_install/diagnostics.py": "66a62f6b6adf73d1be149b3033703d977bb2b7bf08295844ddaff4d3b014950f",
+    "homensai_install/docker_cli.py": "8d98f92855f35126231cb2cf3f7be6208552e7cc14c5a9d70287ceb9fe5bf44b",
+    "homensai_install/docker_commands.py": "01e40bad589ee59028cc391fc15a9ef63faf05719ac9069243ddd10e3aa52dd0",
+    "homensai_install/docker_contract.py": "dcc843afa3863336c2ececeb5dd37448bfdf3abbdec84c6e5ffd8ef0dbd92ea9",
+    "homensai_install/docker_engine.py": "a769728394f8bf144cdd077443cb3a93820ed117c0acff23bd82750c7ad47d6e",
+    "homensai_install/docker_lifecycle.py": "b9c5269ea0fd45fb91bd8c2399fe34cd37ad936c7abe6f8d031e04838a1bb210",
+    "homensai_install/downloads.py": "a2775a7e9fd8c3d1c23ed167d7104310f068095901843fe1c0567d3da1936bba",
+    "homensai_install/engine.py": "5d29cfc6122e014041a4a078335e2beb4f28fec8f54a08d6ff6ae1186c50a807",
+    "homensai_install/errors.py": "05f438a1ed6439cb0886248ed24251a08915353db5538307d7f2497fe5cd5cca",
+    "homensai_install/execution_lease.py": "71fed1209d0b6c2902c658395fc2f1a7c7990ac058c5023e98b06428cef79c03",
+    "homensai_install/gui.py": "fa5ac75bc626c6e58a5b043fb47baa775ff3cb0f3a5c328fb1bea77ff025799c",
+    "homensai_install/i18n.py": "cc4ae69d3fc6d2473b9080c2f662a516c584736ac9564ea34eb62ba3e619fe94",
+    "homensai_install/local_artifacts.py": "f504aa1f2337da364dad700441784519d9439aed6a08ef78295e6c397682101d",
+    "homensai_install/locales/de.json": "fd5d69d44e555fc5731cc6ac04a335f8dea4e545e7c9ee52b8a8b45dee998586",
+    "homensai_install/locales/en.json": "4449b590485850d1c89b7208d1b106dcb5bf350d2ffe284157d7ec9bcaa5311f",
+    "homensai_install/locales/ru.json": "e2b43560348c45b66f2cde81252f7fe2bcd41b968f067a6dde4f4e7cda2f3904",
+    "homensai_install/migration_receipts.py": "4974ca411b018593c779d4f2d82b1a148cfc1ffc9233ea4bbcac0c457c063446",
+    "homensai_install/prerequisite_async.py": "acc27592d3dea208043938067518e9d6054421d4036b6c3ad7569a80403e168a",
+    "homensai_install/prerequisite_catalog.py": "78b865a4f707faafa03453edb871a46b07a57ecdb609fb604b405b0736aef538",
+    "homensai_install/prerequisite_execution.py": "ec08c3ceb5e15e32d8fd8b34f7bc0654a107098617a1f3cc3362e4f53d9c598e",
+    "homensai_install/prerequisite_progress.py": "a6f04e2260d6ad9c42198b712bcfffd1e1b0cc86d0125b6f12664904d7922b85",
+    "homensai_install/prerequisite_runner.py": "e7b1d681f02400c04c129b6d5e0adc73f68352ea68deb7bd6f59c85e598675c2",
+    "homensai_install/prerequisite_state.py": "76a1699cf8ecabf5fb6e01184a8c833a198796b5bc07df43f120e579f4977afa",
+    "homensai_install/prerequisites.py": "f3c5b4a3ee32d2fa06429a83933089a850a537dd4b965e5de7fa28e0bb99f1bd",
+    "homensai_install/process_liveness.py": "e27d2a11660be42c4e51e32240b7016fc4a9c5e6794a43d7fc335696b6c2e8a5",
+    "homensai_install/scaffold.py": "91c5e6e1beed4affe834e20f0b66555c5873b9af527fe3476d1c6c9c7cd64c42",
+    "homensai_install/service_contracts.py": "631cffe0a01936875214550d12cc94e95a1b3125ca179fcbb040a7fd8d66309c",
+    "homensai_install/service_manager.py": "f37f2f3cb16d118e95b25fd76ab26029e5e02f2798445711e48fd32671742c5e",
+    "homensai_install/service_systemd.py": "ba84ef1b3bce03f6d75974c877ebb93e3dc547100336c043be20cc2e6924c190",
+    "homensai_install/trust.py": "a6e3db84ad9f9d0380b72c89856a6d03eed2b48227f3e41d16c7a8d1270ac31a",
+    "homensai_install/wizard/app.js": "c9fca5cf005c92d8b968cb4b102e101c50bc7ba84fc2bd3c7cc7e6d4ea50d9f7",
+    "homensai_install/wizard/index.html": "d74c895868de6428c6d431a16b8f7a05d932884f59934492d0bee18bce87bf2d",
+    "homensai_install/wizard/locales.json": "36876ab1d32246cff20e4cd6a8a5a9e2e54b1683644179fd38a96793c29fc469",
+    "homensai_install/wizard/style.css": "a016942ec107bb254748dc92d0ecda6b0cb8b4d73ba05c7a500eda839515b558",
+    "shared/__init__.py": "a1fbf3cc018b4067361b81154240dafecbb3a8bcaaa7dc40616cf50028b8f620",
+    "shared/adapters_docker.py": "49eca8dca5442a3a04cba8aaf1dbd567fb51f2080056bcc481adbd205d373475",
+    "shared/adapters_fs.py": "eecd85a7e7ffc7fedb02cbd7c11efeb5d78a3831c61910b7209f1afea845cdee",
+    "shared/archive.py": "8fe1608c7b32cbf4a68a3f4dea5c51754b9f3a76a1fd7f7441532e2925074ff1",
+    "shared/archive_crypto.py": "373c324e8e91e3f1a913bf21df8d75bce305b090890daefebc5aa9a981ad071d",
+    "shared/ctl.py": "578703a8501c179c3467ca93cbd63e140a8305a59d661465f7677aa8dc18abe7",
+    "shared/datahome.py": "d098a741fad91d3f049142e562888dcec1ab81b26122177b2b03f2383c85a0f8",
+    "shared/doctor.py": "4219979e3a6272035cb73136a66eb0495f89e1a5fdd074476dfadac8a052c2ec",
+    "shared/linux_sh.py": "bd2879348370345d1082f23aea81f82896f4ea223c70d53c4fc0c9c315009e4d",
+    "shared/manifest.py": "9de8092a5f78d27d3f49cbde8ef02fd364edf117d1673c35a364110a209976a3",
+    "shared/manifest.schema.json": "a8fce321b4621836558b23d171d4861cb0434b27c25f58e285a8a098b9ef797a",
+    "shared/render_docker.py": "c052cf877c70627f5a1e91b58e42c306f7f8d25317b711514a40a47fbb49fae0",
+    "shared/services.py": "e2b0c76b293ea647b507f0eb99a48020b51b0a1311456559ce5123906ee294ac",
+    "shared/update_plan.py": "57b76249ae4d2dd172c01b967e12c0f03946e353d501f3cd85ed603eb26a37d3",
+    "shared/windows_ps.py": "23a38271ad1f760baa4e7ad425fa70fa734100f8f407345891a0e58638aa1944"
+  },
+  "reference_source_files": {
+    "homensai_reference/__init__.py": "4c3852906bd7c90257de1f8ae9f5b79c95452442a32524c2948b5c91eac666d8",
+    "homensai_reference/adapter.py": "3f33111d475212c08e88a1bb9433145b72d28f3554b46df16413d4d104675250",
+    "homensai_reference/archive.py": "124b523f9b6c7536f62b0f3896dc26565cf52029a5c5db168ca90aae5c524611",
+    "homensai_reference/migrate.py": "ee0195cd17d8e81715d1df289a6067f2f2508fb1fe990160da01c62f07d077e2",
+    "homensai_reference/profile.py": "8808ad97693feb7edb3d60a6f5a16c1e8db134f0f85a50dd46affde19a5ae690",
+    "homensai_reference/server.py": "42de4d7a98be20e43eeb775efbf1ab75b9a49ab1bd58a25bc94b4e9c7e78ed47",
+    "homensai_reference/storage.py": "2e616fb5895ed35748efcce2e668d1e6637b7dd0a2ac00250d3933d64c9804f2"
+  },
+  "wheel": {
+    "name": "homensai_install_module-0.1.0-py3-none-any.whl",
+    "sha256": "d7e7b13a9d7d9f25f6ae2bf4c3501fa04c04af5f5370a4a3b1f939d8aa0f5100",
+    "exact_files_checked": 69
+  },
+  "reference_wheel": {
+    "name": "homensai_reference-1.0.0-py3-none-any.whl",
+    "sha256": "df0cc3e0783bd8dd274e0c8541813f51b75a69838c9fd8a52f35a9caff659f36",
+    "exact_files_checked": 7
+  },
+  "dependencies": [
+    {
+      "name": "cryptography",
+      "version": "50.0.2",
+      "filename": "cryptography-50.0.2-cp311-abi3-manylinux_2_34_x86_64.whl",
+      "sha256": "9dab55f57c74c3cad24c323bacbbd04be4705ba6eb0d92e920b1fc4837ed5079",
+      "installed_verification": {
+        "exact_files_checked": 119,
+        "files_digest": "b3340ea9c3aa888e7ce45a4b65531423a4fbec78ccc330c8dd630aaea2d5569b"
+      }
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1",
+      "filename": "cffi-2.1.1-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "sha256": "b0431303acaea1089ad4b3e9ce4e6518193def1118d4073ca848635ee4ea2e96",
+      "installed_verification": {
+        "exact_files_checked": 30,
+        "files_digest": "bcb6606ed57bd9480f167b62edb208eccf4cdf945cdcfb85578c32ed58502bbc"
+      }
+    },
+    {
+      "name": "pycparser",
+      "version": "3.12",
+      "filename": "pycparser-3.12-py3-none-any.whl",
+      "sha256": "a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e",
+      "installed_verification": {
+        "exact_files_checked": 12,
+        "files_digest": "d789057e9fd2f952514e2af6745f341f8c0bd813fcf5866a40bba3e2f152f56e"
+      }
+    }
+  ],
+  "signed_payload_files": {
+    "adapter-config.json": "7a948388a6acda9b0addf87b5ecc00ec1473a5bad96cd3000caa52c2a0cf2c9c",
+    "fault_entry.py": "7a454c04416d91c2e5f4cdc7c486dc7801e3484ff679365e08bdf19b81bedad0",
+    "installer/adapter.json": "76b1c29eca25fbfc7cd973a69a354565daf286e20fe9abd2d7e02d79aef4e349",
+    "legal/de.txt": "b764afee52fb2ce4169ea6c9e93da1793de244d36086a1c93a64474c352e5559",
+    "legal/en.txt": "7311c962e24ad63e858c8f19a27b39362158f8074de965d25e82e12ed6aae8ac",
+    "legal/ru.txt": "5b699751a53e11eda66a13f85f00c38404374e27d852e1eaf2a99b2079e2c763",
+    "locks/linux.lock": "3a0f358e61b2a3e8421f190ce31c058c64b53896227ae11fa12ae26c5d3d9493",
+    "locks/windows.lock": "3a0f358e61b2a3e8421f190ce31c058c64b53896227ae11fa12ae26c5d3d9493",
+    "reference-profile.json": "b6cd686c04a9f2834c2acc655e2f687a342d6710ff35acdaf93198f7c361fedb",
+    "runtime/.gitignore": "36692e1840f82f75adce103fd03e65b1eaa35f798c885b3b545e3abc14ffcbf0",
+    "runtime/bin/Activate.ps1": "eb8ce20f580877d300c4fed60a7f36daa18715d35c50bb3596d6995d023b4ffe",
+    "runtime/bin/activate": "c51c88fd07e889eae1d1b10750de52ba78712150f67869dc6815ed498eb69fdc",
+    "runtime/bin/activate.csh": "b8c5e544335395cccebed6103c832bd2c5a50c40f5b058e52e09729dbd6a2837",
+    "runtime/bin/activate.fish": "ab93c8c44c30ece4f7c30556b28d5c33c9ddecef2cedccee236fff2a5db46e83",
+    "runtime/bin/python": "3fbc4d6c766a7a5d56c4bcc80d3325181a05f1b64596eb7cf622f0ec056dd546",
+    "runtime/bin/python3": "3fbc4d6c766a7a5d56c4bcc80d3325181a05f1b64596eb7cf622f0ec056dd546",
+    "runtime/bin/python3.14": "3fbc4d6c766a7a5d56c4bcc80d3325181a05f1b64596eb7cf622f0ec056dd546",
+    "runtime/bin/𝜋thon": "3fbc4d6c766a7a5d56c4bcc80d3325181a05f1b64596eb7cf622f0ec056dd546",
+    "runtime/lib/python3.14/site-packages/homensai_reference/__init__.py": "4c3852906bd7c90257de1f8ae9f5b79c95452442a32524c2948b5c91eac666d8",
+    "runtime/lib/python3.14/site-packages/homensai_reference/adapter.py": "3f33111d475212c08e88a1bb9433145b72d28f3554b46df16413d4d104675250",
+    "runtime/lib/python3.14/site-packages/homensai_reference/archive.py": "124b523f9b6c7536f62b0f3896dc26565cf52029a5c5db168ca90aae5c524611",
+    "runtime/lib/python3.14/site-packages/homensai_reference/migrate.py": "ee0195cd17d8e81715d1df289a6067f2f2508fb1fe990160da01c62f07d077e2",
+    "runtime/lib/python3.14/site-packages/homensai_reference/profile.py": "8808ad97693feb7edb3d60a6f5a16c1e8db134f0f85a50dd46affde19a5ae690",
+    "runtime/lib/python3.14/site-packages/homensai_reference/server.py": "42de4d7a98be20e43eeb775efbf1ab75b9a49ab1bd58a25bc94b4e9c7e78ed47",
+    "runtime/lib/python3.14/site-packages/homensai_reference/storage.py": "2e616fb5895ed35748efcce2e668d1e6637b7dd0a2ac00250d3933d64c9804f2",
+    "runtime/lib/python3.14/site-packages/homensai_reference-1.0.0.dist-info/INSTALLER": "ceebae7b8927a3227e5303cf5e0f1f7b34bb542ad7250ac03fbcde36ec2f1508",
+    "runtime/lib/python3.14/site-packages/homensai_reference-1.0.0.dist-info/METADATA": "28d949ce1c7fee001e62398a5af7b6117fe9d3a67574834d5dc80d2e7d37adef",
+    "runtime/lib/python3.14/site-packages/homensai_reference-1.0.0.dist-info/RECORD": "8c4a4a4957134f024d8f8aeaf0d707cb129c26a9320bf911ab4a2d3526c13c08",
+    "runtime/lib/python3.14/site-packages/homensai_reference-1.0.0.dist-info/REQUESTED": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "runtime/lib/python3.14/site-packages/homensai_reference-1.0.0.dist-info/WHEEL": "98e75747d0b7c0c568bfb71263c3d8f970b3a374a6996087bc642be5cb09a1aa",
+    "runtime/lib/python3.14/site-packages/homensai_reference-1.0.0.dist-info/direct_url.json": "37f2ad622a92349205695c3790a4400f2c1333558de4f39828ece613c1e85d26",
+    "runtime/lib/python3.14/site-packages/homensai_reference-1.0.0.dist-info/top_level.txt": "a47e196435458e88dbb6cd456d6fdb5a1efd9bc2f6c54f8775e2bf5664cc714a",
+    "runtime/pyvenv.cfg": "8aa775bfd5c8836e2ad4e6531d29a3f1a6da7dff48323ed82f014632088219d8",
+    "vendor/homensai_reference-1.0.0-py3-none-any.whl": "df0cc3e0783bd8dd274e0c8541813f51b75a69838c9fd8a52f35a9caff659f36"
+  },
+  "bootstrap": "explicit legacy reference migrate v1 fixture; NOT adapter fresh install",
+  "client": {
+    "status": "PASS",
+    "pid": 44,
+    "observations": [
+      {
+        "case": "default_deny",
+        "status": "PASS",
+        "product_writes": 0
+      },
+      {
+        "case": "actual_subprocess_exit_before_effect",
+        "status": "PASS",
+        "outcome": "unknown",
+        "product_writes": 0,
+        "exit_code_injected": 78
+      },
+      {
+        "case": "actual_subprocess_exit_after_business_commit",
+        "status": "PASS",
+        "outcome": "applied",
+        "exit_code_injected": 79,
+        "schema": 2,
+        "business_effect_rows": 1,
+        "completed_replay_default_deny_controller": true,
+        "foreign_receipt_denied_before_product_mutation": true
+      }
+    ],
+    "module_origins": {
+      "homensai_install": "homensai_install/__init__.py",
+      "homensai_install.process_liveness": "homensai_install/process_liveness.py",
+      "shared": "shared/__init__.py",
+      "shared.manifest": "shared/manifest.py",
+      "homensai_install.api.model": "homensai_install/api/model.py",
+      "homensai_install.api.journal": "homensai_install/api/journal.py",
+      "homensai_install.api.v1": "homensai_install/api/v1.py",
+      "homensai_install.api": "homensai_install/api/__init__.py",
+      "homensai_install.i18n": "homensai_install/i18n.py",
+      "homensai_install.errors": "homensai_install/errors.py",
+      "shared.datahome": "shared/datahome.py",
+      "shared.archive": "shared/archive.py",
+      "shared.archive_crypto": "shared/archive_crypto.py",
+      "shared.services": "shared/services.py",
+      "shared.update_plan": "shared/update_plan.py",
+      "shared.adapters_fs": "shared/adapters_fs.py",
+      "homensai_install.trust": "homensai_install/trust.py",
+      "homensai_install.adapters": "homensai_install/adapters.py",
+      "cryptography.__about__": "cryptography/__about__.py",
+      "cryptography": "cryptography/__init__.py",
+      "cryptography.hazmat": "cryptography/hazmat/__init__.py",
+      "cryptography.hazmat.primitives": "cryptography/hazmat/primitives/__init__.py",
+      "cryptography.hazmat.primitives.asymmetric": "cryptography/hazmat/primitives/asymmetric/__init__.py",
+      "cryptography.hazmat.bindings": "cryptography/hazmat/bindings/__init__.py",
+      "_cffi_backend": "_cffi_backend.cpython-314-x86_64-linux-gnu.so",
+      "cryptography.hazmat.bindings._rust": "cryptography/hazmat/bindings/_rust.abi3.so",
+      "cryptography.utils": "cryptography/utils.py",
+      "cryptography.hazmat.primitives.hashes": "cryptography/hazmat/primitives/hashes.py",
+      "cryptography.hazmat.primitives._serialization": "cryptography/hazmat/primitives/_serialization.py",
+      "cryptography.hazmat.primitives.asymmetric.ed25519": "cryptography/hazmat/primitives/asymmetric/ed25519.py",
+      "cryptography.exceptions": "cryptography/exceptions.py"
+    },
+    "authorizer": "SYNTHETIC exact-request constructor fixture",
+    "not_run": [
+      "Engine fresh/update",
+      "Real backup receipt authorization",
+      "Process kill/power loss"
+    ]
+  },
+  "exact_inputs_and_installed_bytes_unchanged": true,
+  "finished_at_utc": "2026-10-26T09:10:03.096874+00:00"
+}

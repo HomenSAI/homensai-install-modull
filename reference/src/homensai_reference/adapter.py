@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import sqlite3
 import stat
 import sys
@@ -19,12 +20,13 @@ from urllib.error import HTTPError
 from urllib.request import ProxyHandler, Request, build_opener
 
 from .archive import verify_database
-from .migrate import validate_schema
+from .migrate import _effect_result, migrate, validate_schema
 from .profile import ReferenceProductError, load_profile, read_json, safe_path
+from .storage import WELCOME_FILE, load_settings
 
 
 VERSION = "0.1.0"
-HOOKS = ("describe", "migration_plan", "operation_status", "quiesce", "readiness")
+HOOKS = ("describe", "migration_apply", "migration_plan", "operation_status", "quiesce", "readiness")
 MAX_BYTES = 256 * 1024
 LEDGER = "reference-adapter.sqlite3"
 
@@ -83,6 +85,8 @@ def _quiesce(request, home):
 
 
 def _operation_status(request, home):
+    if request["data"].get("hook") == "migration_apply":
+        return _migration_operation_status(request, home)
     unknown = {"outcome": "unknown", "request_digest": request["request_digest"]}
     try:
         with _connection(home) as db:
@@ -116,6 +120,28 @@ def _readiness(request, config):
             "observed_identity": {**identity, "probe_id": probe_id}}
 
 
+@contextmanager
+def _business_connection(home):
+    database = safe_path(home / "reference.sqlite")
+    info = database.lstat()
+    if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
+            or (os.name != "nt" and info.st_uid != os.getuid())):
+        raise ReferenceProductError("REFERENCE_DATABASE_FILE_INVALID")
+    # mode=ro тоже создаёт -wal/-shm для SQLite WAL. Проверяем режим до open.
+    if any(database.with_name(database.name + suffix).exists() for suffix in ("-wal", "-shm", "-journal")):
+        raise ReferenceProductError("REFERENCE_MIGRATION_DATABASE_BUSY")
+    with database.open("rb") as stream:
+        header = stream.read(100)
+    if (len(header) < 100 or header[:16] != b"SQLite format 3\0"
+            or header[18:20] != b"\x01\x01"):
+        raise ReferenceProductError("REFERENCE_MIGRATION_DATABASE_STATE_UNSUPPORTED")
+    connection = sqlite3.connect(database.as_uri() + "?mode=ro", uri=True, timeout=2)
+    try:
+        yield connection
+    finally:
+        connection.close()
+
+
 def _migration_plan(request, home):
     """Наблюдение схемы без инициализации БД, sidecars или application ledger."""
     data = request["data"]
@@ -131,29 +157,12 @@ def _migration_plan(request, home):
     else:
         if type(data["from_release"]) is not str or not data["from_release"]:
             raise ReferenceProductError("REFERENCE_MIGRATION_REQUEST_INVALID")
-        database = safe_path(home / "reference.sqlite")
-        info = database.lstat()
-        if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
-                or (os.name != "nt" and info.st_uid != os.getuid())):
-            raise ReferenceProductError("REFERENCE_DATABASE_FILE_INVALID")
-        # Читающий plan не должен создавать SQLite shared-memory sidecar или
-        # игнорировать ещё не checkpoint-нутый WAL. Этот reference пишет DELETE.
-        if any(database.with_name(database.name + suffix).exists() for suffix in ("-wal", "-shm", "-journal")):
-            raise ReferenceProductError("REFERENCE_MIGRATION_DATABASE_BUSY")
-        with database.open("rb") as stream:
-            header = stream.read(100)
-        if (len(header) < 100 or header[:16] != b"SQLite format 3\0"
-                or header[18:20] != b"\x01\x01"):
-            raise ReferenceProductError("REFERENCE_MIGRATION_DATABASE_STATE_UNSUPPORTED")
-        connection = sqlite3.connect(database.as_uri() + "?mode=ro", uri=True, timeout=2)
-        try:
+        with _business_connection(home) as connection:
             connection.execute("BEGIN")
             current = connection.execute("PRAGMA user_version").fetchone()[0]
             validate_schema(connection, current)
             if connection.execute("PRAGMA quick_check").fetchall() != [("ok",)]:
                 raise ReferenceProductError("REFERENCE_DATABASE_INTEGRITY_FAILED")
-        finally:
-            connection.close()
     target = load_profile()["database_schema"]
     if current > target:
         raise ReferenceProductError("REFERENCE_DOWNGRADE_REQUIRES_SNAPSHOT_RESTORE")
@@ -163,6 +172,152 @@ def _migration_plan(request, home):
                         for version in range(current + 1, target + 1)]}
     result["plan_digest"] = hashlib.sha256(canonical(result).encode("utf-8")).hexdigest()
     return result
+
+
+def _migration_identity(request):
+    data = request["data"]
+    binding_keys = {"migration_review_id", "binding_sha256", "installation_id", "from_release",
+                    "to_release", "from_version", "to_version"}
+    receipt_keys = set(data) & {"backup_receipt_id", "fresh_receipt_id"}
+    if (len(receipt_keys) != 1 or set(data) != {"plan_digest", "migration_binding", *receipt_keys}
+            or type(data.get("migration_binding")) is not dict
+            or set(data["migration_binding"]) != binding_keys):
+        raise ReferenceProductError("REFERENCE_MIGRATION_REQUEST_INVALID")
+    binding = data["migration_binding"]
+    hashes = (data["plan_digest"], data[next(iter(receipt_keys))], binding["binding_sha256"])
+    if any(type(value) is not str or re.fullmatch(r"[0-9a-f]{64}", value) is None for value in hashes):
+        raise ReferenceProductError("REFERENCE_MIGRATION_REQUEST_INVALID")
+    if (any(type(binding[key]) is not str or not binding[key] for key in
+            ("migration_review_id", "installation_id", "to_release", "from_version", "to_version"))
+            or binding["to_version"] not in {"1", "2", "3"}):
+        raise ReferenceProductError("REFERENCE_MIGRATION_REQUEST_INVALID")
+    fresh = "fresh_receipt_id" in data
+    if ((fresh and (binding["from_release"] is not None or binding["from_version"] != "empty"))
+            or (not fresh and (type(binding["from_release"]) is not str or not binding["from_release"]
+                              or binding["from_version"] not in {"1", "2", "3"}))):
+        raise ReferenceProductError("REFERENCE_MIGRATION_REQUEST_INVALID")
+    identity = hashlib.sha256(canonical({"product_id": request["product_id"], "data": data}).encode()).hexdigest()
+    receipt = hashlib.sha256(canonical({"effect_key": request["idempotency_key"], "identity": identity,
+                                        "request_digest": request["request_digest"]}).encode()).hexdigest()
+    result = {"applied": True, "receipt_id": receipt, "state_version": binding["to_version"]}
+    return {"effect_key": request["idempotency_key"], "request_digest": request["request_digest"],
+            "identity_sha256": identity, "result": result}
+
+
+def _config_home():
+    return safe_path(Path(os.environ["HOMENSAI_CONFIG_HOME"]))
+
+
+def _required_files_ready(home, config):
+    try:
+        for path in (safe_path(home / WELCOME_FILE), safe_path(config / "settings.json")):
+            info = path.lstat()
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+                return False
+        load_settings(config)
+        return True
+    except (OSError, ReferenceProductError):
+        return False
+
+
+def _read_business_effect(home, effect):
+    path = safe_path(home / "reference.sqlite")
+    if not path.exists():
+        return None
+    with _business_connection(home) as connection:
+        result = _effect_result(connection, effect)
+        if result is None:
+            return None
+        schema = connection.execute("PRAGMA user_version").fetchone()[0]
+        validate_schema(connection, schema)
+        if (result != effect["result"] or str(schema) != result["state_version"]
+                or connection.execute("PRAGMA quick_check").fetchall() != [("ok",)]):
+            raise ReferenceProductError("REFERENCE_MIGRATION_OUTCOME_UNKNOWN")
+        return result
+
+
+def _migration_intent(home, effect, *, create=False, complete=False):
+    if not create and not (home / LEDGER).exists():
+        return None
+    with _connection(home, create=create) as db:
+        if create:
+            db.execute("BEGIN IMMEDIATE")
+            db.execute("CREATE TABLE IF NOT EXISTS migration_intents(effect_key TEXT PRIMARY KEY, request_digest TEXT NOT NULL, identity_sha256 TEXT NOT NULL, state TEXT NOT NULL)")
+        elif not db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='migration_intents'").fetchone():
+            return None
+        row = db.execute("SELECT request_digest,identity_sha256,state FROM migration_intents WHERE effect_key=?",
+                         (effect["effect_key"],)).fetchone()
+        if row is not None and row[:2] != (effect["request_digest"], effect["identity_sha256"]):
+            raise ReferenceProductError("REFERENCE_ADAPTER_EFFECT_CONFLICT")
+        if create and row is None:
+            db.execute("INSERT INTO migration_intents VALUES (?,?,?,'STARTED')",
+                       (effect["effect_key"], effect["request_digest"], effect["identity_sha256"]))
+        if complete:
+            db.execute("UPDATE migration_intents SET state='COMPLETE' WHERE effect_key=?", (effect["effect_key"],))
+        if create:
+            db.execute("COMMIT")
+        return row
+
+
+def _migration_apply(request, home):
+    # Receipt ID не является proof сам по себе. Engine trusted authorizer
+    # проверяет реальный архив/fresh evidence до запуска этого executable.
+    effect = _migration_identity(request)
+    config = _config_home()
+    binding = request["data"]["migration_binding"]
+    previous = _read_business_effect(home, effect)
+    if previous is not None:
+        if not _required_files_ready(home, config):
+            raise ReferenceProductError("REFERENCE_MIGRATION_OUTCOME_UNKNOWN")
+        return previous
+    if _migration_intent(home, effect) is not None:
+        raise ReferenceProductError("REFERENCE_MIGRATION_OUTCOME_UNKNOWN")
+    observed = _migration_plan({"data": {key: binding[key] for key in
+                                ("installation_id", "from_release", "to_release")}
+                               | {"mode": "fresh_empty" if binding["from_version"] == "empty" else "upgrade"}}, home)
+    if (observed["plan_digest"] != request["data"]["plan_digest"]
+            or observed["from_version"] != binding["from_version"] or observed["to_version"] != binding["to_version"]):
+        raise ReferenceProductError("REFERENCE_MIGRATION_PLAN_STALE")
+    home.mkdir(mode=0o700, parents=True, exist_ok=True)
+    _migration_intent(home, effect, create=True)
+    migrate(home, config, _effect=effect)
+    if _read_business_effect(home, effect) != effect["result"] or not _required_files_ready(home, config):
+        raise ReferenceProductError("REFERENCE_MIGRATION_OUTCOME_UNKNOWN")
+    _migration_intent(home, effect, create=True, complete=True)
+    return effect["result"]
+
+
+def _migration_operation_status(request, home):
+    unknown = {"outcome": "unknown", "request_digest": request["request_digest"]}
+    # Reconciliation envelope содержит только исходный digest и hook. Identity
+    # и результат берём из атомарно зафиксированного business effect, а не из
+    # отсутствующей строки отдельного application ledger.
+    path = safe_path(home / "reference.sqlite")
+    if not path.exists():
+        return unknown
+    try:
+        with _business_connection(home) as connection:
+            if not connection.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='product_adapter_effects'").fetchone():
+                return unknown
+            row = connection.execute("SELECT request_digest,identity_sha256,result FROM product_adapter_effects WHERE effect_key=?",
+                                     (request["idempotency_key"],)).fetchone()
+            if row is None or row[0] != request["request_digest"]:
+                return unknown
+            result = json.loads(row[2])
+            receipt = hashlib.sha256(canonical({"effect_key": request["idempotency_key"], "identity": row[1],
+                                                "request_digest": request["request_digest"]}).encode()).hexdigest()
+            if (type(result) is not dict or set(result) != {"applied", "receipt_id", "state_version"}
+                    or result["applied"] is not True or result["receipt_id"] != receipt):
+                return unknown
+            schema = connection.execute("PRAGMA user_version").fetchone()[0]
+            validate_schema(connection, schema)
+            if (result["state_version"] != str(schema)
+                    or connection.execute("PRAGMA quick_check").fetchall() != [("ok",)]
+                    or not _required_files_ready(home, _config_home())):
+                return unknown
+            return {"outcome": "applied", "request_digest": row[0], "result": result}
+    except (OSError, sqlite3.Error, ReferenceProductError, ValueError, KeyError, TypeError):
+        return unknown
 
 
 def execute(request):
@@ -186,6 +341,8 @@ def execute(request):
     home = safe_path(Path(os.environ["HOMENSAI_DATA_HOME"]))
     if hook == "migration_plan":
         return _migration_plan(request, home)
+    if hook == "migration_apply":
+        return _migration_apply(request, home)
     if hook == "operation_status":
         return _operation_status(request, home)
     return _quiesce(request, home)

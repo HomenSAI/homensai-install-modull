@@ -60,3 +60,22 @@ Fresh возвращает отдельный `from_version="empty"` и не с�
 Неизвестная/повреждённая БД, WAL/journal и downgrade требуют отдельного решения
 и отвергаются до изменений. Дескриптор maintenance-проверки этот hook пока не
 объявляет; installed adapter fresh/update остаётся NOT RUN.
+
+`migration_apply` принимает только согласованный plan digest, один opaque
+`backup_receipt_id`/`fresh_receipt_id` и engine-owned `migration_binding`.
+Проверка реального backup/fresh proof выполняется trusted authorizer SDK до
+запуска executable; продукт не считает произвольный ID доказательством архива.
+Схема и application result receipt фиксируются в одном SQLite COMMIT через
+существующий migration engine reference. Отдельный durable intent не даёт права
+повторять эффект. Потерянный ACK восстанавливается по business receipt; отсутствие
+строки, WAL/неизвестная БД или незавершённые внешние defaults дают UNKNOWN.
+Этот reference hook проверен отдельно; общий installed engine fresh/update
+требует собственного актуального acceptance receipt.
+
+`packaging/check_installed_reference_effects.py` отдельно проверяет транспорт
+установленного SDK из точного `--sdk-revision`: подписанный subprocess возвращает
+nonzero до эффекта либо после business COMMIT. Во втором случае reconciliation
+подтверждает ровно одну миграцию v1→v2, а повтор из нового controller не исполняет
+её снова. Начальная v1 здесь — явный legacy product fixture; trusted authorizer
+является синтетическим exact-request oracle. Этот результат нельзя использовать
+как доказательство реального backup proof или общего engine fresh/update.

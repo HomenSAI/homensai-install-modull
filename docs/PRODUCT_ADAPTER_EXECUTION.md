@@ -227,8 +227,8 @@ Read-only reference migration_plan наблюдает SQLite в DELETE mode, н�
 resolved path и только если указан в signed descriptor allowlist.
 
 Это preparation/source контракт. Старые capability assertions сохраняются:
-adapter install/update execution остаётся unsupported до следующего проверенного
-пакета; CLI/HTTP preparation route ещё не добавлен. Полная G1/G2/G3 приёмка открыта.
+single-step fresh install принят в source/installed DEV-профиле; adapter update
+execution остаётся unsupported; CLI/HTTP preparation route ещё не добавлен. Полная G1/G2/G3 приёмка открыта.
 
 ## Single-step fresh: текущий source-контракт
 
@@ -242,3 +242,7 @@ intent отмечается как отсутствие product effect и доп
 UNKNOWN после потери ACK требует reconciliation; пропавшая история не разрешает
 создать новый invocation. Public SDK resume сохраняет original operation ID.
 Реальные SIGKILL boundary tests — source process acceptance, не power-loss.
+
+## Update review prerequisite (CP-20261026-009)
+
+Private update review schema2 связывает from_adapter_binding с signed descriptor, runtime, manifest, inventory и capabilities установленного исходного release отдельно от target. Старый schema1 update review отвергается PLAN_STALE, fresh schema1 сохраняется. Read-only plan подготовлен к product_adapter_source_binding и update_failure_policy=preserve_forward_journal_no_automatic_restore. Update capability пока false: исполнения, real backup per step и полной1→2→3 приёмки этот prerequisite не обещает.

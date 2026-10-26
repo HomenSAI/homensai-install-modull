@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261026-008",
+  "checkpoint_id": "CP-20261026-009",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
@@ -950,6 +950,22 @@
     "installed_fresh": "PASS: actual NativeEngine proof; borrowed DEV runtime",
     "update": "NOT IMPLEMENTED / NOT RUN",
     "full_source_after_latest_changes": "NOT RUN",
+    "production_ready": false
+  },
+  "cp20261026_009": {
+    "checkpoint_id": "CP-20261026-009",
+    "update_capability": false,
+    "baseline_passed": 2497,
+    "baseline_source_sha": "f90a20acbe824bede0174acd8ed241896b47581a",
+    "root_source_passed": 11,
+    "root_lifecycle_xfailed": 1,
+    "full_suite_on_changed_runtime": "NOT RUN",
+    "core_commit": "231342498cebdd0a2c075288eb43960c447c71e3",
+    "acceptance_commit": "47874414d1276e0173e87680a2441b5c1ad0f9d3",
+    "status": "PASS_SCOPED",
+    "installed_readiness_sdk": "f90a20acbe824bede0174acd8ed241896b47581a",
+    "installed_update_lifecycle": "NOT RUN",
+    "counts_overlap": true,
     "production_ready": false
   }
 }

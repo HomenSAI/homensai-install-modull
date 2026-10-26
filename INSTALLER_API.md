@@ -685,6 +685,7 @@ Fresh preparation создаёт только installer ownership reservation и
 update требует существующий from_release. При preparation старый review ID
 передавать нельзя. Последующий общий `plan` принимает только opaque
 `options.migration_review_id`, а не путь к review-файлу или callback.
+Private update review использует schema_version=2 и отдельно закрепляет signed adapter исходного выпуска (from_adapter_binding); fresh review сохраняет schema_version=1. Старый update review schema1 получает PLAN_STALE. Эти private поля не расширяют public migration_binding из семи полей и не включают update execution capability.
 Сам review не заменяет обязательные согласия перед lifecycle-исполнением.
 CLI/HTTP подготовку не предоставляют автоматически; произвольный subprocess
 через этот метод не выбирается. Доступность фактического backend — отдельный gate.

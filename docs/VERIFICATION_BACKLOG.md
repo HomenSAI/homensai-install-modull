@@ -1,5 +1,11 @@
 # Невыполненные проверки — обязательное задание следующему ИИ
 
+## Текущий запуск CP-20261026-009
+
+Возобновлена работа по новому указанию владельца до 17:00 Berlin (16:00UTC), старое окно архивировано. Полный baseline CP008/f90a20a:2497PASS/3skip/15subtests,542.76s,431inputs unchanged. Добавлены private update review schema2/from_adapter_binding и source adapter/failure policy в read-only engine plan; fresh schema1 и public7fields сохранены. Исходный RED4FAIL/2PASS сохранён; core112PASS/1XFAIL и отдельно64PASS, root11PASS/1XFAIL (наборы пересекаются). Installed update-readiness на SDKf90a20a: PASS, 69SDK/7reference/161dependency files unchanged; public fresh и readonly update preparation, отказы v2/reviewed-v2/v3 до mutation, effectcount1. Update execution/capability пока выключены, полный1→2→3 XFAIL/NOT RUN. Следующий пакет: scoped quiesce, реальный backup/receipt, live snapshot comparison и fail-closed forward journal без automatic legacy restore. Production_ready=false, G0–G5 OPEN.
+
+Окно: 2026-10-26T14:35:31Z–16:00:00Z; Europe/Berlin15:35:31–17:00CET. Текущий sync pending до внешней квитанции. Нижележащие остановки CP008 — история.
+
 Автор: Serhii Khomenko. CP-20261025-018.
 
 **Полная приёмка НЕ ГОТОВА; production_ready=false.** Этот документ и

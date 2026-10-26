@@ -1,0 +1,22 @@
+{
+  "checkpoint_id": "CP-20261026-009",
+  "status": "PASS_SCOPED",
+  "source_sha": "231342498cebdd0a2c075288eb43960c447c71e3",
+  "scope": "Независимый root запуск source update prerequisite; lifecycle ожидаемо XFAIL при capability=false.",
+  "command": "docker run --rm --name hinstall-run02-root-review --network none [readonly core02 mount + evidence] hinstall-dev:verification python -m pytest -q -p no:cacheprovider --junitxml=/evidence/core-review.xml integration_tests/test_native_adapter_update.py",
+  "exit_code": 0,
+  "stdout_summary": "11 passed, 1 xfailed in 47.59s",
+  "checked_at_utc": "2026-10-26T14:47:25.635904+00:00",
+  "production_ready": false,
+  "post_integration_docs_contracts": {
+    "passed": 53,
+    "seconds": 7.9,
+    "command": "python -m pytest -q -p no:cacheprovider tests/test_prerequisites_progress_contract.py tests/test_prerequisites_projection.py tests/test_wizard_prerequisites.py",
+    "exit_code": 0
+  },
+  "verified_core_files": {
+    "homensai_install/engine.py": "401260842a4d523009fe46d5ac620888a004569fc6838a53fbd0806c917d0aeb",
+    "integration_tests/test_native_adapter_update.py": "6e93724b866356d59f784a266081e9b088aab8b44e7a21107d0c8d4a7dedce4c"
+  },
+  "core_code_matches_tested_agent_commit": true
+}

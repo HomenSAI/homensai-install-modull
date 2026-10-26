@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261026-008",
+  "checkpoint_id": "CP-20261026-009",
   "branch": "codex/universal-installer-20261025",
-  "baseline_sha": "a16a55d58e65ccf64ed2ba0c853a0053baea6689",
+  "baseline_sha": "f90a20acbe824bede0174acd8ed241896b47581a",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "active_tasks": [
     "HIM-008",
@@ -88,11 +88,11 @@
   "sync": {
     "cloud_git": "NOT_APPLICABLE: работа ведётся в Windows workspace",
     "docker_git": "SYNC_BLOCKED",
-    "github": "SYNC_PENDING",
-    "last_confirmed_checkpoint": "CP-20261026-006",
+    "github": "SYNC_PENDING for CP-20261026-009",
+    "last_confirmed_checkpoint": "CP-20261026-008",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
-  "next_step": "По новой инструкции владельца прочитать docs/NEXT_AI_HANDOFF_RU.md. Начать integration_tests/test_native_adapter_update.py: real fresh1→update2→update3, ожидаемый RED CAPABILITY_UNSUPPORTED; затем private update review schema2/source adapter binding, phase-namespaced quiesce и реальные encrypted backup receipts. Новых задач автоматически не запускать.",
+  "next_step": "Реализовать adapter update execution с отдельными source/target bindings и phase-scoped quiesce; Ports.backup выдаёт настоящий encrypted BackupReceiptStore receipt, authorizer сравнивает live roots со snapshot. UpdatePlan сохраняет forward journal без automatic legacy restore. Включать capability только после1→2→3/faults; после15:42UTC freeze на финальный suite, в16:00UTC handoff/GitHub/стоп.",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
@@ -100,7 +100,7 @@
     "linux_native": "PARTIAL PASS: actual installed single-step reference fresh/start/stop/backup via SDK a5130d1, DEV Linux user; borrowed runtime, no clean-host/full lifecycle",
     "linux_docker": "NOT RUN: daemon доступен; browser/source в DEV контейнере не являются product Docker backend acceptance"
   },
-  "last_confirmed_github_sha": "85acee1aea939b20e83498be633e779b0e62261c",
+  "last_confirmed_github_sha": "f90a20acbe824bede0174acd8ed241896b47581a",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -163,7 +163,11 @@
     "packaging/acceptance-evidence/migration-preparation-20261026-cp005.json",
     "packaging/acceptance-evidence/installed-reference-preparation-20261026-agent01.json",
     "packaging/acceptance-evidence/bootstrap-registration-20261026-cp006.json",
-    "packaging/acceptance-evidence/installed-reference-fresh-20261026-agent01.json"
+    "packaging/acceptance-evidence/installed-reference-fresh-20261026-agent01.json",
+    "packaging/acceptance-evidence/baseline-20261026-run02.json",
+    "packaging/acceptance-evidence/core-update-20261026-run02.json",
+    "packaging/acceptance-evidence/core-update-root-review-20261026-run02.json",
+    "packaging/acceptance-evidence/installed-update-readiness-20261026-run02.json"
   ],
   "environment": {
     "os": "Windows 10 Home 10.0.19045",
@@ -231,8 +235,8 @@
       "receipt": "packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json"
     }
   ],
-  "source_code_checkpoint": "CP-20261026-007",
-  "handoff_note": "Работа остановлена по явному указанию владельца перед выключением. Single-step fresh Linux/native/user завершён: source171PASS+5subtests; root84targetedPASS; installed true fresh PASS на immutable SDK a5130d19343bfa4475147d8af34f653f7c30f7f2, 69 SDK/7 reference/161 dependency files и 3 signed bundle trees неизменны. Public factory→prepare→plan→submit, настоящий fresh proof, один migration effect, start/stop/duplicate start и encrypted full backup restore проверены. Legacy migration sentinel не исполнился; синтетический authorizer в этой приёмке не использовался. Runtime borrowed из DEV image: это не clean-host/standalone acceptance. Update1→2→3 ещё NOT IMPLEMENTED/NOT RUN, capability=false; полный suite после последнего fresh не повторялся (CP004 2416PASS исторический). Все G0–G5 OPEN, production_ready=false. Следующее точное действие — docs/NEXT_AI_HANDOFF_RU.md: RED adapter update test и source/target bindings + real backup per step. Агенты и тесты остановлены, компьютер владелец выключает сам.",
+  "source_code_checkpoint": "CP-20261026-009",
+  "handoff_note": "Возобновлена работа по новому указанию владельца до 17:00 Berlin (16:00UTC), старое окно архивировано. Полный baseline CP008/f90a20a:2497PASS/3skip/15subtests,542.76s,431inputs unchanged. Добавлены private update review schema2/from_adapter_binding и source adapter/failure policy в read-only engine plan; fresh schema1 и public7fields сохранены. Исходный RED4FAIL/2PASS сохранён; core112PASS/1XFAIL и отдельно64PASS, root11PASS/1XFAIL (наборы пересекаются). Installed update-readiness на SDKf90a20a: PASS, 69SDK/7reference/161dependency files unchanged; public fresh и readonly update preparation, отказы v2/reviewed-v2/v3 до mutation, effectcount1. Update execution/capability пока выключены, полный1→2→3 XFAIL/NOT RUN. Следующий пакет: scoped quiesce, реальный backup/receipt, live snapshot comparison и fail-closed forward journal без automatic legacy restore. Production_ready=false, G0–G5 OPEN.",
   "shutdown": {
     "authorized": false,
     "state": "HISTORICAL_REQUEST_NOT_APPLICABLE",
@@ -241,28 +245,23 @@
   "execution_plan": {
     "path": "docs/SOL61_12H_PLAN_RU.md",
     "prompt": "SOL61_12H_START_PROMPT_RU.txt",
-    "bootstrap": "docs/START_HERE_RU.md",
     "model": "gpt-6.1-sol",
     "reasoning_effort": "high",
     "total_agents": 3,
-    "window_hours": 12,
-    "status": "STOPPED_BY_USER",
-    "started_at_utc": "2026-10-26T08:25:06Z",
-    "deadline_utc": "2026-10-26T20:25:06Z",
-    "baseline_sha": "cd319a03f47fe9b7e4888afffe88f311329a3ce9",
-    "assignments": {
-      "root": "contract review, integration, docs/API exports, GitHub",
-      "core_lifecycle": ".local-state/agents/core: migration/receipt/fresh-empty engine/adapters and tests",
-      "platform_acceptance": ".local-state/agents/acceptance: reference and installed harness"
-    },
-    "current_package": "Final installed fresh accepted; next update package not started",
+    "status": "RUNNING",
+    "started_at_utc": "2026-10-26T14:35:31Z",
+    "deadline_utc": "2026-10-26T16:00:00Z",
     "timezone": "Europe/Berlin",
-    "local_window": "2026-10-26 09:25:06–21:25:06 CET (UTC+01:00)",
-    "last_user_save_at_utc": "2026-10-26T09:33:51.801572+00:00",
-    "active_test_processes": [],
-    "stopped_at_utc": "2026-10-26T09:51:26.025347+00:00",
-    "stop_reason": "Owner requested finish/save/handoff before shutting down computer",
-    "resume_policy": "A new explicit continue command authorizes a new working window; archive previous run times and record new UTC start/deadline. Do not resume automatically on opening the folder."
+    "local_window": "2026-10-26 15:35:31–17:00:00 CET (UTC+01:00)",
+    "baseline_sha": "f90a20acbe824bede0174acd8ed241896b47581a",
+    "user_instruction": "Продолжать до 17:00 Europe/Berlin, затем запись, GitHub и стоп.",
+    "assignments": {
+      "root": "review, full baseline, integration, docs/status, checkpoint/GitHub",
+      "core_lifecycle": ".local-state/agents/core02: update RED и source binding prerequisite",
+      "platform_acceptance": ".local-state/agents/acceptance02: installed update-readiness refusal profile; new migration_snapshot.py + tests helper ownership"
+    },
+    "current_package": "Update prerequisites verified; next execution slice after CP009 sync",
+    "active_test_processes": []
   },
   "startup": {
     "entrypoint": "AI_START_HERE.md",
@@ -302,5 +301,44 @@
     "obsolete_temporary_work_directory": ".local-state/agents/acceptance/.local-state/attempts/maintenance-01/work",
     "temporary_work_cleanup": "BLOCKED_BY_AUTOMATIC_REVIEW: blocked by policy; directory retained, no further retries"
   },
-  "handoff_document": "docs/NEXT_AI_HANDOFF_RU.md"
+  "handoff_document": "docs/NEXT_AI_HANDOFF_RU.md",
+  "execution_history": [
+    {
+      "path": "docs/SOL61_12H_PLAN_RU.md",
+      "prompt": "SOL61_12H_START_PROMPT_RU.txt",
+      "bootstrap": "docs/START_HERE_RU.md",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "total_agents": 3,
+      "window_hours": 12,
+      "status": "STOPPED_BY_USER",
+      "started_at_utc": "2026-10-26T08:25:06Z",
+      "deadline_utc": "2026-10-26T20:25:06Z",
+      "baseline_sha": "cd319a03f47fe9b7e4888afffe88f311329a3ce9",
+      "assignments": {
+        "root": "contract review, integration, docs/API exports, GitHub",
+        "core_lifecycle": ".local-state/agents/core: migration/receipt/fresh-empty engine/adapters and tests",
+        "platform_acceptance": ".local-state/agents/acceptance: reference and installed harness"
+      },
+      "current_package": "Final installed fresh accepted; next update package not started",
+      "timezone": "Europe/Berlin",
+      "local_window": "2026-10-26 09:25:06–21:25:06 CET (UTC+01:00)",
+      "last_user_save_at_utc": "2026-10-26T09:33:51.801572+00:00",
+      "active_test_processes": [],
+      "stopped_at_utc": "2026-10-26T09:51:26.025347+00:00",
+      "stop_reason": "Owner requested finish/save/handoff before shutting down computer",
+      "resume_policy": "A new explicit continue command authorizes a new working window; archive previous run times and record new UTC start/deadline. Do not resume automatically on opening the folder."
+    }
+  ],
+  "run02_prerequisite": {
+    "checkpoint_id": "CP-20261026-009",
+    "update_capability": false,
+    "baseline_passed": 2497,
+    "baseline_source_sha": "f90a20acbe824bede0174acd8ed241896b47581a",
+    "root_source_passed": 11,
+    "root_lifecycle_xfailed": 1,
+    "full_suite_on_changed_runtime": "NOT RUN",
+    "core_commit": "231342498cebdd0a2c075288eb43960c447c71e3",
+    "acceptance_commit": "47874414d1276e0173e87680a2441b5c1ad0f9d3"
+  }
 }

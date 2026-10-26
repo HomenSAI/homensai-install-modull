@@ -1,0 +1,30 @@
+{
+  "checkpoint_id": "CP-20261026-009",
+  "status": "PASS",
+  "source_sha": "f90a20acbe824bede0174acd8ed241896b47581a",
+  "checked_at_utc": "2026-10-26T14:47:25.627919+00:00",
+  "scope": "Полный source/integration baseline CP008 в Debian DEV Docker; не clean-host/production и не новый CP009 runtime.",
+  "command": "docker run --rm --name hinstall-run02-root --network none [readonly workspace + evidence mount] hinstall-dev:verification python -m pytest -q -p no:cacheprovider --junitxml=/evidence/baseline.xml tests integration_tests",
+  "image_id": "sha256:1b3529768706aaacabb525d6fd3168680cc2b0ffa1aee6994a3d2e5cdb8fd4c1",
+  "python": "3.14.3",
+  "build_lock": "PASS",
+  "exit_code": 0,
+  "counts": {
+    "passed": 2497,
+    "skipped": 3,
+    "subtests_passed": 15
+  },
+  "inputs_unchanged": true,
+  "input_count": 431,
+  "input_digest": "35b452712571bb4f38445788f1dc6b02710b148c0d9bf63700be2f2370eb30bf",
+  "input_capture_note": "Хеши сняты после старта readonly suite, до любых изменений package/tests/harness. До окончания suite эти файлы не изменялись; Git baseline был чистым.",
+  "stdout_summary": "2497 passed, 3 skipped, 15 subtests passed in 542.76s (0:09:02)",
+  "production_ready": false,
+  "junit_redaction": {
+    "reason": "Synthetic credential URL parameters in five passing negative testcase names triggered checkpoint scanner; raw stays in .local-state/run02-root/baseline.xml",
+    "testcase_names_redacted": 5,
+    "original_sha256": "6ec5f3d48072fd5295ec382b796275a7c8b3fda3f0d0af75da53932018c7d13f",
+    "sanitized_sha256": "7d8eb3c20656cc213067acdd9de2902556faaf1ee1bfb8a4bd0af2913cf7f6fe",
+    "test_counts_and_results_unchanged": true
+  }
+}

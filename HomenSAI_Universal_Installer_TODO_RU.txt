@@ -70,7 +70,12 @@ SYNC_CONFLICT / SYNC_BLOCKED.
 Не создавай рекурсивные служебные commits ради записи SHA самого commit.
 
 ========================================================================
-ФИНАЛЬНОЕ СОХРАНЕНИЕ CP-20261026-008 / HIM-009 / HIM-015 / HIM-036
+ТЕКУЩИЙ ЗАПУСК CP-20261026-009 / HIM-009 / HIM-015 / HIM-023 / HIM-054 / HIM-063
+Возобновлена работа по новому указанию владельца до 17:00 Berlin (16:00UTC), старое окно архивировано. Полный baseline CP008/f90a20a:2497PASS/3skip/15subtests,542.76s,431inputs unchanged. Добавлены private update review schema2/from_adapter_binding и source adapter/failure policy в read-only engine plan; fresh schema1 и public7fields сохранены. Исходный RED4FAIL/2PASS сохранён; core112PASS/1XFAIL и отдельно64PASS, root11PASS/1XFAIL (наборы пересекаются). Installed update-readiness на SDKf90a20a: PASS, 69SDK/7reference/161dependency files unchanged; public fresh и readonly update preparation, отказы v2/reviewed-v2/v3 до mutation, effectcount1. Update execution/capability пока выключены, полный1→2→3 XFAIL/NOT RUN. Следующий пакет: scoped quiesce, реальный backup/receipt, live snapshot comparison и fail-closed forward journal без automatic legacy restore. Production_ready=false, G0–G5 OPEN.
+Evidence: packaging/acceptance-evidence/baseline-20261026-run02.json и core-update-root-review-20261026-run02.json.
+GitHubCP009:SYNC_PENDING; отдельныйDockerGit:SYNC_BLOCKED. Статусы106задач не закрываются scoped результатом.
+
+ИСТОРИЯ: ФИНАЛЬНОЕ СОХРАНЕНИЕ CP-20261026-008 / HIM-009 / HIM-015 / HIM-036
 Работа остановлена по явному указанию владельца перед выключением. Single-step fresh Linux/native/user завершён: source171PASS+5subtests; root84targetedPASS; installed true fresh PASS на immutable SDK a5130d19343bfa4475147d8af34f653f7c30f7f2, 69 SDK/7 reference/161 dependency files и 3 signed bundle trees неизменны. Public factory→prepare→plan→submit, настоящий fresh proof, один migration effect, start/stop/duplicate start и encrypted full backup restore проверены. Legacy migration sentinel не исполнился; синтетический authorizer в этой приёмке не использовался. Runtime borrowed из DEV image: это не clean-host/standalone acceptance. Update1→2→3 ещё NOT IMPLEMENTED/NOT RUN, capability=false; полный suite после последнего fresh не повторялся (CP004 2416PASS исторический). Все G0–G5 OPEN, production_ready=false. Следующее точное действие — docs/NEXT_AI_HANDOFF_RU.md: RED adapter update test и source/target bindings + real backup per step. Агенты и тесты остановлены, компьютер владелец выключает сам.
 Handoff: docs/NEXT_AI_HANDOFF_RU.md. GitHub текущего CP:SYNC_PENDING до receipt.
 Отдельный Docker Git:SYNC_BLOCKED, agent GitHub refs:SYNC_CONFIRMED. Статусы106задач не закрыты этим scoped результатом.

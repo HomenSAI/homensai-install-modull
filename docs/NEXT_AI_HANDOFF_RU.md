@@ -1,3 +1,13 @@
+# Текущий запуск до 17:00 Berlin: CP-20261026-009
+
+Возобновлена работа по новому указанию владельца до 17:00 Berlin (16:00UTC), старое окно архивировано. Полный baseline CP008/f90a20a:2497PASS/3skip/15subtests,542.76s,431inputs unchanged. Добавлены private update review schema2/from_adapter_binding и source adapter/failure policy в read-only engine plan; fresh schema1 и public7fields сохранены. Исходный RED4FAIL/2PASS сохранён; core112PASS/1XFAIL и отдельно64PASS, root11PASS/1XFAIL (наборы пересекаются). Installed update-readiness на SDKf90a20a: PASS, 69SDK/7reference/161dependency files unchanged; public fresh и readonly update preparation, отказы v2/reviewed-v2/v3 до mutation, effectcount1. Update execution/capability пока выключены, полный1→2→3 XFAIL/NOT RUN. Следующий пакет: scoped quiesce, реальный backup/receipt, live snapshot comparison и fail-closed forward journal без automatic legacy restore. Production_ready=false, G0–G5 OPEN.
+
+Реализовать adapter update execution с отдельными source/target bindings и phase-scoped quiesce; Ports.backup выдаёт настоящий encrypted BackupReceiptStore receipt, authorizer сравнивает live roots со snapshot. UpdatePlan сохраняет forward journal без automatic legacy restore. Включать capability только после1→2→3/faults; после15:42UTC freeze на финальный suite, в16:00UTC handoff/GitHub/стоп.
+
+Старый запуск08:25–20:25UTC сохранён в execution_history; актуальное окно14:35:31–16:00UTC. Не продлевать deadline.
+
+## Исторический handoff CP008
+
 # Продолжение после сохранения перед выключением
 
 Владелец 26.10.2026 явно попросил закончить текущий этап, сохранить GitHub и

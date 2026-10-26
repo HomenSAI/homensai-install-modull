@@ -1,4 +1,4 @@
-"""Installed public reference SDK preparation/fresh с точным SDK Git input.
+"""Installed public reference SDK preparation/fresh/update с точным SDK Git input.
 
 Новый отдельный профиль, старый maintenance harness не меняет. Все продуктовые
 действия идут через public InstallerAPI и trusted NativeEngine opt-in хоста.
@@ -31,7 +31,7 @@ def main(argv=None):
     parser.add_argument("--wheelhouse", type=Path, required=True)
     parser.add_argument("--sdk-revision", required=True)
     parser.add_argument("--source-git-dir", type=Path)
-    parser.add_argument("--profile", choices=("preparation", "fresh", "update-readiness"), default="preparation")
+    parser.add_argument("--profile", choices=("preparation", "fresh", "update-readiness", "update"), default="preparation")
     args = parser.parse_args(argv)
     work, output = args.work_dir.resolve(), args.receipt.absolute()
     exported = output.with_name(output.stem + "-evidence")
@@ -51,7 +51,8 @@ def main(argv=None):
         "sdk_source_revision": args.sdk_revision, "environment": {"python": sys.version, "uid": os.getuid(),
             "network_downloads": False, "venv_system_site_packages": False, "work_dir": str(work),
             "runtime_closure": "signed copied DEV ELF; borrowed container stdlib/libpython/OS libraries"},
-        "not_run": ["Adapter update/restore/rollback/repair/uninstall", "Clean Ubuntu/Windows/Docker/service/reboot",
+        "not_run": [("Adapter restore/rollback/repair/uninstall" if args.profile == "update" else
+                     "Adapter update/restore/rollback/repair/uninstall"), "Clean Ubuntu/Windows/Docker/service/reboot",
                     "Standalone runtime/security/license closure", "GUI", "Production signing", "Full G1-G5"],
         "harness_files": {name: sha((ROOT / "packaging" / name).read_bytes()) for name in
             ("check_installed_reference_lifecycle.py", "installed_reference_lifecycle_client.py", "check_installed_product_adapter.py",
@@ -121,7 +122,7 @@ def main(argv=None):
         descriptor["environment_allowlist"].append("HOMENSAI_CONFIG_HOME")
         write_json(payload / "installer/adapter.json", descriptor)
         manifest = json.loads((work / "manifest.json").read_text())
-        if args.profile in {"fresh", "update-readiness"}:
+        if args.profile in {"fresh", "update-readiness", "update"}:
             (payload / "forbidden_legacy_migration.py").write_text("import os\nfrom pathlib import Path\n(Path(os.environ['HOMENSAI_DATA_HOME'])/'FORBIDDEN_LEGACY_MIGRATION').write_text('unexpected legacy hook')\nraise SystemExit(87)\n", encoding="utf-8")
             manifest["migrations"]["cmd"] = ["python", "-I", "-B", "forbidden_legacy_migration.py"]
             write_json(work / "manifest.json", manifest)

@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "receipt_id": "installed-update-forward-20261026-run02",
+  "checkpoint_id": "CP-20261026-ACCEPTANCE-RUN02-004",
+  "task_ids": [
+    "HIM-015",
+    "HIM-024",
+    "HIM-050",
+    "HIM-054",
+    "HIM-063"
+  ],
+  "scenario_ids": [
+    "ACC-09",
+    "ACC-10",
+    "ACC-16",
+    "ACC-20"
+  ],
+  "author": "Serhii Khomenko",
+  "recorded_at_utc": "2026-10-26T15:03:56.022362+00:00",
+  "status": "PENDING",
+  "scope_ru": "Подготовлен настоящий public installed fresh1→update2→update3 profile. Сохранён RED на SDK CP009; положительная ветка после update plan ещё не исполнялась.",
+  "sdk_source_revision": "e4f8dbc2743476acebd62c13090dc1e28743fec8",
+  "harness_files_sha256": {
+    "check_installed_reference_lifecycle.py": "631c2872e7929a49df27c3337fe617b7339fb8ced6fb6d8850d054410c51c7ca",
+    "installed_reference_lifecycle_client.py": "809b179bca1496e4009fb7c3d8f28bd3e62653f5e3c2d78ab3aad654c5e0e278",
+    "check_installed_product_adapter.py": "3051d62270f31d4d88cc094216ae56e492f6277423b31d91856bf7913185bcde",
+    "check_installed_sdk.py": "e0f15c2fa675f314b6d7beaf79ad1a3f4305f2a1965cc3a5bd9b32d1a328a4d4",
+    "check_installed_prerequisites.py": "9e33c432149390513847e251cf69b698804a213782ca615ee8fa2a6187c7e7f1"
+  },
+  "environment": {
+    "image": "hinstall-dev:verification",
+    "image_id": "sha256:1b3529768706aaacabb525d6fd3168680cc2b0ffa1aee6994a3d2e5cdb8fd4c1",
+    "uid": 1000,
+    "network": "none",
+    "checkout_mount": "readonly",
+    "git_mount": "readonly",
+    "runtime_closure": "borrowed DEV stdlib/libpython/OS libraries; NOT clean-host"
+  },
+  "red": {
+    "status": "FAIL",
+    "expected_error_confirmed": true,
+    "error_code": "CAPABILITY_UNSUPPORTED",
+    "failure_boundary": "InstallerAPI.plan(update), before submit/update product effect",
+    "profile": "update",
+    "exit_code": 1,
+    "fresh_and_source_start_and_preparation": "PASS",
+    "update_1_to_2": "FAIL/CAPABILITY_UNSUPPORTED",
+    "update_2_to_3": "NOT RUN",
+    "command": "python -B packaging/check_installed_reference_lifecycle.py --work-dir /tmp/hinstall-update-red02-cp009 --receipt /acceptance/installed-update-forward-red02-20261026-cp009.json --wheelhouse /opt/wheelhouse --sdk-revision e4f8dbc2743476acebd62c13090dc1e28743fec8 --source-git-dir /git --profile update",
+    "container": "hinstall-run02-update-red02-cp009",
+    "wheel": {
+      "name": "homensai_install_module-0.1.0-py3-none-any.whl",
+      "sha256": "86819ecc9e2f10f58019612d128498896ef0fe07c2525ff8d0b2d970655b7519",
+      "exact_files_checked": 69
+    }
+  },
+  "compatibility": {
+    "status": "PASS",
+    "profile": "update-readiness",
+    "exit_code": 0,
+    "cases": 5,
+    "exact_sdk_files": 69,
+    "exact_reference_files": 7,
+    "exact_dependency_files": 161,
+    "exact_inputs_and_installed_bytes_unchanged": true,
+    "command": "python -B packaging/check_installed_reference_lifecycle.py --work-dir /tmp/hinstall-update-profile-compat-cp009 --receipt /acceptance/installed-update-profile-compat-20261026-cp009.json --wheelhouse /opt/wheelhouse --sdk-revision e4f8dbc2743476acebd62c13090dc1e28743fec8 --source-git-dir /git --profile update-readiness"
+  },
+  "earlier_harness_fail": {
+    "status": "FAIL",
+    "reason_ru": "Неверное предположение имени installed release directory: reference-v1 вместо app-reference-v1. Исправлено после чтения реального FilesystemPorts.release_path; ошибка сохранена отдельно. Это не CAPABILITY_UNSUPPORTED RED.",
+    "log": "installed-update-forward-20261026-run02/harness-red.log"
+  },
+  "prepared_positive_checks_ru": [
+    "Только factory→prepare→plan→submit без подмены capabilities или migration authorizer.",
+    "Fresh1→update2→update3 с single-step reviewed migration; engine source/target bindings и forward-only policy.",
+    "Схемы1/2/3 и cumulative business effects1/2/3; native journal и SDK ledger согласованы.",
+    "Oracle normalized text/length/category, SHA256/is_archived/search_terms на реальных notes.",
+    "Пользовательский документ, исходный notes.text, settings и synthetic credential сохраняются.",
+    "Оба actual encrypted backup receipts archive/backup:0 каждого update связаны с operation/review/schema/source metadata.",
+    "Каждый backup реально расшифровывается и восстанавливается отдельно; source DB/userfiles/settings/credential/pointer/recovery runtime проверяются.",
+    "Source/target release executable и live health identity, новый PID и duplicate start без второго процесса.",
+    "Legacy migration sentinel, секреты в argv/control state и owned final stop проверяются."
+  ],
+  "not_run": [
+    "Положительные installed updates 1→2→3: ждут immutable SDK freeze с update capability",
+    "Source fault tests для нового update execution — принадлежат core",
+    "Clean-host/Windows/service/Docker product acceptance",
+    "Полные G0–G5"
+  ],
+  "production_ready": false,
+  "persistent_raw_evidence_directory": "E:\\homensai\\homensai-install-modull\\.local-state\\run02-acceptance",
+  "evidence": {
+    "capability-red.json": {
+      "path": "packaging/acceptance-evidence/installed-update-forward-20261026-run02/capability-red.json",
+      "sha256": "80b8b63dea1712d1641abd7b4669c1f77525ad77dea6c43e9f7889adcac744fb"
+    },
+    "capability-red.log": {
+      "path": "packaging/acceptance-evidence/installed-update-forward-20261026-run02/capability-red.log",
+      "sha256": "e56c5b6f58b952f981f11071d47d77cc5b2ec95543cb485a649c2091dad3d8cc"
+    },
+    "harness-red.json": {
+      "path": "packaging/acceptance-evidence/installed-update-forward-20261026-run02/harness-red.json",
+      "sha256": "088879c1252b50d03245ac27820aa0b74fe326ea9f29faa6698a1d4ceb1d64aa"
+    },
+    "harness-red.log": {
+      "path": "packaging/acceptance-evidence/installed-update-forward-20261026-run02/harness-red.log",
+      "sha256": "900a276e24311a5e0e93a8f19546cb56ddfd294f1c12d0bd304ffe9d7c1173ee"
+    },
+    "readiness-compat.json": {
+      "path": "packaging/acceptance-evidence/installed-update-forward-20261026-run02/readiness-compat.json",
+      "sha256": "03590f636b650020c7c1165c09dbaa87634cbd2ed696a209068bbbce0f62f8f7"
+    }
+  },
+  "next_step_ru": "После core SDK freeze выполнить --profile update на точном полном Git SHA и сохранить новый receipt без замены RED. Из-за отсутствия исполнения положительной ветки возможны ошибки harness contract, их исправлять с сохранением исходных результатов."
+}

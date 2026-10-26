@@ -1,4 +1,4 @@
-"""Public installed SDK reference preparation/fresh; без checkout imports."""
+"""Public installed SDK reference preparation/fresh/update; без checkout imports."""
 import hashlib
 import json
 import os
@@ -51,17 +51,17 @@ def main():
     manifest = json.loads(Path(config["manifest"]).read_text())
     bundles = {version: json.loads(Path(filename).read_text()) for version, filename in config["bundle_options"].items()}
     root = Path(bundles["1"]["install_root"])
-    observations, actions, legacy_root = [], [], None
+    observations, actions, legacy_root, active_update = [], [], None, None
 
     def api(state, *, registered=True):
-        if registered and config["profile"] in {"fresh", "update-readiness"}:
+        if registered and config["profile"] in {"fresh", "update-readiness", "update"}:
             return InstallerAPI.from_bootstrap(work / state, trust_config=config["trust"], allow_development=True,
                 product_adapter_descriptor="installer/adapter.json", secret_provider=secret, locale="ru")
         engine = NativeEngine(verifier, secret, **({"product_adapter_descriptor": "installer/adapter.json"} if registered else {}))
         return InstallerAPI(work / state, engine=engine, locale="ru")
 
-    def run_action(instance, name, options, key):
-        plan = instance.plan(name, manifest, target, options=options)
+    def run_action(instance, name, options, key, *, reviewed_plan=None):
+        plan = reviewed_plan if reviewed_plan is not None else instance.plan(name, manifest, target, options=options)
         operation = instance.submit(plan["plan_id"], plan["plan_digest"],
             [*plan["required_consents"], plan["review_consent_ref"]], idempotency_key=key, background=False)
         actions.append({"action": name, "status": operation["status"],
@@ -108,7 +108,7 @@ def main():
             raise AssertionError("Caller review ID passed preparation input validation")
         assert tree(root) == before
         observations.append({"case": "caller_review_id_rejected_before_hook", "status": "PASS"})
-        if config["profile"] in {"fresh", "update-readiness"}:
+        if config["profile"] in {"fresh", "update-readiness", "update"}:
             assert supported, "Этот SDK revision ещё не поддерживает adapter fresh install"
             for changed, expected_error in (({**prepared, "migration_review_id": "e" * 64}, "PLAN_STALE"),
                     ({**prepared, "fresh_receipt_id": "a" * 64}, "INVALID_REQUEST")):
@@ -262,6 +262,149 @@ def main():
                     "source_release": "reference-v1", "source_schema": 1, "business_effect_rows": 1,
                     "persistent_roots_pointer_and_user_data_unchanged": True,
                     "future_requirement": "Полная installed fresh1→update2→update3 с настоящим backup каждого шага"})
+            if config["profile"] == "update":
+                run_action(current, "start", bundles["1"], "update-source-v1-start")
+                for source_version, target_version in ((1, 2), (2, 3)):
+                    active_update = {"case": "true_adapter_update_" + str(source_version) + "_to_" + str(target_version),
+                                     "status": "RUNNING"}
+                    observations.append(active_update)
+                    source_release = "reference-v" + str(source_version)
+                    target_release = "reference-v" + str(target_version)
+                    source_process = json.loads((root / ".hinstall/processes.json").read_text())["web"]
+                    source_executable = Path("/proc/" + str(source_process["pid"]) + "/exe").resolve()
+                    assert source_executable.is_relative_to(root / "releases" / ("app-" + source_release))
+                    assert sha(source_executable.read_bytes()) == config["runtime_sha256"]
+                    with build_opener(ProxyHandler({})).open("http://127.0.0.1:" + str(config["port"]) + "/healthz", timeout=3) as response:
+                        source_health = json.load(response)
+                    assert source_health["installation_id"] == review["installation_id"]
+                    assert source_health["release"] == source_release and source_health["database_schema"] == source_version
+                    assert source_health["ready"] and source_health["api_key_configured"]
+                    source_data = notes(database)
+                    assert source_data["schema"] == source_version and source_data["notes"] == data_before["notes"]
+                    source_persistent = {name: tree(root / name) for name in manifest["paths"]}
+                    update_review = current.prepare_migration("update", manifest, target, options=bundles[str(target_version)])
+                    assert update_review["from_release"] == source_release and update_review["to_release"] == target_release
+                    product_plan = update_review["product_plan"]
+                    assert product_plan["from_version"] == str(source_version) and product_plan["to_version"] == str(target_version)
+                    assert len(product_plan["steps"]) == 1 and product_plan["steps"][0]["backup_required"] is True
+                    assert {name: tree(root / name) for name in manifest["paths"]} == source_persistent
+                    update_options = {**bundles[str(target_version)], "migration_review_id": update_review["migration_review_id"]}
+                    before_plan = tree(root)
+                    update_plan = current.plan("update", manifest, target, options=update_options)
+                    assert tree(root) == before_plan, "Обычный update plan вызвал product hook"
+                    detail = update_plan["engine_plan"]
+                    assert detail["product_adapter_binding"]["release"] == target_release
+                    assert detail["product_adapter_source_binding"]["release"] == source_release
+                    assert detail["update_failure_policy"] == "preserve_forward_journal_no_automatic_restore"
+                    assert detail["migration_binding"]["migration_review_id"] == update_review["migration_review_id"]
+                    _, updated = run_action(current, "update", update_options, "true-adapter-update-" + str(target_version),
+                                            reviewed_plan=update_plan)
+                    assert updated["result"]["release"] == target_release
+                    pointer = root / "services" / manifest["update"]["pointer_file"]
+                    assert json.loads(pointer.read_text()) == {"release": target_release}
+                    assert notes(database) == {"schema": target_version, "notes": source_data["notes"]}
+                    assert sha(document.read_bytes()) == retained["document"]
+                    assert sha(credential.read_bytes()) == retained["credential"]
+                    assert sha(settings.read_bytes()) == retained["settings"]
+                    assert not (root / "data/FORBIDDEN_LEGACY_MIGRATION").exists()
+                    with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
+                        effects = db.execute("SELECT request_digest,result FROM product_adapter_effects").fetchall()
+                        assert len(effects) == target_version
+                        assert db.execute("SELECT version FROM schema_migrations ORDER BY version").fetchall() == [(v,) for v in range(1, target_version + 1)]
+                        assert db.execute("SELECT id,normalized_text,text_length,category FROM notes ORDER BY id").fetchall() == [
+                            (note_id, " ".join(text.split()).casefold(), len(" ".join(text.split()).casefold()), "general")
+                            for note_id, text in source_data["notes"]]
+                        if target_version == 3:
+                            assert db.execute("SELECT id,content_sha256,is_archived FROM notes ORDER BY id").fetchall() == [
+                                (note_id, sha(text.encode()), 0) for note_id, text in source_data["notes"]]
+                            assert db.execute("SELECT note_id,term FROM search_terms ORDER BY note_id,term").fetchall() == [
+                                (note_id, term) for note_id, text in source_data["notes"]
+                                for term in sorted(set(" ".join(text.split()).casefold().split()))]
+                    native = [p for p in (root / ".hinstall/operations").glob("*.json")
+                              if json.loads(p.read_text()).get("migration_review_id") == update_review["migration_review_id"]]
+                    assert len(native) == 1
+                    native_path = native[0]
+                    state = json.loads(native_path.read_text())
+                    assert state["action"] == "update" and state["status"] == "SUCCEEDED"
+                    assert state["product_adapter_migration_complete"] is True
+                    assert state.get("product_adapter_unknown") is not True
+                    forward = json.loads((root / "services" / ("update-" + native_path.stem + ".json")).read_text())
+                    assert forward["direction"] == "forward" and forward["outcome"] == "updated"
+                    assert forward["old_release"] == source_release and forward["release"] == target_release
+                    private_review = json.loads((root / ".hinstall/migration-reviews" / (update_review["migration_review_id"] + ".json")).read_text())
+                    ledger = root / ".hinstall/product-adapter" / target_release / "adapter-invocations.sqlite3"
+                    with sqlite3.connect(ledger.as_uri() + "?mode=ro", uri=True) as db:
+                        applied = db.execute("SELECT request_digest,result,state FROM calls WHERE hook='migration_apply'").fetchall()
+                    assert len(applied) == 1 and applied[0][2] == "SUCCEEDED"
+                    assert [(digest, json.loads(value)) for digest, value in effects if digest == applied[0][0]] == [
+                        (applied[0][0], json.loads(applied[0][1]))]
+                    assert json.loads(applied[0][1]) == state["product_adapter_migration_result"]
+                    backup_refs = state["product_adapter_backup_refs"]
+                    assert len(backup_refs) == 2 and len({item["receipt_id"] for item in backup_refs.values()}) == 2
+                    assert {item["purpose"] for item in backup_refs.values()} == {"archive", "backup:0"}
+                    verified_backups = []
+                    for phase_key, reference in sorted(backup_refs.items()):
+                        assert phase_key.startswith(forward["transaction"] + "/")
+                        record_path = root / ".hinstall/backup-receipts" / (reference["receipt_id"] + ".json")
+                        record = json.loads(record_path.read_text())
+                        body = record["body"]
+                        assert record["receipt_id"] == reference["receipt_id"] == sha(canonical(body))
+                        assert body["encrypted"] and body["includes_recovery_payload"] and body["migration_eligible"]
+                        assert body["verification_scope"] == "encrypted_archive_and_recovery_payload_restored"
+                        assert body["consistency_scope"] == "owned_components_stopped_and_adapter_quiesced"
+                        assert body["product_id"] == manifest["product_id"] and body["installation_id"] == review["installation_id"]
+                        assert body["operation_id"] == "op_" + native_path.stem
+                        assert body["from_release"] == source_release and body["from_schema_version"] == str(source_version)
+                        assert body["plan_binding_sha256"] == sha(canonical(private_review))
+                        source_metadata = json.loads((root / ".hinstall/releases" / (source_release + ".json")).read_text())
+                        assert body["from_manifest_sha256"] == sha(canonical(source_metadata["manifest"]))
+                        assert body["from_inventory_sha256"] == sha(canonical(source_metadata["inventory"]))
+                        archive_path = Path(record["archive_path"])
+                        assert archive_crypto.is_encrypted(archive_path) and sha(archive_path.read_bytes()) == body["archive_sha256"]
+                        oracle = work / ("update-" + str(target_version) + "-" + reference["purpose"].replace(":", "-") + "-restore")
+                        oracle.mkdir(mode=0o700)
+                        archive_manifest = archive_crypto.restore_archive(archive_path, oracle,
+                            password_provider=lambda: config["archive_password"], expected_product_id=manifest["product_id"])
+                        assert sha(canonical(archive_manifest)) == body["archive_manifest_sha256"]
+                        saved = oracle / "roots"
+                        assert notes(saved / "data/reference.sqlite") == source_data
+                        assert sha((saved / "data/user-files/Личные документы.txt").read_bytes()) == retained["document"]
+                        assert sha((saved / "data/synthetic-secret.txt").read_bytes()) == retained["credential"]
+                        assert sha((saved / "config/settings.json").read_bytes()) == retained["settings"]
+                        assert json.loads((saved / "services" / manifest["update"]["pointer_file"]).read_text()) == {"release": source_release}
+                        recovery_runtime = saved / "runtime/recovery" / source_release / "payload/runtime/bin/python"
+                        assert sha(recovery_runtime.read_bytes()) == config["runtime_sha256"]
+                        verified_backups.append({"purpose": reference["purpose"], "receipt_id": reference["receipt_id"],
+                            "archive_sha256": body["archive_sha256"], "restored_source_schema": source_version})
+                    process = json.loads((root / ".hinstall/processes.json").read_text())["web"]
+                    executable = Path("/proc/" + str(process["pid"]) + "/exe").resolve()
+                    assert executable.is_relative_to(root / "releases" / ("app-" + target_release))
+                    assert sha(executable.read_bytes()) == config["runtime_sha256"]
+                    assert process["pid"] != source_process["pid"]
+                    commandline = Path("/proc/" + str(process["pid"]) + "/cmdline").read_bytes()
+                    assert config["product_secret"].encode() not in commandline and config["archive_password"].encode() not in commandline
+                    with build_opener(ProxyHandler({})).open("http://127.0.0.1:" + str(config["port"]) + "/healthz", timeout=3) as response:
+                        health = json.load(response)
+                    assert health["installation_id"] == review["installation_id"] and health["release"] == target_release
+                    assert health["database_schema"] == target_version and health["ready"] and health["api_key_configured"]
+                    run_action(current, "start", bundles[str(target_version)], "update-duplicate-start-" + str(target_version))
+                    assert json.loads((root / ".hinstall/processes.json").read_text())["web"]["pid"] == process["pid"]
+                    active_update.update({"status": "PASS", "schema": target_version, "business_effect_rows": len(effects),
+                        "source_release": source_release, "target_release": target_release,
+                        "source_runtime_sha256": sha(source_executable.read_bytes()),
+                        "target_runtime_sha256": sha(executable.read_bytes()), "verified_backups": verified_backups,
+                        "public_factory_prepare_plan_submit": True, "real_native_authorizer": True,
+                        "source_and_target_live_health_identity": True,
+                        "user_data_and_config_preserved": True, "forward_journal_no_rollback": True,
+                        "legacy_migration_marker_absent": True, "owned_pid_stable_on_duplicate_start": True})
+                    active_update = None
+                run_action(current, "stop", bundles["3"], "update-final-stop")
+                listener_stopped(config["port"])
+                for directory in (root / ".hinstall", work / "fresh-sdk-state"):
+                    for path in directory.rglob("*"):
+                        if path.is_file():
+                            raw = path.read_bytes()
+                            assert config["archive_password"].encode() not in raw and config["product_secret"].encode() not in raw
         else:
             legacy_root = work / "Legacy fixture с пробелами"
             def legacy_options(version):
@@ -324,8 +467,14 @@ def main():
                     assert path.is_relative_to(site), name
                     origins[name] = path.relative_to(site).as_posix()
         report.update(status="PASS", module_origins=origins)
+    except Exception as error:
+        code = error.code if isinstance(error, InstallerError) else "HARNESS_CHECK_FAILED"
+        report["error"] = {"code": code, "type": type(error).__name__}
+        if active_update is not None:
+            active_update.update(status="FAIL", error_code=code)
+        raise
     finally:
-        for cleanup_root, version in ((legacy_root, "1"), (root if config["profile"] in {"fresh", "update-readiness"} else None, "1")):
+        for cleanup_root, version in ((legacy_root, "1"), (root if config["profile"] in {"fresh", "update-readiness", "update"} else None, "1")):
             if cleanup_root is not None and (cleanup_root / ".hinstall/installation.json").exists():
                 try:
                     run_action(api("cleanup-" + str(len(str(cleanup_root))), registered=False), "stop",

@@ -1,0 +1,6 @@
+x....................................................................... [ 40%]
+........................................................................ [ 80%]
+..................................                                       [100%]
+=========================== short test summary info ============================
+XFAIL integration_tests/test_native_adapter_update.py::test_adapter_update_release1_to_release2_to_release3 - Update выключен: real receipts/forward journal/fault acceptance ещё не реализованы
+177 passed, 1 xfailed in 351.59s (0:05:51)

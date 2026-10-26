@@ -1,0 +1,140 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+_ test_true_adapter_fresh_install_applies_reviewed_plan_once_without_legacy_migration _
+
+migration = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+
+    def test_true_adapter_fresh_install_applies_reviewed_plan_once_without_legacy_migration(migration):
+>       value=migration.release('release-1','schema_1',config=True);plan,prepared=fresh_plan(migration,value)
+                                                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+integration_tests/test_native_migration.py:249: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+integration_tests/test_native_migration.py:238: in fresh_plan
+    return fixture.reviewed_plan('install',prepared),prepared
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+integration_tests/test_native_engine.py:191: in reviewed_plan
+    plan["engine_plan"] = self.engine.plan(action, plan["source_manifest"], plan["target"], inventory, plan["options"])
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <homensai_install.engine.NativeEngine object at 0x763990272350>
+action = 'install'
+manifest = {'schema_version': 2, 'product_name': 'Native engine test', 'product_id': 'native-engine-test', 'archive_before_replace': True, ...}
+target = {'os': 'linux', 'arch': 'x64', 'mode': 'native', 'scope': 'user'}
+inventory = {'fingerprint_data': {'host': 'Linux', 'arch': 'x86_64', 'owner': 'uid:0', 'root': '/tmp/hinstall-engine-wwk8xrg8/inst...okworm)', 'version_id': '12', 'id': 'debian'}}, 'evidence_level': 'local_read_only', ...}, 'active_release': None, ...}
+options = {'install_root': '/tmp/hinstall-engine-wwk8xrg8/installed', 'release': 'release-1', 'payload_dir': '/tmp/hinstall-engine-wwk8xrg8/source-release-1', 'runtime_executable': 'runtime/python', ...}
+
+    def plan(self, action, manifest, target, inventory, options):
+        ctx = self._context(manifest, target, options)
+        if action not in self.ACTIONS or not self.capabilities(target)["actions"][action]["supported"]:
+>           raise EngineError("CAPABILITY_UNSUPPORTED")
+E           homensai_install.engine.EngineError: CAPABILITY_UNSUPPORTED
+
+homensai_install/engine.py:428: EngineError
+_ test_fresh_lost_ack_reconciles_or_fences_without_repeating_mutation[after_apply] _
+
+migration = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+fault = 'after_apply'
+
+    @pytest.mark.parametrize('fault',['after_apply','unknown'])
+    def test_fresh_lost_ack_reconciles_or_fences_without_repeating_mutation(migration,fault):
+>       value=migration.release('release-1','schema_1',config=True,fault=fault);plan,prepared=fresh_plan(migration,value)
+                                                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+integration_tests/test_native_migration.py:260: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+integration_tests/test_native_migration.py:238: in fresh_plan
+    return fixture.reviewed_plan('install',prepared),prepared
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+integration_tests/test_native_engine.py:191: in reviewed_plan
+    plan["engine_plan"] = self.engine.plan(action, plan["source_manifest"], plan["target"], inventory, plan["options"])
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <homensai_install.engine.NativeEngine object at 0x76399016df30>
+action = 'install'
+manifest = {'schema_version': 2, 'product_name': 'Native engine test', 'product_id': 'native-engine-test', 'archive_before_replace': True, ...}
+target = {'os': 'linux', 'arch': 'x64', 'mode': 'native', 'scope': 'user'}
+inventory = {'fingerprint_data': {'host': 'Linux', 'arch': 'x86_64', 'owner': 'uid:0', 'root': '/tmp/hinstall-engine-ehv7znjh/inst...okworm)', 'version_id': '12', 'id': 'debian'}}, 'evidence_level': 'local_read_only', ...}, 'active_release': None, ...}
+options = {'install_root': '/tmp/hinstall-engine-ehv7znjh/installed', 'release': 'release-1', 'payload_dir': '/tmp/hinstall-engine-ehv7znjh/source-release-1', 'runtime_executable': 'runtime/python', ...}
+
+    def plan(self, action, manifest, target, inventory, options):
+        ctx = self._context(manifest, target, options)
+        if action not in self.ACTIONS or not self.capabilities(target)["actions"][action]["supported"]:
+>           raise EngineError("CAPABILITY_UNSUPPORTED")
+E           homensai_install.engine.EngineError: CAPABILITY_UNSUPPORTED
+
+homensai_install/engine.py:428: EngineError
+_ test_fresh_lost_ack_reconciles_or_fences_without_repeating_mutation[unknown] _
+
+migration = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+fault = 'unknown'
+
+    @pytest.mark.parametrize('fault',['after_apply','unknown'])
+    def test_fresh_lost_ack_reconciles_or_fences_without_repeating_mutation(migration,fault):
+>       value=migration.release('release-1','schema_1',config=True,fault=fault);plan,prepared=fresh_plan(migration,value)
+                                                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+integration_tests/test_native_migration.py:260: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+integration_tests/test_native_migration.py:238: in fresh_plan
+    return fixture.reviewed_plan('install',prepared),prepared
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+integration_tests/test_native_engine.py:191: in reviewed_plan
+    plan["engine_plan"] = self.engine.plan(action, plan["source_manifest"], plan["target"], inventory, plan["options"])
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <homensai_install.engine.NativeEngine object at 0x7639901b3460>
+action = 'install'
+manifest = {'schema_version': 2, 'product_name': 'Native engine test', 'product_id': 'native-engine-test', 'archive_before_replace': True, ...}
+target = {'os': 'linux', 'arch': 'x64', 'mode': 'native', 'scope': 'user'}
+inventory = {'fingerprint_data': {'host': 'Linux', 'arch': 'x86_64', 'owner': 'uid:0', 'root': '/tmp/hinstall-engine-wpcd9a63/inst...okworm)', 'version_id': '12', 'id': 'debian'}}, 'evidence_level': 'local_read_only', ...}, 'active_release': None, ...}
+options = {'install_root': '/tmp/hinstall-engine-wpcd9a63/installed', 'release': 'release-1', 'payload_dir': '/tmp/hinstall-engine-wpcd9a63/source-release-1', 'runtime_executable': 'runtime/python', ...}
+
+    def plan(self, action, manifest, target, inventory, options):
+        ctx = self._context(manifest, target, options)
+        if action not in self.ACTIONS or not self.capabilities(target)["actions"][action]["supported"]:
+>           raise EngineError("CAPABILITY_UNSUPPORTED")
+E           homensai_install.engine.EngineError: CAPABILITY_UNSUPPORTED
+
+homensai_install/engine.py:428: EngineError
+__________ test_fresh_cancel_after_stage_resumes_original_review_once __________
+
+migration = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+
+    def test_fresh_cancel_after_stage_resumes_original_review_once(migration):
+>       value=migration.release('release-1','schema_1',config=True);plan,prepared=fresh_plan(migration,value)
+                                                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+integration_tests/test_native_migration.py:272: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+integration_tests/test_native_migration.py:238: in fresh_plan
+    return fixture.reviewed_plan('install',prepared),prepared
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+integration_tests/test_native_engine.py:191: in reviewed_plan
+    plan["engine_plan"] = self.engine.plan(action, plan["source_manifest"], plan["target"], inventory, plan["options"])
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <homensai_install.engine.NativeEngine object at 0x7639900c1550>
+action = 'install'
+manifest = {'schema_version': 2, 'product_name': 'Native engine test', 'product_id': 'native-engine-test', 'archive_before_replace': True, ...}
+target = {'os': 'linux', 'arch': 'x64', 'mode': 'native', 'scope': 'user'}
+inventory = {'fingerprint_data': {'host': 'Linux', 'arch': 'x86_64', 'owner': 'uid:0', 'root': '/tmp/hinstall-engine-2rv816py/inst...okworm)', 'version_id': '12', 'id': 'debian'}}, 'evidence_level': 'local_read_only', ...}, 'active_release': None, ...}
+options = {'install_root': '/tmp/hinstall-engine-2rv816py/installed', 'release': 'release-1', 'payload_dir': '/tmp/hinstall-engine-2rv816py/source-release-1', 'runtime_executable': 'runtime/python', ...}
+
+    def plan(self, action, manifest, target, inventory, options):
+        ctx = self._context(manifest, target, options)
+        if action not in self.ACTIONS or not self.capabilities(target)["actions"][action]["supported"]:
+>           raise EngineError("CAPABILITY_UNSUPPORTED")
+E           homensai_install.engine.EngineError: CAPABILITY_UNSUPPORTED
+
+homensai_install/engine.py:428: EngineError
+=========================== short test summary info ============================
+FAILED integration_tests/test_native_migration.py::test_true_adapter_fresh_install_applies_reviewed_plan_once_without_legacy_migration
+FAILED integration_tests/test_native_migration.py::test_fresh_lost_ack_reconciles_or_fences_without_repeating_mutation[after_apply]
+FAILED integration_tests/test_native_migration.py::test_fresh_lost_ack_reconciles_or_fences_without_repeating_mutation[unknown]
+FAILED integration_tests/test_native_migration.py::test_fresh_cancel_after_stage_resumes_original_review_once
+4 failed, 18 deselected in 6.34s

@@ -228,7 +228,7 @@ class NativeEngine:
                "rollback", "repair", "reinstall", "uninstall")
     MAINTENANCE_ACTIONS = {"start", "stop", "backup", "uninstall"}
 
-    ADAPTER_ACTIONS = {"start", "stop", "backup"}
+    ADAPTER_ACTIONS = {"install", "start", "stop", "backup"}
 
     def __init__(self, verifier=None, secret_provider=None, *, development_runtime=None,
                  product_adapter_descriptor=None):
@@ -269,7 +269,9 @@ class NativeEngine:
             "development_runtime": self.development_runtime is not None,
             "product_adapter": {"registered": self.product_adapter_descriptor is not None,
                                 "registration": "trusted_constructor",
-                                "migration_execution": False,
+                                "migration_execution": bool(native and self.product_adapter_descriptor is not None),
+                                "migration_actions": ["install"] if native and self.product_adapter_descriptor is not None else [],
+                                "migration_max_steps": 1,
                                 "readiness_identity": "observed_release_and_installation_with_fresh_probe"}}
 
     def _context(self, manifest, target, options):
@@ -473,12 +475,20 @@ class NativeEngine:
         if self.product_adapter_descriptor is not None:
             adapter, binding = self._product_adapter(ctx)
             required = {"readiness"} if action == "start" else {"quiesce", "operation_status"}
+            if action == "install":
+                required = {"readiness", "migration_plan", "migration_apply", "operation_status"}
             if action == "backup":
                 required.add("readiness")
             if not required <= set(adapter.capabilities()["hooks"]):
                 raise EngineError("CAPABILITY_UNSUPPORTED", "Нужные ProductAdapter hooks не объявлены")
             result["product_adapter_binding"] = binding
             result["product_adapter_hooks"] = sorted(required)
+            if action == "install":
+                review = self._checked_migration_review(ctx, action, options.get("migration_review_id"))
+                if len(review["product_plan"]["steps"]) != 1:
+                    raise EngineError("CAPABILITY_UNSUPPORTED", "Первый migration slice требует ровно один шаг")
+                result["migration_binding"] = self._migration_public_binding(options["migration_review_id"], review)
+                result["migration_product_plan"] = review["product_plan"]
         return result
 
     def _product_adapter(self, ctx):
@@ -506,10 +516,10 @@ class NativeEngine:
             if (other.get("product_adapter_unknown") is True
                     or other.get("product_adapter_quiesce_started") is True
                         and other.get("product_adapter_quiesce_complete") is not True
-                    or other.get("status") in {"RUNNING", "CANCELED", "RECOVERY_REQUIRED"}):
+                    or other.get("status") not in {"SUCCEEDED", "FAILED_ROLLED_BACK"}):
                 raise EngineError("RECOVERY_REQUIRED", "Сначала нужен reconciliation незавершённой операции")
 
-    def _fresh_empty_snapshot(self, ctx):
+    def _fresh_empty_snapshot(self, ctx, *, staged_release=None, operation_token=None):
         """Пустота всех owned roots, без трактовки missing/unknown как empty."""
         owner = self._owner(ctx, required=True)
         marker = checked_path(ctx["control"] / "installation.json").lstat()
@@ -521,11 +531,23 @@ class NativeEngine:
             if (not stat.S_ISDIR(info.st_mode)
                     or os.name != "nt" and (info.st_uid != os.getuid() or info.st_mode & 0o077)):
                 raise EngineError("RECOVERY_REQUIRED", "Fresh installation ownership не подтверждён")
+        operations = ctx["control"] / "operations"
+        metadata = ctx["control"] / "releases"
+        operation_files = set(operations.iterdir()) if operations.exists() else set()
+        metadata_files = set(metadata.iterdir()) if metadata.exists() else set()
+        allowed_operations = {operations / (operation_token + ".json")} if operation_token else set()
+        allowed_metadata = {metadata / (staged_release + suffix) for suffix in (".json", ".inventory.json", ".signature.json")} if staged_release else set()
         if (owner.get("installed") is not False or self._pointer(ctx) is not None or self._records(ctx)
-                or (ctx["control"] / "operations").exists() and any((ctx["control"] / "operations").iterdir())
-                or (ctx["control"] / "releases").exists() and any((ctx["control"] / "releases").iterdir())):
+                or operation_files != allowed_operations or metadata_files != allowed_metadata):
             raise EngineError("RECOVERY_REQUIRED", "Установка имеет историю или данные и не является fresh-empty")
-        known_control = {"installation.json", "product-adapter", "migration-reviews", "operations", "releases"}
+        if operation_token:
+            journal = operations / (operation_token + ".json")
+            info = checked_path(journal).lstat()
+            if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
+                    or os.name != "nt" and (info.st_uid != os.getuid() or info.st_mode & 0o077)
+                    or _read(journal) != ctx.get("operation_state")):
+                raise EngineError("RECOVERY_REQUIRED", "Fresh native intent отсутствует или изменён")
+        known_control = {"installation.json", "product-adapter", "migration-reviews", "fresh-receipts", "operations", "releases"}
         if any(path.name not in known_control for path in ctx["control"].iterdir()):
             raise EngineError("RECOVERY_REQUIRED", "Неизвестные installer metadata не доказывают пустоту")
         paths = {"app": ctx["home"].app, "releases": ctx["home"].releases, **ctx["home"].roots}
@@ -533,11 +555,14 @@ class NativeEngine:
         for name, value in paths.items():
             path = checked_path(value)
             info = path.lstat()
-            if (not stat.S_ISDIR(info.st_mode) or any(path.iterdir())
+            allowed_children = {self._release(ctx, staged_release)} if name == "releases" and staged_release else set()
+            if (not stat.S_ISDIR(info.st_mode) or not set(path.iterdir()) <= allowed_children
                     or (os.name != "nt" and (info.st_uid != os.getuid() or info.st_mode & 0o077))):
                 raise EngineError("RECOVERY_REQUIRED", "Fresh-empty требует проверенных пустых приватных каталогов")
             observations[name] = {"path_sha256": _digest(str(path)), "device": info.st_dev,
                                   "inode": info.st_ino, "mode": info.st_mode}
+        if staged_release:
+            self._installed(ctx, staged_release)
         # Unknown files outside declared roots also prevent a fresh claim.
         pending = [ctx["root"]]
         while pending:
@@ -654,6 +679,135 @@ class NativeEngine:
             return body
         except Exception:
             raise EngineError("PLAN_STALE", "Нужен новый migration review для текущего состояния") from None
+
+    @staticmethod
+    def _migration_public_binding(review_id, review):
+        binding, product_plan = review["binding"], review["product_plan"]
+        return {"migration_review_id": review_id, "binding_sha256": _digest(binding),
+            "installation_id": binding["installation_id"], "from_release": binding["from_release"],
+            "to_release": binding["to_release"], "from_version": product_plan["from_version"],
+            "to_version": product_plan["to_version"]}
+
+    def _migration_execution_review(self, ctx, plan, previous):
+        from .migration_receipts import MigrationReviewStore
+        review_id = ctx["options"].get("migration_review_id")
+        detail = plan.get("engine_plan")
+        try:
+            if previous is None:
+                review = self._checked_migration_review(ctx, ctx["action"], review_id, recheck_hook=True)
+            else:
+                review = MigrationReviewStore(ctx["control"] / "migration-reviews").read(review_id)
+                owner = self._owner(ctx, required=True)
+                _, current = self._product_adapter(ctx)
+                if (previous.get("migration_review_id") != review_id
+                        or previous.get("migration_review_sha256") != _digest(review)
+                        or review["binding"]["installation_id"] != owner["installation_id"]
+                        or review["binding"]["installation_root_sha256"] != _digest(str(ctx["root"]))
+                        or review["binding"]["action"] != ctx["action"]
+                        or review["binding"]["target_binding"] != current):
+                    raise ValueError("resume_review_changed")
+            public = self._migration_public_binding(review_id, review)
+            if (type(detail) is not dict or detail.get("migration_binding") != public
+                    or detail.get("migration_product_plan") != review["product_plan"]
+                    or len(review["product_plan"]["steps"]) != 1):
+                raise ValueError("reviewed_plan_changed")
+            ctx.update(migration_review=review, migration_review_id=review_id)
+        except Exception:
+            raise EngineError("PLAN_STALE", "Нужен исходный immutable migration review") from None
+
+    def _staged_migration_adapter(self, ctx):
+        metadata = self._installed(ctx, ctx["release"])
+        options = {**ctx["options"], "payload_dir": str(self._release(ctx, ctx["release"])),
+            "inventory_file": str(ctx["control"] / "releases" / (ctx["release"] + ".inventory.json")),
+            "signature_file": str(ctx["control"] / "releases" / (ctx["release"] + ".signature.json")),
+            "runtime_executable": metadata["runtime_executable"]}
+        adapter, binding = self._product_adapter({**ctx, "options": options})
+        if binding != ctx["migration_review"]["binding"]["target_binding"]:
+            raise EngineError("PLAN_STALE", "Staged adapter не совпадает с reviewed bytes")
+        def authorize(request):
+            from .errors import InstallerError
+            try:
+                return self._authorize_fresh_migration(ctx, request)
+            except EngineError as error:
+                raise InstallerError(error.code, phase="product_adapter",
+                    details={"reason": "fresh_receipt_not_authorized"}) from None
+        adapter.migration_authorizer = authorize
+        return adapter
+
+    def _fresh_receipt_binding(self, ctx):
+        public = self._migration_public_binding(ctx["migration_review_id"], ctx["migration_review"])
+        return {**public, "operation_id": "op_" + ctx["operation_token"],
+            "product_id": ctx["manifest"]["product_id"],
+            "plan_digest": ctx["migration_review"]["product_plan"]["plan_digest"],
+            "fresh_empty_sha256": ctx["migration_review"]["binding"]["fresh_empty_sha256"]}
+
+    def _authorize_fresh_migration(self, ctx, request):
+        from .migration_receipts import FreshEmptyReceiptStore
+        expected = self._fresh_receipt_binding(ctx)
+        data = request["data"]
+        public = self._migration_public_binding(ctx["migration_review_id"], ctx["migration_review"])
+        if (request["operation_id"] != expected["operation_id"]
+                or set(data) != {"migration_binding", "plan_digest", "fresh_receipt_id"}
+                or data["migration_binding"] != public or data["plan_digest"] != expected["plan_digest"]
+                or data["fresh_receipt_id"] != ctx["operation_state"].get("fresh_receipt_id")):
+            raise EngineError("PLAN_STALE", "Fresh request не совпадает с reviewed migration")
+        snapshot = self._fresh_empty_snapshot(ctx, staged_release=ctx["release"], operation_token=ctx["operation_token"])
+        if _digest(snapshot) != expected["fresh_empty_sha256"]:
+            raise EngineError("PLAN_STALE", "Fresh-empty witness изменился до первой записи продукта")
+        return FreshEmptyReceiptStore(ctx["control"] / "fresh-receipts").verify(data["fresh_receipt_id"], expected_binding=expected)
+
+    def _adapter_migration_completed(self, ctx, result):
+        if result.get("state_version") != ctx["migration_review"]["product_plan"]["to_version"]:
+            raise _UncertainEffect()
+        state = ctx["operation_state"]
+        state.update(product_adapter_migration_complete=True, product_adapter_migration_result=result)
+        state.pop("product_adapter_unknown", None)
+        state.pop("product_adapter_migration_authorization_refused", None)
+        _write(ctx["control"] / "operations" / (ctx["operation_token"] + ".json"), state)
+        return result
+
+    def _adapter_migrate(self, ctx):
+        from .adapters import _MigrationAuthorizationRefused
+        from .errors import InstallerError
+        from .migration_receipts import FreshEmptyReceiptStore
+        adapter = self._staged_migration_adapter(ctx)
+        state = ctx["operation_state"]
+        started = state.get("product_adapter_migration_started") is True
+        key = "migration_" + _digest([ctx["operation_token"], ctx["release"], "migration_apply"])
+        if not started:
+            receipt = FreshEmptyReceiptStore(ctx["control"] / "fresh-receipts").issue(self._fresh_receipt_binding(ctx))
+            state["fresh_receipt_id"] = receipt
+        request = {"operation_id": "op_" + ctx["operation_token"], "idempotency_key": key,
+            "phase": "execute", "data": {"plan_digest": ctx["migration_review"]["product_plan"]["plan_digest"],
+                "fresh_receipt_id": state["fresh_receipt_id"],
+                "migration_binding": self._migration_public_binding(ctx["migration_review_id"], ctx["migration_review"])}}
+        try:
+            if started and state.get("product_adapter_migration_complete") is not True:
+                if not ctx.get("adapter_resume"):
+                    raise _UncertainEffect()
+                try:
+                    outcome = adapter.reconcile(key)
+                except InstallerError:
+                    raise _UncertainEffect() from None
+                if outcome["outcome"] == "unknown":
+                    raise _UncertainEffect()
+                if outcome["outcome"] == "applied":
+                    return self._adapter_migration_completed(ctx, outcome["result"])
+                request["phase"] = "resume"
+            if not started:
+                state["product_adapter_migration_started"] = True
+                state["product_adapter_migration_complete"] = False
+                _write(ctx["control"] / "operations" / (ctx["operation_token"] + ".json"), state)
+            result = adapter.invoke("migration_apply", request, existing_ledger=started)["result"]
+            return self._adapter_migration_completed(ctx, result)
+        except _MigrationAuthorizationRefused as error:
+            if not started:
+                state["product_adapter_migration_started"] = False
+            state["product_adapter_migration_authorization_refused"] = True
+            _write(ctx["control"] / "operations" / (ctx["operation_token"] + ".json"), state)
+            raise EngineError(error.code, "Fresh authorization отказала до product effect") from None
+        except InstallerError:
+            raise _UncertainEffect() from None
 
     def _installed_product_adapter(self, ctx):
         release = self._pointer(ctx)
@@ -1573,6 +1727,8 @@ class NativeEngine:
                 if reviewed != binding:
                     raise EngineError("PLAN_STALE", "Нужен reviewed ProductAdapter plan для этих signed bytes")
                 ctx["product_adapter_binding"] = binding
+                if action == "install":
+                    self._migration_execution_review(ctx, plan, previous)
             # A new controller/plan cannot evade an uncertain mutating adapter
             # effect by selecting a different API state directory or stop ID.
             operation_folder = ctx["control"] / "operations"
@@ -1581,7 +1737,9 @@ class NativeEngine:
                     other = _read(file)
                     if ((other.get("product_adapter_unknown") is True
                             or other.get("product_adapter_quiesce_started") is True
-                            and other.get("product_adapter_quiesce_complete") is not True)
+                            and other.get("product_adapter_quiesce_complete") is not True
+                            or other.get("product_adapter_migration_started") is True
+                            and other.get("product_adapter_migration_complete") is not True)
                             and other.get("status") not in {"SUCCEEDED", "FAILED_ROLLED_BACK"}):
                         raise EngineError("RECOVERY_REQUIRED", "Нужен reconciliation исходной ProductAdapter операции")
             self._prepare(ctx)
@@ -1589,8 +1747,12 @@ class NativeEngine:
             adapter_backup_resume = (self.product_adapter_descriptor is not None and action == "backup"
                                      and _adapter_resume and previous is not None
                                      and previous.get("product_adapter_unknown") is True)
+            adapter_install_resume = (self.product_adapter_descriptor is not None and action == "install"
+                and _adapter_resume and previous is not None
+                and (previous.get("product_adapter_unknown") is True
+                     or previous.get("product_adapter_migration_authorization_refused") is True))
             if (previous and previous.get("status") in {"FAILED", "RECOVERY_REQUIRED"}
-                    and action not in {"start", "stop", "update"} and not adapter_backup_resume):
+                    and action not in {"start", "stop", "update"} and not adapter_backup_resume and not adapter_install_resume):
                 raise EngineError("RECOVERY_REQUIRED", "Неудавшийся шаг требует проверенного восстановления")
             # Незавершённый другой mutating plan нельзя обойти новым token.
             if action not in {"stop"}:
@@ -1609,6 +1771,9 @@ class NativeEngine:
             state["status"] = "RUNNING"
             if ctx.get("maintenance_binding"):
                 state["maintenance_binding"] = ctx["maintenance_binding"]
+            if ctx.get("migration_review"):
+                state["migration_review_id"] = ctx["migration_review_id"]
+                state["migration_review_sha256"] = _digest(ctx["migration_review"])
             ctx["operation_state"] = state
             _write(journal, state)
 
@@ -1685,7 +1850,10 @@ class NativeEngine:
             ports = self._ports(ctx, inventory, lambda: "unused-fresh-provider", emit)
             step("stage", lambda: ports.stage_release(token + "/stage", ctx["release"]))
             if not active:
-                step("migrate", lambda: self._hook(ctx, ctx["release"], ctx["manifest"]["migrations"]["cmd"], token + "/fresh-migration"))
+                if self.product_adapter_descriptor is not None:
+                    step("migrate", lambda: self._adapter_migrate(ctx))
+                else:
+                    step("migrate", lambda: self._hook(ctx, ctx["release"], ctx["manifest"]["migrations"]["cmd"], token + "/fresh-migration"))
             step("activate", lambda: ports.switch_pointer(token + "/switch", ctx["release"]))
             step("start", lambda: self._start(ctx))
             health = step("health", lambda: self._health(ctx))

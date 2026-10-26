@@ -249,3 +249,20 @@ class MigrationReviewStore:
         if type(body) is not dict or digest(body) != review_id:
             _fail("migration_review_digest_mismatch")
         return body
+
+
+class FreshEmptyReceiptStore(MigrationReviewStore):
+    """Локальная связь fresh proof с одной операцией; пустоту проверяет engine."""
+
+    @staticmethod
+    def _body(binding):
+        return {"schema_version": 1, "kind": "fresh_empty", "binding": deepcopy(binding),
+                "verification_scope": "owned_empty_roots_before_first_product_write"}
+
+    def issue(self, binding):
+        return super().issue(self._body(binding))
+
+    def verify(self, receipt_id, *, expected_binding):
+        if self.read(receipt_id) != self._body(expected_binding):
+            _fail("fresh_receipt_binding_mismatch")
+        return True

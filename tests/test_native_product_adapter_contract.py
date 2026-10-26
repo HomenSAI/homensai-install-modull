@@ -46,6 +46,21 @@ def test_engine_registration_rejects_an_unverified_callback():
     assert caught.value.code=='INTEGRITY_FAILED'
 
 
+def test_default_engine_does_not_claim_product_adapter_migration_execution():
+    target={'os':'linux','arch':'x64','mode':'native','scope':'user'}
+    caps=NativeEngine().capabilities(target)['product_adapter']
+    assert caps['registered'] is False and caps['migration_execution'] is False
+    assert caps['migration_actions']==[]
+
+
+def test_registered_adapter_does_not_claim_migration_on_unsupported_target(bundle):
+    engine=NativeEngine(bundle['verifier'],product_adapter_descriptor='installer/adapter.json')
+    caps=engine.capabilities({'os':'windows','arch':'x64','mode':'native','scope':'user'})
+    assert caps['actions']['install']['supported'] is False
+    assert caps['product_adapter']['migration_execution'] is False
+    assert caps['product_adapter']['migration_actions']==[]
+
+
 def test_discovery_documents_opt_in_maintenance_scope_without_migration():
     import json
     from pathlib import Path

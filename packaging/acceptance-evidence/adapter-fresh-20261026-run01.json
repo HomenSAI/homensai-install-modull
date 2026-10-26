@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261026-CORE-003",
+  "task_id": "HIM-054",
+  "related_task_ids": [
+    "HIM-024",
+    "HIM-050",
+    "HIM-056",
+    "HIM-063"
+  ],
+  "baseline_source_sha": "e693025b2bded46ba480e557fcf7dcbab6486cfb",
+  "recorded_at_utc": "2026-10-26T09:31:11.147729+00:00",
+  "owner": "core_lifecycle",
+  "status": "PASS_SCOPED",
+  "production_ready": false,
+  "scope": "Linux source/integration: настоящий signed staged adapter fresh без legacy migration; реальные owned controller SIGKILL. Не installed wheel, не Ubuntu/Windows acceptance и не power loss.",
+  "environment": {
+    "image": "hinstall-dev:verification",
+    "image_id": "sha256:1b3529768706aaacabb525d6fd3168680cc2b0ffa1aee6994a3d2e5cdb8fd4c1",
+    "python": "3.14.3",
+    "build_lock": "PASS --installed",
+    "development_runtime_injected": true,
+    "network": "none",
+    "privileged": false,
+    "docker_socket_mounted": false
+  },
+  "input_sha256": {
+    "homensai_install/adapters.py": "497888b13cd8afaa8e34de8bd0e2df1916fbc6ed6162a317674d620efbbf9f40",
+    "homensai_install/engine.py": "e00276a16952fec97d5de25c9e7af9541e76ba9ae315d0c1be3432711839ad50",
+    "homensai_install/migration_receipts.py": "90921a6ace796edc85a53d5968c205b4c202a4516a6590d2f9cdc77a8163793f",
+    "tests/test_adapters_protocol.py": "bdeef83261528f17f9c16eec7c946fa9aa640c50922f9aebb5fa56868e5453b9",
+    "tests/test_native_product_adapter_contract.py": "cdae761fd23a41f9adeb3f89a8743f60dd0122f67feecc18676f87d93b5b5762",
+    "tests/test_migration_receipts.py": "b691c5aed6bb334d60365af6d38bb591101e61e950e45959b54d7de0390b3762",
+    "integration_tests/test_native_product_adapter.py": "69a8d29418453612a01be9a542dd2c25f1edfe969c0694b60d7a6d331379cdb3",
+    "integration_tests/test_native_engine.py": "1886045cc4292f200759d749067c8507de4feec10d396fb9b74c0d3b288b6406",
+    "integration_tests/test_native_migration.py": "e386d134f035f0ac5a425b32b6cd4660f31e44747210b66d1e29e160e7c907f2"
+  },
+  "verification": {
+    "command": "docker run --rm --network none --mount type=bind,source=<core-worktree>,target=/workspace,readonly hinstall-dev:verification python -m pytest -q -p no:cacheprovider integration_tests/test_native_migration.py tests/test_migration_receipts.py tests/test_adapters_protocol.py tests/test_native_product_adapter_contract.py integration_tests/test_native_product_adapter.py integration_tests/test_native_engine.py",
+    "exit_code": 0,
+    "passed": 171,
+    "subtests_passed": 5,
+    "elapsed_seconds": 268.9,
+    "raw_log": "adapter-fresh-20261026-run01/focused-green.log",
+    "observed": [
+      "Reviewed single-step fresh executed by staged signed adapter, SQLite schema/documents/config created; legacy migration files absent.",
+      "SUCCEEDED replay, lost ACK applied reconciliation and UNKNOWN fencing never repeat the mutation.",
+      "Real controller SIGKILL after stage, before ledger, after ledger before hook, and after confirmed product effect/ledger ACK; safe original resume or explicit recovery fence.",
+      "Missing ledger after product effect refuses retry; missing historical fresh receipt does not invalidate already confirmed effect.",
+      "Known authorization refusal has no product effect, no UNKNOWN flag, and permits original explicit engine resume.",
+      "Foreign data arriving after stage, missing/changed expected native journal, stale/faulty ownership witnesses refuse before mutation.",
+      "Default/unregistered and unsupported target capabilities do not advertise ProductAdapter migration execution."
+    ]
+  },
+  "initial_failure": {
+    "command": "python -m pytest -q -p no:cacheprovider integration_tests/test_native_migration.py -k 'true_adapter or lost_ack or cancel_after_stage'",
+    "exit_code": 1,
+    "failed": 4,
+    "observation": "Подготовка существовала, но engine install был CAPABILITY_UNSUPPORTED. Исходный RED сохранён.",
+    "raw_log": "adapter-fresh-20261026-run01/fresh-red.log"
+  },
+  "interface": {
+    "engine_migration_actions": [
+      "install"
+    ],
+    "max_product_plan_steps": 1,
+    "request_data": [
+      "plan_digest",
+      "fresh_receipt_id",
+      "migration_binding"
+    ],
+    "migration_binding": [
+      "migration_review_id",
+      "binding_sha256",
+      "installation_id",
+      "from_release",
+      "to_release",
+      "from_version",
+      "to_version"
+    ],
+    "fresh_receipt_kind": "fresh_empty"
+  },
+  "limitations": [
+    "Adapter update/restore/rollback/repair/reinstall/uninstall remain unsupported. Maintenance start/stop/backup retained.",
+    "Fresh install requires explicit prepare_migration and original immutable reviewed plan, one step, Linux/native/user trusted registration.",
+    "Installed reference fresh acceptance remains NOT RUN in this core commit; platform agent/root must build and independently verify these bytes.",
+    "Source fault tests call NativeEngine.resume directly; independent public SDK authorization-refusal resume acceptance remains pending.",
+    "No clean-host/offline standalone, OS installer, service, Windows, Docker product, browser, or full G0-G5 claim."
+  ],
+  "root_review_fix": "_migration_pending now allows only terminal SUCCEEDED/FAILED_ROLLED_BACK; root independently reproduced FAILED/QUEUED/UNKNOWN/missing-status preparation refusal regressions.",
+  "next_action": "По просьбе владельца сохранить текущее состояние и ждать root. После возобновления: root independent installed fresh/review, затем single-step update через существующий UpdatePlan с source/target adapter binding, phase-namespaced quiesce intents и real backup receipt authorization."
+}

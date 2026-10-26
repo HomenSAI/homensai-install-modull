@@ -52,6 +52,10 @@ def _fail(code: str, reason: str) -> None:
     raise InstallerError(code, phase="product_adapter", details={"reason": reason})
 
 
+class _MigrationAuthorizationRefused(InstallerError):
+    """Доверенная граница отказала до записи ledger intent/запуска hook."""
+
+
 def _relative(value: str) -> str:
     if (type(value) is not str or not value or len(value) > 1024 or "\\" in value
             or value.startswith("/") or any(ord(c) < 32 for c in value)
@@ -327,7 +331,8 @@ class ExecutableProductAdapter:
             _fail("INVALID_REQUEST", "adapter_request_data")
         if hook == "migration_apply":
             if (not _HASH.fullmatch(str(request["data"].get("plan_digest", "")))
-                    or not _safe_name(request["data"].get("backup_receipt_id"))):
+                    or ("backup_receipt_id" in request["data"]) == ("fresh_receipt_id" in request["data"])
+                    or not _safe_name(request["data"].get("backup_receipt_id", request["data"].get("fresh_receipt_id")))):
                 _fail("INVALID_REQUEST", "migration_plan_and_backup_receipt_required")
         if len(canonical(request).encode()) > MAX_INPUT_BYTES - 2048:
             _fail("INVALID_REQUEST", "adapter_request_too_large")
@@ -365,12 +370,15 @@ class ExecutableProductAdapter:
             _fail("CAPABILITY_UNSUPPORTED", "migration_requires_trusted_receipt_authorizer")
         try:
             authorized = self.migration_authorizer(deepcopy(request))
-        except InstallerError:
-            raise
+        except InstallerError as error:
+            raise _MigrationAuthorizationRefused(error.code, phase="product_adapter",
+                details={"reason": "migration_receipt_verification_failed"}) from None
         except Exception:
-            _fail("RECOVERY_REQUIRED", "migration_receipt_verification_failed")
+            raise _MigrationAuthorizationRefused("RECOVERY_REQUIRED", phase="product_adapter",
+                details={"reason": "migration_receipt_verification_failed"}) from None
         if authorized is not True:
-            _fail("RECOVERY_REQUIRED", "migration_receipt_not_authorized")
+            raise _MigrationAuthorizationRefused("RECOVERY_REQUIRED", phase="product_adapter",
+                details={"reason": "migration_receipt_not_authorized"})
 
     def reconcile(self, idempotency_key: str) -> Mapping[str, object]:
         self.capabilities()

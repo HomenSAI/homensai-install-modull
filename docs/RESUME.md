@@ -1,13 +1,26 @@
 # Продолжение разработки
 
-Checkpoint: `CP-20261026-005` (migration preparation и reference SQL receipt); ветка `codex/universal-installer-20261025`.
+Checkpoint: `CP-20261026-006` (сохранение по запросу владельца); ветка `codex/universal-installer-20261025`.
 Baseline: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
-Последний подтверждённый local/GitHub до создания CP-20261026-005:
-`c12e49e4f892a3ce1ca4a77063bc9780eda5c733` (CP-20261026-004).
+Последний подтверждённый local/GitHub до создания CP-20261026-006:
+`2024434b59c477773ad2b44d00ae77ec508ff8b8` (CP-20261026-005).
 SHA текущего checkpoint проверяется по Git history/ref и внешней sync receipt.
 Не создавать рекурсивный commit ради записи собственного SHA.
 
-## Активное выполнение CP-20261026-005
+## Текущее сохранённое состояние CP-20261026-006
+
+По просьбе владельца сохранено текущее состояние. В основной ветке: явная SDK factory-регистрация ProductAdapter, 36 targeted PASS; установленная preparation на точном CP005 — 5 случаев PASS (69 SDK / 7 reference / 161 dependency files). Сохранён исходный harness FAIL неправильного имени capability, исправлено на registered. Fresh engine пакет ddbe107 прошёл 171 source PASS и 5 subtests, включая SIGKILL; он отправлен отдельной веткой GitHub и ещё не интегрирован root. Installed fresh и update по-прежнему NOT RUN; capabilities основной ветки не расширены этим source-only пакетом. Агентские ветки и основной handoff сохранены; активных тестовых процессов нет. production_ready=false, все G0–G5 OPEN. Продолжение: интегрировать ddbe107 с независимым review/public SDK resume/factory, затем installed fresh и updates 1→2→3. Исходное окно UTC08:25:06–20:25:06 сохраняется.
+
+Агентские refs независимо подтверждены на GitHub:
+- core: `ddbe10717ce8215ccea8925816488a69606b4f03`, ветка `codex/core-lifecycle-20261026-run01`;
+- acceptance: `bbbbd8f82f5aada2022085cc904c99b6b39d2f21`, ветка `codex/platform-acceptance-20261026-run01`.
+
+На другом ПК сначала clone/pull основной feature-ветки и чтение AI_START_HERE.md.
+Для pending fresh использовать commit из core ref, не восстанавливать старый stash.
+Runtime source пакета уже проверен агентом; root review/public SDK/installed fresh ещё обязательны.
+Текущий CP GitHub SYNC_PENDING до внешней квитанции; собственного SHA в tracked docs нет.
+
+## История выполнения CP-20261026-005
 
 Реализованы явная NativeEngine.prepare_migration, неизменяемый MigrationReviewStore и проверка пустых каталогов/владельца для fresh. Обычный plan не вызывает hooks. SDK bridge проверен настоящим подписанным процессом и SQLite. Root воспроизвёл 4 FAIL: журналы FAILED/QUEUED/UNKNOWN/null допускали новый review; исправлено, исходный RED сохранён. Reference наблюдает схему без записи; изменение SQL и business receipt фиксируются одним COMMIT, неизвестный исход остаётся UNKNOWN. Объединённый целевой прогон: 201 PASS за 46.79 s, 11 входов не менялись. Агент проверил installed transport faults на точном e693025 с синтетическим authorizer; это не приёмка engine. Новый полный suite и установленный artifact CP005: NOT RUN. CP004 full 2416 PASS и maintenance 8 clients — исторические результаты. Adapter install/update ещё выключены до проверенного fresh/apply. production_ready=false, G0–G5 OPEN. Далее: installed public preparation на CP005, затем single-step fresh с настоящим proof/SIGKILL и updates 1→2→3.
 

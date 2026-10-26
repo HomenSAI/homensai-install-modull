@@ -685,3 +685,28 @@ update требует существующий from_release. При preparation 
 Сам review не заменяет обязательные согласия перед lifecycle-исполнением.
 CLI/HTTP подготовку не предоставляют автоматически; произвольный subprocess
 через этот метод не выбирается. Доступность фактического backend — отдельный gate.
+
+### Trusted ProductAdapter factory
+
+Для явного подключения адаптера достаточно публичной фабрики, без копирования
+контроллера в продукт:
+
+```python
+api = InstallerAPI.from_bootstrap(
+    private_state_directory,
+    trust_config=trusted_publisher_keys,
+    product_adapter_descriptor="installer/adapter.json",
+    secret_provider=trusted_secret_provider,
+)
+prepared = api.prepare_migration("install", manifest, target, options=options)
+review = api.plan("install", manifest, target,
+                  options={**options, "migration_review_id": prepared["migration_review_id"]})
+```
+
+Фрагмент показывает preparation и plan для backend с принятой install capability;
+исполнение требует отдельного submit и настоящих согласий на показанный review/EULA.
+Проверяйте capabilities перед plan: наличие фабрики само не включает неподдержанные
+действия. `product_adapter_descriptor` — trusted keyword Python-конструктора,
+не поле manifest/options/HTTP. Без него сохраняется прежний default backend.
+Без подписанного verifier регистрация отклоняется. Docker и Windows не получают
+автоматического fallback на Linux ProductAdapter.

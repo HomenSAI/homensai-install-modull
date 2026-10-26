@@ -125,7 +125,8 @@ class InstallerAPI:
     def from_bootstrap(cls, state_dir: str | Path, *, trust_config: str | Path | None = None,
                        allow_development: bool = False, development_runtime: str | Path | None = None,
                        docker_cli_config: str | Path | None = None, secret_provider=None,
-                       locale: str = "ru", prerequisites=None, execution_domain=None) -> "InstallerAPI":
+                       locale: str = "ru", prerequisites=None, execution_domain=None,
+                       product_adapter_descriptor: str | None = None) -> "InstallerAPI":
         """Создать общий router из доверенных локальных настроек bootstrap.
 
         Эти настройки задаёт приложение-хост, не manifest/options/HTTP body.
@@ -147,7 +148,8 @@ class InstallerAPI:
         try:
             engine = configured_backends(verifier=verifier, secret_provider=secret_provider,
                                          development_runtime=development_runtime,
-                                         docker_cli_config=docker_cli_config)
+                                         docker_cli_config=docker_cli_config,
+                                         product_adapter_descriptor=product_adapter_descriptor)
         except EngineError as error:
             raise InstallerError(error.code, details=error.details) from None
         return cls(state_dir, engine=engine, locale=locale, prerequisites=prerequisites,

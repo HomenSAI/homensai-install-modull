@@ -147,6 +147,29 @@ def test_default_sdk_reports_unconfigured_docker_without_touching_state(tmp_path
     assert not api.state_dir.exists()
 
 
+def test_public_bootstrap_registers_product_adapter_only_by_explicit_trusted_keyword(tmp_path):
+    import base64
+    config = tmp_path / "trust.json"
+    config.write_text(json.dumps({"schema_version": 1,
+        "keys": {"synthetic-public-key": base64.b64encode(bytes(range(32))).decode()}}), encoding="utf-8")
+    default = InstallerAPI.from_bootstrap(tmp_path / "default-state", trust_config=config, allow_development=True)
+    opted_in = InstallerAPI.from_bootstrap(tmp_path / "opt-in-state", trust_config=config,
+        allow_development=True, product_adapter_descriptor="installer/adapter.json")
+    assert default.capabilities(NATIVE)["product_adapter"]["registered"] is False
+    assert opted_in.capabilities(NATIVE)["product_adapter"]["registered"] is True
+    assert not default.state_dir.exists() and not opted_in.state_dir.exists()
+    with pytest.raises(InstallerError) as error:
+        default.discover(manifest(), NATIVE, options={"product_adapter_descriptor": "installer/adapter.json"})
+    assert error.value.code == "INVALID_REQUEST"
+
+
+def test_bootstrap_adapter_registration_requires_a_signed_verifier(tmp_path):
+    with pytest.raises(InstallerError) as error:
+        InstallerAPI.from_bootstrap(tmp_path / "state", product_adapter_descriptor="installer/adapter.json")
+    assert error.value.code == "INTEGRITY_FAILED"
+    assert not (tmp_path / "state").exists()
+
+
 def test_cli_keeps_bootstrap_failures_in_machine_error_contract(tmp_path, capsys):
     from homensai_install.cli import main
     missing = tmp_path / "not-a-config.json"

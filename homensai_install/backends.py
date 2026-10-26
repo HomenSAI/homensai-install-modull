@@ -110,7 +110,7 @@ class BackendRouter:
 
 
 def configured_backends(*, verifier=None, secret_provider=None, development_runtime=None,
-                        docker_cli_config=None):
+                        docker_cli_config=None, product_adapter_descriptor=None):
     """Bootstrap configuration; does not discover/launch Docker implicitly.
 
     docker_cli_config is a local developer/administrator file with exactly the
@@ -120,7 +120,8 @@ def configured_backends(*, verifier=None, secret_provider=None, development_runt
     of native operations; a supplied invalid configuration fails explicitly.
     """
     native = NativeEngine(verifier=verifier, secret_provider=secret_provider,
-                          development_runtime=development_runtime)
+                          development_runtime=development_runtime,
+                          product_adapter_descriptor=product_adapter_descriptor)
     docker = None
     if docker_cli_config is not None:
         from shared.datahome import checked_path

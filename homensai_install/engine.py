@@ -503,10 +503,11 @@ class NativeEngine:
         folder = ctx["control"] / "operations"
         for file in folder.glob("*.json") if folder.exists() else ():
             other = _read(file)
-            if (other.get("product_adapter_unknown") is True
+            if (type(other) is not dict
+                    or other.get("status") not in ("SUCCEEDED", "FAILED_ROLLED_BACK")
+                    or other.get("product_adapter_unknown") is True
                     or other.get("product_adapter_quiesce_started") is True
-                        and other.get("product_adapter_quiesce_complete") is not True
-                    or other.get("status") in {"RUNNING", "CANCELED", "RECOVERY_REQUIRED"}):
+                        and other.get("product_adapter_quiesce_complete") is not True):
                 raise EngineError("RECOVERY_REQUIRED", "Сначала нужен reconciliation незавершённой операции")
 
     def _fresh_empty_snapshot(self, ctx):

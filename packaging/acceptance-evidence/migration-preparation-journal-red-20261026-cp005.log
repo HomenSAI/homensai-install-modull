@@ -1,0 +1,93 @@
+FF                                                                     [100%]
+=================================== FAILURES ===================================
+_ test_preparation_does_not_accept_unresolved_or_unknown_native_journal[FAILED] _
+
+migration = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_preparation_does_not_acce0')
+status = 'FAILED'
+
+    @pytest.mark.parametrize('status', ['FAILED', 'QUEUED', 'UNKNOWN', None])
+    def test_preparation_does_not_accept_unresolved_or_unknown_native_journal(migration, tmp_path, status):
+        old = migration.release('release-1', 'schema_1')
+        migration.legacy_install(old)
+        new = migration.release('release-2', 'schema_2')
+        journal = migration.root / '.hinstall/operations/unresolved.json'
+        journal.write_text(json.dumps({'action': 'update', 'status': status}), encoding='utf-8')
+        journal.chmod(0o600)
+        api = InstallerAPI(tmp_path / 'api-state', engine=BackendRouter(native=migration.engine))
+        before = product_files(migration.root)
+>       with pytest.raises(InstallerError) as error:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE InstallerError
+
+integration_tests/test_native_migration_api.py:61: Failed
+_ test_preparation_does_not_accept_unresolved_or_unknown_native_journal[QUEUED] _
+
+migration = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_preparation_does_not_acce1')
+status = 'QUEUED'
+
+    @pytest.mark.parametrize('status', ['FAILED', 'QUEUED', 'UNKNOWN', None])
+    def test_preparation_does_not_accept_unresolved_or_unknown_native_journal(migration, tmp_path, status):
+        old = migration.release('release-1', 'schema_1')
+        migration.legacy_install(old)
+        new = migration.release('release-2', 'schema_2')
+        journal = migration.root / '.hinstall/operations/unresolved.json'
+        journal.write_text(json.dumps({'action': 'update', 'status': status}), encoding='utf-8')
+        journal.chmod(0o600)
+        api = InstallerAPI(tmp_path / 'api-state', engine=BackendRouter(native=migration.engine))
+        before = product_files(migration.root)
+>       with pytest.raises(InstallerError) as error:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE InstallerError
+
+integration_tests/test_native_migration_api.py:61: Failed
+_ test_preparation_does_not_accept_unresolved_or_unknown_native_journal[UNKNOWN] _
+
+migration = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_preparation_does_not_acce2')
+status = 'UNKNOWN'
+
+    @pytest.mark.parametrize('status', ['FAILED', 'QUEUED', 'UNKNOWN', None])
+    def test_preparation_does_not_accept_unresolved_or_unknown_native_journal(migration, tmp_path, status):
+        old = migration.release('release-1', 'schema_1')
+        migration.legacy_install(old)
+        new = migration.release('release-2', 'schema_2')
+        journal = migration.root / '.hinstall/operations/unresolved.json'
+        journal.write_text(json.dumps({'action': 'update', 'status': status}), encoding='utf-8')
+        journal.chmod(0o600)
+        api = InstallerAPI(tmp_path / 'api-state', engine=BackendRouter(native=migration.engine))
+        before = product_files(migration.root)
+>       with pytest.raises(InstallerError) as error:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE InstallerError
+
+integration_tests/test_native_migration_api.py:61: Failed
+_ test_preparation_does_not_accept_unresolved_or_unknown_native_journal[None] __
+
+migration = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_preparation_does_not_acce3')
+status = None
+
+    @pytest.mark.parametrize('status', ['FAILED', 'QUEUED', 'UNKNOWN', None])
+    def test_preparation_does_not_accept_unresolved_or_unknown_native_journal(migration, tmp_path, status):
+        old = migration.release('release-1', 'schema_1')
+        migration.legacy_install(old)
+        new = migration.release('release-2', 'schema_2')
+        journal = migration.root / '.hinstall/operations/unresolved.json'
+        journal.write_text(json.dumps({'action': 'update', 'status': status}), encoding='utf-8')
+        journal.chmod(0o600)
+        api = InstallerAPI(tmp_path / 'api-state', engine=BackendRouter(native=migration.engine))
+        before = product_files(migration.root)
+>       with pytest.raises(InstallerError) as error:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE InstallerError
+
+integration_tests/test_native_migration_api.py:61: Failed
+=========================== short test summary info ============================
+FAILED integration_tests/test_native_migration_api.py::test_preparation_does_not_accept_unresolved_or_unknown_native_journal[FAILED]
+FAILED integration_tests/test_native_migration_api.py::test_preparation_does_not_accept_unresolved_or_unknown_native_journal[QUEUED]
+FAILED integration_tests/test_native_migration_api.py::test_preparation_does_not_accept_unresolved_or_unknown_native_journal[UNKNOWN]
+FAILED integration_tests/test_native_migration_api.py::test_preparation_does_not_accept_unresolved_or_unknown_native_journal[None]
+4 failed, 2 deselected in 9.76s
+

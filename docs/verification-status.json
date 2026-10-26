@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checkpoint_id": "CP-20261026-004",
+  "checkpoint_id": "CP-20261026-005",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
@@ -907,6 +907,16 @@
     },
     "installed_maintenance": "8 independent clients PASS; legacy bootstrap and borrowed runtime",
     "native_adapter_fresh_update": "NOT IMPLEMENTED",
+    "production_ready": false
+  },
+  "cp20261026_005": {
+    "status": "PASS_SCOPED",
+    "source_receipt": "packaging/acceptance-evidence/migration-preparation-20261026-cp005.json",
+    "focused_passed": 201,
+    "root_initial_failures": 4,
+    "full_source_suite": "NOT RUN",
+    "installed_final_artifact": "NOT RUN",
+    "native_adapter_fresh_update": "NOT IMPLEMENTED in checkpoint",
     "production_ready": false
   }
 }

@@ -668,8 +668,12 @@ owner меняет journal только при совпадении ранее �
 зарегистрированному backend, который реализует `prepare_migration`. Общие
 `discover`/`plan` не вызывают этот метод или продуктовые hooks. Backend без
 подготовки возвращает `CAPABILITY_UNSUPPORTED`; fallback на другой target нет.
-На первом этапе backup receipts NativeEngine ещё не реализует подготовку:
-наличие SDK-метода не означает готовность adapter install/update.
+NativeEngine реализует подготовку только при явном trusted ProductAdapter opt-in
+на Linux/native/user. Под общей lifecycle lock проверяется исходная установка,
+вызывается подписанный read-only migration_plan и сохраняется immutable review.
+Fresh preparation создаёт только installer ownership reservation и пустые каталоги,
+без active release и продуктовых данных. Неизвестный/неразрешённый прежний журнал
+требует reconciliation. Наличие review не означает готовность adapter install/update.
 
 Результат поддерживающего backend: `migration_review_id`, `action`,
 `product_plan` (from_version/to_version/steps/plan_digest), `from_release`,

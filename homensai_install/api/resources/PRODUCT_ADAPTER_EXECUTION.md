@@ -189,7 +189,34 @@ schema и reviewed product plan; строка receipt сама такого до
 подтверждением product quiesce, а не всеми возможными внешними writers.
 
 SDK предоставляет explicit `prepare_migration` extension для backend с таким
-методом; NativeEngine preparation/install/update пока неподдержаны в этом этапе.
+методом. На следующем этапе 26.10 NativeEngine preparation реализован;
+install/update пока неподдержаны до отдельной execution-приёмки.
 Текущие supported lifecycle actions остаются start/stop/backup. Новые installed
 maintenance проверки описаны в reference/README и packaging/check_installed_product_adapter.py;
 их legacy bootstrap и borrowed runtime не закрывают adapter fresh или clean-host G1.
+
+## Подготовка reviewed migration plan (CP-20261026-005)
+
+`InstallerAPI.prepare_migration("install"|"update", manifest, target, options)`
+делегирует явно зарегистрированному NativeEngine и исполняет signed read-only
+`migration_plan` отдельно от общего plan. Preparation фиксирует owner/installation,
+source release metadata и schema отдельно от target release, signed target adapter,
+и для fresh — identity всех проверенных пустых DataHome roots. Product plan содержит
+from_version/to_version/steps/digest; для fresh явный from_version="empty".
+
+Opaque migration_review_id равен digest immutable private review. Общий plan
+читает сохранённый record без hooks; явное исполнение должно заново проверить
+binding и фактический product plan до effects. Изменившаяся schema/metadata,
+утраченный либо подменённый root/owner/review и неизвестный прежний journal
+останавливают разрешение нового действия. Для первоначально отсутствующей
+установки preparation создаёт private ownership reservation с installed=false,
+пустые каталоги и control metadata, не выдумывая current_release.
+
+Read-only reference migration_plan наблюдает SQLite в DELETE mode, не создаёт
+БД или WAL/SHM, отвергает неизвестную/повреждённую/более новую schema. Target schema
+берётся из signed product profile. HOMENSAI_CONFIG_HOME передаётся только trusted
+resolved path и только если указан в signed descriptor allowlist.
+
+Это preparation/source контракт. Старые capability assertions сохраняются:
+adapter install/update execution остаётся unsupported до следующего проверенного
+пакета; CLI/HTTP preparation route ещё не добавлен. Полная G1/G2/G3 приёмка открыта.

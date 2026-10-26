@@ -1,0 +1,180 @@
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+_ test_fresh_preparation_has_no_fake_release_or_product_data_and_binds_immutable_review _
+
+migration = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+
+    def test_fresh_preparation_has_no_fake_release_or_product_data_and_binds_immutable_review(migration):
+        value=migration.release('release-1','schema_1')
+>       result=prepare(migration,'install',value)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+integration_tests/test_native_migration.py:94: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fixture = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+action = 'install'
+value = {'manifest': {'schema_version': 2, 'product_name': 'Native engine test', 'product_id': 'native-engine-test', 'archive_...ease-1', 'payload_dir': '/tmp/hinstall-engine-a9183g20/source-release-1', 'runtime_executable': 'runtime/python', ...}}
+
+    def prepare(fixture, action, value):
+>       return fixture.engine.prepare_migration(action,value['manifest'],fixture.target,value['options'])
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NativeEngine' object has no attribute 'prepare_migration'
+
+integration_tests/test_native_migration.py:89: AttributeError
+____________ test_unknown_nonempty_root_never_becomes_fresh[sqlite] ____________
+
+migration = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+content = 'sqlite'
+
+    @pytest.mark.parametrize('content',['sqlite','document','unknown_directory'])
+    def test_unknown_nonempty_root_never_becomes_fresh(migration,content):
+        value=migration.release('release-1','schema_1')
+        migration.root.mkdir()
+        if content=='unknown_directory': (migration.root/'foreign').mkdir()
+        else: (migration.root/('existing.sqlite' if content=='sqlite' else 'document.txt')).write_bytes(b'not empty')
+>       with pytest.raises(EngineError): prepare(migration,'install',value)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+integration_tests/test_native_migration.py:112: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fixture = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+action = 'install'
+value = {'manifest': {'schema_version': 2, 'product_name': 'Native engine test', 'product_id': 'native-engine-test', 'archive_...ease-1', 'payload_dir': '/tmp/hinstall-engine-8ts0payy/source-release-1', 'runtime_executable': 'runtime/python', ...}}
+
+    def prepare(fixture, action, value):
+>       return fixture.engine.prepare_migration(action,value['manifest'],fixture.target,value['options'])
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NativeEngine' object has no attribute 'prepare_migration'
+
+integration_tests/test_native_migration.py:89: AttributeError
+___________ test_unknown_nonempty_root_never_becomes_fresh[document] ___________
+
+migration = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+content = 'document'
+
+    @pytest.mark.parametrize('content',['sqlite','document','unknown_directory'])
+    def test_unknown_nonempty_root_never_becomes_fresh(migration,content):
+        value=migration.release('release-1','schema_1')
+        migration.root.mkdir()
+        if content=='unknown_directory': (migration.root/'foreign').mkdir()
+        else: (migration.root/('existing.sqlite' if content=='sqlite' else 'document.txt')).write_bytes(b'not empty')
+>       with pytest.raises(EngineError): prepare(migration,'install',value)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+integration_tests/test_native_migration.py:112: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fixture = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+action = 'install'
+value = {'manifest': {'schema_version': 2, 'product_name': 'Native engine test', 'product_id': 'native-engine-test', 'archive_...ease-1', 'payload_dir': '/tmp/hinstall-engine-wf01ugqh/source-release-1', 'runtime_executable': 'runtime/python', ...}}
+
+    def prepare(fixture, action, value):
+>       return fixture.engine.prepare_migration(action,value['manifest'],fixture.target,value['options'])
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NativeEngine' object has no attribute 'prepare_migration'
+
+integration_tests/test_native_migration.py:89: AttributeError
+______ test_unknown_nonempty_root_never_becomes_fresh[unknown_directory] _______
+
+migration = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+content = 'unknown_directory'
+
+    @pytest.mark.parametrize('content',['sqlite','document','unknown_directory'])
+    def test_unknown_nonempty_root_never_becomes_fresh(migration,content):
+        value=migration.release('release-1','schema_1')
+        migration.root.mkdir()
+        if content=='unknown_directory': (migration.root/'foreign').mkdir()
+        else: (migration.root/('existing.sqlite' if content=='sqlite' else 'document.txt')).write_bytes(b'not empty')
+>       with pytest.raises(EngineError): prepare(migration,'install',value)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+integration_tests/test_native_migration.py:112: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fixture = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+action = 'install'
+value = {'manifest': {'schema_version': 2, 'product_name': 'Native engine test', 'product_id': 'native-engine-test', 'archive_...ease-1', 'payload_dir': '/tmp/hinstall-engine-brzef8g9/source-release-1', 'runtime_executable': 'runtime/python', ...}}
+
+    def prepare(fixture, action, value):
+>       return fixture.engine.prepare_migration(action,value['manifest'],fixture.target,value['options'])
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NativeEngine' object has no attribute 'prepare_migration'
+
+integration_tests/test_native_migration.py:89: AttributeError
+_____ test_data_added_after_fresh_review_is_stale_before_hook_or_mutation ______
+
+migration = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7947e5208050>
+
+    def test_data_added_after_fresh_review_is_stale_before_hook_or_mutation(migration,monkeypatch):
+>       value=migration.release('release-1','schema_1');result=prepare(migration,'install',value)
+                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+integration_tests/test_native_migration.py:117: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fixture = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+action = 'install'
+value = {'manifest': {'schema_version': 2, 'product_name': 'Native engine test', 'product_id': 'native-engine-test', 'archive_...ease-1', 'payload_dir': '/tmp/hinstall-engine-xomtzd4o/source-release-1', 'runtime_executable': 'runtime/python', ...}}
+
+    def prepare(fixture, action, value):
+>       return fixture.engine.prepare_migration(action,value['manifest'],fixture.target,value['options'])
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NativeEngine' object has no attribute 'prepare_migration'
+
+integration_tests/test_native_migration.py:89: AttributeError
+_ test_update_preparation_observes_schema_separately_from_release_and_detects_drift _
+
+migration = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+
+    def test_update_preparation_observes_schema_separately_from_release_and_detects_drift(migration):
+        old=migration.release('release-1','schema_1');migration.legacy_install(old)
+>       value=migration.release('release-2','schema_2');result=prepare(migration,'update',value)
+                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+integration_tests/test_native_migration.py:129: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fixture = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+action = 'update'
+value = {'manifest': {'schema_version': 2, 'product_name': 'Native engine test', 'product_id': 'native-engine-test', 'archive_...ease-2', 'payload_dir': '/tmp/hinstall-engine-8b9aqto4/source-release-2', 'runtime_executable': 'runtime/python', ...}}
+
+    def prepare(fixture, action, value):
+>       return fixture.engine.prepare_migration(action,value['manifest'],fixture.target,value['options'])
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NativeEngine' object has no attribute 'prepare_migration'
+
+integration_tests/test_native_migration.py:89: AttributeError
+____ test_reading_prepared_review_during_plan_does_not_invoke_product_hooks ____
+
+migration = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7947e51eb550>
+
+    def test_reading_prepared_review_during_plan_does_not_invoke_product_hooks(migration,monkeypatch):
+>       value=migration.release('release-1','schema_1');result=prepare(migration,'install',value)
+                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+integration_tests/test_native_migration.py:141: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fixture = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+action = 'install'
+value = {'manifest': {'schema_version': 2, 'product_name': 'Native engine test', 'product_id': 'native-engine-test', 'archive_...ease-1', 'payload_dir': '/tmp/hinstall-engine-rkxj_5_d/source-release-1', 'runtime_executable': 'runtime/python', ...}}
+
+    def prepare(fixture, action, value):
+>       return fixture.engine.prepare_migration(action,value['manifest'],fixture.target,value['options'])
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NativeEngine' object has no attribute 'prepare_migration'
+
+integration_tests/test_native_migration.py:89: AttributeError
+=========================== short test summary info ============================
+FAILED integration_tests/test_native_migration.py::test_fresh_preparation_has_no_fake_release_or_product_data_and_binds_immutable_review
+FAILED integration_tests/test_native_migration.py::test_unknown_nonempty_root_never_becomes_fresh[sqlite]
+FAILED integration_tests/test_native_migration.py::test_unknown_nonempty_root_never_becomes_fresh[document]
+FAILED integration_tests/test_native_migration.py::test_unknown_nonempty_root_never_becomes_fresh[unknown_directory]
+FAILED integration_tests/test_native_migration.py::test_data_added_after_fresh_review_is_stale_before_hook_or_mutation
+FAILED integration_tests/test_native_migration.py::test_update_preparation_observes_schema_separately_from_release_and_detects_drift
+FAILED integration_tests/test_native_migration.py::test_reading_prepared_review_during_plan_does_not_invoke_product_hooks
+7 failed in 2.14s

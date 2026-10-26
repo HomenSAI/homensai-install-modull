@@ -488,6 +488,9 @@ class NativeEngine:
             verifier=self.verifier, state_dir=ctx["control"] / "product-adapter" / ctx["release"],
             descriptor=self.product_adapter_descriptor,
             environment={"HOMENSAI_DATA_HOME": str(ctx["home"].roots["data"])})
+        if "HOMENSAI_CONFIG_HOME" in adapter._descriptor["environment_allowlist"]:
+            adapter.environment["HOMENSAI_CONFIG_HOME"] = str(ctx["home"].roots["config"])
+            adapter._validate_environment()
         capabilities = dict(adapter.capabilities())
         inventory = self._verify(ctx["manifest"], ctx["target"], ctx["options"])
         binding = {"descriptor": self.product_adapter_descriptor, "release": ctx["release"],
@@ -495,6 +498,162 @@ class NativeEngine:
                    "manifest_sha256": _digest(ctx["manifest"]), "target": ctx["target"],
                    "inventory_sha256": _digest(inventory), "capabilities_sha256": _digest(capabilities)}
         return adapter, binding
+
+    def _migration_pending(self, ctx):
+        folder = ctx["control"] / "operations"
+        for file in folder.glob("*.json") if folder.exists() else ():
+            other = _read(file)
+            if (other.get("product_adapter_unknown") is True
+                    or other.get("product_adapter_quiesce_started") is True
+                        and other.get("product_adapter_quiesce_complete") is not True
+                    or other.get("status") in {"RUNNING", "CANCELED", "RECOVERY_REQUIRED"}):
+                raise EngineError("RECOVERY_REQUIRED", "Сначала нужен reconciliation незавершённой операции")
+
+    def _fresh_empty_snapshot(self, ctx):
+        """Пустота всех owned roots, без трактовки missing/unknown как empty."""
+        owner = self._owner(ctx, required=True)
+        marker = checked_path(ctx["control"] / "installation.json").lstat()
+        if (not stat.S_ISREG(marker.st_mode) or marker.st_nlink != 1
+                or os.name != "nt" and (marker.st_uid != os.getuid() or marker.st_mode & 0o077)):
+            raise EngineError("RECOVERY_REQUIRED", "Fresh ownership witness недоступен или небезопасен")
+        for path in (ctx["root"], ctx["control"]):
+            info = checked_path(path).lstat()
+            if (not stat.S_ISDIR(info.st_mode)
+                    or os.name != "nt" and (info.st_uid != os.getuid() or info.st_mode & 0o077)):
+                raise EngineError("RECOVERY_REQUIRED", "Fresh installation ownership не подтверждён")
+        if (owner.get("installed") is not False or self._pointer(ctx) is not None or self._records(ctx)
+                or (ctx["control"] / "operations").exists() and any((ctx["control"] / "operations").iterdir())
+                or (ctx["control"] / "releases").exists() and any((ctx["control"] / "releases").iterdir())):
+            raise EngineError("RECOVERY_REQUIRED", "Установка имеет историю или данные и не является fresh-empty")
+        known_control = {"installation.json", "product-adapter", "migration-reviews", "operations", "releases"}
+        if any(path.name not in known_control for path in ctx["control"].iterdir()):
+            raise EngineError("RECOVERY_REQUIRED", "Неизвестные installer metadata не доказывают пустоту")
+        paths = {"app": ctx["home"].app, "releases": ctx["home"].releases, **ctx["home"].roots}
+        observations = {}
+        for name, value in paths.items():
+            path = checked_path(value)
+            info = path.lstat()
+            if (not stat.S_ISDIR(info.st_mode) or any(path.iterdir())
+                    or (os.name != "nt" and (info.st_uid != os.getuid() or info.st_mode & 0o077))):
+                raise EngineError("RECOVERY_REQUIRED", "Fresh-empty требует проверенных пустых приватных каталогов")
+            observations[name] = {"path_sha256": _digest(str(path)), "device": info.st_dev,
+                                  "inode": info.st_ino, "mode": info.st_mode}
+        # Unknown files outside declared roots also prevent a fresh claim.
+        pending = [ctx["root"]]
+        while pending:
+            path = checked_path(pending.pop())
+            if path == ctx["control"] or contains(ctx["control"], path):
+                continue
+            if path in paths.values():
+                continue
+            if not path.is_dir() or not any(contains(path, child) for child in (*paths.values(), ctx["control"])):
+                raise EngineError("RECOVERY_REQUIRED", "Неизвестное содержимое install root не является fresh-empty")
+            pending.extend(path.iterdir())
+        root_info = ctx["root"].lstat()
+        return {"installation_metadata_sha256": _digest(owner), "empty_roots": observations,
+                "root_identity": {"device": root_info.st_dev, "inode": root_info.st_ino}}
+
+    def _migration_base_binding(self, ctx, action):
+        owner = self._owner(ctx, required=True)
+        self._migration_pending(ctx)
+        _, target_binding = self._product_adapter(ctx)
+        active = self._pointer(ctx)
+        if action == "install":
+            fresh = self._fresh_empty_snapshot(ctx)
+            source = None
+        else:
+            if owner.get("installed") is not True or not active:
+                raise EngineError("RECOVERY_REQUIRED", "Update требует действующую подтверждённую установку")
+            source = self._installed(ctx, active)
+            if (source["manifest"]["paths"] != ctx["manifest"]["paths"]
+                    or source["manifest"]["update"]["pointer_file"] != ctx["manifest"]["update"]["pointer_file"]
+                    or source["target"] != ctx["target"] or tuple(source["modes"]) != ctx["modes"]):
+                raise EngineError("CAPABILITY_UNSUPPORTED", "Migration не меняет DataHome, pointer, modes или target")
+            fresh = None
+        return {"product_id": ctx["manifest"]["product_id"], "installation_id": owner["installation_id"],
+            "action": action, "from_release": active, "to_release": ctx["release"],
+            "from_metadata_sha256": _digest(source) if source else None,
+            "from_manifest_sha256": _digest(source["manifest"]) if source else None,
+            "from_inventory_sha256": _digest(source["inventory"]) if source else None,
+            "target_binding": target_binding, "fresh_empty_sha256": _digest(fresh) if fresh else None,
+            "installation_root_sha256": _digest(str(ctx["root"]))}
+
+    def _observe_migration_plan(self, ctx, action, binding):
+        adapter, _ = self._product_adapter(ctx)
+        key = "prepare_" + uuid.uuid4().hex
+        response = adapter.invoke("migration_plan", {"operation_id": "op_" + uuid.uuid4().hex,
+            "idempotency_key": key, "phase": "diagnostic", "data": {
+                "installation_id": binding["installation_id"], "from_release": binding["from_release"],
+                "to_release": binding["to_release"], "mode": "fresh_empty" if action == "install" else "upgrade"}})
+        plan = response["result"]
+        if (action == "install" and (plan["from_version"] != "empty"
+                or any(item["backup_required"] for item in plan["steps"]))
+                or action == "update" and plan["from_version"] == "empty"):
+            raise EngineError("RECOVERY_REQUIRED", "Migration plan не подтверждает известное исходное состояние данных")
+        return plan
+
+    def prepare_migration(self, action, manifest, target, options):
+        """Явное исполнение read-only signed hook до пользовательского review.
+
+        Это отдельный trusted SDK вызов. Обычные plan/validate hooks не вызывают.
+        Fresh reservation создаёт только installer metadata и пустые каталоги.
+        """
+        from .errors import InstallerError
+        from .migration_receipts import MigrationReviewStore
+        if self.product_adapter_descriptor is None or action not in {"install", "update"}:
+            raise EngineError("CAPABILITY_UNSUPPORTED", "Migration preparation требует явного ProductAdapter opt-in")
+        ctx = self._context(manifest, target, options)
+        if not ctx["release"] or options.get("migration_review_id") is not None:
+            raise EngineError("INVALID_MANIFEST", "Preparation требует новый target release без review ID")
+        adapter, _ = self._product_adapter(ctx)
+        if "migration_plan" not in adapter.capabilities()["hooks"]:
+            raise EngineError("CAPABILITY_UNSUPPORTED", "Read-only migration_plan hook не объявлен")
+        lock = checked_path(ctx["root"].parent / (".hinstall-" + _digest(str(ctx["root"]))[:24] + ".lock"))
+        lock.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        with operation_lock(lock):
+            try:
+                owner = self._owner(ctx)
+                if action == "install":
+                    if owner is not None:
+                        self._fresh_empty_snapshot(ctx)
+                    self._prepare(ctx)
+                else:
+                    self._owner(ctx, required=True)
+                before = self._migration_base_binding(ctx, action)
+                product_plan = self._observe_migration_plan(ctx, action, before)
+                after = self._migration_base_binding(ctx, action)
+                if before != after:
+                    raise EngineError("PLAN_STALE", "Состояние установки изменилось во время preparation")
+                body = {"schema_version": 1, "binding": before, "product_plan": product_plan}
+                review_id = MigrationReviewStore(ctx["control"] / "migration-reviews").issue(body)
+                return {"migration_review_id": review_id, "action": action, "product_plan": product_plan,
+                    "from_release": before["from_release"], "to_release": before["to_release"],
+                    "installation_id": before["installation_id"], "binding_sha256": _digest(before)}
+            except EngineError:
+                raise
+            except InstallerError as error:
+                raise EngineError(error.code, "Migration preparation не подтверждён") from None
+            except Exception:
+                raise EngineError("RECOVERY_REQUIRED", "Migration preparation не подтверждён") from None
+
+    def _checked_migration_review(self, ctx, action, review_id, *, recheck_hook=False):
+        from .migration_receipts import MigrationReviewStore
+        try:
+            body = MigrationReviewStore(ctx["control"] / "migration-reviews").read(review_id)
+            if (set(body) != {"schema_version", "binding", "product_plan"}
+                    or type(body["schema_version"]) is not int or body["schema_version"] != 1
+                    or body["binding"] != self._migration_base_binding(ctx, action)):
+                raise ValueError("review_binding_changed")
+            adapter, _ = self._product_adapter(ctx)
+            adapter._validate_result("migration_plan", body["product_plan"])
+            if recheck_hook:
+                if self._observe_migration_plan(ctx, action, body["binding"]) != body["product_plan"]:
+                    raise ValueError("schema_or_product_plan_changed")
+                if body["binding"] != self._migration_base_binding(ctx, action):
+                    raise ValueError("binding_changed_during_recheck")
+            return body
+        except Exception:
+            raise EngineError("PLAN_STALE", "Нужен новый migration review для текущего состояния") from None
 
     def _installed_product_adapter(self, ctx):
         release = self._pointer(ctx)
@@ -1201,11 +1360,13 @@ class NativeEngine:
             meta = _read(destination / "release.json")
             if meta.get("release") != release or meta.get("manifest", {}).get("product_id") != owner["product_id"]:
                 raise EngineError("INTEGRITY_FAILED", "Recovery metadata не соответствует установке")
-            self._verify(meta["manifest"], meta["target"], {
+            recovered_inventory = self._verify(meta["manifest"], meta["target"], {
                 "payload_dir": str(destination / "payload"), "release": release,
                 "runtime_executable": meta["runtime_executable"],
                 "inventory_file": str(destination / "release.inventory.json"),
                 "signature_file": str(destination / "release.signature.json")})
+            if recovered_inventory != meta["inventory"]:
+                raise EngineError("INTEGRITY_FAILED", "Recovery inventory не соответствует metadata")
             bind_identity()
             return destination
         meta = self._installed(ctx, release)

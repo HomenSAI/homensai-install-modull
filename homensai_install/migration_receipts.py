@@ -215,3 +215,37 @@ class BackupReceiptStore:
             raise
         except Exception:
             _fail("backup_receipt_verification_failed")
+
+
+class MigrationReviewStore:
+    """Неизменяемые локальные планы, полученные явным preparation hook."""
+
+    def __init__(self, directory):
+        self.directory = Path(directory).absolute()
+
+    def issue(self, body):
+        directory = owned_directory(self.directory, create=True)
+        review_id = digest(body)
+        path = directory / (review_id + ".json")
+        if path.exists():
+            if self.read(review_id) != body:
+                _fail("migration_review_id_conflict")
+        else:
+            _atomic_write(path, deepcopy(body))
+            if os.name != "nt": path.chmod(0o600)
+        return review_id
+
+    def read(self, review_id):
+        if type(review_id) is not str or not _HASH.fullmatch(review_id):
+            _fail("migration_review_id_invalid")
+        directory = owned_directory(self.directory, create=False)
+        with _reader(directory / (review_id + ".json"), private=True) as (stream, info):
+            if info.st_size > 256 * 1024:
+                _fail("migration_review_too_large")
+            raw = stream.read(256 * 1024 + 1)
+            if len(raw) > 256 * 1024:
+                _fail("migration_review_too_large")
+        body = parse_json(raw)
+        if type(body) is not dict or digest(body) != review_id:
+            _fail("migration_review_digest_mismatch")
+        return body

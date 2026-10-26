@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261026-CORE-002",
+  "task_id": "HIM-054",
+  "related_task_ids": [
+    "HIM-024",
+    "HIM-050",
+    "HIM-056",
+    "HIM-063"
+  ],
+  "baseline_source_sha": "f8a335db6737db9f6a096a68fe0a310524321c85",
+  "recorded_at_utc": "2026-10-26T08:59:46.220389+00:00",
+  "owner": "core_lifecycle",
+  "status": "PASS_SCOPED",
+  "production_ready": false,
+  "scope": "Linux source/integration; explicit signed migration preparation, настоящая read-only SQLite, private immutable review. Не installed wheel и не принятый install/update.",
+  "environment": {
+    "image": "hinstall-dev:verification",
+    "image_id": "sha256:1b3529768706aaacabb525d6fd3168680cc2b0ffa1aee6994a3d2e5cdb8fd4c1",
+    "python": "3.14.3",
+    "build_lock": "PASS --installed",
+    "network": "none",
+    "privileged": false,
+    "docker_socket_mounted": false
+  },
+  "input_sha256": {
+    "homensai_install/adapters.py": "b67db7780dc6a88cc6cd0e223abcc82dc8a9cb692628e17a91f095efec3e668d",
+    "homensai_install/engine.py": "5d29cfc6122e014041a4a078335e2beb4f28fec8f54a08d6ff6ae1186c50a807",
+    "homensai_install/migration_receipts.py": "4974ca411b018593c779d4f2d82b1a148cfc1ffc9233ea4bbcac0c457c063446",
+    "tests/test_adapters_protocol.py": "bdeef83261528f17f9c16eec7c946fa9aa640c50922f9aebb5fa56868e5453b9",
+    "tests/test_native_product_adapter_contract.py": "a50000aeb8cce9435562690fe59f2c107438acc9513e1a32f7285a394db58951",
+    "tests/test_migration_receipts.py": "b691c5aed6bb334d60365af6d38bb591101e61e950e45959b54d7de0390b3762",
+    "integration_tests/test_native_product_adapter.py": "aa72b9b4284b75f0867dbcbdc8f61c4e25cccaf2724f9342a0bed8f0127baed2",
+    "integration_tests/test_native_engine.py": "1886045cc4292f200759d749067c8507de4feec10d396fb9b74c0d3b288b6406",
+    "integration_tests/test_native_migration.py": "b8230cba3535ffbdbda736bea5bb70a79549d03b171d95e58f7ba8a952dff79a"
+  },
+  "verification": {
+    "command": "docker run --rm --network none --mount type=bind,source=<core-worktree>,target=/workspace,readonly hinstall-dev:verification python -m pytest -q -p no:cacheprovider integration_tests/test_native_migration.py tests/test_migration_receipts.py tests/test_adapters_protocol.py tests/test_native_product_adapter_contract.py integration_tests/test_native_product_adapter.py integration_tests/test_native_engine.py",
+    "exit_code": 0,
+    "passed": 155,
+    "subtests_passed": 5,
+    "elapsed_seconds": 297.76,
+    "raw_log": "migration-preparation-20261026-run01/focused-green.log",
+    "observed": "Fresh empty reservation without fake active release; old schema observed separately from release; schema drift and lost/changed/foreign witnesses refuse stale review; ordinary review reads execute no hooks; optional CONFIG_HOME only by signed allowlist."
+  },
+  "initial_failure": {
+    "command": "python -m pytest -q -p no:cacheprovider integration_tests/test_native_migration.py",
+    "exit_code": 1,
+    "failed": 7,
+    "observation": "NativeEngine.prepare_migration был NOT IMPLEMENTED (AttributeError), исходный RED сохранён.",
+    "raw_log": "migration-preparation-20261026-run01/preparation-red.log"
+  },
+  "interface": {
+    "method": "NativeEngine.prepare_migration(action, manifest, target, options)",
+    "actions": [
+      "install",
+      "update"
+    ],
+    "new_option": "migration_review_id",
+    "result_keys": [
+      "migration_review_id",
+      "action",
+      "product_plan",
+      "from_release",
+      "to_release",
+      "installation_id",
+      "binding_sha256"
+    ]
+  },
+  "limitations": [
+    "NativeEngine adapter install/update capabilities remain false.",
+    "Preparation creates installer owner reservation and empty directories only; it does not execute migration_apply.",
+    "Initial missing install_root is allowed only before ownership reservation. A previously expected missing root/witness is not treated as empty.",
+    "Ordinary plan-side review checks do not execute product hooks; execute-time schema recheck is implemented as private helper but not connected to install/update yet.",
+    "CLI/HTTP preparation is outside this trusted SDK-only slice.",
+    "Process-kill migration/update acceptance remains next implementation package."
+  ],
+  "next_action": "Интегрировать prepare bridge и source review; затем single-step adapter fresh/install/update через существующий UpdatePlan, real receipt authorizer и phase-specific durable UNKNOWN reconciliation."
+}

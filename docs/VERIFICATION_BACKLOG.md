@@ -1,6 +1,12 @@
 # Невыполненные проверки — обязательное задание следующему ИИ
 
-## Текущий пакет CP-20261026-010
+## Текущий кандидат CP-20261026-011
+
+Интегрирован core runtime freeze091c0f4: single-step Linux/native/user adapter update с отдельными source/target bindings, phase-scoped quiesce, реальными encrypted backup receipts archive+backup:0 и live snapshot comparison. UpdatePlan сохраняет forward journal без automatic legacy restore; UNKNOWN требует original-operation reconciliation, missing ledger не разрешает повтор; health error сохраняет данные/отдельные primary+cleanupcodes. Public capability update включена как development. Public no-override1→2→3/identity/sourcequiesce/health5PASS; precap177PASS/1XFAIL, root2actualdatafaultPASS и25contractPASS (исходныйAPIdeclarationFAIL сохранён иисправлен). Полный финальный source и independent installed update на этом SDK ещё PENDING. Production_ready=false, G0–G5 OPEN.
+
+Следующий шаг: installed public1→2→3 с actual restore oracle и финальный полный source/integration на стабильных bytes. CP010 GitHub/CI success подтверждены; CP011sync pending до внешней receipt. Deadline16:00UTC/17:00CET.
+
+## История пакета CP-20261026-010
 
 Интегрирован Linux-only helper безопасного сравнения всех пяти live persistent roots со restored backup: bytes+dirs, fd-relative O_NOFOLLOW, links/hardlinks/reparse/гонки fail-closed; исключаются только bytes точного own update journal. Agent149PASS/1Windows-onlyskip (59 новых helper cases), root59PASS/2SKIP; два root fault tests ждут update capability, это НЕ PASS lifecycle. Installed update-readiness повторён на immutable SDKCP009/e4f8dbc:69SDK/7reference/161dependency files unchanged, fresh/preparation и три отказа update PASS. Полный update execution ещё в отдельном core worktree, публичная capability основной ветки false. По запросу владельца создана private веб-страница статуса; публикация Sites succeeded. Production_ready=false, все G0–G5 OPEN; baseline2497PASS относится к CP008/f90a20a, новый полный suite ещё NOT RUN.
 

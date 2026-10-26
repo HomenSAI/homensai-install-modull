@@ -584,9 +584,9 @@ Job Object backend и приёмки. Версия/entrypoint доступны �
 Пакет не импортирует adapter по URL и не выдаёт ему admin-права. Доверенный host
 может явно включить `NativeEngine(verifier=signed_verifier,
 product_adapter_descriptor="installer/adapter.json")`. Эта регистрация доступна
-только для Linux/native/user: single-step fresh `install`, `start`, `stop`, `backup`.
-SDK по умолчанию её не включает. Update/restore/rollback/repair/reinstall/uninstall
-при включённом adapter заранее отклоняются.
+только для Linux/native/user: single-step fresh `install`, single-step `update`,
+`start`, `stop`, `backup`. SDK по умолчанию её не включает. Restore/rollback/repair/
+reinstall/uninstall при включённом adapter заранее отклоняются.
 Без регистрации сохраняется прежний native путь manifest v2.
 
 План закрепляет descriptor и verified release; перед эффектами binding проверяется
@@ -595,8 +595,10 @@ SDK по умолчанию её не включает. Update/restore/rollback/
 существующий adapter journal: UNKNOWN, потерянный ledger или отсутствующая
 ожидаемая invocation не разрешают повтор. Backup остаётся настоящим полным
 проверенным зашифрованным архивом прежнего ядра. Fresh install выполняет один reviewed migration step после настоящего fresh-empty
-proof и явного prepare_migration. Update/restore/rollback/repair/reinstall/uninstall
-через этот adapter ещё не приняты.
+proof и явного prepare_migration. Single-step update требует отдельного source
+и target binding, явного review и настоящего encrypted backup перед миграцией.
+При ошибке сохраняется forward journal без автоматического legacy restore.
+Restore/rollback/repair/reinstall/uninstall через этот adapter ещё не приняты.
 Подробный контракт: `PRODUCT_ADAPTER_EXECUTION.md` в ресурсах установленного SDK
 и [документ проекта](docs/PRODUCT_ADAPTER_EXECUTION.md). Общий lifecycle в продукт
 не копируется; полная приёмка HIM-015/023 остаётся открытой.
@@ -675,8 +677,8 @@ NativeEngine реализует подготовку только при явн�
 вызывается подписанный read-only migration_plan и сохраняется immutable review.
 Fresh preparation создаёт только installer ownership reservation и пустые каталоги,
 без active release и продуктовых данных. Неизвестный/неразрешённый прежний журнал
-требует reconciliation. Для принятого single-step fresh нужен именно этот review. Update и полный lifecycle
-по-прежнему требуют отдельной реализации и приёмки.
+требует reconciliation. Для single-step fresh и update нужен именно этот review. Полный lifecycle,
+clean-host и четырёхплатформенная приёмка остаются отдельными незакрытыми gates.
 
 Результат поддерживающего backend: `migration_review_id`, `action`,
 `product_plan` (from_version/to_version/steps/plan_digest), `from_release`,
@@ -685,7 +687,7 @@ Fresh preparation создаёт только installer ownership reservation и
 update требует существующий from_release. При preparation старый review ID
 передавать нельзя. Последующий общий `plan` принимает только opaque
 `options.migration_review_id`, а не путь к review-файлу или callback.
-Private update review использует schema_version=2 и отдельно закрепляет signed adapter исходного выпуска (from_adapter_binding); fresh review сохраняет schema_version=1. Старый update review schema1 получает PLAN_STALE. Эти private поля не расширяют public migration_binding из семи полей и не включают update execution capability.
+Private update review использует schema_version=2 и отдельно закрепляет signed adapter исходного выпуска (from_adapter_binding); fresh review сохраняет schema_version=1. Старый update review schema1 получает PLAN_STALE. Эти private поля не расширяют public migration_binding из семи полей. Update execution доступен только при соответствующей capability trusted Linux/native/user backend.
 Сам review не заменяет обязательные согласия перед lifecycle-исполнением.
 CLI/HTTP подготовку не предоставляют автоматически; произвольный subprocess
 через этот метод не выбирается. Доступность фактического backend — отдельный gate.
@@ -714,3 +716,7 @@ review = api.plan("install", manifest, target,
 не поле manifest/options/HTTP. Без него сохраняется прежний default backend.
 Без подписанного verifier регистрация отклоняется. Docker и Windows не получают
 автоматического fallback на Linux ProductAdapter.
+
+### Single-step adapter update: сохранение данных при отказе
+
+После явного prepare_migration("update", ...) и review передавайте migration_review_id в обычный plan. План закрепляет source и target adapters отдельно и объявляет update_failure_policy="preserve_forward_journal_no_automatic_restore". Исполнение останавливает owned writers, создаёт проверенные encrypted backup receipts и перед apply повторно сравнивает все persistent roots со восстановленным snapshot. Пути и contents архивов не передаются product hook: apply data содержит только plan_digest, backup_receipt_id и public migration_binding. UNKNOWN допускает только reconciliation исходной операции; потеря ledger не разрешает повтор effect. Ошибка candidate readiness сохраняет новые данные и forward journal, отдельно фиксируя primary/cleanup codes. Автоматическое восстановление старого snapshot в этом режиме не выполняется; restore/rollback capabilities остаются false. Installed/clean-host scope проверяйте по актуальным receipts, не по наличию API.

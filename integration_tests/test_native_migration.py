@@ -70,7 +70,9 @@ elif hook=='readiness':
  with opener.open('http://127.0.0.1:'+str(profile['port'])+'/healthz',timeout=1) as response: observed=json.load(response)
  identity={key:observed[key] for key in ('product_id','installation_id','release')};identity['probe_id']=data['probe_id']
  result={'ready':current==target,'checks':[{'id':'schema','status':'ok' if current==target else 'failed'}],'observed_identity':identity}
-elif hook=='quiesce': result={'quiesced':True,'active_writers':0}
+elif hook=='quiesce':
+ if profile.get('fault')=='quiesce_unknown': sys.exit(23)
+ result={'quiesced':True,'active_writers':0}
 else: raise AssertionError('unexpected hook')
 response={key:request[key] for key in ('protocol_version','product_id','request_id','request_digest','hook')}
 response.update(status='ok',result=result);print(json.dumps(response))
@@ -88,7 +90,7 @@ def migration(tmp_path):
     verifier=SignedPayloadVerifier({'synthetic':public},allow_test_keys=True)
     fixture.engine=NativeEngine(verifier,lambda ref:'synthetic-archive-passphrase',development_runtime=sys.executable,
                                product_adapter_descriptor='installer/adapter.json')
-    def release(name, target_schema, *, config=False, fault=None, multiple_steps=False):
+    def release(name, target_schema, *, config=False, fault=None, multiple_steps=False, omit_hooks=()):
         value=fixture.bundle(name);payload=Path(value['options']['payload_dir'])
         shutil.copy2(Path('/usr/bin/python3').resolve(),payload/'runtime/python');(payload/'runtime/python').chmod(0o700)
         (payload/'adapter.py').write_text(SCRIPT)
@@ -99,7 +101,7 @@ def migration(tmp_path):
             'adapter_id':'migration-reference','adapter_version':'0.1.0','command':['runtime/python','-I','-B','adapter.py'],
             'environment_allowlist':['HOMENSAI_DATA_HOME', *(['HOMENSAI_CONFIG_HOME'] if config else [])],
             'capabilities':{key:{'mutating':mutating,'idempotency':'application' if mutating else 'read_only'}
-                            for key,mutating in HOOKS.items()}}
+                            for key,mutating in HOOKS.items() if key not in omit_hooks}}
         (payload/'installer/adapter.json').write_bytes(canonical_bytes(descriptor))
         inventory={'schema_version':1,'product_id':value['manifest']['product_id'],'release':name,
             'target':{key:fixture.target[key] for key in ('os','arch','mode')},
@@ -141,7 +143,7 @@ def test_fresh_preparation_has_no_fake_release_or_product_data_and_binds_immutab
     assert migration.engine._pointer(ctx) is None
     assert migration.engine._owner(ctx,required=True)['installed'] is False
     assert not any(ctx['home'].roots['data'].iterdir())
-    assert migration.engine.capabilities(migration.target)['actions']['update']['supported'] is False
+    assert migration.engine.capabilities(migration.target)['actions']['update']['supported'] is True
 
 
 @pytest.mark.parametrize('content',['sqlite','document','unknown_directory'])

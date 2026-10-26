@@ -1,14 +1,14 @@
-# ProductAdapter: подготовка, single-step fresh и native maintenance
+# ProductAdapter: подготовка, single-step fresh/update и native maintenance
 
-Автор: Serhii Khomenko. Контрольная точка: `CP-20261025-021`.
+Автор: Serhii Khomenko. Контрольная точка: `CP-20261026-011`.
 
-Текущий development профиль после CP006: явный trusted Linux/native/user
-single-step fresh install и start/stop/backup. Fresh использует immutable review,
+Текущий development профиль CP011: явный trusted Linux/native/user
+single-step fresh install/update и start/stop/backup. Fresh использует immutable review,
 собственный fresh-empty proof, точный durable native intent и signed staged bytes.
 Public factory и original-operation resume проверены source integration отдельно.
 Installed fresh сохраняет отдельный статус текущего receipt; clean-host/полная
-четырёхплатформенная приёмка не завершена. Update и прочие lifecycle actions
-пока unsupported. Исторические разделы CP021 ниже сохраняют исходные ограничения;
+четырёхплатформенная приёмка не завершена. Restore/rollback/repair/reinstall/
+uninstall через adapter пока unsupported. Исторические разделы CP021 ниже сохраняют исходные ограничения;
 актуальные расширения описаны в последних разделах.
 
 Этот этап подключает `ExecutableProductAdapter` к существующему `NativeEngine`
@@ -228,7 +228,7 @@ resolved path и только если указан в signed descriptor allowli
 
 Это preparation/source контракт. Старые capability assertions сохраняются:
 single-step fresh install принят в source/installed DEV-профиле; adapter update
-execution остаётся unsupported; CLI/HTTP preparation route ещё не добавлен. Полная G1/G2/G3 приёмка открыта.
+execution реализован для одного reviewed migration step в development Linux/native/user; CLI/HTTP preparation route ещё не добавлен. Полная G1/G2/G3 приёмка открыта.
 
 ## Single-step fresh: текущий source-контракт
 
@@ -245,4 +245,12 @@ UNKNOWN после потери ACK требует reconciliation; пропав�
 
 ## Update review prerequisite (CP-20261026-009)
 
-Private update review schema2 связывает from_adapter_binding с signed descriptor, runtime, manifest, inventory и capabilities установленного исходного release отдельно от target. Старый schema1 update review отвергается PLAN_STALE, fresh schema1 сохраняется. Read-only plan подготовлен к product_adapter_source_binding и update_failure_policy=preserve_forward_journal_no_automatic_restore. Update capability пока false: исполнения, real backup per step и полной1→2→3 приёмки этот prerequisite не обещает.
+Private update review schema2 связывает from_adapter_binding с signed descriptor, runtime, manifest, inventory и capabilities установленного исходного release отдельно от target. Старый schema1 update review отвергается PLAN_STALE, fresh schema1 сохраняется. Read-only plan подготовлен к product_adapter_source_binding и update_failure_policy=preserve_forward_journal_no_automatic_restore. Этот исторический prerequisite сам не включал update; расширение execution описано ниже.
+
+## Single-step update: forward-only recovery policy
+
+Update review schema2 закрепляет installation/source metadata/source adapter отдельно от target. Под root lock до native intent повторно проверяются review и read-only schema hook; внутри ledger transaction authorizer выполняет только static hashes и фактический decrypt/restore snapshot. Ports.backup сохраняет реальные BackupReceiptStore refs для archive и backup:0, schema берётся из product_plan.from_version. Live roots сравниваются побайтно и по каталогам со restored roots. Единственное исключение — bytes собственного services/update-<native-token>.json; safety/type/ownership этого файла тоже проверяются. Меняющийся при resume UpdatePlan lock хранится отдельно в private control metadata.
+
+Quiesce intent key связывает native token, UpdatePlan phase key и release. Started/complete/result хранятся отдельно для source stop и каждой candidate cleanup попытки. UNKNOWN одной фазы не снимается завершением другой. Before apply product hook получает только {plan_digest, backup_receipt_id, migration_binding}. Resume сохраняет исходный журнал, после mutation не требует прежней schema и не повторяет известный effect. Потерянный ACK требует operation_status/reconcile; отсутствующий ledger не означает no effect.
+
+Политика preserve_forward_journal_no_automatic_restore входит в persisted plan digest; rollback-направление при ней отвергается. Health failure останавливает только owned candidate и сохраняет новые данные/архивы. Primary и cleanup errors имеют отдельные безопасные codes. UNKNOWN cleanup должен быть reconciled до повторного start. Restore/rollback остаются unsupported до отдельного before-rollback backup protocol и установленной приёмки. Source SIGKILL не является power-loss или clean-host acceptance.

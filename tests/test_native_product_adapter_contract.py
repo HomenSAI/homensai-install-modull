@@ -61,17 +61,17 @@ def test_registered_adapter_does_not_claim_migration_on_unsupported_target(bundl
     assert caps['product_adapter']['migration_actions']==[]
 
 
-def test_discovery_documents_opt_in_single_step_fresh_and_maintenance_scope():
+def test_discovery_documents_opt_in_single_step_migrations_and_maintenance_scope():
     import json
     from pathlib import Path
     from homensai_install.api.v1 import InstallerAPI
     root=Path(__file__).resolve().parents[1]
     published=json.loads((root/'api/discovery.json').read_text())['product_adapter']
     assert published==InstallerAPI(root/'build/not-created').describe()['product_adapter']
-    assert published['lifecycle_engine_actions']==['install','start','stop','backup']
+    assert published['lifecycle_engine_actions']==['install','start','stop','backup','update']
     assert published['lifecycle_engine_registration'] is True
     assert published['migration_execution'] is True and published['default_registration'] is False
-    assert published['migration_actions']==['install'] and published['migration_max_steps']==1
+    assert published['migration_actions']==['install','update'] and published['migration_max_steps']==1
     assert (root/'api/discovery.json').read_bytes()==(root/'homensai_install/api/resources/discovery.json').read_bytes()
 
 

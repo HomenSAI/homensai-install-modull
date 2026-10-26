@@ -1,0 +1,36 @@
+{
+  "checkpoint_id": "CP-20261026-011",
+  "status": "PASS_SCOPED",
+  "core_runtime_freeze": "091c0f4cdd2ab97a1c46aae985aa9d3f84f9dae9",
+  "checked_at_utc": "2026-10-26T15:30:46.786440+00:00",
+  "source_worktree_dirty": true,
+  "root_faults": {
+    "passed": 2,
+    "cases": [
+      "test_live_data_changed_after_backup_never_reaches_migration_effect",
+      "test_failed_candidate_health_preserves_new_data_without_legacy_restore"
+    ],
+    "command": "python -m pytest -q -p no:cacheprovider --junitxml=/evidence/update-independent.xml integration_tests/test_native_adapter_update_independent.py tests/test_native_product_adapter_contract.py",
+    "initial_combined": {
+      "passed": 26,
+      "failed": 1,
+      "seconds": 29.65
+    },
+    "initial_failure": "describe() static lists omitted update while exported discovery included it; API declaration synchronized"
+  },
+  "contract_recheck": {
+    "passed": 25,
+    "seconds": 2.06,
+    "exit_code": 0,
+    "command": "python -m pytest -q -p no:cacheprovider tests/test_native_product_adapter_contract.py"
+  },
+  "scope": "Real source engine faults: live document drift after backup blocks migration, candidate health failure preserves new data and forward journal/stops owned candidate; contract recheck only after static describe metadata fix. No installed/clean-host claim.",
+  "final_full_source": "PENDING",
+  "installed_full_update": "PENDING",
+  "production_ready": false,
+  "agent_red_log_normalization": {
+    "original_sha256": "189790976b4ba39cfbd236f8d60281abaf36cc80a00a1ba78c0ef530dea0c17e",
+    "normalized_sha256": "bc77022bff9cb2eded49bfcaa3c9087ecda50602ed1c79858bae22031e68c393",
+    "change": "Only trailing whitespace and text line endings normalized; source FAIL observations preserved; original lives in core freeze."
+  }
+}

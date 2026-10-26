@@ -20,12 +20,14 @@
       "install",
       "start",
       "stop",
-      "backup"
+      "backup",
+      "update"
     ],
     "migration_preparation": "explicit_sdk_backend_extension",
     "migration_execution": true,
     "migration_actions": [
-      "install"
+      "install",
+      "update"
     ],
     "migration_max_steps": 1,
     "default_registration": false,

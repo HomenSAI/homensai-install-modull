@@ -141,3 +141,16 @@ settings, native journal и SQLite ledger. Для lost ACK ожидаются UN
 resume той же operation и сверка ledger с бизнес-receipt. Тест NOT RUN.
 Предыдущий commit 39ad37a/tree 3ff7e43a891db577633a09c32c10c0bbbfcdbd59
 подтверждены bare fetch; diff/check PASS.
+
+## 65/100 — CP-20261028T143345Z-9d9b130e03e8 — HIM-054
+
+2026-10-28 14:33 UTC. Пункты 61–65: каталог `.local-state/terra-20261028-evidence`,
+immutable SDK 6edcbb83/tree d4dbbe44e48b5a9c26510f2aa0e1ad17e4080a4a; сохранённый
+исторический wheel hash 44bba271... проверен на диске. Новый offline Docker
+baseline: PASS, Linux/native/user с borrowed DEV runtime, public fresh→v2→v3;
+новый wheel SHA256 bb26c7e8ccbf765a733b5cad6ca33a2faa4a14a22ffade51bb5477e3263e0b7c,
+70 SDK/7 reference/161 dependency files unchanged. Не утверждается побитовая
+воспроизводимость wheel; новый fault профиль NOT RUN. Receipt:
+`packaging/acceptance-evidence/installed-update-baseline-terra-20261028.json`.
+Предыдущий commit 1d20cd0/tree 469f21655ff3b2fa8fa4499ae3ecaf80b7e0cca2
+подтверждены bare fetch. Проверка документа/JSON/diff; теперь реализация теста.

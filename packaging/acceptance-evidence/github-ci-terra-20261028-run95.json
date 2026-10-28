@@ -17,7 +17,8 @@
       {"test": "tests/test_prerequisites_runner.py::test_real_exact_argv_has_no_shell_or_parent_secrets", "observation": "INTEGRITY_FAILED: prerequisite_executable_not_private_regular"},
       {"test": "tests/test_prerequisites_runner.py::test_timeout_returns_unknown_without_claiming_or_killing_system_installer", "observation": "INTEGRITY_FAILED: prerequisite_executable_not_private_regular"}
     ],
-    "cause": "Exact runner file property causing refusal is not established. Do not weaken integrity checks."
+    "cause": "Exact runner file property causing refusal is not established. Do not weaken integrity checks.",
+    "comparison": "Run 40353896055 for prior checkpoint 61d6ec3 concluded success. Git diff 61d6ec3..75ed388 for tests/, homensai_install/, shared/, .github/ is empty; this does not identify the cause."
   },
   "production_ready": false
 }

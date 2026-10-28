@@ -237,3 +237,12 @@ AWAITING_USER; точное свойство runner-файла не устано
 `github-ci-terra-20261028-run95.json`. Не заявлять зелёный общий CI.
 Предыдущий commit 75ed388/tree 4c095656081e30aebb460739e05f40c4965466da
 подтверждены bare fetch. Следующий шаг: сохранить этот checkpoint и закрыть окно.
+
+## 95/100 — CP-20261028T144854Z-da398b57aeef — HIM-054
+
+2026-10-28 14:49 UTC. Пункты 97–98: checkpoint 81f1b27 отправлен в GitHub;
+его ref/tree f626d0ad625660726d7fac5ef9d058dda5513b6a независимо извлечены
+в bare Git и совпали. Зафиксирован Linux CI FAIL; прошлый run 40353896055
+на 61d6ec3 имел success, diff `tests/`, `homensai_install/`, `shared/`,
+`.github/` до 75ed388 пуст. Это не устанавливает причину отказа runner.
+Следующий шаг — проверить ref/tree текущего checkpoint и завершить окно.

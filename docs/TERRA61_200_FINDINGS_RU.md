@@ -28,6 +28,22 @@ ahead 26, но `git ls-remote --heads origin codex/universal-installer-20261025`
 prerequisites; его фактические jobs и причина повторно проверяются в задачах 021+.
 Предположение о конкретном файловом свойстве runner пока не подтверждено.
 
+Проверка baseline 0b97bbc, GitHub run 40713926857, job 122906339902:
+Linux source 2386 PASS / 3 FAIL / 1 skip / 10 subtests; integration skipped.
+FAIL: `test_real_fixed_runner_is_reached_only_after_signed_pins_and_consent`
+получил RECOVERY_REQUIRED вместо AWAITING_USER; `test_real_exact_argv_has_no_shell_or_parent_secrets`
+и `test_timeout_returns_unknown_without_claiming_or_killing_system_installer`
+получили INTEGRITY_FAILED / prerequisite_executable_not_private_regular.
+Windows portable job 122906340522 PASS. Сравнение: run 40353896055 PASS
+обеих платформ, runs 40708599284 и 40709901833 FAIL на Linux.
+Это не доказывает конкретную причину отказа файла; read-only probe ещё необходим.
+
+`homensai_install/prerequisite_runner.py:38`: общий reason возникает при
+необычном типе файла, nlink != 1, размере >512 MiB или group/world-write.
+`tests/test_prerequisites_runner.py:18` использует resolved sys.executable и
+его SHA, поэтому свойства фактического Python runner существенны. Эти условия —
+возможные причины, ни одна из них не подтверждена для GitHub runner без probe.
+
 ## F-004 — верхние sync/checkpoint поля относятся к прошлой эпохе
 
 Категория: документация/восстановление. Подтверждено: `work-state.json:3`

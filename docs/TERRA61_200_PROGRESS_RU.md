@@ -53,3 +53,14 @@ tests/runtime/shared/workflow пуст; это не доказывает при�
 Проверки: JSON parse, diff/check. Предыдущий commit 5455d07/tree
 af491f482335b5fb78e2c06a19a68c6ac23a109e подтверждён bare fetch.
 Далее завершить 004 и наблюдать CI, затем исследовать проверку executable.
+
+## 25/200 — CP-20261028T155312Z-59cb839468b9 — HIM-009
+
+2026-10-28 15:53 UTC. Задачи 021–023, 025–026: baseline CI run 40713926857
+Linux source 2386 PASS/3 FAIL/1 skip/10 subtests, integration skipped, Windows
+portable PASS. Run40353896055 был полностью успешен, два промежуточных run
+показали тот же Linux FAIL. Проверка executable возвращает общий reason при
+неподходящих type/nlink/size/mode; fixture привязана к sys.executable. Точное
+условие не установлено: F-003 остаётся OPEN. Предыдущий commit 90b2cd9/tree
+513fd4e9c2178c5c7b439de729a2550858a35075 подтверждён bare fetch.
+Новое runtime не изменялось; локальный probe ещё NOT RUN.

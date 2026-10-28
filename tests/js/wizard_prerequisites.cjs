@@ -758,6 +758,22 @@ async function main() {
     }
     assert.equal(ui.matching("POST","/prerequisites/uploads").length,0);assert.equal(ui.mutating().length,0);
   });
+  await test("recovery phases have distinct localized progress and never imply early completion", async () => {
+    for (const language of ["ru", "en", "de"]) {
+      const ui = new Harness({caps: {configured: false}}); await ui.flush();
+      await ui.change("language", language);
+      ui.run('plan={engine_plan:{steps:[{id:"restore",weight:1},{id:"product_restore",weight:1},{id:"post_restore",weight:1}]}};completed.clear();');
+      for (const [index, phase] of ["restore", "product_restore", "post_restore"].entries()) {
+        ui.run('eventView(' + JSON.stringify({phase, status:"SUCCEEDED"}) + ')');
+        assert.equal(ui.el("overall").value, [33,66,99][index], "Only the completed phase contributes progress");
+        assert.equal(ui.el("progress-status").textContent, translations[language][phase]);
+        assert.notEqual(ui.el("progress-status").textContent, phase, "Raw hook IDs must not reach the UI");
+      }
+      assert.equal(ui.el("components").children.length, 3);
+      assert.equal(ui.el("overall-label").textContent, "99%", "Only the operation SUCCEEDED result may show 100%");
+      assert.equal(ui.mutating().length, 0);
+    }
+  });
   await test("all wizard locale keys and interpolation names match", async () => {
     const keys=Object.keys(translations.en).sort();
     const placeholders=text=>[...text.matchAll(/\{([a-z_]+)\}/g)].map(match=>match[1]).sort();

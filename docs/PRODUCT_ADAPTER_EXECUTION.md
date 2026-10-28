@@ -1,22 +1,25 @@
-# ProductAdapter: подготовка, single-step fresh/update и native maintenance
+# ProductAdapter: контракт исполнения
 
-Автор: Serhii Khomenko. Контрольная точка: `CP-20261026-011`.
+`ExecutableProductAdapter` подключает продуктовые операции к `NativeEngine`.
+Текущая реализация рассчитана на Linux x64, режим `native`, область `user`.
+Перед планированием проверяйте `capabilities(target)`: наличие имени операции
+в общем API само по себе не разрешает её выполнение.
 
-Текущий development профиль CP011: явный trusted Linux/native/user
-single-step fresh install/update и start/stop/backup. Fresh использует immutable review,
-собственный fresh-empty proof, точный durable native intent и signed staged bytes.
-Public factory и original-operation resume проверены source integration отдельно.
-Installed fresh сохраняет отдельный статус текущего receipt; clean-host/полная
-четырёхплатформенная приёмка не завершена. Restore/rollback/repair/reinstall/
-uninstall через adapter пока unsupported. Исторические разделы CP021 ниже сохраняют исходные ограничения;
-актуальные расширения описаны в последних разделах.
+| Операция | Контракт зарегистрированного адаптера |
+|---|---|
+| `install` | Новая установка с одним подготовленным шагом миграции и доказательством пустых каталогов |
+| `update` | Один подготовленный шаг миграции с проверенным зашифрованным архивом |
+| `start`, `stop` | Управление принадлежащими установщику процессами и свежая проверка состояния продукта |
+| `backup` | Остановка записи, полный зашифрованный архив и проверка возможности восстановления |
+| `restore`, `rollback` | Восстановление той же установки с отдельной проверенной резервной копией текущего состояния |
+| `repair`, `reinstall`, `uninstall` | Не поддерживаются этим адаптерным путём; отказ до продуктовых эффектов |
 
-Этот этап подключает `ExecutableProductAdapter` к существующему `NativeEngine`
-для Linux x64 native/user-session обслуживания уже установленного подписанного
-выпуска. Поддержаны `start`, `stop`, `backup`. Это частичный результат HIM-015/023,
-а не готовность полного product lifecycle или новой платформы.
+Это контракт версии для разработки. Он не заявляет поддержку Windows, Docker,
+системных служб, восстановления после отключения питания или готовность к
+производственному распространению. Операции legacy backend имеют собственные
+возможности; включённый адаптер не переходит на legacy-команды молча.
 
-## Явная доверенная регистрация
+## Доверенная регистрация
 
 ```python
 native = NativeEngine(
@@ -27,230 +30,209 @@ native = NativeEngine(
 api = InstallerAPI(state_dir, engine=BackendRouter(native=native))
 ```
 
-`product_adapter_descriptor` задаёт доверенный bootstrap/SDK в конструкторе.
-HTTP options, manifest и браузер не включают эту возможность, не выбирают
-команду, environment или исполняемый файл. Нужен настоящий
-`SignedPayloadVerifier`; произвольный callback для такой регистрации запрещён.
-Без opt-in сохраняется прежний legacy native path.
+Регистрацию выполняет доверенный bootstrap или SDK. HTTP options, manifest и
+браузер не выбирают adapter command, environment или executable. Для регистрации
+требуется настоящий `SignedPayloadVerifier`. Без регистрации сохраняется прежний
+native backend.
 
-Descriptor остаётся signed JSON protocol 1.0 с прежними обязательными полями.
-Для `start` требуется `readiness`; для `stop` — `quiesce` и `operation_status`;
-для `backup` — все три. `environment_allowlist` должен объявлять
-`HOMENSAI_DATA_HOME`: движок передаёт только свой DataHome из проверенного
-manifest/install context. Это позволяет executable находить продуктовые
-квитанции при отдельном `operation_status`; browser environment не принимается.
+Descriptor — подписанный JSON protocol 1.0. `start` требует `readiness`, `stop` —
+`quiesce` и `operation_status`, `backup` — все три. `environment_allowlist`
+объявляет `HOMENSAI_DATA_HOME`; движок передаёт проверенный путь из собственного
+контекста установки. `HOMENSAI_CONFIG_HOME` также передаётся только при наличии
+в подписанном allowlist. Environment из браузера не принимается.
 
-## Неизменяемый review и исполнение
+## План и повторная проверка
 
-План читает descriptor/capabilities и проверяет полный подписанный payload;
-никакие adapter hooks во время plan/discover не запускаются. В
+Обычные `plan` и `discover` читают descriptor и capabilities, проверяют
+подписанный payload, но не исполняют adapter hooks. В
 `engine_plan.product_adapter_binding` сохраняются descriptor path, release,
 runtime executable, manifest SHA-256, target, inventory digest и capabilities
-digest. Для maintenance используется verified installed active release, а не
-новый source bundle с другим executable.
+digest. Для обслуживания используется проверенный установленный выпуск.
 
-Перед файловыми или процессными эффектами движок заново строит binding и точно
-сравнивает его с reviewed plan. Прямой opt-in execute без этого review получает
-`PLAN_STALE`. Переключение даже на другой легитимно подписанный descriptor
-требует нового плана. Повторная проверка installed bytes выполняется и перед
-каждым adapter hook. Сохраняются прежние root lock, общий API journal и
-execution lease; второй lifecycle engine не добавлен.
+Перед изменениями движок заново строит binding и сравнивает его с принятым
+планом. Отсутствующий review или изменённая привязка дают `PLAN_STALE`.
+Даже другой корректно подписанный descriptor требует нового плана. Проверка
+установленных байтов повторяется перед каждым hook. Root lock, журнал API и
+execution lease сохраняют общую блокировку lifecycle.
 
-## Readiness — новое наблюдение нужного экземпляра
+## Readiness
 
-Сохраняются проверки принадлежащих установщику процессов, владельца loopback
-listener и HTTP readiness с product/release/installation identity. Только после
-них движок вызывает `readiness` через executable adapter. Каждый вызов имеет
-новый `probe_id` и read-only idempotency key; replay прежнего readiness ответа
-не принимается.
-
-В protocol 1.0 добавлено необязательное для standalone adapter поле результата:
+Сначала движок проверяет принадлежность процессов, владельца loopback listener
+и HTTP readiness с product/release/installation identity. Затем executable
+adapter получает свежий `probe_id` и read-only idempotency key. Для интеграции
+с `NativeEngine` результат должен содержать наблюдённую identity:
 
 ```json
 {
   "ready": true,
   "checks": [{"id": "live-observation", "status": "ok"}],
   "observed_identity": {
-    "product_id": "synthetic-reference",
+    "product_id": "example-product",
     "release": "v1",
-    "installation_id": "synthetic-instance",
+    "installation_id": "example-instance",
     "probe_id": "probe_<fresh-value>"
   }
 }
 ```
 
-Старые standalone results `ready/checks` сохраняют значение. Для включённой
-NativeEngine интеграции `observed_identity` обязательно и должно точно
-совпадать с ожидаемыми product ID, активным release, installation ID и свежим
-probe. Адаптер обязан получить version/instance из состояния самого продукта,
-а не просто отразить expected identity. Подпись доверяет этому продуктовому
-коду; общий движок не способен доказать правдивость произвольного adapter.
-Неверная версия, чужой экземпляр, старый probe, отсутствие identity и not-ready
-дают отказ. Новый start operation выполняет новое наблюдение; повтор уже
-завершённого operation ID возвращает исторический результат без новых эффектов.
+Адаптер получает version и instance из состояния продукта. Простое отражение
+ожидаемых значений не является проверкой. Движок сверяет product, active release,
+installation и свежий probe; чужой экземпляр, старая версия или прежний ответ
+отвергаются. Подпись задаёт доверие продуктовому коду, но не доказывает правдивость
+произвольной реализации адаптера. Новый `start` выполняет новое наблюдение;
+повтор завершённого operation ID возвращает сохранённый результат.
 
-## Quiesce, неопределённый исход и backup
+## Quiesce и неопределённый исход
 
-`stop` и `backup` вызывают mutating `quiesce` через прежний durable adapter
-ledger, затем прежний owned-process stop. Требуется подтверждение
-`quiesced=true`, `active_writers=0`. Nonzero/timeout/protocol failure не доказывают
-отсутствия эффекта. Native journal сохраняет `RECOVERY_REQUIRED` и
-`product_adapter_unknown=true`; новая операция/новый API state directory не
-обходят известную запись в том же install root. Это гарантия новых участников
-доверенного протокола, а не произвольных старых binaries.
+`quiesce` обязан подтвердить `quiesced=true` и `active_writers=0`. Затем движок
+останавливает только принадлежащие ему процессы. Timeout, nonzero exit или
+неверный ответ не доказывают отсутствия эффекта: сохраняются
+`RECOVERY_REQUIRED` и `product_adapter_unknown=true`.
 
-До quiesce в native journal записывается durable intent; после проверенного
-результата — complete marker. Незавершённый intent нельзя обойти новым plan,
-даже если controller прервался до создания adapter ledger. Повтор native hook
-требует уже существующий ledger и запись именно этого invocation key. Наличие
-БД от прежнего readiness не разрешает создать новую quiesce invocation после
-потерянного native intent; отсутствие row не считается proof not-applied. `reconcile` никогда не создаёт отсутствующую
-БД или её схему; существующие транзакции открывают SQLite через `mode=rw`.
-Один живой Ledger instance перепроверяет type/owner/mode/nlink и прежние
-`device/inode` до и после транзакций; это не persistent identity после нового
-constructor.
-Исчезнувшая БД, zero-byte replacement и существующая схема без ожидаемой
-invocation не доказывают отсутствие прежнего эффекта и сохраняют отказ.
+До изменения записывается durable intent, после проверенного результата — marker
+завершения. Новый план или другой API state directory не обходят незавершённый
+intent в той же установке. Повтор hook требует существующий authoritative ledger
+и прежний invocation key. Наличие другой записи в БД не разрешает создать
+потерянный invocation заново.
 
-Обычный повтор execute не повторяет UNKNOWN. Только явный `resume` исходного
-плана запускает read-only reconciliation по прежнему request digest:
+Только явный `resume` исходной операции выполняет read-only reconciliation с
+прежним request digest:
 
-- `applied` повторно использует проверенную прежнюю quiesce receipt;
-- `not_applied` разрешает explicit adapter resume;
-- `unknown` сохраняет отказ без повторного эффекта и автоматического rollback.
+| Результат `operation_status` | Разрешённое продолжение |
+|---|---|
+| `applied` | Использовать проверенный прежний результат без повтора эффекта |
+| `not_applied` | Разрешить explicit resume исходного invocation |
+| `unknown` | Сохранить отказ без повторного эффекта и автоматического отката |
 
-Результат `applied` также должен подтверждать отсутствие активных writers.
-Для `backup` разрешено продолжение исходного UNKNOWN quiesce только через
-явный resume с прежним review. После подтверждения quiesce его durable fence
-снимается до следующих stop/archive эффектов: последующая ошибка архива не
-получает разрешение на retry из прежней quiesce неопределённости. Прежний
-консервативный отказ для другого failed backup сохраняется.
-После разрешённого stop выполняется существующий полный encrypted filesystem
-backup с recovery payload, SHA-256 и реальной архивной проверкой. Синтетическая
-строка `backup_receipt_id` не используется вместо архива. При ранее работавшем
-продукте `backup` запускает его прежним lifecycle и повторно проверяет readiness.
+`reconcile` не создаёт отсутствующую БД или схему; существующая SQLite открывается
+через `mode=rw`. Исчезнувший ledger, пустой заменяющий файл и отсутствие нужной
+записи сохраняют отказ. Живой экземпляр ledger проверяет type, owner, mode, nlink
+и device/inode до и после транзакций. Эта проверка не является универсальным
+детектором замены валидной БД между отдельными запусками. Доверенный перенос
+control journals на другую файловую identity автоматически не выполняется.
 
-Если создание архива завершилось ошибкой, а последующий recovery start/readiness
-тоже не прошёл, первичное исключение сохраняется. Native journal и публичные
-details содержат отдельные безопасные `primary_error_code` и
-`recovery_error={phase, code}`. Сырые сообщения и traceback в эти поля не попадают.
-Этот regression закрывает конкретное маскирование первичной backup-ошибки;
-полная диагностическая приёмка ACC-17 остаётся открытой.
+## Резервное копирование и разрешение миграции
 
-Standalone `invoke` по умолчанию сохраняет первоначальное создание нового
-ledger. Сам по себе новый standalone constructor не умеет отличить полностью
-удалённую прежнюю историю от действительно нового каталога. Native integration
-использует собственный known-intent marker и `existing_ledger=true` для повторов;
-это не универсальный forensic detector подмены любого валидного SQLite image.
-Полная долговременная привязка файловой identity standalone ledger и доверенный
-перенос control journals на новую identity остаются отдельным открытым контрактом.
+После подтверждённого quiesce и остановки создаётся полный зашифрованный архив
+с recovery payload. `BackupReceiptStore` хранит private archive reference и
+public digest body. Перед выдачей или проверкой receipt архив фактически
+расшифровывается и восстанавливается в отдельный кандидатный каталог.
+Движок проверяет installation marker, manifest/inventory digests, подпись
+recovery payload и active pointer. Чтение использует ограничение размера,
+проверки fd identity, owner/mode/nlink и `O_NOFOLLOW`.
 
-## Исторические ограничения CP021
+Обычный maintenance backup возвращает `archive.backup_receipt` с
+`migration_eligible=false` и `verification_scope=recovery_only`: при нём схема
+и migration review не устанавливались. Строка receipt ID не заменяет доказательство
+пригодности архива для конкретной миграции. Согласованность ограничена остановкой
+собственных процессов и подтверждением quiesce продуктом, а не контролем любых
+внешних writers.
 
-При enabled integration `install`, `update`, `restore`, `rollback`, `repair`,
-`reinstall`, `uninstall` заранее объявлены `supported=false` и отказывают до
-эффектов. Они не переходят на legacy migration commands молча.
+Standalone `migration_apply` требует доверенный constructor callback
+`migration_authorizer(request)`. Без него новый эффект запрещён с
+`CAPABILITY_UNSUPPORTED`. Callback нельзя передать через HTTP или options.
+Он проверяет архив и reviewed binding перед новым mutating intent либо explicit
+`not_applied` resume. Повтор завершённой операции и reconciliation читают прежние
+доказательства и не запускают миграцию заново.
 
-Связь `migration_plan/apply` с настоящими backup receipts, fresh-empty contract,
-версионированная миграция схемы и соответствующее recovery ещё требуют отдельной
-реализации. Получение новой signed инсталляции, GUI/CLI/bootstrap фабрика для
-opt-in, Windows/Docker/service support и production signing этим этапом не
-добавлены. `production_ready=false`, полные HIM/ACC и G0–G5 остаются открыты.
+Если продукт работал до backup, после архива он запускается и снова проходит
+readiness. При ошибке архива и дополнительной ошибке recovery start первичная
+ошибка сохраняется; публичный результат содержит отдельные безопасные коды,
+без сырых сообщений и traceback.
 
-## Проверки
+## Подготовка миграции
 
-`integration_tests/test_native_product_adapter.py` использует Ed25519 signed
-synthetic payload, отдельный executable adapter, настоящие процессы и loopback,
-реальную SQLite миграцию в legacy fixture и encrypted backup. Исходная установка
-явно выполняется legacy engine; это не приёмка нового adapter install path.
-Сценарии проверяют freshness, version/instance/probe mismatch, descriptor
-substitution после review, explicit reconciliation всех трёх исходов, отсутствие
-слепого повторения и отказ неподдержанных lifecycle действий.
+`InstallerAPI.prepare_migration("install" | "update", manifest, target, options)`
+вызывает подписанный read-only `migration_plan` отдельно от общего `plan`.
+Подготовка связывает installation, source metadata и schema с target release,
+подписанным адаптером и product plan `from_version/to_version/steps/digest`.
+Для новой установки требуется `from_version="empty"` и проверяются пустые roots.
 
-`tests/test_native_product_adapter_contract.py` отдельно проверяет additive
-protocol shape и trusted constructor boundary. Existing adapter/native/service
-профили повторяются на текущих bytes; точные counts, hashes, commands и ограничения
-должны браться из receipt текущего запуска. Это source/synthetic integration,
-не installed/frozen/browser/platform acceptance. Авария перед созданием adapter
-ledger моделируется fault injection; это не SIGKILL, reboot, relogin или power-loss.
+`migration_review_id` — digest неизменяемого private review. Обычный план читает
+его без hooks; исполнение повторно проверяет binding и фактический product plan.
+Изменившиеся schema, metadata, roots, owner или review останавливают операцию.
+Для отсутствующей установки preparation создаёт private ownership reservation
+с `installed=false`, пустые каталоги и control metadata без фиктивного
+`current_release`. Подготовка миграции доступна через SDK; отдельного CLI/HTTP
+маршрута для неё пока нет.
 
+Reference `migration_plan` читает SQLite в DELETE mode, не создавая БД, WAL или
+SHM. Неизвестная, повреждённая и более новая schema отвергаются. Целевая схема
+берётся из подписанного product profile.
 
-## Backup receipt этап 26.10.2026
+## Новая установка
 
-Standalone migration_apply теперь требует explicit trusted constructor
-`migration_authorizer(request)`, который до нового mutating intent проверяет
-реальный архив и reviewed binding. Без него CAPABILITY_UNSUPPORTED; callback
-не выбирается через options/HTTP. Авторизация выполняется только для нового
-эффекта/explicit not_applied resume. SUCCEEDED replay и UNKNOWN reconciliation
-читают прежние доказательства и не зависят от сохранности backup после завершения.
+Требуется ровно один подготовленный migration step. До первого product write
+движок перепроверяет inode/owner/mode пустых roots, installation metadata,
+immutable review, durable intent и подписанные целевые файлы.
 
-`BackupReceiptStore` сохраняет private archive reference и public digest body;
-перед выдачей/проверкой расшифровывает и восстанавливает snapshot в новый private
-candidate. NativeEngine сверяет installation marker, manifest/inventory digests,
-signed recovery payload и active pointer. При чтении snapshot/receipt применяются
-проверки fd identity, owner/mode/nlink, O_NOFOLLOW и bounded reads.
+`fresh_receipt_id` доказывает пустое начальное состояние и не заменяет backup
+существующих данных. Одновременные fresh proof и backup proof запрещены.
+Подтверждённый отказ authorizer до mutating intent допускает explicit resume;
+потерянный ответ после возможного эффекта требует reconciliation. SDK сохраняет
+исходный operation ID.
 
-Maintenance backup включает additive `archive.backup_receipt`; schema/review здесь
-не наблюдались, поэтому `migration_eligible=false`, `verification_scope=recovery_only`.
-Это не разрешение на migration_apply. Доверенный host обязан связать фактическую
-schema и reviewed product plan; строка receipt сама такого доказательства не даёт.
-Наблюдение согласованности ограничено остановкой собственных процессов и
-подтверждением product quiesce, а не всеми возможными внешними writers.
+## Обновление
 
-SDK предоставляет explicit `prepare_migration` extension для backend с таким
-методом. На следующем этапе 26.10 NativeEngine preparation реализован;
-install/update пока неподдержаны до отдельной execution-приёмки.
-Текущие supported lifecycle actions остаются start/stop/backup. Новые installed
-maintenance проверки описаны в reference/README и packaging/check_installed_product_adapter.py;
-их legacy bootstrap и borrowed runtime не закрывают adapter fresh или clean-host G1.
+Update review schema 2 связывает source adapter отдельно от target:
+descriptor, runtime, manifest, inventory и capabilities. Старый update review
+schema 1 отвергается с `PLAN_STALE`; fresh review schema 1 сохраняется.
 
-## Подготовка reviewed migration plan (CP-20261026-005)
+Перед intent повторно проверяются review и read-only schema hook. Для `archive`
+и `backup:0` сохраняются реальные `BackupReceiptStore` refs с фактической
+`product_plan.from_version`. Все live persistent roots сравниваются с реально
+восстановленным snapshot по содержимому и каталогам. Единственное исключение —
+содержимое собственного `services/update-<native-token>.json`; его type,
+ownership и безопасность всё равно проверяются.
 
-`InstallerAPI.prepare_migration("install"|"update", manifest, target, options)`
-делегирует явно зарегистрированному NativeEngine и исполняет signed read-only
-`migration_plan` отдельно от общего plan. Preparation фиксирует owner/installation,
-source release metadata и schema отдельно от target release, signed target adapter,
-и для fresh — identity всех проверенных пустых DataHome roots. Product plan содержит
-from_version/to_version/steps/digest; для fresh явный from_version="empty".
+Quiesce intent связан с native token, фазой UpdatePlan и release. Source stop
+и каждая candidate cleanup имеют отдельные started/complete/result записи.
+Неопределённый исход одной фазы не снимается успехом другой. Migration hook
+получает только `plan_digest`, `backup_receipt_id`, `migration_binding`.
 
-Opaque migration_review_id равен digest immutable private review. Общий plan
-читает сохранённый record без hooks; явное исполнение должно заново проверить
-binding и фактический product plan до effects. Изменившаяся schema/metadata,
-утраченный либо подменённый root/owner/review и неизвестный прежний journal
-останавливают разрешение нового действия. Для первоначально отсутствующей
-установки preparation создаёт private ownership reservation с installed=false,
-пустые каталоги и control metadata, не выдумывая current_release.
+В план входит политика `preserve_forward_journal_no_automatic_restore`.
+После изменения resume сохраняет исходный журнал и не требует прежней schema;
+известный эффект не повторяется. Ошибка health останавливает только собственный
+candidate и сохраняет новые данные и архивы. Первичная ошибка и cleanup имеют
+раздельные коды; UNKNOWN cleanup разрешается reconciliation до нового start.
+Автоматический разрушительный откат не выполняется.
 
-Read-only reference migration_plan наблюдает SQLite в DELETE mode, не создаёт
-БД или WAL/SHM, отвергает неизвестную/повреждённую/более новую schema. Target schema
-берётся из signed product profile. HOMENSAI_CONFIG_HOME передаётся только trusted
-resolved path и только если указан в signed descriptor allowlist.
+## Восстановление и откат
 
-Это preparation/source контракт. Старые capability assertions сохраняются:
-single-step fresh install принят в source/installed DEV-профиле; adapter update
-execution реализован для одного reviewed migration step в development Linux/native/user; CLI/HTTP preparation route ещё не добавлен. Полная G1/G2/G3 приёмка открыта.
+`restore` и `rollback` работают с архивом той же установки. Используются source
+`quiesce` и target `migration_plan`, `restore`, `post_restore`, `readiness`,
+`quiesce`, `operation_status`. Общий план закрепляет hook contract. Проверка
+извлечённых кандидатных roots выполняется только при execution, до stop и
+replacement. Нужна известная схема, у которой `from_version == to_version`
+и отсутствуют migration steps.
 
-## Single-step fresh: текущий source-контракт
+Архив внутри заменяемых roots, чужая installation, несовместимые platform/mode,
+изменённый pointer locator и несовместимая schema отвергаются заранее.
 
-Для install требуется ровно один prepared migration step. Engine до первого
-product write повторно проверяет inode/owner/mode пустых roots, installation
-metadata, исходный immutable review, exact native intent и signed target staging.
-Отдельный fresh_receipt_id является digest-bound локальным доказательством;
-он не выдаётся вместо обязательного backup существующих данных. Одновременная
-передача fresh и backup proof запрещена. Знакомый отказ authorizer до ledger
-intent отмечается как отсутствие product effect и допускает explicit resume.
-UNKNOWN после потери ACK требует reconciliation; пропавшая история не разрешает
-создать новый invocation. Public SDK resume сохраняет original operation ID.
-Реальные SIGKILL boundary tests — source process acceptance, не power-loss.
+`RecoveryBackupReceiptStore` создаёт отдельный полный зашифрованный snapshot
+текущего состояния и связывает его с action, operation, installation,
+source archive SHA-256 и исходным release metadata. Непосредственно перед
+replacement снова проверяются ciphertext, фактический decrypt/restore,
+подпись recovery payload и все persistent roots. Исключения для update journal
+здесь нет. Такой recovery receipt никогда не разрешает миграцию.
 
-## Update review prerequisite (CP-20261026-009)
+Target hooks получают ровно `installation_id`, `release`, `recovery_action`,
+`source_archive_sha256`, `before_recovery_receipt_id`. Доверенный
+`recovery_authorizer` по умолчанию отсутствует; standalone mutating recovery
+запрещён. Движок разрешает hook после завершённого replacement и повторной
+проверки safety receipt. Код выполняется из staged installed signed release.
 
-Private update review schema2 связывает from_adapter_binding с signed descriptor, runtime, manifest, inventory и capabilities установленного исходного release отдельно от target. Старый schema1 update review отвергается PLAN_STALE, fresh schema1 сохраняется. Read-only plan подготовлен к product_adapter_source_binding и update_failure_policy=preserve_forward_journal_no_automatic_restore. Этот исторический prerequisite сам не включал update; расширение execution описано ниже.
+Для каждого эффекта сохраняются durable intent, binding и результат. UNKNOWN
+требует reconciliation исходной операции. Diagnostic probe и resume не создают
+отсутствующий authoritative ledger. После подтверждённого hook resume не
+заменяет данные повторно. Прерывание внутри replacement сохраняет durable fence
+и safety archive: автоматический повтор этой фазы запрещён, требуется отдельное
+восстановление из сохранённых данных.
 
-## Single-step update: forward-only recovery policy
-
-Update review schema2 закрепляет installation/source metadata/source adapter отдельно от target. Под root lock до native intent повторно проверяются review и read-only schema hook; внутри ledger transaction authorizer выполняет только static hashes и фактический decrypt/restore snapshot. Ports.backup сохраняет реальные BackupReceiptStore refs для archive и backup:0, schema берётся из product_plan.from_version. Live roots сравниваются побайтно и по каталогам со restored roots. Единственное исключение — bytes собственного services/update-<native-token>.json; safety/type/ownership этого файла тоже проверяются. Меняющийся при resume UpdatePlan lock хранится отдельно в private control metadata.
-
-Quiesce intent key связывает native token, UpdatePlan phase key и release. Started/complete/result хранятся отдельно для source stop и каждой candidate cleanup попытки. UNKNOWN одной фазы не снимается завершением другой. Before apply product hook получает только {plan_digest, backup_receipt_id, migration_binding}. Resume сохраняет исходный журнал, после mutation не требует прежней schema и не повторяет известный effect. Потерянный ACK требует operation_status/reconcile; отсутствующий ledger не означает no effect.
-
-Политика preserve_forward_journal_no_automatic_restore входит в persisted plan digest; rollback-направление при ней отвергается. Health failure останавливает только owned candidate и сохраняет новые данные/архивы. Primary и cleanup errors имеют отдельные безопасные codes. UNKNOWN cleanup должен быть reconciled до повторного start. Restore/rollback остаются unsupported до отдельного before-rollback backup protocol и установленной приёмки. Source SIGKILL не является power-loss или clean-host acceptance.
+Reference adapter проверяет schema, SQLite integrity, обязательный файл и settings.
+Он транзакционно записывает recovery effect и `external_actions_on_hold=1`.
+`post_restore` требует matching restore той же операции и binding;
+`operation_status` возвращает `applied` только при согласованной product receipt.
+Результат API содержит проверенный `before_recovery` receipt и отдельный
+`before_recovery_archive` с path, SHA-256, release и признаком шифрования.
+Внешние действия продукта остаются приостановленными после восстановления.

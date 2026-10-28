@@ -151,6 +151,9 @@ python packaging/check_installed_sdk.py \
 чтение checkout, сеть и дочерние процессы; настоящий discovery выполняет только
 временный bind выделенного loopback-порта. В ограниченном sandbox этот bind
 может требовать разрешения среды, его нельзя подменять фиктивным discover.
+Native discovery не запускает Docker/WSL, даже если они установлены на хосте.
+Такие компоненты отмечаются как непроверенные (`manual`), без вывода об их
+отсутствии или готовности. Явный prerequisite inventory сохраняет свои probes.
 
 Подписанный development fixture содержит настоящий собранный reference wheel
 и явно неисполняемый runtime placeholder. Проверка подтверждает планирование и
@@ -726,4 +729,50 @@ review = api.plan("install", manifest, target,
 
 ### Single-step adapter update: сохранение данных при отказе
 
-После явного prepare_migration("update", ...) и review передавайте migration_review_id в обычный plan. План закрепляет source и target adapters отдельно и объявляет update_failure_policy="preserve_forward_journal_no_automatic_restore". Исполнение останавливает owned writers, создаёт проверенные encrypted backup receipts и перед apply повторно сравнивает все persistent roots со восстановленным snapshot. Пути и contents архивов не передаются product hook: apply data содержит только plan_digest, backup_receipt_id и public migration_binding. UNKNOWN допускает только reconciliation исходной операции; потеря ledger не разрешает повтор effect. Ошибка candidate readiness сохраняет новые данные и forward journal, отдельно фиксируя primary/cleanup codes. Автоматическое восстановление старого snapshot в этом режиме не выполняется; restore/rollback capabilities остаются false. Installed/clean-host scope проверяйте по актуальным receipts, не по наличию API.
+После явного prepare_migration("update", ...) и review передавайте migration_review_id в обычный plan. План закрепляет source и target adapters отдельно и объявляет update_failure_policy="preserve_forward_journal_no_automatic_restore". Исполнение останавливает owned writers, создаёт проверенные encrypted backup receipts и перед apply повторно сравнивает все persistent roots со восстановленным snapshot. Пути и contents архивов не передаются product hook: apply data содержит только plan_digest, backup_receipt_id и public migration_binding. UNKNOWN допускает только reconciliation исходной операции; потеря ledger не разрешает повтор effect. Ошибка candidate readiness сохраняет новые данные и forward journal, отдельно фиксируя primary/cleanup codes. Автоматическое восстановление старого snapshot при update не выполняется. Явные restore/rollback описаны ниже. Installed/clean-host scope проверяйте по актуальным receipts, не по наличию API.
+
+
+## Явные restore и rollback ProductAdapter
+
+Зарегистрированный adapter поддерживает эти действия в development scope
+Linux/native/user. Это same-installation recovery: установка, target, DataHome,
+выбранные modes и pointer locator должны совпадать. `repair`, `reinstall` и
+`uninstall` через ProductAdapter пока не поддерживаются. Проверяйте текущий
+`capabilities(target)` и результат `plan`, а не только список действий discovery.
+
+`archive_path` указывает на полный зашифрованный snapshot вне управляемых
+app/releases/persistent roots. Для rollback требуется `acknowledge_data_loss=true`
+и обычные подтверждения reviewed plan. Обычный `plan` не запускает hooks: он
+закрепляет source ciphertext hash, source adapter и требуемые target hooks.
+Во время исполнения до остановки приложения проверяются подпись payload,
+installation identity и неизменность исходного архива. Read-only
+`migration_plan` целевого adapter выполняется на кандидатных data/config roots:
+схема должна быть известной, `from_version==to_version`, список steps пустым.
+При несовместимой схеме требуется отдельное решение; restore не запускает upgrade.
+
+Перед заменой данных ядро останавливает принадлежащие установке компоненты,
+получает подтверждённый quiesce и создаёт отдельный `before_restore` или
+`before_rollback` snapshot. `RecoveryBackupReceiptStore` повторно расшифровывает
+полный safety archive, проверяет signed recovery payload, identity и все пять
+persistent roots. Непосредственно перед replacement проверка повторяется;
+отсутствующий, повреждённый, чужой receipt или изменение live data блокируют
+замену. Этот receipt имеет `migration_eligible=false` и не разрешает migration.
+
+После replacement выполняются target `restore` и `post_restore`, затем
+activation, start и readiness. Hooks получают opaque IDs/digests, без пароля
+и пути к архиву. Независимый `ExecutableProductAdapter` по умолчанию запрещает
+recovery hooks без trusted `recovery_authorizer`; фабрика ядра выдаёт разрешение
+только после повторной проверки настоящего safety receipt.
+
+Успешный результат содержит `before_recovery` (проверенный receipt),
+`before_recovery_archive` с `path`, `sha256`, `release`, `encrypted`, и
+`external_actions_on_hold=true`. Продукт должен сохранять этот hold до отдельного
+разрешения внешних действий. При неизвестном результате hook используйте
+`resume` той же public operation: outcome подтверждается исходным durable ledger.
+Потеря ledger не разрешает его создание заново или повтор effect. Ошибки
+readiness и cleanup сохраняются раздельно в публичных error details.
+
+Прерывание в середине замены roots сохраняет safety snapshot и блокирует
+автоматический повтор разрушительного шага. Это fail-closed recovery boundary;
+полная автоматическая приёмка power-loss, Windows/Docker и clean-host остаётся
+отдельной задачей.

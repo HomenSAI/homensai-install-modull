@@ -31,6 +31,12 @@ def _signature(info):
             info.st_nlink, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
 
 
+def _directory_identity(info):
+    # Ancestors include shared /tmp. Unrelated entries can legitimately change
+    # their nlink/size/times; inode, type, permissions and owner must stay bound.
+    return (info.st_dev, info.st_ino, info.st_mode, info.st_uid, info.st_gid)
+
+
 def _path(value):
     original = Path(value)
     if checked_path(original) != original:
@@ -53,23 +59,26 @@ def _root_handle(root):
     handles, edges = [], []
     try:
         handles.append(os.open(root.anchor, flags))
-        for part in root.parts[1:]:
+        parts = root.parts[1:]
+        for index, part in enumerate(parts):
             parent = handles[-1]
             before = os.stat(part, dir_fd=parent, follow_symlinks=False)
             child = os.open(part, flags, dir_fd=parent)
             handles.append(child)
-            if _signature(before) != _signature(os.fstat(child)):
+            captured = os.fstat(child)
+            signature = _signature if index == len(parts) - 1 else _directory_identity
+            if signature(before) != signature(captured):
                 _fail()
-            edges.append((parent, part, child))
+            edges.append((parent, part, child, _directory_identity(captured)))
         yield handles[-1]
         # Parent directories могут менять unrelated entries; важна identity
         # данного пути, а не mtime всего /tmp или домашнего каталога.
-        for parent, part, child in edges:
+        for parent, part, child, identity in edges:
             named = os.stat(part, dir_fd=parent, follow_symlinks=False)
             opened = os.fstat(child)
             if (not stat.S_ISDIR(named.st_mode)
                     or getattr(named, "st_file_attributes", 0) & 0x400
-                    or (named.st_dev, named.st_ino) != (opened.st_dev, opened.st_ino)):
+                    or _directory_identity(named) != identity or _directory_identity(opened) != identity):
                 _fail()
     finally:
         for handle in reversed(handles):
@@ -133,7 +142,7 @@ def _scan(root, label, journal_name):
 
     with _root_handle(root) as handle:
         visit(handle, "")
-    if label == "services" and not ignored_seen:
+    if label == "services" and journal_name is not None and not ignored_seen:
         _fail()
     return (directories, files), signatures
 
@@ -158,6 +167,21 @@ def assert_live_snapshot_matches(live_roots: Mapping[str, Path], restored: Path,
     Unsafe/неподдерживаемая среда, отсутствующие данные или drift дают один
     безопасный RECOVERY_REQUIRED без путей и содержимого в ошибке.
     """
+    if own_update_journal is None:
+        _fail()
+    return _assert_snapshot_matches(live_roots, restored, own_update_journal=own_update_journal)
+
+
+def assert_recovery_snapshot_matches(live_roots: Mapping[str, Path], restored: Path):
+    """Полное сравнение recovery: ни один файл services не исключается."""
+    try:
+        return _assert_snapshot_matches(live_roots, restored, own_update_journal=None)
+    except InstallerError:
+        raise InstallerError("RECOVERY_REQUIRED", phase="product_adapter",
+            details={"reason": "recovery_live_snapshot_not_verified"}) from None
+
+
+def _assert_snapshot_matches(live_roots, restored, *, own_update_journal):
     try:
         if (os.name != "posix" or not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "O_DIRECTORY")
                 or os.open not in os.supports_dir_fd or os.stat not in os.supports_dir_fd
@@ -166,10 +190,13 @@ def assert_live_snapshot_matches(live_roots: Mapping[str, Path], restored: Path,
             _fail()
         live = {name: _path(path) for name, path in live_roots.items()}
         candidate = _path(restored)
-        journal = _path(own_update_journal)
-        if (journal.parent != live["services"]
-                or re.fullmatch(r"update-[0-9a-f]{32}\.json", journal.name) is None):
-            _fail()
+        journal_name = None
+        if own_update_journal is not None:
+            journal = _path(own_update_journal)
+            if (journal.parent != live["services"]
+                    or re.fullmatch(r"update-[0-9a-f]{32}\.json", journal.name) is None):
+                _fail()
+            journal_name = journal.name
         roots = [*live.values(), candidate]
         if any(a == Path(a.anchor) or contains(a, b) or contains(b, a)
                for index, a in enumerate(roots) for b in roots[index + 1:]):
@@ -180,10 +207,10 @@ def assert_live_snapshot_matches(live_roots: Mapping[str, Path], restored: Path,
         container_before = _restored_container(restored_roots)
         # Второй проход обнаруживает изменения уже прочитанного root во время
         # чтения другой стороны. Inode/mode restored и live не сравниваются.
-        first_live = {name: _scan(path, name, journal.name) for name, path in sorted(live.items())}
-        first_backup = {name: _scan(restored_roots / name, name, journal.name) for name in sorted(live)}
-        last_live = {name: _scan(path, name, journal.name) for name, path in sorted(live.items())}
-        last_backup = {name: _scan(restored_roots / name, name, journal.name) for name in sorted(live)}
+        first_live = {name: _scan(path, name, journal_name) for name, path in sorted(live.items())}
+        first_backup = {name: _scan(restored_roots / name, name, journal_name) for name in sorted(live)}
+        last_live = {name: _scan(path, name, journal_name) for name, path in sorted(live.items())}
+        last_backup = {name: _scan(restored_roots / name, name, journal_name) for name in sorted(live)}
         if first_live != last_live or first_backup != last_backup:
             _fail()
         if _restored_container(restored_roots) != container_before:

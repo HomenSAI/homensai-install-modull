@@ -586,7 +586,7 @@ class NativeLifecycleTests(unittest.TestCase):
         self.current = first
         self.assertTrue(result["health"]["ready"])
         self.assertEqual(user_file.read_text(), "snapshot data")
-        self.assertTrue(list((self.base / ".installed-recovery").glob("*-before-restore.hsac")))
+        self.assertTrue(list((self.base / ".installed-recovery").glob("*-before-rollback.hsac")))
 
     def test_eula_hash_is_bound_to_signed_selected_language(self):
         bundle = self.bundle("v1")

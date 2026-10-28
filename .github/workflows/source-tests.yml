@@ -164,15 +164,27 @@ jobs:
           --work-dir "$RUNNER_TEMP/hinstall-prerequisites-check"
           --receipt "$RUNNER_TEMP/hinstall-receipts/prerequisites.json"
           --wheelhouse "$RUNNER_TEMP/hinstall-wheelhouse"
-      - name: Verify installed reference fresh and consecutive updates
-        run: >-
-          python -B packaging/check_installed_reference_lifecycle.py
-          --work-dir "$RUNNER_TEMP/hinstall-reference-check"
-          --receipt "$RUNNER_TEMP/hinstall-receipts/reference-update.json"
-          --wheelhouse "$RUNNER_TEMP/hinstall-wheelhouse"
-          --sdk-revision "$GITHUB_SHA"
-          --profile update
+      - name: Verify all twelve installed reference profiles sequentially
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          failed=0
+          for profile in update update-lost-ack update-missing-ledger update-tampered-backup update-foreign-backup update-live-data-drift update-candidate-health update-candidate-cleanup recovery-restore recovery-rollback recovery-lost-ack recovery-missing-ledger; do
+            receipt_name="$profile"
+            if [ "$profile" = update ]; then
+              receipt_name=reference-update
+            fi
+            if ! python -B packaging/check_installed_reference_lifecycle.py \
+                --work-dir "$RUNNER_TEMP/hinstall-reference-$profile" \
+                --receipt "$RUNNER_TEMP/hinstall-receipts/$receipt_name.json" \
+                --wheelhouse "$RUNNER_TEMP/hinstall-wheelhouse" \
+                --sdk-revision "$GITHUB_SHA" \
+                --profile "$profile"; then
+              failed=1
+            fi
+          done
+          exit "$failed"
       - name: Record the exact installed check results
         if: always()
         run: |
-          python -B tools/summarize_installed_checks.py --receipts "$RUNNER_TEMP/hinstall-receipts" --summary "$GITHUB_STEP_SUMMARY" --source-revision "$GITHUB_SHA"
+          python -B tools/summarize_installed_checks.py --receipts "$RUNNER_TEMP/hinstall-receipts" --summary "$GITHUB_STEP_SUMMARY" --source-revision "$GITHUB_SHA" --include-fault-profiles

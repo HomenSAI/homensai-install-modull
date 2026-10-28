@@ -234,7 +234,7 @@ class NativeEngine:
                "rollback", "repair", "reinstall", "uninstall")
     MAINTENANCE_ACTIONS = {"start", "stop", "backup", "uninstall"}
 
-    ADAPTER_ACTIONS = {"install", "update", "start", "stop", "backup"}
+    ADAPTER_ACTIONS = {"install", "update", "start", "stop", "backup", "restore", "rollback"}
 
     def __init__(self, verifier=None, secret_provider=None, *, development_runtime=None,
                  product_adapter_descriptor=None):
@@ -417,7 +417,10 @@ class NativeEngine:
                 file = checked_path(path)
                 essential[option] = _file_digest(file) if file.is_file() else None
         from .prerequisites import collect_inventory
-        environment_inventory = collect_inventory(paths=[str(ctx["root"])])
+        # Native discovery cannot depend on unrelated Docker/WSL daemons or
+        # create subprocesses merely because these tools exist on the host.
+        # Explicit prerequisite discovery still probes its selected tools.
+        environment_inventory = collect_inventory(paths=[str(ctx["root"])], probe_container_tools=False)
         essential["environment_fingerprint"] = environment_inventory["fingerprint"]
         return {"fingerprint_data": essential, "installation": owner,
                 "environment_inventory": environment_inventory,
@@ -448,6 +451,8 @@ class NativeEngine:
             raise EngineError("INVALID_MANIFEST", "Восстановление требует явного архива")
         if action == "rollback" and options.get("acknowledge_data_loss") is not True:
             raise EngineError("CONSENT_REQUIRED", "Поздний rollback требует осознанного выбора snapshot")
+        if action in {"restore", "rollback"}:
+            self._check_recovery_locators(ctx)
         steps = {
             "install": ["verify", "prepare", "stage", "migrate", "activate", "start", "health"],
             "update": ["verify", "stop", "backup", "stage", "migration_backups", "migrate", "activate", "start", "health"],
@@ -479,7 +484,15 @@ class NativeEngine:
         if effective_active is not None:
             result["effective_active"] = effective_active
         if self.product_adapter_descriptor is not None:
-            adapter, binding = self._product_adapter(ctx)
+            if action in {"restore", "rollback"}:
+                adapter, binding = self._release_product_adapter(ctx, self._pointer(ctx))
+                result["recovery_source_sha256"] = _file_digest(checked_path(options["archive_path"]))
+                result["recovery_target_hooks"] = ["migration_plan", "restore", "post_restore", "readiness", "quiesce", "operation_status"]
+                result["recovery_failure_policy"] = "preserve_before_recovery_snapshot_no_automatic_retry"
+                result["steps"] = [{"id": x, "component_id": "product", "weight": 1} for x in
+                    ("verify_archive", "stop", "before_" + action, "restore", "product_restore", "post_restore", "activate", "start", "health")]
+            else:
+                adapter, binding = self._product_adapter(ctx)
             required = {"readiness"} if action == "start" else {"quiesce", "operation_status"}
             if action in {"install", "update"}:
                 required = {"readiness", "migration_plan", "migration_apply", "operation_status"}
@@ -904,6 +917,9 @@ class NativeEngine:
     def _installed_product_adapter(self, ctx):
         adapter, binding = self._release_product_adapter(ctx, self._pointer(ctx))
         expected = ctx.get("product_adapter_binding")
+        if ctx.get("action") in {"restore", "rollback"} and ctx.get("recovery_target_binding"):
+            target = ctx["recovery_target_binding"]
+            expected = target if self._pointer(ctx) == target["release"] else expected
         if ctx.get("action") == "update":
             review = ctx["migration_review"]["binding"]
             expected = (review["from_adapter_binding"] if self._pointer(ctx) == review["from_release"]
@@ -928,6 +944,11 @@ class NativeEngine:
     def _adapter_quiesce(self, ctx):
         if ctx.get("action") == "update":
             return self._update_adapter_quiesce(ctx, ctx["update_stop_key"], self._pointer(ctx))
+        if ctx.get("action") in {"restore", "rollback"} and ctx.get("recovery_cleanup"):
+            adapter = self._installed_product_adapter(ctx)
+            return self._recovery_adapter_effect(ctx, adapter, "quiesce", "cleanup_quiesce_" + ctx["operation_token"],
+                {"installation_id": self._owner(ctx, required=True)["installation_id"],
+                 "release": self._pointer(ctx), "data_home": str(ctx["home"].roots["data"])})
         from .errors import InstallerError
         adapter = self._installed_product_adapter(ctx)
         key = "quiesce_" + ctx["operation_token"]
@@ -1773,6 +1794,180 @@ class NativeEngine:
                 consistency_scope="owned_components_stopped_and_adapter_quiesced")
         return result
 
+    def _check_recovery_locators(self, ctx):
+        source = checked_path(ctx["options"]["archive_path"])
+        if any(contains(root, source) for root in (ctx["home"].app, ctx["home"].releases, *ctx["home"].roots.values())):
+            raise EngineError("CAPABILITY_UNSUPPORTED", "Архив восстановления нужно скопировать за пределы DataHome и releases",
+                details={"reason": "recovery_source_overlaps_managed_roots"})
+        active = self._pointer(ctx)
+        if not active:
+            raise EngineError("RECOVERY_REQUIRED", "Нет active release для same-installation recovery")
+        metadata = self._metadata(ctx, active)
+        if (metadata["manifest"]["paths"] != ctx["manifest"]["paths"]
+                or metadata["manifest"]["update"]["pointer_file"] != ctx["manifest"]["update"]["pointer_file"]
+                or metadata["target"] != ctx["target"] or tuple(metadata["modes"]) != ctx["modes"]):
+            raise EngineError("CAPABILITY_UNSUPPORTED", "Recovery не меняет DataHome, pointer, target или modes")
+
+    def _recovery_backup_binding(self, ctx, source_digest):
+        release = self._pointer(ctx)
+        metadata = self._metadata(ctx, release)
+        return {"product_id": ctx["manifest"]["product_id"],
+            "installation_id": self._owner(ctx, required=True)["installation_id"],
+            "operation_id": "op_" + ctx["operation_token"], "from_release": release,
+            "from_manifest_sha256": _digest(metadata["manifest"]),
+            "from_inventory_sha256": _digest(metadata["inventory"]),
+            "from_metadata_sha256": _digest(metadata), "recovery_action": ctx["action"],
+            "source_archive_sha256": source_digest}
+
+    def _recovery_backup_store(self, ctx, password, *, compare_live=True):
+        from .recovery_receipts import RecoveryBackupReceiptStore
+        from .migration_snapshot import assert_recovery_snapshot_matches
+        def verify(candidate, expected):
+            release = expected["from_release"]
+            recovery = checked_path(candidate / "roots/runtime/recovery" / release)
+            metadata = _read(recovery / "release.json")
+            archived_owner = _read(recovery / "installation.json")
+            owner = self._owner(ctx, required=True)
+            if (any(archived_owner.get(key) != owner[key]
+                    for key in ("product_id", "installation_id", "owner", "mode"))
+                    or owner["installation_id"] != expected["installation_id"]
+                    or metadata.get("release") != release or metadata.get("target") != ctx["target"]
+                    or _digest(metadata) != expected["from_metadata_sha256"]
+                    or _digest(metadata.get("manifest")) != expected["from_manifest_sha256"]
+                    or _digest(metadata.get("inventory")) != expected["from_inventory_sha256"]
+                    or _read(candidate / "roots/services" / metadata["manifest"]["update"]["pointer_file"])
+                        != {"release": release}):
+                return False
+            inventory = self._verify(metadata["manifest"], ctx["target"], {
+                "payload_dir": str(recovery / "payload"), "release": release,
+                "runtime_executable": metadata["runtime_executable"],
+                "inventory_file": str(recovery / "release.inventory.json"),
+                "signature_file": str(recovery / "release.signature.json")})
+            return inventory == metadata["inventory"] and (not compare_live
+                or assert_recovery_snapshot_matches(ctx["home"].roots, candidate))
+        return RecoveryBackupReceiptStore(ctx["control"] / "recovery-receipts",
+            password_provider=password, recovery_verifier=verify)
+
+    def _before_recovery_backup(self, ctx, source_digest, password):
+        if self._records(ctx):
+            raise EngineError("RECOVERY_REQUIRED", "Recovery snapshot требует остановленных компонентов")
+        action = ctx["action"]
+        backup = self._backup(ctx, ctx["work"] / (ctx["operation_token"] + "-before-" + action + ".hsac"), password)
+        binding = self._recovery_backup_binding(ctx, source_digest)
+        consistency = ("owned_components_stopped_and_adapter_quiesced" if self.product_adapter_descriptor is not None
+                       else "owned_components_stopped")
+        proof = self._recovery_backup_store(ctx, password).issue(backup["path"], binding, consistency_scope=consistency)
+        return {"archive": backup, "binding": binding, "receipt": proof}
+
+    def _authorize_recovery_replace(self, ctx, source_digest, password, safety):
+        # This gate runs inside the replacement step, after its boundary/emit.
+        # An existing filename/sidecar or a completed backup step is insufficient.
+        binding = self._recovery_backup_binding(ctx, source_digest)
+        if (type(safety) is not dict or safety.get("binding") != binding or self._records(ctx)
+                or ctx["operation_state"].get("recovery_replace_started") is True):
+            raise EngineError("RECOVERY_REQUIRED", "Recovery replacement не имеет актуального разрешения")
+        consistency = ("owned_components_stopped_and_adapter_quiesced" if self.product_adapter_descriptor is not None
+                       else "owned_components_stopped")
+        proof = self._recovery_backup_store(ctx, password).verify(safety.get("receipt", {}).get("receipt_id"),
+            expected_binding=binding, consistency_scope=consistency)
+        return proof
+
+    def _recovery_adapter_effect(self, ctx, adapter, hook, key, data):
+        """Один durable intent; неизвестный результат разрешается исходным ledger."""
+        from .adapters import _RecoveryAuthorizationRefused
+        from .errors import InstallerError
+        state = ctx["operation_state"]
+        scopes = state.setdefault("product_adapter_recovery_scopes", {})
+        identity = {"hook": hook, "data_sha256": _digest(data), "release": adapter.options["release"]}
+        record = scopes.setdefault(key, {**identity, "started": False, "complete": False})
+        if any(record.get(name) != value for name, value in identity.items()):
+            raise EngineError("PLAN_STALE", "Recovery hook binding изменился")
+        if record["complete"]:
+            return record["result"]
+        if state.get("product_adapter_unknown") is True and state.get("product_adapter_unknown_scope") != key:
+            raise _UncertainEffect()
+        started = record["started"]
+        request = {"operation_id": "op_" + ctx["operation_token"], "idempotency_key": key,
+                   "phase": "execute", "data": data}
+        journal = ctx["control"] / "operations" / (ctx["operation_token"] + ".json")
+        try:
+            if started:
+                if not ctx.get("adapter_resume"):
+                    raise _UncertainEffect()
+                outcome = adapter.reconcile(key)
+                if outcome["outcome"] == "unknown":
+                    raise _UncertainEffect()
+                if outcome["outcome"] == "applied":
+                    result = outcome["result"]
+                else:
+                    request["phase"] = "resume"
+                    result = adapter.invoke(hook, request, existing_ledger=True)["result"]
+            else:
+                record["started"] = True
+                _write(journal, state)
+                result = adapter.invoke(hook, request)["result"]
+            if hook == "quiesce" and (result.get("quiesced") is not True or result.get("active_writers") != 0):
+                raise _UncertainEffect()
+            if hook != "quiesce" and result.get("applied") is not True:
+                raise _UncertainEffect()
+            record.update(complete=True, result=result)
+            if state.get("product_adapter_unknown_scope") == key:
+                state.pop("product_adapter_unknown", None)
+                state.pop("product_adapter_unknown_scope", None)
+            _write(journal, state)
+            return result
+        except _RecoveryAuthorizationRefused:
+            if not started:
+                record["started"] = False
+                _write(journal, state)
+            raise EngineError("RECOVERY_REQUIRED", "Recovery proof отклонён до нового product effect") from None
+        except (InstallerError, _UncertainEffect):
+            state["product_adapter_unknown_scope"] = key
+            raise _UncertainEffect() from None
+
+    def _adapter_recover(self, ctx, adapter, hook, safety, source_digest, password):
+        data = {"installation_id": self._owner(ctx, required=True)["installation_id"],
+            "release": ctx["release"], "recovery_action": ctx["action"],
+            "source_archive_sha256": source_digest, "before_recovery_receipt_id": safety["receipt"]["receipt_id"]}
+        def authorize(request):
+            if (request.get("operation_id") != "op_" + ctx["operation_token"] or request.get("data") != data
+                    or "restore" not in ctx["operation_state"].get("completed", [])):
+                return False
+            self._recovery_backup_store(ctx, password, compare_live=False).verify(data["before_recovery_receipt_id"],
+                expected_binding=safety["binding"], consistency_scope="owned_components_stopped_and_adapter_quiesced")
+            return True
+        adapter.recovery_authorizer = authorize
+        return self._recovery_adapter_effect(ctx, adapter, hook, hook + "_" + ctx["operation_token"], data)
+
+    def _probe_recovery_schema(self, ctx, adapter, candidate):
+        """Read-only execution preflight against authenticated candidate roots."""
+        from .errors import InstallerError
+        runtime = checked_path(Path(adapter.options["payload_dir"]) / adapter.options["runtime_executable"])
+        # Payload was fully signed/hashed before granting its executable bit.
+        runtime.chmod(0o700)
+        adapter.environment["HOMENSAI_DATA_HOME"] = str(candidate / "roots/data")
+        if "HOMENSAI_CONFIG_HOME" in adapter.environment:
+            adapter.environment["HOMENSAI_CONFIG_HOME"] = str(candidate / "roots/config")
+        adapter._validate_environment()
+        original_ledger = adapter.state_dir
+        # Diagnostic observations must never recreate the authoritative ledger
+        # of an uncertain restore/post_restore effect on original-op resume.
+        adapter.state_dir = ctx["control"] / "recovery-probes" / ctx["operation_token"]
+        try:
+            response = adapter.invoke("migration_plan", {"operation_id": "op_" + ctx["operation_token"],
+                "idempotency_key": "recovery_probe_" + uuid.uuid4().hex, "phase": "diagnostic", "data": {
+                    "installation_id": self._owner(ctx, required=True)["installation_id"],
+                    "from_release": ctx["release"], "to_release": ctx["release"], "mode": "upgrade"}})
+        except InstallerError:
+            raise EngineError("CAPABILITY_UNSUPPORTED", "Схема recovery snapshot не подтверждена") from None
+        finally:
+            adapter.state_dir = original_ledger
+        plan = response["result"]
+        if (response.get("replayed") is not False or plan["from_version"] != plan["to_version"]
+                or plan["steps"] or plan["from_version"].casefold() in {"empty", "unknown"}):
+            raise EngineError("CAPABILITY_UNSUPPORTED", "Recovery snapshot требует отдельного решения о схеме")
+        return {"from_version": plan["from_version"], "to_version": plan["to_version"], "plan_digest": plan["plan_digest"]}
+
     def _ports(self, ctx, inventory, password, emit):
         engine = self
         effects = _Effects(engine, ctx, emit)
@@ -1906,7 +2101,17 @@ class NativeEngine:
             if self.product_adapter_descriptor is not None:
                 detail = plan.get("engine_plan")
                 reviewed = detail.get("product_adapter_binding") if isinstance(detail, dict) else None
-                _, binding = self._product_adapter(ctx)
+                if action in {"restore", "rollback"}:
+                    if (type(reviewed) is not dict or type(detail.get("recovery_source_sha256")) is not str
+                            or _file_digest(checked_path(ctx["options"]["archive_path"])) != detail["recovery_source_sha256"]
+                            or detail.get("recovery_failure_policy") != "preserve_before_recovery_snapshot_no_automatic_retry"):
+                        raise EngineError("PLAN_STALE", "Нужен reviewed recovery source snapshot")
+                    _, binding = self._release_product_adapter(ctx, reviewed["release"])
+                    restored = bool(previous and "restore" in previous.get("completed", []))
+                    if not restored and self._pointer(ctx) != reviewed["release"]:
+                        raise EngineError("PLAN_STALE", "Recovery source active release изменился")
+                else:
+                    _, binding = self._product_adapter(ctx)
                 if reviewed != binding:
                     raise EngineError("PLAN_STALE", "Нужен reviewed ProductAdapter plan для этих signed bytes")
                 ctx["product_adapter_binding"] = binding
@@ -1919,6 +2124,7 @@ class NativeEngine:
                 if file != journal:
                     other = _read(file)
                     if ((other.get("product_adapter_unknown") is True
+                            or other.get("product_adapter_recovery_required") is True
                             or other.get("product_adapter_quiesce_started") is True
                             and other.get("product_adapter_quiesce_complete") is not True
                             or other.get("product_adapter_migration_started") is True
@@ -1936,8 +2142,11 @@ class NativeEngine:
                 and _adapter_resume and previous is not None
                 and (previous.get("product_adapter_unknown") is True
                      or previous.get("product_adapter_migration_authorization_refused") is True))
+            adapter_recovery_resume = (self.product_adapter_descriptor is not None and action in {"restore", "rollback"}
+                                       and _adapter_resume and previous is not None)
             if (previous and previous.get("status") in {"FAILED", "RECOVERY_REQUIRED"}
-                    and action not in {"start", "stop", "update"} and not adapter_backup_resume and not adapter_install_resume):
+                    and action not in {"start", "stop", "update"} and not adapter_backup_resume
+                    and not adapter_install_resume and not adapter_recovery_resume):
                 raise EngineError("RECOVERY_REQUIRED", "Неудавшийся шаг требует проверенного восстановления")
             # Незавершённый другой mutating plan нельзя обойти новым token.
             if action not in {"stop"}:
@@ -1946,6 +2155,9 @@ class NativeEngine:
                     if file == journal:
                         continue
                     other = _read(file)
+                    if (other.get("recovery_replace_started") is True
+                            and "restore" not in other.get("completed", [])):
+                        raise EngineError("RECOVERY_REQUIRED", "Незавершённая замена требует recovery исходной операции")
                     if (other.get("status") in {"RUNNING", "CANCELED", "RECOVERY_REQUIRED"}
                             and other.get("action") in {"install", "update", "restore", "rollback", "repair", "reinstall"}):
                         raise EngineError("RECOVERY_REQUIRED", "Нужно возобновить исходный незавершённый план")
@@ -2000,7 +2212,12 @@ class NativeEngine:
                 if self.product_adapter_descriptor is not None:
                     state["product_adapter_unknown"] = True
                 _write(journal, state)
-                raise EngineError("RECOVERY_REQUIRED", "Результат продуктового hook не подтверждён; повтор запрещён") from None
+                details = ({"primary_error_code": state["recovery_primary_error_code"],
+                            "cleanup_error_code": state["recovery_cleanup_error_code"]}
+                           if action in {"restore", "rollback"} and state.get("recovery_primary_error_code")
+                           and state.get("recovery_cleanup_error_code") else {})
+                raise EngineError("RECOVERY_REQUIRED", "Результат продуктового hook не подтверждён; повтор запрещён",
+                                  details=details) from None
             except Exception as error:
                 state.update(status="FAILED", error_code=getattr(error, "code", "RECOVERY_REQUIRED"))
                 _write(journal, state)
@@ -2204,6 +2421,7 @@ class NativeEngine:
                 return {"data_preserved": True, "recovery_available": True}
             return {"status": "SUCCEEDED", **step("remove_owned_code", remove)}
         if action in {"restore", "rollback"}:
+            self._check_recovery_locators(ctx)
             if action == "rollback" and ctx["options"].get("acknowledge_data_loss") is not True:
                 raise EngineError("CONSENT_REQUIRED")
             source = checked_path(ctx["options"]["archive_path"])
@@ -2234,16 +2452,31 @@ class NativeEngine:
             if set(archive_manifest["roots"]) != set(ctx["home"].roots):
                 raise EngineError("INTEGRITY_FAILED", "Archive roots не соответствуют установке")
             pointer = _read(candidate / "roots" / "services" / ctx["manifest"]["update"]["pointer_file"])
+            if (type(pointer) is not dict or set(pointer) != {"release"}
+                    or type(pointer["release"]) is not str
+                    or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", pointer["release"]) is None):
+                raise EngineError("INTEGRITY_FAILED", "Archive pointer не соответствует release")
             release = pointer["release"]
             recovery = checked_path(candidate / "roots" / "runtime" / "recovery" / release)
             meta = _read(recovery / "release.json")
+            archived_owner = _read(recovery / "installation.json")
+            if any(archived_owner.get(key) != owner[key] for key in ("product_id", "installation_id", "owner", "mode")):
+                raise EngineError("OPERATION_CONFLICT", "Recovery archive принадлежит другой установке")
+            if meta.get("release") != release or meta.get("target") != ctx["target"]:
+                raise EngineError("INTEGRITY_FAILED", "Recovery metadata не соответствует release/target")
             opts = {"payload_dir": str(recovery / "payload"), "release": release,
                     "runtime_executable": meta["runtime_executable"],
                     "inventory_file": str(recovery / "release.inventory.json"),
                     "signature_file": str(recovery / "release.signature.json")}
             trusted = self._verify(meta["manifest"], ctx["target"], opts)
+            if trusted != meta.get("inventory"):
+                raise EngineError("INTEGRITY_FAILED", "Recovery inventory не соответствует metadata")
             if meta["manifest"]["paths"] != ctx["manifest"]["paths"]:
                 raise EngineError("CAPABILITY_UNSUPPORTED", "Restore paths требуют продуктового adapter")
+            if meta["manifest"]["update"]["pointer_file"] != ctx["manifest"]["update"]["pointer_file"]:
+                raise EngineError("CAPABILITY_UNSUPPORTED", "Restore не меняет pointer locator")
+            if type(meta.get("modes")) is not list or tuple(meta["modes"]) != ctx["modes"]:
+                raise EngineError("CAPABILITY_UNSUPPORTED", "Restore не меняет выбранные product modes")
             # Credential references belong to the authenticated snapshot. A
             # newer bootstrap (or same-release restore request) must not replace
             # them while publishing metadata or starting the restored runtime.
@@ -2254,9 +2487,32 @@ class NativeEngine:
             recover_ctx = {**ctx, "manifest": meta["manifest"], "release": release,
                            "modes": tuple(meta["modes"]),
                            "options": {**ctx["options"], **opts, "secret_refs": restored_refs}}
-            step("stop", lambda: self._stop(ctx))
-            step("before_restore", lambda: self._backup(ctx, ctx["work"] / (token + "-before-restore.hsac"), password))
+            target_adapter = None
+            if self.product_adapter_descriptor is not None:
+                target_adapter, target_binding = self._product_adapter(recover_ctx)
+                if not {"migration_plan", "restore", "post_restore", "readiness", "quiesce", "operation_status"} <= set(target_adapter.capabilities()["hooks"]):
+                    raise EngineError("CAPABILITY_UNSUPPORTED", "Recovery target adapter не имеет обязательных hooks")
+                original = ctx["operation_state"].get("recovery_target_binding")
+                if original is not None and original != target_binding:
+                    raise EngineError("PLAN_STALE", "Recovery target adapter изменился")
+                ctx["operation_state"]["recovery_target_binding"] = target_binding
+                ctx["recovery_target_binding"] = recover_ctx["recovery_target_binding"] = target_binding
+                observed_schema = self._probe_recovery_schema(recover_ctx, target_adapter, candidate)
+                if _tree(candidate) != (expected_directories, expected_files):
+                    raise EngineError("INTEGRITY_FAILED", "Read-only recovery probe изменил snapshot")
+                ctx["operation_state"]["recovery_candidate_schema"] = observed_schema
+            if "restore" not in ctx["operation_state"]["completed"]:
+                step("stop", lambda: self._stop(ctx))
+            safety = step("before_" + action, lambda: self._before_recovery_backup(ctx, extracted["archive_sha256"], password))
             def restore():
+                if (_file_digest(source) != extracted["archive_sha256"]
+                        or _tree(candidate) != (expected_directories, expected_files)):
+                    raise EngineError("INTEGRITY_FAILED", "Recovery source изменился перед replacement")
+                self._authorize_recovery_replace(ctx, extracted["archive_sha256"], password, safety)
+                ctx["operation_state"]["recovery_replace_started"] = True
+                if target_adapter is not None:
+                    ctx["operation_state"]["product_adapter_recovery_required"] = True
+                _write(ctx["control"] / "operations" / (token + ".json"), ctx["operation_state"])
                 for name, destination in ctx["home"].roots.items():
                     preserved = set()
                     if name == "services":
@@ -2265,12 +2521,57 @@ class NativeEngine:
                     FilesystemPorts._reconcile(candidate / "roots" / name, destination, preserved)
                 ports = self._ports(recover_ctx, trusted, password, emit)
                 ports.stage_release(token + "/stage", release)
-                ports.switch_pointer(token + "/switch", release)
-                _write(ctx["control"] / "installation.json", {**owner, "installed": True})
             step("restore", restore)
-            step("start", lambda: self._start(recover_ctx))
-            return {"status": "SUCCEEDED", "health": step("health", lambda: self._health(recover_ctx)),
-                    "external_actions_on_hold": True}
+            if target_adapter is not None:
+                # Archive extraction deliberately strips executable modes.
+                # Stage publishes the verified runtime permissions; hooks run
+                # only from that installed signed release, never the candidate.
+                target_adapter, installed_binding = self._release_product_adapter(recover_ctx, release)
+                if installed_binding != recover_ctx["recovery_target_binding"]:
+                    raise EngineError("PLAN_STALE", "Installed recovery adapter отличается от snapshot")
+                step("product_restore", lambda: self._adapter_recover(recover_ctx, target_adapter, "restore", safety,
+                    extracted["archive_sha256"], password))
+                step("post_restore", lambda: self._adapter_recover(recover_ctx, target_adapter, "post_restore", safety,
+                    extracted["archive_sha256"], password))
+            def activate():
+                self._ports(recover_ctx, trusted, password, emit).switch_pointer(token + "/switch", release)
+                _write(ctx["control"] / "installation.json", {**owner, "installed": True})
+            step("activate", activate)
+            cleanup_ctx = {**recover_ctx, "recovery_cleanup": True}
+            if target_adapter is not None and ctx["operation_state"].get("product_adapter_recovery_cleanup_pending"):
+                self._stop(cleanup_ctx)
+                ctx["operation_state"].pop("product_adapter_recovery_cleanup_pending", None)
+                _write(ctx["control"] / "operations" / (token + ".json"), ctx["operation_state"])
+            try:
+                step("start", lambda: self._start(recover_ctx))
+                health = step("health", lambda: self._health(recover_ctx))
+            except Exception as primary:
+                if target_adapter is None:
+                    raise
+                state = ctx["operation_state"]
+                state["recovery_primary_error_code"] = _safe_error_code(primary)
+                state["product_adapter_recovery_cleanup_pending"] = True
+                _write(ctx["control"] / "operations" / (token + ".json"), state)
+                try:
+                    self._stop(cleanup_ctx)
+                    state.pop("product_adapter_recovery_cleanup_pending", None)
+                except _UncertainEffect:
+                    state["recovery_cleanup_error_code"] = "RECOVERY_REQUIRED"
+                    _write(ctx["control"] / "operations" / (token + ".json"), state)
+                    raise
+                except Exception as secondary:
+                    state["recovery_cleanup_error_code"] = _safe_error_code(secondary)
+                    _write(ctx["control"] / "operations" / (token + ".json"), state)
+                    raise EngineError(_safe_error_code(primary), "Recovery readiness и cleanup завершились отказом",
+                        details={"primary_error_code": _safe_error_code(primary),
+                                 "cleanup_error_code": _safe_error_code(secondary)}) from None
+                _write(ctx["control"] / "operations" / (token + ".json"), state)
+                raise
+            ctx["operation_state"].pop("product_adapter_recovery_required", None)
+            return {"status": "SUCCEEDED", "health": health,
+                    "external_actions_on_hold": True, "before_recovery": safety["receipt"],
+                    "before_recovery_archive": {key: safety["archive"][key]
+                        for key in ("path", "sha256", "release", "encrypted")}}
         raise EngineError("CAPABILITY_UNSUPPORTED")
 
     def _data_backup(self, ctx, path, password):

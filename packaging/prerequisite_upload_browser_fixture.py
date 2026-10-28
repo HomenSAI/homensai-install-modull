@@ -147,7 +147,7 @@ def main():
     url = "http://127.0.0.1:" + str(server.server_port) + "/#token=" + session.token
     (work / "url.txt").write_text(url, encoding="utf-8")
     os.chmod(work / "url.txt", 0o600)
-    write_json(work / "fixture.json", {"scope": "Linux Docker synthetic browser upload; installed wheel; no real OS installer/product lifecycle", "module_origins": origins, "payload_files": inventory["files"], "artifact": {key: artifact[key] for key in ("artifact_id", "size", "sha256")}, "manifest_sha256": hash_manifest(manifest), "target": target, "production_ready": False})
+    write_json(work / "fixture.json", {"scope": "Linux x64 DEV runner synthetic browser upload; installed wheel; no real OS installer/product lifecycle; container isolation is not attested", "module_origins": origins, "payload_files": inventory["files"], "artifact": {key: artifact[key] for key in ("artifact_id", "size", "sha256")}, "manifest_sha256": hash_manifest(manifest), "target": target, "production_ready": False})
     save_ledger()
     try:
         server.serve_forever(poll_interval=0.1)

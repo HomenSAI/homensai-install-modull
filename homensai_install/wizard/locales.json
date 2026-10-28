@@ -244,7 +244,9 @@
     "prereq_local_verified": "Файл проверен. Заново проверьте план и подтвердите условия перед установкой.",
     "prereq_local_failed": "Передача или проверка файла не завершилась. Повторите её либо выберите другой файл. Установка не запускалась.",
     "prereq_local_canceling": "Запрошено прерывание передачи. Установка не запускалась.",
-    "prereq_local_canceled": "Передача прервана. Файл можно передать заново. Установка не запускалась."
+    "prereq_local_canceled": "Передача прервана. Файл можно передать заново. Установка не запускалась.",
+    "product_restore": "Восстановление приложения",
+    "post_restore": "Проверка восстановленного приложения"
   },
   "en": {
     "title": "Application setup",
@@ -491,7 +493,9 @@
     "prereq_local_verified": "File verified. Review the plan again and accept the terms before installation.",
     "prereq_local_failed": "The file upload or verification did not finish. Retry or choose another file. No installation has started.",
     "prereq_local_canceling": "Upload cancellation requested. No installation has started.",
-    "prereq_local_canceled": "Upload interrupted. You can upload the file again. No installation has started."
+    "prereq_local_canceled": "Upload interrupted. You can upload the file again. No installation has started.",
+    "product_restore": "Restoring the application",
+    "post_restore": "Checking the restored application"
   },
   "de": {
     "title": "Anwendung installieren",
@@ -738,6 +742,8 @@
     "prereq_local_verified": "Datei geprüft. Prüfen Sie den Plan erneut und stimmen Sie vor der Installation den Bedingungen zu.",
     "prereq_local_failed": "Die Dateiübertragung oder Prüfung wurde nicht abgeschlossen. Versuchen Sie es erneut oder wählen Sie eine andere Datei. Es wurde keine Installation gestartet.",
     "prereq_local_canceling": "Abbruch der Übertragung angefordert. Es wurde keine Installation gestartet.",
-    "prereq_local_canceled": "Übertragung unterbrochen. Sie können die Datei erneut übertragen. Es wurde keine Installation gestartet."
+    "prereq_local_canceled": "Übertragung unterbrochen. Sie können die Datei erneut übertragen. Es wurde keine Installation gestartet.",
+    "product_restore": "Anwendung wiederherstellen",
+    "post_restore": "Wiederhergestellte Anwendung prüfen"
   }
 }

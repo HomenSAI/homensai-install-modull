@@ -26,7 +26,7 @@ from .storage import WELCOME_FILE, load_settings
 
 
 VERSION = "0.1.0"
-HOOKS = ("describe", "migration_apply", "migration_plan", "operation_status", "quiesce", "readiness")
+HOOKS = ("describe", "migration_apply", "migration_plan", "operation_status", "post_restore", "quiesce", "readiness", "restore")
 MAX_BYTES = 256 * 1024
 LEDGER = "reference-adapter.sqlite3"
 
@@ -87,6 +87,8 @@ def _quiesce(request, home):
 def _operation_status(request, home):
     if request["data"].get("hook") == "migration_apply":
         return _migration_operation_status(request, home)
+    if request["data"].get("hook") in {"restore", "post_restore"}:
+        return _recovery_operation_status(request, home)
     unknown = {"outcome": "unknown", "request_digest": request["request_digest"]}
     try:
         with _connection(home) as db:
@@ -320,6 +322,78 @@ def _migration_operation_status(request, home):
         return unknown
 
 
+def _recovery_state(home):
+    selected = load_profile()
+    with _business_connection(home) as connection:
+        schema = connection.execute("PRAGMA user_version").fetchone()[0]
+        validate_schema(connection, schema)
+        if (schema != selected["database_schema"]
+                or connection.execute("PRAGMA quick_check").fetchall() != [("ok",)]
+                or not _required_files_ready(home, _config_home())):
+            raise ReferenceProductError("REFERENCE_RECOVERY_STATE_INVALID")
+    return str(schema)
+
+
+def _recovery_result(request, state_version):
+    identity = {key: request[key] for key in ("operation_id", "idempotency_key", "request_digest", "hook", "data")}
+    receipt_id = hashlib.sha256(canonical(identity).encode()).hexdigest()
+    return {"applied": True, "receipt_id": receipt_id, "state_version": state_version}
+
+
+def _recover(request, home):
+    # SDK уже восстановил bytes и проверил настоящий before-recovery receipt.
+    # Product hook проверяет восстановленную схему/файлы, затем атомарно сохраняет
+    # receipt и hold. ID receipt не подменяет trusted authorizer SDK.
+    data = request["data"]
+    if (set(data) != {"installation_id", "release", "recovery_action", "source_archive_sha256", "before_recovery_receipt_id"}
+            or data["recovery_action"] not in {"restore", "rollback"}
+            or any(type(data[key]) is not str or not data[key] for key in ("installation_id", "release"))
+            or any(type(data[key]) is not str or re.fullmatch(r"[0-9a-f]{64}", data[key]) is None
+                   for key in ("source_archive_sha256", "before_recovery_receipt_id"))):
+        raise ReferenceProductError("REFERENCE_RECOVERY_REQUEST_INVALID")
+    schema = _recovery_state(home)
+    result = _recovery_result(request, schema)
+    with _connection(home, create=True) as db:
+        db.execute("BEGIN IMMEDIATE")
+        db.execute("CREATE TABLE IF NOT EXISTS recovery_effects (effect_key TEXT PRIMARY KEY, request_digest TEXT NOT NULL, hook TEXT NOT NULL, operation_id TEXT NOT NULL, binding TEXT NOT NULL, result TEXT NOT NULL, external_actions_on_hold INTEGER NOT NULL CHECK(external_actions_on_hold=1))")
+        old = db.execute("SELECT request_digest,hook,operation_id,binding,result,external_actions_on_hold FROM recovery_effects WHERE effect_key=?",
+                         (request["idempotency_key"],)).fetchone()
+        if old is not None:
+            if old != (request["request_digest"], request["hook"], request["operation_id"], canonical(data), canonical(result), 1):
+                raise ReferenceProductError("REFERENCE_ADAPTER_EFFECT_CONFLICT")
+            return json.loads(old[4])
+        if request["hook"] == "post_restore":
+            restored = db.execute("SELECT 1 FROM recovery_effects WHERE operation_id=? AND hook='restore' AND binding=? AND external_actions_on_hold=1",
+                                  (request["operation_id"], canonical(data))).fetchone()
+            if restored is None:
+                raise ReferenceProductError("REFERENCE_RECOVERY_RESTORE_NOT_CONFIRMED")
+        db.execute("INSERT INTO recovery_effects VALUES (?,?,?,?,?,?,1)", (request["idempotency_key"], request["request_digest"],
+                   request["hook"], request["operation_id"], canonical(data), canonical(result)))
+        db.execute("COMMIT")
+    # Reference не имеет внешних scheduler/email/payment действий. Durable hold
+    # намеренно не снимается ни restore, ни post_restore, ни operation_status.
+    return result
+
+
+def _recovery_operation_status(request, home):
+    unknown = {"outcome": "unknown", "request_digest": request["request_digest"]}
+    try:
+        schema = _recovery_state(home)
+        with _connection(home) as db:
+            row = db.execute("SELECT request_digest,hook,operation_id,binding,result,external_actions_on_hold FROM recovery_effects WHERE effect_key=?",
+                             (request["idempotency_key"],)).fetchone()
+        if (row is None or row[:3] != (request["request_digest"], request["data"]["hook"], request["operation_id"])
+                or row[5] != 1):
+            return unknown
+        result = json.loads(row[4])
+        expected = _recovery_result({**request, "hook": row[1], "data": json.loads(row[3])}, schema)
+        if result != expected:
+            return unknown
+        return {"outcome": "applied", "request_digest": row[0], "result": result}
+    except (OSError, sqlite3.Error, ReferenceProductError, ValueError, KeyError, TypeError):
+        return unknown
+
+
 def execute(request):
     if (type(request) is not dict or request.get("protocol_version") != "1.0"
             or request.get("hook") not in HOOKS or type(request.get("data")) is not dict):
@@ -345,6 +419,8 @@ def execute(request):
         return _migration_apply(request, home)
     if hook == "operation_status":
         return _operation_status(request, home)
+    if hook in {"restore", "post_restore"}:
+        return _recover(request, home)
     return _quiesce(request, home)
 
 

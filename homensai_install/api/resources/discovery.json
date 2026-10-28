@@ -21,7 +21,9 @@
       "start",
       "stop",
       "backup",
-      "update"
+      "update",
+      "restore",
+      "rollback"
     ],
     "migration_preparation": "explicit_sdk_backend_extension",
     "migration_execution": true,
@@ -31,6 +33,12 @@
     ],
     "migration_max_steps": 1,
     "default_registration": false,
+    "recovery_execution": true,
+    "recovery_actions": [
+      "restore",
+      "rollback"
+    ],
+    "recovery_failure_policy": "preserve_before_recovery_snapshot_no_automatic_retry",
     "execution_platforms": [
       "linux"
     ],

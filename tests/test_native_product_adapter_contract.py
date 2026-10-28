@@ -68,10 +68,12 @@ def test_discovery_documents_opt_in_single_step_migrations_and_maintenance_scope
     root=Path(__file__).resolve().parents[1]
     published=json.loads((root/'api/discovery.json').read_text())['product_adapter']
     assert published==InstallerAPI(root/'build/not-created').describe()['product_adapter']
-    assert published['lifecycle_engine_actions']==['install','start','stop','backup','update']
+    assert published['lifecycle_engine_actions']==['install','start','stop','backup','update','restore','rollback']
     assert published['lifecycle_engine_registration'] is True
     assert published['migration_execution'] is True and published['default_registration'] is False
     assert published['migration_actions']==['install','update'] and published['migration_max_steps']==1
+    assert published['recovery_execution'] is True and published['recovery_actions']==['restore','rollback']
+    assert published['recovery_failure_policy']=='preserve_before_recovery_snapshot_no_automatic_retry'
     assert (root/'api/discovery.json').read_bytes()==(root/'homensai_install/api/resources/discovery.json').read_bytes()
 
 

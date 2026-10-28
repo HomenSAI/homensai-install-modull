@@ -56,6 +56,10 @@ class _MigrationAuthorizationRefused(InstallerError):
     """Доверенная граница отказала до записи ledger intent/запуска hook."""
 
 
+class _RecoveryAuthorizationRefused(InstallerError):
+    """Recovery proof отклонён до intent/exec; неопределённого эффекта нет."""
+
+
 def _relative(value: str) -> str:
     if (type(value) is not str or not value or len(value) > 1024 or "\\" in value
             or value.startswith("/") or any(ord(c) < 32 for c in value)
@@ -213,7 +217,7 @@ class ExecutableProductAdapter:
     def __init__(self, manifest: dict, target: dict, options: dict, *,
                  verifier: SignedPayloadVerifier, state_dir: str | Path,
                  descriptor: str = "installer/adapter.json", environment: Mapping[str, str] | None = None,
-                 timeout: float = 30, migration_authorizer=None):
+                 timeout: float = 30, migration_authorizer=None, recovery_authorizer=None):
         if not isinstance(verifier, SignedPayloadVerifier):
             _fail("INTEGRITY_FAILED", "signed_payload_verifier_required")
         if type(timeout) not in (int, float) or not 0 < timeout <= 60:
@@ -230,6 +234,9 @@ class ExecutableProductAdapter:
         # Trusted constructor injection only. Request/options cannot select or
         # disable the authorization boundary for a new migration side effect.
         self.migration_authorizer = migration_authorizer
+        if recovery_authorizer is not None and not callable(recovery_authorizer):
+            _fail("INVALID_REQUEST", "adapter_recovery_authorizer_callable")
+        self.recovery_authorizer = recovery_authorizer
         if environment is not None and not isinstance(environment, Mapping):
             _fail("INVALID_REQUEST", "adapter_environment_mapping")
         self.environment = dict(environment or {})
@@ -334,6 +341,14 @@ class ExecutableProductAdapter:
                     or ("backup_receipt_id" in request["data"]) == ("fresh_receipt_id" in request["data"])
                     or not _safe_name(request["data"].get("backup_receipt_id", request["data"].get("fresh_receipt_id")))):
                 _fail("INVALID_REQUEST", "migration_plan_and_backup_receipt_required")
+        if hook in {"restore", "post_restore"}:
+            data = request["data"]
+            if (set(data) != {"installation_id", "release", "recovery_action", "source_archive_sha256", "before_recovery_receipt_id"}
+                    or any(not _safe_name(data.get(key)) for key in ("installation_id", "release"))
+                    or data["recovery_action"] not in {"restore", "rollback"}
+                    or any(type(data[key]) is not str or not _HASH.fullmatch(data[key])
+                           for key in ("source_archive_sha256", "before_recovery_receipt_id"))):
+                _fail("INVALID_REQUEST", "recovery_binding_and_backup_receipt_required")
         if len(canonical(request).encode()) > MAX_INPUT_BYTES - 2048:
             _fail("INVALID_REQUEST", "adapter_request_too_large")
         request_digest = digest({"hook": hook, "operation_id": request["operation_id"], "data": request["data"],
@@ -348,10 +363,11 @@ class ExecutableProductAdapter:
         self._execution_context()
         ledger = _Ledger(self.state_dir, create=not existing_ledger)
         key = self._identity(request["idempotency_key"])
+        authorize = ((lambda: self._authorize_migration(request)) if hook == "migration_apply"
+                     else (lambda: self._authorize_recovery(request)) if hook in {"restore", "post_restore"} else None)
         old_result = ledger.begin(key, request_digest, request["operation_id"], hook,
                                   resume=request["phase"] == "resume", require_existing=existing_ledger,
-                                  authorize=(lambda: self._authorize_migration(request))
-                                  if hook == "migration_apply" else None)
+                                  authorize=authorize)
         if old_result is not None:
             return {"hook": hook, "request_digest": request_digest, "result": old_result, "replayed": True}
         try:
@@ -379,6 +395,19 @@ class ExecutableProductAdapter:
         if authorized is not True:
             raise _MigrationAuthorizationRefused("RECOVERY_REQUIRED", phase="product_adapter",
                 details={"reason": "migration_receipt_not_authorized"})
+
+    def _authorize_recovery(self, request):
+        if self.recovery_authorizer is None:
+            raise _RecoveryAuthorizationRefused("CAPABILITY_UNSUPPORTED", phase="product_adapter",
+                details={"reason": "recovery_requires_trusted_receipt_authorizer"})
+        try:
+            authorized = self.recovery_authorizer(deepcopy(request))
+        except Exception:
+            raise _RecoveryAuthorizationRefused("RECOVERY_REQUIRED", phase="product_adapter",
+                details={"reason": "recovery_receipt_verification_failed"}) from None
+        if authorized is not True:
+            raise _RecoveryAuthorizationRefused("RECOVERY_REQUIRED", phase="product_adapter",
+                details={"reason": "recovery_receipt_not_authorized"})
 
     def reconcile(self, idempotency_key: str) -> Mapping[str, object]:
         self.capabilities()

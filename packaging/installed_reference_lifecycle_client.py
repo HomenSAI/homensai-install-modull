@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import socket
 import sqlite3
+import stat
 import sys
 from urllib.request import ProxyHandler, build_opener
 
@@ -35,6 +36,18 @@ def notes(database):
         connection.close()
 
 
+def private_recovery_files(paths):
+    """Независимая POSIX-регрессия private modes на известных fixture paths."""
+    if os.name != "posix":
+        return
+    for path in paths:
+        info, parent = path.lstat(), path.parent.lstat()
+        assert stat.S_ISREG(info.st_mode) and info.st_nlink == 1
+        assert info.st_uid == os.getuid() and stat.S_IMODE(info.st_mode) == 0o600, "Restored private file требует owned 0600"
+        assert stat.S_ISDIR(parent.st_mode) and parent.st_uid == os.getuid()
+        assert stat.S_IMODE(parent.st_mode) == 0o700, "Owned DataHome parent требует 0700"
+
+
 def listener_stopped(port):
     with socket.socket() as probe:
         assert probe.connect_ex(("127.0.0.1", port)) != 0, "Owned listener остался после stop"
@@ -58,7 +71,7 @@ def main():
     observations, actions, legacy_root, active_update = [], [], None, None
 
     def api(state, *, registered=True):
-        if registered and config["profile"] in {"fresh", "update-readiness", "update"}:
+        if registered and config["profile"] in {"fresh", "update-readiness", "update", "recovery"}:
             return InstallerAPI.from_bootstrap(work / state, trust_config=config["trust"], allow_development=True,
                 product_adapter_descriptor="installer/adapter.json", secret_provider=secret, locale="ru")
         engine = NativeEngine(verifier, secret, **({"product_adapter_descriptor": "installer/adapter.json"} if registered else {}))
@@ -112,7 +125,7 @@ def main():
             raise AssertionError("Caller review ID passed preparation input validation")
         assert tree(root) == before
         observations.append({"case": "caller_review_id_rejected_before_hook", "status": "PASS"})
-        if config["profile"] in {"fresh", "update-readiness", "update"}:
+        if config["profile"] in {"fresh", "update-readiness", "update", "recovery"}:
             assert supported, "Этот SDK revision ещё не поддерживает adapter fresh install"
             for changed, expected_error in (({**prepared, "migration_review_id": "e" * 64}, "PLAN_STALE"),
                     ({**prepared, "fresh_receipt_id": "a" * 64}, "INVALID_REQUEST")):
@@ -228,6 +241,196 @@ def main():
                 "database_documents_settings_and_synthetic_credential_preserved": True,
                 "actual_signed_runtime_sha256": sha(executable.read_bytes()), "secrets_absent_from_argv_and_control_logs": True,
                 "owned_listener_stopped": True})
+            if config["profile"] == "recovery":
+                action, fault = config["recovery_action"], config.get("recovery_fault")
+                active_update = {"case": "installed_adapter_" + action, "fault": fault, "status": "RUNNING"}
+                observations.append(active_update)
+                source_snapshot = Path(archive["path"])
+                snapshot_digest = sha(source_snapshot.read_bytes())
+                run_action(current, "start", bundles["1"], "recovery-source-v1-start")
+                update_review = current.prepare_migration("update", manifest, target, options=bundles["2"])
+                update_options = {**bundles["2"], "migration_review_id": update_review["migration_review_id"]}
+                _, updated = run_action(current, "update", update_options, "recovery-setup-update-v2")
+                assert updated["result"]["release"] == "reference-v2" and notes(database)["schema"] == 2
+                document.write_text("Новые документы v2 перед recovery", encoding="utf-8")
+                credential.write_text(config["product_secret"] + "-v2", encoding="utf-8")
+                changed_settings = json.loads(settings.read_text())
+                changed_settings.update(site_title="Новые настройки v2 перед recovery", language="en")
+                settings.write_text(json.dumps(changed_settings, ensure_ascii=False), encoding="utf-8")
+                with sqlite3.connect(database) as db:
+                    text = "New v2 note before recovery"
+                    db.execute("INSERT INTO notes(id,text,normalized_text,text_length,category) VALUES(3,?,?,?,?)",
+                               (text, text.casefold(), len(text), "general"))
+                latest_data = notes(database)
+                assert latest_data["schema"] == 2 and latest_data != data_before
+                latest_files = {"document": sha(document.read_bytes()), "credential": sha(credential.read_bytes()),
+                                "settings": sha(settings.read_bytes())}
+                assert all(latest_files[name] != retained[name] for name in retained)
+                recovery_options = {**bundles["2"], "archive_path": str(source_snapshot), "acknowledge_data_loss": True}
+                before_plan = tree(root)
+                recovery_plan = current.plan(action, manifest, target, options=recovery_options)
+                assert tree(root) == before_plan
+                detail = recovery_plan["engine_plan"]
+                assert detail["product_adapter_binding"]["release"] == "reference-v2"
+                assert detail["recovery_source_sha256"] == snapshot_digest
+                assert detail["recovery_failure_policy"] == "preserve_before_recovery_snapshot_no_automatic_retry"
+                assert {"restore", "post_restore", "readiness", "quiesce", "operation_status", "migration_plan"} <= set(detail["recovery_target_hooks"])
+                consent = [*recovery_plan["required_consents"], recovery_plan["review_consent_ref"]]
+                native_token = sha(canonical([recovery_plan["plan_id"], recovery_plan["plan_digest"]]))[:32]
+                native_path = root / ".hinstall/operations" / (native_token + ".json")
+                from homensai_install.adapters import ExecutableProductAdapter
+                original_execute = ExecutableProductAdapter._execute
+                injected = []
+
+                def lose_recovery_ack(adapter, hook, request, request_digest):
+                    result = original_execute(adapter, hook, request, request_digest)
+                    if hook == "restore" and adapter.options["release"] == "reference-v1":
+                        assert not injected
+                        injected.append(request_digest)
+                        raise InstallerError("ADAPTER_TIMEOUT")
+                    return result
+
+                if fault:
+                    ExecutableProductAdapter._execute = lose_recovery_ack
+                try:
+                    recovered = current.submit(recovery_plan["plan_id"], recovery_plan["plan_digest"],
+                        consent, idempotency_key="installed-recovery", background=False)
+                finally:
+                    ExecutableProductAdapter._execute = original_execute
+                operation_id = recovered["operation_id"]
+                sdk_ledger = root / ".hinstall/product-adapter/reference-v1/adapter-invocations.sqlite3"
+                product_ledger = root / "data/reference-adapter.sqlite3"
+                private_recovery_files((product_ledger, credential))
+                expected_document = retained["document"]
+                if fault:
+                    assert injected and recovered["status"] == "RECOVERY_REQUIRED", recovered
+                    assert notes(database) == data_before
+                    assert json.loads((root / "services" / manifest["update"]["pointer_file"]).read_text()) == {"release": "reference-v2"}
+                    with sqlite3.connect(sdk_ledger.as_uri() + "?mode=ro", uri=True) as db:
+                        assert db.execute("SELECT request_digest,state FROM calls WHERE hook='restore'").fetchall() == [(injected[0], "UNKNOWN")]
+                    with sqlite3.connect(product_ledger.as_uri() + "?mode=ro", uri=True) as db:
+                        effects_before = db.execute("SELECT * FROM recovery_effects ORDER BY effect_key").fetchall()
+                        assert len(effects_before) == 1 and effects_before[0][2] == "restore" and effects_before[0][-1] == 1
+                    listener_stopped(config["port"])
+                    # New data written after the committed restore-hook must survive
+                    # original-operation resume: never repeat root replacement.
+                    document.write_text("Новые пользовательские данные после recovery hook", encoding="utf-8")
+                    expected_document = sha(document.read_bytes())
+                    before_resume = json.loads(native_path.read_text())
+                    if fault == "missing_ledger":
+                        removed_ledger_digest = sha(sdk_ledger.read_bytes())
+                        sdk_ledger.unlink()
+                    current = api("fresh-sdk-state")
+                    reopened = current.status(operation_id)
+                    assert reopened["status"] == "RECOVERY_REQUIRED"
+                    duplicate = current.submit(recovery_plan["plan_id"], recovery_plan["plan_digest"],
+                        consent, idempotency_key="installed-recovery", background=False)
+                    assert duplicate["operation_id"] == operation_id and duplicate["status"] == "RECOVERY_REQUIRED"
+                    recovered = current.resume(operation_id, {}, background=False)
+                    assert recovered["operation_id"] == operation_id
+                    after_resume = json.loads(native_path.read_text())
+                    assert after_resume["step_results"]["before_" + action] == before_resume["step_results"]["before_" + action]
+                    if fault == "missing_ledger":
+                        assert recovered["status"] == "RECOVERY_REQUIRED" and not sdk_ledger.exists(), recovered
+                        with sqlite3.connect(product_ledger.as_uri() + "?mode=ro", uri=True) as db:
+                            assert db.execute("SELECT * FROM recovery_effects ORDER BY effect_key").fetchall() == effects_before
+                        assert sha(document.read_bytes()) == expected_document and notes(database) == data_before
+                        assert sha(credential.read_bytes()) == retained["credential"] and sha(settings.read_bytes()) == retained["settings"]
+                        listener_stopped(config["port"])
+                    else:
+                        assert recovered["status"] == "SUCCEEDED", recovered
+                        with sqlite3.connect(sdk_ledger.as_uri() + "?mode=ro", uri=True) as db:
+                            assert db.execute("SELECT request_digest,state FROM calls WHERE hook='restore'").fetchall() == [(injected[0], "SUCCEEDED")]
+                    active_update.update(original_operation_id=operation_id, reopened_status=reopened["status"],
+                        duplicate_status=duplicate["status"], resume_status=recovered["status"],
+                        injection="transport_response_lost_after_real_signed_restore_hook", request_digest=injected[0],
+                        original_safety_proof_unchanged=True, new_post_hook_document_preserved=True)
+                    if fault == "missing_ledger":
+                        active_update.update(removed_sdk_ledger_sha256=removed_ledger_digest, ledger_recreated=False)
+                else:
+                    assert recovered["status"] == "SUCCEEDED", recovered
+                state = json.loads(native_path.read_text())
+                safety = state["step_results"]["before_" + action]
+                proof = safety["receipt"]
+                assert proof["kind"] == "before_recovery_backup" and proof["migration_eligible"] is False
+                assert proof["recovery_action"] == action and proof["source_archive_sha256"] == snapshot_digest
+                assert proof["from_release"] == "reference-v2" and proof["operation_id"] == "op_" + native_token
+                assert proof["installation_id"] == review["installation_id"] and proof["product_id"] == manifest["product_id"]
+                source_metadata = json.loads((root / ".hinstall/releases/reference-v2.json").read_text())
+                assert proof["from_metadata_sha256"] == sha(canonical(source_metadata))
+                assert proof["from_manifest_sha256"] == sha(canonical(source_metadata["manifest"]))
+                assert proof["from_inventory_sha256"] == sha(canonical(source_metadata["inventory"]))
+                assert proof["consistency_scope"] == "owned_components_stopped_and_adapter_quiesced"
+                assert proof["verification_scope"] == "full_snapshot_and_signed_recovery_payload_restored"
+                record = json.loads((root / ".hinstall/recovery-receipts" / (proof["receipt_id"] + ".json")).read_text())
+                assert proof["receipt_id"] == record["receipt_id"] == sha(canonical(record["body"]))
+                assert proof == {"receipt_id": record["receipt_id"], **record["body"]}
+                safety_archive = Path(record["archive_path"])
+                assert archive_crypto.is_encrypted(safety_archive) and sha(safety_archive.read_bytes()) == proof["archive_sha256"]
+                safety_oracle = work / ("before-" + action + "-oracle")
+                safety_oracle.mkdir(mode=0o700)
+                safety_manifest = archive_crypto.restore_archive(safety_archive, safety_oracle,
+                    password_provider=lambda: config["archive_password"], expected_product_id=manifest["product_id"])
+                assert sha(canonical(safety_manifest)) == proof["archive_manifest_sha256"]
+                assert notes(safety_oracle / "roots/data/reference.sqlite") == latest_data
+                for filename, name in (("data/user-files/Личные документы.txt", "document"),
+                                       ("data/synthetic-secret.txt", "credential"), ("config/settings.json", "settings")):
+                    assert sha((safety_oracle / "roots" / filename).read_bytes()) == latest_files[name]
+                assert json.loads((safety_oracle / "roots/services" / manifest["update"]["pointer_file"]).read_text()) == {"release": "reference-v2"}
+                previous_runtime = safety_oracle / "roots/runtime/recovery/reference-v2/payload/runtime/bin/python"
+                assert sha(previous_runtime.read_bytes()) == config["runtime_sha256"]
+                assert sha(source_snapshot.read_bytes()) == snapshot_digest
+                assert notes(database) == data_before and sha(document.read_bytes()) == expected_document
+                assert sha(credential.read_bytes()) == retained["credential"] and sha(settings.read_bytes()) == retained["settings"]
+                private_recovery_files((product_ledger, credential))
+                with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
+                    assert db.execute("SELECT count(*) FROM product_adapter_effects").fetchone() == (1,)
+                    assert db.execute("SELECT version FROM schema_migrations ORDER BY version").fetchall() == [(1,)]
+                with sqlite3.connect(product_ledger.as_uri() + "?mode=ro", uri=True) as db:
+                    effects = db.execute("SELECT effect_key,request_digest,hook,operation_id,binding,result,external_actions_on_hold FROM recovery_effects ORDER BY effect_key").fetchall()
+                assert len(effects) == (1 if fault == "missing_ledger" else 2)
+                assert {row[2] for row in effects} == ({"restore"} if fault == "missing_ledger" else {"restore", "post_restore"})
+                assert all(row[3] == "op_" + native_token and row[-1] == 1 for row in effects)
+                for row in effects:
+                    binding = json.loads(row[4])
+                    assert binding["before_recovery_receipt_id"] == proof["receipt_id"]
+                    assert binding["source_archive_sha256"] == snapshot_digest and binding["recovery_action"] == action
+                    assert binding["installation_id"] == review["installation_id"] and binding["release"] == "reference-v1"
+                assert not (root / "data/FORBIDDEN_LEGACY_MIGRATION").exists()
+                assert not (root / "data/FORBIDDEN_LEGACY_RESTORE").exists()
+                if fault != "missing_ledger":
+                    assert recovered["result"]["health"]["release"] == "reference-v1"
+                    assert recovered["result"]["external_actions_on_hold"] is True
+                    assert state["status"] == "SUCCEEDED" and state.get("product_adapter_recovery_required") is not True
+                    assert json.loads((root / "services" / manifest["update"]["pointer_file"]).read_text()) == {"release": "reference-v1"}
+                    with sqlite3.connect(sdk_ledger.as_uri() + "?mode=ro", uri=True) as db:
+                        calls = db.execute("SELECT request_digest,hook,result,state FROM calls WHERE hook IN ('restore','post_restore') ORDER BY hook").fetchall()
+                    assert len(calls) == 2 and all(row[3] == "SUCCEEDED" for row in calls)
+                    assert {(row[0], row[1], canonical(json.loads(row[2]))) for row in calls} == {
+                        (row[1], row[2], canonical(json.loads(row[5]))) for row in effects}
+                    process = json.loads((root / ".hinstall/processes.json").read_text())["web"]
+                    executable = Path("/proc/" + str(process["pid"]) + "/exe").resolve()
+                    assert executable.is_relative_to(root / "releases/app-reference-v1")
+                    assert sha(executable.read_bytes()) == config["runtime_sha256"]
+                    with build_opener(ProxyHandler({})).open("http://127.0.0.1:" + str(config["port"]) + "/healthz", timeout=3) as response:
+                        health = json.load(response)
+                    assert health["ready"] and health["release"] == "reference-v1" and health["database_schema"] == 1
+                    assert health["installation_id"] == review["installation_id"]
+                    duplicate = current.submit(recovery_plan["plan_id"], recovery_plan["plan_digest"], consent,
+                        idempotency_key="installed-recovery", background=False)
+                    assert duplicate["operation_id"] == operation_id and duplicate["status"] == "SUCCEEDED"
+                    assert sha(document.read_bytes()) == expected_document
+                    run_action(current, "stop", bundles["1"], "recovery-final-stop")
+                    listener_stopped(config["port"])
+                active_update.update(status="PASS", public_status=recovered["status"], public_operation_id=operation_id,
+                    source_snapshot_sha256=snapshot_digest, before_recovery_receipt=proof,
+                    before_recovery_archive_restored_as_oracle=True, latest_v2_data_preserved_in_safety=True,
+                    restored_schema=1, recovery_hook_effect_rows=len(effects), migration_business_effect_rows=1,
+                    retained_document_sha256=expected_document, target_hooks_signed_and_held=True,
+                    real_native_authorizer=True, legacy_hooks_not_executed=True,
+                    restored_private_files_owned_0600_and_datahome_0700=os.name == "posix",
+                    factory_plan_submit_and_original_operation_resume=True, automatic_restore_retry=False)
+                active_update = None
             if config["profile"] == "update-readiness":
                 # Этот профиль доказывает только запрет update. Включение capability
                 # требует отдельной полной installed 1→2→3 приёмки и нового профиля.
@@ -839,10 +1042,11 @@ def main():
             active_update.update(status="FAIL", error_code=code)
         raise
     finally:
-        for cleanup_root, version in ((legacy_root, "1"), (root if config["profile"] in {"fresh", "update-readiness", "update"} else None, "1")):
+        for cleanup_root, version in ((legacy_root, "1"), (root if config["profile"] in {"fresh", "update-readiness", "update", "recovery"} else None, "1")):
             if cleanup_root is not None and (cleanup_root / ".hinstall/installation.json").exists():
                 try:
-                    if config.get("fault_profile") in {*PRE_APPLY_FAULTS, "missing_ledger"} and cleanup_root == root:
+                    if (config.get("fault_profile") in {*PRE_APPLY_FAULTS, "missing_ledger"}
+                            or config.get("recovery_fault") == "missing_ledger") and cleanup_root == root:
                         listener_stopped(config["port"])
                         continue
                     run_action(api("cleanup-" + str(len(str(cleanup_root))), registered=False), "stop",

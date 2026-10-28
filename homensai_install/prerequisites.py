@@ -315,7 +315,9 @@ def _component(status, *, version=None, reason=None, scope="host", evidence=None
 
 
 def collect_inventory(*, paths=(), ports=(), program_paths=None, runner=None, environ=None,
-                      platform_info=None, port_probe=None) -> dict:
+                      platform_info=None, port_probe=None, probe_container_tools=True) -> dict:
+    if type(probe_container_tools) is not bool:
+        raise ValueError("invalid container probe selection")
     if not isinstance(paths, (list, tuple)) or not isinstance(ports, (list, tuple)) or len(paths) > 32 or len(ports) > 64:
         raise ValueError("inventory request is too large")
     if not all(isinstance(path, (str, Path)) and "\x00" not in str(path) for path in paths) or not all(type(port) is int and 1 <= port <= 65535 for port in ports):
@@ -336,8 +338,8 @@ def collect_inventory(*, paths=(), ports=(), program_paths=None, runner=None, en
     info["arch"] = {"x86_64": "x64", "amd64": "x64", "aarch64": "arm64"}.get(info["arch"], info["arch"])
     if os_name == "linux":
         info["distribution"] = _os_release()
-    docker = _program("docker", os_name, supplied)
-    wsl = _program("wsl", os_name, supplied) if os_name == "windows" else None
+    docker = _program("docker", os_name, supplied) if probe_container_tools else None
+    wsl = _program("wsl", os_name, supplied) if probe_container_tools and os_name == "windows" else None
     docker_args = None
     if docker:
         endpoint = "npipe:////./pipe/docker_engine" if os_name == "windows" else "unix:///var/run/docker.sock"
@@ -357,6 +359,9 @@ def collect_inventory(*, paths=(), ports=(), program_paths=None, runner=None, en
         "docker_compose": _component("missing", reason="trusted_docker_executable_not_found"),
         "wsl": _component("unsupported" if os_name != "windows" else "missing", reason="windows_only" if os_name != "windows" else "wsl_executable_not_found"),
     }
+    if not probe_container_tools:
+        for name in ("docker_engine", "docker_compose", *(("wsl",) if os_name == "windows" else ())):
+            components[name] = _component("manual", reason="container_tools_not_inspected")
     if docker:
         version = _result(active_runner, [docker, *docker_args])
         if version.returncode == 0 and not version.timed_out and not version.output_limited:

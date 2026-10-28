@@ -882,6 +882,11 @@ UNKNOWN и duplicate submit не повторили его, original operation r
 faults и полная матрица NOT RUN. Receipt installed-update-lost-ack-terra-20261028.json.
 Terra CP-20261028T143832Z-262d480572a6: подготовлен отдельный installed
 tampered-backup профиль WIP; AST PASS, проверка отказа ещё NOT RUN.
+Terra CP-20261028T143954Z-972d8c3a1cf6: установленный tampered backup PASS
+как проверка ожидаемого отказа в Linux DEV на SDK 6edcbb83: повреждение после
+выдачи receipt, RECOVERY_REQUIRED до v2 effect, данные и forward journal сохранены.
+Receipt installed-update-tampered-backup-terra-20261028.json. Другие faults и
+полная target matrix по-прежнему не приняты.
 Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-012
 Текущий scoped результат CP-20261026-012: полный source и installed public fresh1→update2→update3 PASS на SDK6edcbb83; реальные4backup archives восстановлены. Полная target/lifecycle матрица НЕ ГОТОВА; receipts в docs/RESUME.md.
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.

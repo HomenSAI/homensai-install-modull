@@ -195,3 +195,20 @@ fixture меняет только backup:0 после issuance, ждёт отк�
 journal. AST PASS; run и отрицательный outcome ещё NOT RUN. Изменены только
 harness; runtime не менялся. Предыдущий commit 1480d8f/tree
 21b03290bde60d6cd0ea6b0f98dd553d61d3bc89 подтверждены независимым bare fetch.
+
+## 85/100 — CP-20261028T143954Z-972d8c3a1cf6 — HIM-054
+
+2026-10-28 14:39 UTC. Выполнены пункты плана 83–86 и 89: installed tampered
+backup:0 после настоящего receipt → public operation RECOVERY_REQUIRED до v2
+effect; schema1, business effect count 1, pointer v1, данные/settings и forward
+journal сохранены. Ожидаемый отказ PASS в Linux DEV, SDK 6edcbb83, wheel SHA256
+`f5c4c22c9dc10a42a79dd41293ec9a4a0d9dd46a7c7ca704a3e985f2583f4caa`,
+70 SDK/7 reference/161 dependency files unchanged. Receipt:
+`packaging/acceptance-evidence/installed-update-tampered-backup-terra-20261028.json`.
+Runtime/capabilities не менялись. Не чистый хост и не полная приёмка.
+Runner: тот же Docker recipe что для fault01, с `--name hinstall-terra-20261028-tamper01`,
+`--work-dir /tmp/hinstall-terra-tamper01`, `--receipt /evidence/tamper01.json`,
+`--profile update-tampered-backup`. Предыдущий commit 8ab64c1/tree
+6906393acc7604b1ea752a7638039fa1da96cfd2 подтверждены bare fetch.
+Следующий шаг: повторить затронутый lost-ACK профиль после изменения harness,
+затем проверить source contracts и итоговый handoff.

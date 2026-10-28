@@ -14,6 +14,10 @@ Receipt `packaging/acceptance-evidence/installed-update-lost-ack-terra-20261028.
 Остальные fault сценарии и production gates остаются открытыми.
 CP-20261028T143832Z-262d480572a6: второй профиль tampered-backup подготовлен,
 AST PASS, прогон ещё NOT RUN; выполнить isolated Docker test.
+Дополнение CP-20261028T143954Z-972d8c3a1cf6: tampered-backup installed
+ожидаемый отказ PASS, schema v1/effect count 1 и данные сохранены. Receipt
+`packaging/acceptance-evidence/installed-update-tampered-backup-terra-20261028.json`;
+Linux DEV, не clean-host и не полная приёмка HIM-054.
 
 ## Финальный handoff CP-20261026-012
 

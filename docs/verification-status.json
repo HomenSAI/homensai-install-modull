@@ -14,6 +14,16 @@
     "full_acceptance": "NOT RUN",
     "ready": false
   },
+  "terra_20261028_tampered_backup": {
+    "checkpoint_id": "CP-20261028T143954Z-972d8c3a1cf6",
+    "status": "PASS_SCOPED_EXPECTED_REFUSAL",
+    "scope": "Installed public SDK Linux/native/user DEV; tampered verified backup:0 refused before v2 apply; not clean-host",
+    "sdk_source_sha": "6edcbb83a018e72d235cc3eb192864e238a82755",
+    "wheel_sha256": "f5c4c22c9dc10a42a79dd41293ec9a4a0d9dd46a7c7ca704a3e985f2583f4caa",
+    "receipt": "packaging/acceptance-evidence/installed-update-tampered-backup-terra-20261028.json",
+    "full_acceptance": "NOT RUN",
+    "ready": false
+  },
   "unaccepted_task_ids": [
     "HIM-003",
     "HIM-008",

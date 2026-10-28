@@ -1,5 +1,12 @@
 # Журнал выполнения
 
+2026-10-28 14:39 UTC — HIM-054 / CP-20261028T143954Z-972d8c3a1cf6:
+installed tampered backup в Linux DEV — ожидаемый отказ PASS: после выдачи
+backup receipt архив изменён, public update вернул RECOVERY_REQUIRED до второго
+effect; сохранены schema1, данные и forward journal. Receipt
+`packaging/acceptance-evidence/installed-update-tampered-backup-terra-20261028.json`.
+Другие faults и полная target/platform приёмка не выполнены.
+
 2026-10-28 14:36 UTC — HIM-054 / CP-20261028T143633Z-a8c51a2df8c6:
 installed lost-ACK через public SDK и настоящий signed reference adapter: PASS
 в Linux DEV Docker, сохранены два эффекта fresh+update, duplicate и resume той

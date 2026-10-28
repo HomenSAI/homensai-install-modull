@@ -48,3 +48,13 @@ unknown effect не разрешает blind replay. Старое окно не 
 Checkpoint `379a50a17480661d4c1059e949248ed7d9faa4e5`, tree
 `666226780b14682d5bace73166edf96ca778b50e` подтверждены внешней квитанцией.
 Новых runtime проверок пока нет. Далее проверка Git и среды, пункты 21–25.
+
+## 25/100 — CP-20261028T142636Z-aac92f05d8c3 — HIM-054
+
+2026-10-28 14:26 UTC. Пункты 21–25: feature branch и HEAD проверены;
+рабочее дерево/index чисты; origin — GitHub HomenSAI/homensai-install-modull;
+`ls-remote --heads` подтверждает `1294770ba1a78460596923c7d6bd46d3bd471c8b`.
+Независимая bare fetch-проверка дала тот же commit/tree
+`c84dfe1015d5ab66ab9ebd3d901c14bf0b61aecb`. Локальный tracking ref устарел,
+поэтому status ahead 8 не означает неотправленную работу. Diff/check: PASS;
+новых runtime проверок нет. Далее worktree/stash/Docker, пункты 26–30.

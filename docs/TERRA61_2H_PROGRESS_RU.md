@@ -91,3 +91,13 @@ public factory/prepare/plan/submit выполняют fresh и update 1→2→3.
 Ни один не доказывает installed update fault. Исторический SDK CP011 сохраняется.
 Предыдущий GitHub commit 5ef0846/tree 6ea248b5049b86e7caca841b1d70749d55000288
 подтверждены отдельным bare fetch. Diff/check PASS; новая приёмка NOT RUN.
+
+## 45/100 — CP-20261028T142928Z-5ad7c70f5043 — HIM-054
+
+2026-10-28 14:29 UTC. Пункты 41–45: в source
+`integration_tests/test_native_adapter_update.py` найдены проверки тампера
+receipt/archive, foreign verified receipt, live drift, candidate health и
+cleanup UNKNOWN. Они используют source fixture/внедрение ошибок и не являются
+новым installed evidence. Входной installed fault profile ещё NOT RUN.
+Предыдущий commit e6cacce и tree 2fcb0e208204671a7169c952e08f2a16c1b96b33
+подтверждены независимым bare fetch. Diff/check PASS. Далее выбрать сценарии.

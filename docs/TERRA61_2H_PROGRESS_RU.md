@@ -101,3 +101,22 @@ cleanup UNKNOWN. Они используют source fixture/внедрение �
 новым installed evidence. Входной installed fault profile ещё NOT RUN.
 Предыдущий commit e6cacce и tree 2fcb0e208204671a7169c952e08f2a16c1b96b33
 подтверждены независимым bare fetch. Diff/check PASS. Далее выбрать сценарии.
+
+### Критерии выбранных fault-сценариев
+
+Основной — потерян ответ после реального `migration_apply` update v1→v2.
+Ожидаются RECOVERY_REQUIRED/UNKNOWN, одна фактически выполненная v2-миграция,
+повторный submit с прежним ключом без нового эффекта и затем явный resume той же
+операции с проверкой reconciliation через настоящий reference operation_status.
+Данные и подписанные байты остаются сохранными; никаких synthetic authorizer.
+Резервный — изменение байтов собственного backup:0 после его подтверждения и
+до apply: ожидается безопасный отказ, effect count остаётся на уровне v1,
+пользовательские данные и forward journal не затираются. Оба результата NOT RUN.
+
+## 50/100 — CP-20261028T143033Z-a568f68c4cd9 — HIM-054
+
+2026-10-28 14:30 UTC. Пункты 46–50: сопоставлен source и installed scope,
+выбраны два сценария и записаны их критерии выше. Изменения ограничены
+документацией, runtime не менялся; тесты новых сценариев NOT RUN.
+Предыдущий commit 6139339 и tree eb96e415c98646b7d9d51454424c4359b086e909
+подтверждены bare fetch. Diff/check PASS. Далее определить безопасный injection.

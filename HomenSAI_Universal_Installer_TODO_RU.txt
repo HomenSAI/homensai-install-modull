@@ -893,6 +893,10 @@ Windows portable PASS. Причина фактического отказа фа
 Terra CP-20261028T144945Z-e156069e37b1: окно завершено досрочно после двух
 DEV fault сценариев; следующие задачи — диагностика Linux CI и оставшиеся
 installed faults, полная приёмка HIM-054 остаётся IN_PROGRESS.
+Terra CP-20261028T161817Z-2cada59e0c75: первый installed missing-ledger
+профиль PASS_SCOPED на SDK6edcbb83: исходная операция остаётся RECOVERY_REQUIRED,
+ledger не пересоздан, два effects и данные сохранены. Инъекция в одноразовой
+DEV fixture; это не process-kill/clean-host и не полная HIM-054 приёмка.
 Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-012
 Текущий scoped результат CP-20261026-012: полный source и installed public fresh1→update2→update3 PASS на SDK6edcbb83; реальные4backup archives восстановлены. Полная target/lifecycle матрица НЕ ГОТОВА; receipts в docs/RESUME.md.
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
@@ -1301,6 +1305,9 @@ Linux source2392 PASS/1 skip/10 subtests, integration236 PASS/2 skips/5 subtests
 Windows portable549 PASS/4 skips. Runner Python mode0755, тогда как в исходном
 FAIL наблюдался0777; причинность fix на runner с0777 ещё не доказана.
 Временно подготовлен missing-ledger harness WIP; тест NOT RUN.
+Terra CP-20261028T161817Z-2cada59e0c75: controlled source mode0777 в DEV
+прогнал 6 fixture/negative случаев PASS. Новый CI test на GitHub ещё PENDING;
+исходный общий Python и защитный runtime не изменены.
 Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-020
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-085; PROMPT: § 7–8, 14.

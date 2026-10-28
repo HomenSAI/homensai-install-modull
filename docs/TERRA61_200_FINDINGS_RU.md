@@ -83,6 +83,10 @@ portable549/4skip. Probe нового runner: тот же SHA Python3.14.9, но
 вместо0777 на ранее неудавшемся run117. Следовательно, успешный CI сам по себе
 не доказывает эффективность fixture при unsafe source mode; F-003 остаётся OPEN
 до контролируемого end-to-end воспроизведения. Причина изменения mode неизвестна.
+CP-20261028T161817Z-2cada59e0c75: controlled Linux DEV Python3.14.3 source
+copy mode0777 с новой приватной fixture: 6 PASS, включая три исходных случая и
+три отрицательных guard cases. GitHub Python3.14.9 с synthetic mode0777 ещё
+PENDING. Добавлен отдельный CI шаг, меняющий права только новой копии в temp.
 Дополнительная локальная проверка после изменения общего conftest:
 `docker run --rm --name hinstall-terra-200-state-regression --network none --user 1000:1000 --mount type=bind,source=E:/homensai/homensai-install-modull,target=/workspace,readonly --workdir /workspace hinstall-dev:verification python -m pytest -q -p no:cacheprovider tests/test_prerequisites_state_files.py`
 завершилась exit 0, 53 PASS за 2.08 s в Linux DEV Python3.14.3. Это отдельный
@@ -103,6 +107,22 @@ runpy с явно указанным `/workspace`; исходный FAIL сох�
 `error.context["details"]`. Исправлено в локальном reproducer; третья попытка
 подтвердила 0777 отказ и 0755 PASS. Скрипт: `.local-state/terra-20261028-evidence/ci_mode_reproduction.py`,
 SHA256 fa5c63dda763bdb012b10c0217459b30406d939dc6f7651eacd4a102bf4f3440.
+
+## F-007 — CI fixture reproducer не нашёл checkout package
+
+Первая попытка `python -B tools/ci_fixture_reproduction.py` в Docker дала два
+collection ERROR: `ModuleNotFoundError: homensai_install`; это не FAIL продукта.
+Исправлено явным добавлением repo root в sys.path на время pytest.main; повтор
+6 PASS/0 skip. Исходный FAIL сохранён; GitHub контрольный запуск ещё PENDING.
+
+## F-008 — установленная операция не повторилась при потере ledger
+
+Первый installed профиль на SDK6edcbb83: после реального v2 effect и искусственной
+потери ответа удалён только ledger одноразовой fixture. Пересозданный SDK,
+повтор submit и явный resume той же операции остались RECOVERY_REQUIRED;
+ledger не создан заново, два business effects и данные сохранены. PASS_SCOPED
+в Linux DEV, не SIGKILL/power-loss/clean-host. Receipt:
+`packaging/acceptance-evidence/installed-update-missing-ledger-terra-200-20261028.json`.
 
 ## F-004 — верхние sync/checkpoint поля относятся к прошлой эпохе
 

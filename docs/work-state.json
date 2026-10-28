@@ -268,9 +268,9 @@
     "plan": "TERRA61_HIGH_200_TASKS_RU.txt",
     "progress": "docs/TERRA61_200_PROGRESS_RU.md",
     "findings": "docs/TERRA61_200_FINDINGS_RU.md",
-    "completed_count": 60,
-    "completed_tasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 58, 59, 61, 62, 63],
-    "next_step": "Контролируемо воспроизвести fixture с Python source mode0777; выполнить installed missing-ledger WIP и записать receipts",
+    "completed_count": 65,
+    "completed_tasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 58, 59, 61, 62, 63, 64, 65, 66, 67, 68],
+    "next_step": "Дождаться CI synthetic source mode0777; сверить installed missing-ledger, повторить затронутые профили при изменении harness",
     "active_test_processes": []
   },
   "terra_execution_window": {

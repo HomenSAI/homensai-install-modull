@@ -153,3 +153,17 @@ Windows portable PASS. Run125 на 4bc2b1f: Linux source2392 PASS/1 skip/
 Docker state-file tests 53 PASS, не суммировать с остальными наборами.
 Предыдущий checkpoint 02b343a/tree 58fcc8f185f736180ddbfff2bcec160a42cd32ce
 подтверждён bare fetch. Missing-ledger harness остаётся WIP/NOT RUN.
+
+## 65/200 — CP-20261028T161817Z-2cada59e0c75 — HIM-054 / HIM-086
+
+2026-10-28 16:18 UTC. Задачи 064–068: installed client вне checkout в isolated
+venv; module origins, 70 SDK/7 reference/161 dependency files проверены.
+Lost ACK и missing ledger используют общий wrapper без synthetic authorizer.
+Первый missing-ledger профиль на SDK6edcbb83 PASS_SCOPED: original operation
+RECOVERY_REQUIRED после constructor/duplicate/resume, ledger не пересоздан,
+schema2/два effects/данные/forward journal сохранены. Receipt
+`installed-update-missing-ledger-terra-200-20261028.json`; пункты 81–100
+сверяются с ним, не засчитываются заранее. Synthetic source mode0777 в DEV:
+6 PASS. CI reproducibility step и F-007 исходный harness FAIL зафиксированы;
+GitHub подтверждение PENDING. Предыдущий commit 67eca7a/tree
+7fee31bfb03a0b4cc8bfe82d6b43caf8c6194ec7 подтверждены bare fetch.

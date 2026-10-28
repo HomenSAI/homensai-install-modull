@@ -890,6 +890,9 @@ Receipt installed-update-tampered-backup-terra-20261028.json. Другие fault
 Terra CP-20261028T144733Z-8f7f018b7b73: 83 targeted source PASS/0 skip;
 GitHub CI run95 Linux source 3 FAIL (prerequisite runner), integration NOT RUN,
 Windows portable PASS. Причина фактического отказа файла на runner не установлена.
+Terra CP-20261028T144945Z-e156069e37b1: окно завершено досрочно после двух
+DEV fault сценариев; следующие задачи — диагностика Linux CI и оставшиеся
+installed faults, полная приёмка HIM-054 остаётся IN_PROGRESS.
 Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-012
 Текущий scoped результат CP-20261026-012: полный source и installed public fresh1→update2→update3 PASS на SDK6edcbb83; реальные4backup archives восстановлены. Полная target/lifecycle матрица НЕ ГОТОВА; receipts в docs/RESUME.md.
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.

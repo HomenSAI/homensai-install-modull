@@ -246,3 +246,15 @@ AWAITING_USER; точное свойство runner-файла не устано
 на 61d6ec3 имел success, diff `tests/`, `homensai_install/`, `shared/`,
 `.github/` до 75ed388 пуст. Это не устанавливает причину отказа runner.
 Следующий шаг — проверить ref/tree текущего checkpoint и завершить окно.
+
+## Финальное сохранение — CP-20261028T144945Z-e156069e37b1 — HIM-054
+
+2026-10-28 14:49:40 UTC: completed scope early. Выполнены 96 пунктов плана;
+пункты 74–76 неприменимы, финальный пункт 100 — отчёт владельцу после этого
+checkpoint. Два installed сценария PASS scoped, 83 source PASS; CI run95:
+Linux source 3 FAIL, Windows portable PASS, Linux integration NOT RUN.
+Отдельный Docker Git remote отсутствует/SYNC_BLOCKED; GitHub проверяется
+внешней квитанцией после commit. Предыдущий checkpoint 06d8fd2/tree
+dd70fed8969b21a3fd006fc2a1fce275e442d2fb подтверждены bare fetch.
+Следующее: диагностировать CI runner failure, затем remaining fault profiles.
+Собственные test containers завершены; runtime и public capabilities не менялись.

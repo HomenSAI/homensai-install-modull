@@ -92,7 +92,7 @@
     "last_confirmed_checkpoint": "CP-20261026-011",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
-  "next_step": "На immutable SDKCP011 добавить independent installed update fault profile: lostACK/UNKNOWN/missingledger, tampered/foreign backup, live data drift и candidate health/cleanup failure через original public SDK operation. Затем реализовать отдельный verified before-restore/before-rollback backup protocol и adapter restore/rollback; capabilities не включать заранее. Windows11/Ubuntu24cleanhost, productDocker/services, GUI12locale-target сочетаний, JobPilot/Rent и production trust/licences остаются отдельными обязательными gates. Новое окно — только по явной команде владельца.",
+  "next_step": "Разобрать GitHub CI run 40708599284: три Linux source FAIL на prerequisite executable, точное свойство runner файла не установлено; не ослаблять проверку. Затем на immutable SDKCP011 добавить installed update missing-ledger/UNKNOWN, foreign backup, live drift и candidate health/cleanup через original public operation. Lost ACK и tampered backup уже PASS только в Linux DEV scope. Далее verified before-restore/before-rollback и adapter restore/rollback; capabilities не включать заранее. Windows11/Ubuntu24 clean-host, product Docker/services, GUI, JobPilot/Rent и production trust/licences остаются gates.",
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
@@ -256,7 +256,7 @@
     "automatic_retry": false
   },
   "terra_execution_window": {
-    "status": "RUNNING",
+    "status": "COMPLETED_SCOPE_EARLY",
     "model": "gpt-6.1-terra",
     "reasoning_effort": "high (запрошено владельцем)",
     "agents": 1,
@@ -267,7 +267,9 @@
     "prior_window": "Закрытое execution_plan ниже сохранено без изменений",
     "progress_document": "docs/TERRA61_2H_PROGRESS_RU.md",
     "current_package": "CP-20261028T144733Z-8f7f018b7b73: both installed faults and 83 focused source cases PASS scoped; GitHub CI run95 Linux source FAIL, Windows subset PASS",
-    "active_test_processes": []
+    "active_test_processes": [],
+    "stopped_at_utc": "2026-10-28T14:49:40Z",
+    "stop_reason": "Два разрешённых сценария и затронутые проверки завершены; обнаруженный CI FAIL сохранён для отдельной диагностики"
   },
   "execution_plan": {
     "path": "docs/SOL61_12H_PLAN_RU.md",

@@ -1,6 +1,6 @@
 # Продолжение разработки
 
-## Активное окно Terra 28.10.2026 — HIM-054
+## Завершённое окно Terra 28.10.2026 — HIM-054
 
 CP-20261028T143449Z-8878f171e2eb: отдельный installed lost-ACK профиль — WIP,
 AST PASS, реальный прогон ещё NOT RUN. SDK source `6edcbb83`; свежий baseline
@@ -23,6 +23,10 @@ CP-20261028T144201Z-4d26028d6ee8: lost-ACK повторён после доба�
 CP-20261028T144733Z-8f7f018b7b73: focused source regression завершился
 83 PASS/0 skip в Linux DEV; GitHub CI run95 Linux source — 3 FAIL,
 Windows portable PASS, причина первых отказов полностью не установлена.
+CP-20261028T144945Z-e156069e37b1: окно завершено досрочно 14:49:40 UTC после
+двух разрешённых сценариев и 83 целевых проверок. Новых зависимостей и runtime
+изменений нет. Следующий приоритет — диагностика GitHub Linux CI FAIL run95;
+дальше оставшиеся installed faults и before-restore/before-rollback.
 
 ## Финальный handoff CP-20261026-012
 

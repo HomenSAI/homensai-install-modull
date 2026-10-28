@@ -255,6 +255,22 @@
     "state": "HISTORICAL_REQUEST_NOT_APPLICABLE",
     "automatic_retry": false
   },
+  "terra_200_execution_window": {
+    "status": "RUNNING",
+    "started_at_utc": "2026-10-28T15:46:26Z",
+    "deadline_utc": null,
+    "deadline_note": "Владелец не установил новый срок; старое окно закрыто",
+    "model": "gpt-6.1-terra",
+    "total_agents": 1,
+    "baseline_sha": "0b97bbcd6fdbbcfdebea0f83068bc432a3d6b429",
+    "plan": "TERRA61_HIGH_200_TASKS_RU.txt",
+    "progress": "docs/TERRA61_200_PROGRESS_RU.md",
+    "findings": "docs/TERRA61_200_FINDINGS_RU.md",
+    "completed_count": 5,
+    "completed_tasks": [1, 2, 3, 9, 10],
+    "next_step": "Завершить чтение canonical TODO и реестров, затем диагностировать Linux CI",
+    "active_test_processes": []
+  },
   "terra_execution_window": {
     "status": "COMPLETED_SCOPE_EARLY",
     "model": "gpt-6.1-terra",

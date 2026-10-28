@@ -96,3 +96,14 @@ PASS, Linux integration skipped. Свойства прошлых runners не п
 Receipt: `packaging/acceptance-evidence/github-ci-terra-200-probe-20261028.json`.
 Предыдущий checkpoint e201d11/tree fcf1c4480a1b653a34ec41bbfc80385acf8c33c2
 подтверждён bare fetch. Следующее — подтвердить отказ на собственном файле.
+
+## 40/200 — CP-20261028T160020Z-39a3ef2aba80 — HIM-086
+
+2026-10-28 16:00 UTC. Задачи 035–039: наблюдаемое CI условие — mode0777;
+на собственной копии в Docker 0777 даёт INTEGRITY_FAILED, те же bytes при
+0755/nlink1 проходят verify. F-005/F-006 сохраняют исходные два harness FAIL
+и их исправление. Выбран проверяемый fixture fix, runtime не менять; совместимость
+выполнения скопированного Python ещё NOT RUN. Скрипт/receipt:
+`packaging/acceptance-evidence/ci-mode-reproduction-terra-200.py/.json`.
+Предыдущий checkpoint 4d390ac/tree f98202a800217451537545ca4c5f9108c96d38dd
+подтверждён bare fetch. Далее подтвердить и реализовать безопасную fixture.

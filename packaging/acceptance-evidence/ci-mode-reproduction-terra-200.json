@@ -1,0 +1,14 @@
+{
+  "checkpoint_id": "CP-20261028T160020Z-39a3ef2aba80",
+  "task_id": "HIM-086",
+  "status": "PASS_SCOPED",
+  "source_commit": "4d390acb9eb26bb037ef60be01670161a1355d6f",
+  "image_id": "sha256:1b3529768706aaacabb525d6fd3168680cc2b0ffa1aee6994a3d2e5cdb8fd4c1",
+  "scope": "Linux DEV Docker UID1000, offline, disposable copy of Python; not actual GitHub runner",
+  "script": "packaging/acceptance-evidence/ci-mode-reproduction-terra-200.py",
+  "script_sha256": "fa5c63dda763bdb012b10c0217459b30406d939dc6f7651eacd4a102bf4f3440",
+  "source_python_sha256": "3fbc4d6c766a7a5d56c4bcc80d3325181a05f1b64596eb7cf622f0ec056dd546",
+  "observation": "Disposable byte-identical Python copy mode 0777 gives INTEGRITY_FAILED prerequisite_executable_not_private_regular; same bytes mode 0755 nlink1 verify PASS.",
+  "earlier_attempts": ["FAIL: ModuleNotFoundError before verification; corrected invocation", "FAIL: expected INTEGRITY_FAILED observed, test harness read nonexistent error.details; corrected to error.context details"],
+  "limits": "Python binary in this reproduction was not executed; fixture execution compatibility remains NOT RUN. No system file permissions changed."
+}

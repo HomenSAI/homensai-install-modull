@@ -1286,6 +1286,9 @@ Terra CP-20261028T155839Z-528634c7671c: GitHub probe run40720848658
 выявил Python mode0777; это соответствует условию запрета group/world-write.
 В этом run Linux source снова 3 FAIL, Windows portable PASS; изолированное
 воспроизведение и исправление fixture ещё NOT RUN.
+Terra CP-20261028T160020Z-39a3ef2aba80: mode0777 воспроизведён на
+одноразовой копии Python, INTEGRITY_FAILED подтверждён; те же bytes при0755
+проходят проверку. Исполнимость копии и fixture fix ещё не проверены.
 Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-020
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-085; PROMPT: § 7–8, 14.

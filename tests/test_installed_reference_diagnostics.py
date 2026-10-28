@@ -93,7 +93,7 @@ def test_safe_client_summary_uses_catalog_codes_and_last_known_action(harness):
                     {'action': '/private/secret', 'status': '/private/secret', 'error_code': '/private/secret'}]}
     result = harness._safe_client_summary(report)
     assert result == {'available': True, 'status': 'FAIL', 'error_code': 'ADAPTER_EXECUTION_FAILED',
-        'error_type': 'InstallerError', 'passed_cases': 2,
+        'error_type': 'InstallerError', 'own_source_lines': [], 'passed_cases': 2,
         'last_safe_action': {'action': 'update', 'status': 'RECOVERY_REQUIRED', 'error_code': 'INTEGRITY_FAILED'}}
     assert '/private/' not in json.dumps(result)
 
@@ -147,3 +147,63 @@ def test_installed_client_failure_whitelists_report_for_public_summary(harness):
     assert '/private/' not in json.dumps(failure) and 'message' not in failure
     missing = harness._safe_failure_summary(RuntimeError('private'), [], 'installed_client')
     assert missing['client'] == {'available': False}
+
+
+@pytest.fixture
+def client_module():
+    path = Path(__file__).parents[1] / 'packaging/installed_reference_lifecycle_client.py'
+    spec = importlib.util.spec_from_file_location('reference_client_diagnostic', path)
+    module = importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    return module
+
+
+def test_own_source_lines_ignore_external_frames_and_private_error_values(client_module, tmp_path):
+    try:
+        client_module.notes(tmp_path / 'private-do-not-echo.sqlite')
+    except Exception as error:
+        result = client_module._own_source_lines(error)
+    else:
+        pytest.fail('expected nonexistent readonly database error')
+    assert result and all(type(number) is int and 1 <= number <= 10000 for number in result)
+    assert len(result) <= 16 and str(tmp_path) not in json.dumps(result)
+    try:
+        raise ValueError('private-do-not-echo')
+    except Exception as error:
+        assert client_module._own_source_lines(error) == []
+
+
+def test_own_source_lines_are_bounded_even_for_recursive_own_frames(client_module):
+    namespace = {}
+    exec(compile('def recur(n):\n if n: return recur(n-1)\n raise ValueError("private")\n',
+                 client_module.__file__, 'exec'), namespace)
+    try:
+        namespace['recur'](40)
+    except Exception as error:
+        result = client_module._own_source_lines(error)
+    assert len(result) == 16 and all(type(value) is int and 1 <= value <= 10000 for value in result)
+
+
+@pytest.mark.parametrize('lines,expected', [
+    ([1, 10000, 0, -1, 10001, True, 'private', {}, None], [1, 10000]),
+    (['private'] * 16 + [999], []),
+    ([42] * 30, [42] * 16),
+    ('/private/path', []),
+    ({'private': 7}, []),
+    (None, []),
+])
+def test_public_summary_exposes_only_bounded_integer_lines(harness, lines, expected):
+    result = harness._safe_client_summary({'error': {'own_source_lines': lines}})
+    assert result['own_source_lines'] == expected and 'private' not in json.dumps(result)
+
+
+@pytest.mark.parametrize('primary', [None, {'action': 'backup', 'status': 'SUCCEEDED', 'error_code': None}])
+def test_primary_action_is_preserved_before_cleanup_appends_stop(harness, primary):
+    report = {'primary_last_action': primary, 'actions': [
+        {'action': 'backup', 'status': 'SUCCEEDED'}, {'action': 'stop', 'status': 'SUCCEEDED'}]}
+    assert harness._safe_client_summary(report)['last_safe_action'] == primary
+
+
+def test_malformed_primary_action_does_not_fall_back_to_cleanup(harness):
+    result = harness._safe_client_summary({'primary_last_action': {'action': '/private/path'},
+        'actions': [{'action': 'stop', 'status': 'SUCCEEDED'}]})
+    assert result['last_safe_action'] is None and 'private' not in json.dumps(result)

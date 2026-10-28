@@ -14,6 +14,19 @@ PRE_APPLY_FAULTS = {"tampered_backup", "foreign_backup", "live_data_drift"}
 HEALTH_FAULTS = {"candidate_health", "candidate_cleanup"}
 
 
+def _own_source_lines(error):
+    """Только номера собственных frames: без paths, source text или locals."""
+    lines = []
+    frame = error.__traceback__
+    while frame is not None and len(lines) < 16:
+        if frame.tb_frame.f_code.co_filename == __file__:
+            number = frame.tb_lineno
+            if type(number) is int and 1 <= number <= 10000:
+                lines.append(number)
+        frame = frame.tb_next
+    return lines
+
+
 def sha(value):
     return hashlib.sha256(value).hexdigest()
 
@@ -1037,7 +1050,8 @@ def main():
         report.update(status="PASS", module_origins=origins)
     except Exception as error:
         code = error.code if isinstance(error, InstallerError) else "HARNESS_CHECK_FAILED"
-        report["error"] = {"code": code, "type": type(error).__name__}
+        report["error"] = {"code": code, "type": type(error).__name__, "own_source_lines": _own_source_lines(error)}
+        report["primary_last_action"] = dict(actions[-1]) if actions else None
         if active_update is not None:
             active_update.update(status="FAIL", error_code=code)
         raise

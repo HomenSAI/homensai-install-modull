@@ -132,15 +132,18 @@ def _safe_client_summary(report):
     observations = observations if type(observations) is list else []
     actions = report.get("actions")
     actions = actions if type(actions) is list else []
+    selected = [report["primary_last_action"]] if "primary_last_action" in report else actions[-1024:]
     last = None
-    for item in reversed(actions[-1024:]):
+    for item in reversed(selected):
         if type(item) is dict and _fixed(item.get("action"), _CLIENT_ACTIONS) is not None:
             last = {"action": item["action"], "status": _fixed(item.get("status"), _CLIENT_STATUSES),
                     "error_code": _fixed(item.get("error_code"), _CATALOG_ERROR_CODES)}
             break
+    lines = error.get("own_source_lines")
+    lines = [number for number in lines[:16] if type(number) is int and 1 <= number <= 10000] if type(lines) is list else []
     return {"available": True, "status": _fixed(report.get("status"), _CLIENT_STATUSES),
         "error_code": _fixed(error.get("code"), _CATALOG_ERROR_CODES),
-        "error_type": _fixed(error.get("type"), _CLIENT_TYPES),
+        "error_type": _fixed(error.get("type"), _CLIENT_TYPES), "own_source_lines": lines,
         "passed_cases": min(1024, sum(type(item) is dict and item.get("status") == "PASS" for item in observations)),
         "last_safe_action": last}
 

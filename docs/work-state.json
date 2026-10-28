@@ -255,6 +255,18 @@
     "state": "HISTORICAL_REQUEST_NOT_APPLICABLE",
     "automatic_retry": false
   },
+  "terra_execution_window": {
+    "status": "RUNNING",
+    "model": "gpt-6.1-terra",
+    "reasoning_effort": "high (запрошено владельцем)",
+    "agents": 1,
+    "started_at_utc": "2026-10-28T14:22:27Z",
+    "deadline_utc": "2026-10-28T16:22:27Z",
+    "scenario_cutoff_utc": "2026-10-28T15:52:27Z",
+    "scope": "Не более двух installed update fault сценариев без изменений runtime; checkpoint и GitHub после каждых пяти выполненных пунктов",
+    "prior_window": "Закрытое execution_plan ниже сохранено без изменений",
+    "progress_document": "docs/TERRA61_2H_PROGRESS_RU.md"
+  },
   "execution_plan": {
     "path": "docs/SOL61_12H_PLAN_RU.md",
     "prompt": "SOL61_12H_START_PROMPT_RU.txt",

@@ -439,6 +439,8 @@ def main():
                                 before_status=interrupted["status"], reopened_status=after_reopen["status"],
                                 duplicate_status=duplicate["status"], resume_status=resumed["status"],
                                 business_effect_rows=len(effects_before), schema=2,
+                                source_notes_sha256=sha(canonical(source_data["notes"])),
+                                retained_user_files_sha256=dict(retained), request_digest=injected[0],
                                 user_data_preserved=True, forward_journal_preserved=True)
                             active_update = None
                             break

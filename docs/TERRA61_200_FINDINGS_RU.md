@@ -87,6 +87,10 @@ CP-20261028T161817Z-2cada59e0c75: controlled Linux DEV Python3.14.3 source
 copy mode0777 с новой приватной fixture: 6 PASS, включая три исходных случая и
 три отрицательных guard cases. GitHub Python3.14.9 с synthetic mode0777 ещё
 PENDING. Добавлен отдельный CI шаг, меняющий права только новой копии в temp.
+GitHub run131/40724824553 на 828f643: шаг controlled unsafe-mode fixture
+завершился success на Python3.14.9; полный Linux job в момент наблюдения ещё
+IN_PROGRESS. Это подтверждает воспроизведение fixture на данном runner, не
+делает весь run PASS и не распространяется на production binaries.
 Дополнительная локальная проверка после изменения общего conftest:
 `docker run --rm --name hinstall-terra-200-state-regression --network none --user 1000:1000 --mount type=bind,source=E:/homensai/homensai-install-modull,target=/workspace,readonly --workdir /workspace hinstall-dev:verification python -m pytest -q -p no:cacheprovider tests/test_prerequisites_state_files.py`
 завершилась exit 0, 53 PASS за 2.08 s в Linux DEV Python3.14.3. Это отдельный
@@ -123,6 +127,10 @@ collection ERROR: `ModuleNotFoundError: homensai_install`; это не FAIL пр
 ledger не создан заново, два business effects и данные сохранены. PASS_SCOPED
 в Linux DEV, не SIGKILL/power-loss/clean-host. Receipt:
 `packaging/acceptance-evidence/installed-update-missing-ledger-terra-200-20261028.json`.
+Повтор на уточнённом harness: PASS, записаны SHA notes и synthetic files;
+`installed-update-missing-ledger-final-terra-200.json`. Общие lost ACK и
+tampered-backup профили также повторены после изменения harness: PASS_SCOPED.
+Попытка перезаписать receipt отвергнута exit2, его SHA не изменился.
 
 ## F-004 — верхние sync/checkpoint поля относятся к прошлой эпохе
 

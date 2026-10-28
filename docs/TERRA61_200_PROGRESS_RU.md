@@ -167,3 +167,19 @@ schema2/два effects/данные/forward journal сохранены. Receipt
 6 PASS. CI reproducibility step и F-007 исходный harness FAIL зафиксированы;
 GitHub подтверждение PENDING. Предыдущий commit 67eca7a/tree
 7fee31bfb03a0b4cc8bfe82d6b43caf8c6194ec7 подтверждены bare fetch.
+
+## 70/200 — CP-20261028T162118Z-63a741880fea — HIM-054
+
+2026-10-28 16:21 UTC. Задачи 070–072, 075, 078: profile/expected failure
+в отчёте различены, определены business/adapter/native journals; schema/effects
+и хеши notes/файлов сохранены в missing-ledger receipt. Повтор записи в прежний
+receipt отвергнут exit2 и SHA остался неизменен. Lost ACK после изменения
+общего harness повторён PASS; tampered backup тоже PASS, соответствующий пункт
+ещё будет отмечен после сверки. Новые receipts:
+`installed-update-missing-ledger-final-terra-200.json`,
+`installed-update-lost-ack-terra-200-repeat.json`,
+`installed-update-tampered-backup-terra-200-repeat.json`.
+GitHub run131/40724824553: controlled fixture unsafe-mode step success;
+Linux suite IN_PROGRESS на момент сохранения, Windows portable success.
+Предыдущий checkpoint 828f643/tree 4ef7eb46879a2d88773670cb8705259b7476d62c
+подтверждён bare fetch. Полная приёмка и оставшиеся fault профили открыты.

@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from copy import deepcopy
 import hmac
+import hashlib
 from importlib import resources
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
+import re
 import threading
 import time
 import uuid
@@ -85,6 +87,111 @@ def _options(options: dict | None) -> dict:
 
 def _sha256_identifier(value) -> bool:
     return type(value) is str and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
+
+
+def _functional_result(result: dict, plan: dict) -> dict:
+    """Keep reviewed local artifact addresses usable; redact all diagnostic text.
+
+    This is a structural projection, not another artifact verification. The engine
+    verifies ciphertext and ownership. No result-supplied path is opened here, so
+    status/reopen does not depend on an artifact still being at its old address.
+    """
+    from homensai_install.errors import redact
+    from shared.datahome import _windows_reserved
+
+    locators = []
+    options, action = plan['options'], plan['action']
+    windows = plan['target'].get('os') == 'windows'
+    path_type = PureWindowsPath if windows else PurePosixPath
+
+    def invalid():
+        fail('UNEXPECTED_ERROR', details={'reason': 'invalid_artifact_locator'})
+
+    def path(value):
+        if (type(value) is not str or not value or _windows_reserved(value)
+                or any(ord(c) < 32 or ord(c) == 127 for c in value)
+                or '..' in value.replace('\\', '/').split('/')
+                or value.startswith(('//', '\\\\'))
+                or (not windows and ('\\' in value or PureWindowsPath(value).drive))):
+            invalid()
+        parsed = path_type(value)
+        if not parsed.is_absolute():
+            invalid()
+        return parsed
+
+    def keep(container, field, expected):
+        record = result.get(container)
+        if type(record) is not dict or path(record.get(field)) != expected:
+            invalid()
+        locators.append((container, field, record[field]))
+
+    def encrypted(record, hash_key):
+        if (type(record) is not dict or record.get('encrypted') is not True
+                or not _sha256_identifier(record.get(hash_key))):
+            invalid()
+
+    mode = plan['target'].get('mode', 'native')
+    known = ((mode == 'native' and any(k in result for k in ('archive', 'before_recovery_archive')))
+             or (mode == 'docker' and any(k in result for k in ('backup', 'recovery'))))
+    if known:
+        root = path(options.get('install_root'))
+        suffix = '-docker-recovery' if mode == 'docker' else '-recovery'
+        work = path(options.get('work_dir', str(root.parent / ('.' + root.name + suffix))))
+        token = digest([plan['plan_id'], plan['plan_digest']])[:32]
+        if mode == 'native':
+            if 'archive' in result:
+                if action != 'backup':
+                    invalid()
+                encrypted(result['archive'], 'sha256')
+                keep('archive', 'path', path(options['archive_path']) if 'archive_path' in options
+                     else work / (token + '.hsac'))
+            if 'before_recovery_archive' in result:
+                archive, receipt = result['before_recovery_archive'], result.get('before_recovery')
+                encrypted(archive, 'sha256')
+                reviewed_source = plan.get('engine_plan', {}).get('recovery_source_sha256')
+                if (action not in {'restore', 'rollback'} or type(receipt) is not dict
+                        or receipt.get('kind') != 'before_recovery_backup'
+                        or receipt.get('recovery_action') != action
+                        or receipt.get('operation_id') != 'op_' + token
+                        or receipt.get('archive_sha256') != archive['sha256']
+                        or type(archive.get('release')) is not str
+                        or receipt.get('from_release') != archive['release']
+                        or not _sha256_identifier(receipt.get('source_archive_sha256'))
+                        or (reviewed_source is not None and receipt['source_archive_sha256'] != reviewed_source)):
+                    invalid()
+                keep('before_recovery_archive', 'path', work / (token + '-before-' + action + '.hsac'))
+        else:
+            if 'backup' in result:
+                if action != 'backup':
+                    invalid()
+                encrypted(result['backup'], 'archive_sha256')
+                expected = (path(options['archive_path']) if 'archive_path' in options else
+                            work / ('data-' + hashlib.sha256(plan['plan_id'].encode()).hexdigest() + '.haes'))
+                if expected.parent != work:
+                    invalid()
+                keep('backup', 'archive_path', expected)
+            if 'recovery' in result:
+                record = result['recovery']
+                if action not in {'install', 'uninstall'} or type(record) is not dict:
+                    invalid()
+                metadata = path(record.get('metadata_path'))
+                directory = metadata.parent
+                release = options.get('release')
+                if (type(release) is not str or re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,127}', release) is None
+                        or directory.parent != root / '.hinstall' / 'docker-recovery'
+                        or re.fullmatch(re.escape(release) + r'-[0-9a-f]{16}', directory.name) is None):
+                    invalid()
+                contract = plan.get('engine_plan', {}).get('provisioning_spec', {}).get('contract_sha256')
+                if contract is not None and (not _sha256_identifier(contract) or directory.name != release + '-' + contract[:16]):
+                    invalid()
+                keep('recovery', 'metadata_path', directory / 'recovery.json')
+                keep('recovery', 'payload_dir', directory / 'payload')
+    safe = redact(result)
+    for container, field, original in locators:
+        if type(safe.get(container)) is not dict:
+            invalid()
+        safe[container][field] = original
+    return safe
 
 
 class InstallerAPI:
@@ -621,8 +728,7 @@ class InstallerAPI:
             result = bounded_json(result)
             if type(result) is not dict:
                 fail("UNEXPECTED_ERROR")
-            from homensai_install.errors import redact
-            result = redact(result)
+            result = _functional_result(result, plan)
             status = result.get("status", "SUCCEEDED")
             if status not in TERMINAL | RESUMABLE:
                 fail("UNEXPECTED_ERROR")

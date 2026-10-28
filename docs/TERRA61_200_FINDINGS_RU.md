@@ -44,6 +44,12 @@ Windows portable job 122906340522 PASS. Сравнение: run 40353896055 PASS
 его SHA, поэтому свойства фактического Python runner существенны. Эти условия —
 возможные причины, ни одна из них не подтверждена для GitHub runner без probe.
 
+CP-20261028T155504Z-e22813731df1: local Docker probe на Python3.14.3:
+regular=true, mode=0755, nlink=1, size=14480, SHA256
+3fbc4d6c766a7a5d56c4bcc80d3325181a05f1b64596eb7cf622f0ec056dd546.
+Это не runner evidence. В Linux CI добавлен отдельный read-only probe после
+venv; permissions и pin actions сохранены. GitHub результат PENDING.
+
 ## F-004 — верхние sync/checkpoint поля относятся к прошлой эпохе
 
 Категория: документация/восстановление. Подтверждено: `work-state.json:3`

@@ -46,6 +46,8 @@ jobs:
           python -m pip --isolated install --require-hashes --only-binary=:all: -r requirements-build.lock
           python -m pip --isolated check
           python tools/check_build_lock.py --installed
+      - name: Observe Python executable metadata for prerequisite tests
+        run: python -B tools/ci_python_probe.py
       - name: Run complete offline source suite
         run: python -m pytest -q tests
       - name: Run Linux user-process and loopback integration

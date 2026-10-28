@@ -75,3 +75,12 @@ nlink/size/hash и проверкой неизменности на дескри
 ещё NOT RUN. Нет чтения полного environment и вывода содержимого executable.
 Предыдущий commit 4f3ed40/tree fdd2bc7b75c7cb38abe0c68dc44a67224f5bb932
 подтверждён bare fetch. Далее выполнить probe в Docker и получить CI runner facts.
+
+## 33/200 — CP-20261028T155504Z-e22813731df1 — HIM-086
+
+Внеочередной WIP checkpoint перед длительным CI: задачи 031–033 выполнены.
+DEV Docker probe: Python3.14.3, regular/0755/nlink1/14480 bytes; GitHub
+runner ещё не наблюдался. В workflow добавлен только read-only probe без
+новых permissions; test suite и runtime не изменены. CI PENDING до job logs.
+Предыдущий checkpoint 9b09dc7/tree 7549b7efe2ec21fb854d81d26e00aabf1d3a3f32
+подтверждён bare fetch. Следующий шаг — дождаться результата probe в CI.

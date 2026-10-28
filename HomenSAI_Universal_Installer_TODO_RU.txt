@@ -1279,6 +1279,9 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 Terra CP-20261028T155417Z-3f3d2c84dc0d: подготовлен read-only probe
 файловых свойств Python для разбора повторяемого Linux CI FAIL; AST PASS,
 сам probe на Docker и runner ещё NOT RUN. Runtime и политика защиты не менялись.
+Terra CP-20261028T155504Z-e22813731df1: probe PASS на DEV Python 3.14.3
+(regular, 0755, nlink1), узкий read-only шаг добавлен в Linux CI; запуск на
+GitHub runner ещё PENDING. Фактическая причина исходного CI FAIL не доказана.
 Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-020
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-085; PROMPT: § 7–8, 14.

@@ -84,3 +84,15 @@ runner ещё не наблюдался. В workflow добавлен тольк
 новых permissions; test suite и runtime не изменены. CI PENDING до job logs.
 Предыдущий checkpoint 9b09dc7/tree 7549b7efe2ec21fb854d81d26e00aabf1d3a3f32
 подтверждён bare fetch. Следующий шаг — дождаться результата probe в CI.
+
+## 35/200 — CP-20261028T155839Z-528634c7671c — HIM-086
+
+2026-10-28 15:58 UTC. Задачи 031–034 и 061: offline DEV image/build lock
+PASS, wheelhouse 14 файлов. В GitHub run40720848658 на e201d11 read-only probe
+зафиксировал mode 0777 у Python3.14.9, nlink1, regular, size17752: именно
+group/world-write условие присутствует в verify_regular_file. Три исходных
+Linux source FAIL повторились, 2386 PASS/1 skip/10 subtests; Windows portable
+PASS, Linux integration skipped. Свойства прошлых runners не предполагаются.
+Receipt: `packaging/acceptance-evidence/github-ci-terra-200-probe-20261028.json`.
+Предыдущий checkpoint e201d11/tree fcf1c4480a1b653a34ec41bbfc80385acf8c33c2
+подтверждён bare fetch. Следующее — подтвердить отказ на собственном файле.

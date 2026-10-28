@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261028T155839Z-528634c7671c",
+  "source_commit": "e201d11c0f8276961f7596dac4fad83696eedd6b",
+  "run_id": 40720848658,
+  "run_url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40720848658",
+  "linux_job_id": 122931024953,
+  "linux_source": {"status": "FAIL", "passed": 2386, "failed": 3, "skipped": 1, "subtests_passed": 10},
+  "linux_integration": "NOT RUN: skipped after source failure",
+  "windows_portable": "PASS",
+  "probe": {
+    "python_version": "3.14.9",
+    "executable_name": "python3.14",
+    "regular_file": true,
+    "mode_octal": "0o777",
+    "group_or_world_writable": true,
+    "hardlink_count": 1,
+    "size_bytes": 17752,
+    "sha256": "53c66318fe2966e23d7e361e8b1ec5c08d12cab5ee97b50847539f8645d08073",
+    "unchanged_during_read": true
+  },
+  "observation": "Mode 0777 matches verify_regular_file st_mode & 0o022 rejection. Other listed properties meet the checked limits. No prior runner properties are inferred.",
+  "production_ready": false
+}

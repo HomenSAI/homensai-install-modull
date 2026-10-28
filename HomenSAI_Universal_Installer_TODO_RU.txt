@@ -1282,6 +1282,10 @@ Terra CP-20261028T155417Z-3f3d2c84dc0d: подготовлен read-only probe
 Terra CP-20261028T155504Z-e22813731df1: probe PASS на DEV Python 3.14.3
 (regular, 0755, nlink1), узкий read-only шаг добавлен в Linux CI; запуск на
 GitHub runner ещё PENDING. Фактическая причина исходного CI FAIL не доказана.
+Terra CP-20261028T155839Z-528634c7671c: GitHub probe run40720848658
+выявил Python mode0777; это соответствует условию запрета group/world-write.
+В этом run Linux source снова 3 FAIL, Windows portable PASS; изолированное
+воспроизведение и исправление fixture ещё NOT RUN.
 Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-020
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-085; PROMPT: § 7–8, 14.

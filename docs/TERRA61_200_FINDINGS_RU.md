@@ -50,6 +50,16 @@ regular=true, mode=0755, nlink=1, size=14480, SHA256
 Это не runner evidence. В Linux CI добавлен отдельный read-only probe после
 venv; permissions и pin actions сохранены. GitHub результат PENDING.
 
+Обновление 2026-10-28 15:58 UTC: GitHub run 40720848658 на e201d11,
+Linux job 122931024953 выполнил probe: Python3.14.9 regular=true, nlink=1,
+size=17752, mode=0777, group_or_world_writable=true, unchanged_during_read=true,
+SHA256 53c66318fe2966e23d7e361e8b1ec5c08d12cab5ee97b50847539f8645d08073.
+Факт: в данном run mode 0777 удовлетворяет условию отказа `st_mode & 0o022`
+в verify_regular_file. Linux source: те же 3 FAIL/2386 PASS/1 skip/10 subtests;
+Windows portable PASS. Не установлено задним числом состояние runner в run95/101.
+Следующий шаг: воспроизвести причину на своём временном файле и проверить
+безопасную test fixture без изменения runtime или общего Python runner.
+
 ## F-004 — верхние sync/checkpoint поля относятся к прошлой эпохе
 
 Категория: документация/восстановление. Подтверждено: `work-state.json:3`

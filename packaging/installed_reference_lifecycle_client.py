@@ -297,6 +297,65 @@ def main():
                     assert detail["product_adapter_source_binding"]["release"] == source_release
                     assert detail["update_failure_policy"] == "preserve_forward_journal_no_automatic_restore"
                     assert detail["migration_binding"]["migration_review_id"] == update_review["migration_review_id"]
+                    if config.get("fault_profile") == "tampered_backup" and target_version == 2:
+                        # Tamper only this disposable fixture after the real backup:0
+                        # receipt is issued, before the actual migration authorization.
+                        original_emit = current._emit
+                        tampered = []
+
+                        def tamper_after_backup(operation_id, event):
+                            original_emit(operation_id, event)
+                            if event.get("phase") == "backup:0" and event.get("status") == "SUCCEEDED":
+                                assert not tampered
+                                states = [json.loads(p.read_text()) for p in (root / ".hinstall/operations").glob("*.json")
+                                          if json.loads(p.read_text()).get("migration_review_id") == update_review["migration_review_id"]]
+                                assert len(states) == 1
+                                refs = [r for r in states[0]["product_adapter_backup_refs"].values() if r["purpose"] == "backup:0"]
+                                assert len(refs) == 1
+                                receipt_path = root / ".hinstall/backup-receipts" / (refs[0]["receipt_id"] + ".json")
+                                record = json.loads(receipt_path.read_text())
+                                archive_path = Path(record["archive_path"])
+                                before_hash = sha(archive_path.read_bytes())
+                                assert before_hash == record["body"]["archive_sha256"]
+                                with archive_path.open("ab") as stream:
+                                    stream.write(b"tampered-after-verified-backup")
+                                tampered.append({"before_sha256": before_hash, "after_sha256": sha(archive_path.read_bytes()),
+                                                 "receipt_id": refs[0]["receipt_id"]})
+
+                        current._emit = tamper_after_backup
+                        try:
+                            consent = [*update_plan["required_consents"], update_plan["review_consent_ref"]]
+                            failed = current.submit(update_plan["plan_id"], update_plan["plan_digest"],
+                                consent, idempotency_key="tampered-backup-update", background=False)
+                        finally:
+                            current._emit = original_emit
+                        assert len(tampered) == 1 and tampered[0]["before_sha256"] != tampered[0]["after_sha256"]
+                        assert failed["status"] == "RECOVERY_REQUIRED", failed
+                        assert (failed.get("error") or {}).get("code") in {"PLAN_STALE", "RECOVERY_REQUIRED"}, failed
+                        assert notes(database) == source_data
+                        assert sha(document.read_bytes()) == retained["document"]
+                        assert sha(credential.read_bytes()) == retained["credential"]
+                        assert sha(settings.read_bytes()) == retained["settings"]
+                        assert json.loads((root / "services" / manifest["update"]["pointer_file"]).read_text()) == {"release": source_release}
+                        with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
+                            effects = db.execute("SELECT request_digest FROM product_adapter_effects").fetchall()
+                            assert len(effects) == 1
+                            assert db.execute("SELECT version FROM schema_migrations ORDER BY version").fetchall() == [(1,)]
+                        native_paths = [p for p in (root / ".hinstall/operations").glob("*.json")
+                                        if json.loads(p.read_text()).get("migration_review_id") == update_review["migration_review_id"]]
+                        assert len(native_paths) == 1
+                        state = json.loads(native_paths[0].read_text())
+                        assert state.get("product_adapter_migration_complete") is not True
+                        forward = json.loads((root / "services" / ("update-" + native_paths[0].stem + ".json")).read_text())
+                        assert forward["direction"] == "forward" and forward["outcome"] == "running"
+                        listener_stopped(config["port"])
+                        active_update.update(status="PASS", expected_failure=True, source_schema=1,
+                            business_effect_rows=1, public_operation_id=failed["operation_id"],
+                            public_status=failed["status"], error_code=failed["error"]["code"],
+                            tampered_backup=tampered[0], user_data_preserved=True,
+                            migration_apply_not_completed=True, forward_journal_preserved=True)
+                        active_update = None
+                        break
                     if config.get("fault_profile") == "lost_ack" and target_version == 2:
                         # Test-only transport fault, after the real signed subprocess has
                         # committed its SQLite effect and returned a validated response.
@@ -468,7 +527,8 @@ def main():
                         "user_data_and_config_preserved": True, "forward_journal_no_rollback": True,
                         "legacy_migration_marker_absent": True, "owned_pid_stable_on_duplicate_start": True})
                     active_update = None
-                run_action(current, "stop", bundles["3"], "update-final-stop")
+                if config.get("fault_profile") != "tampered_backup":
+                    run_action(current, "stop", bundles["3"], "update-final-stop")
                 listener_stopped(config["port"])
                 for directory in (root / ".hinstall", work / "fresh-sdk-state"):
                     for path in directory.rglob("*"):
@@ -547,6 +607,9 @@ def main():
         for cleanup_root, version in ((legacy_root, "1"), (root if config["profile"] in {"fresh", "update-readiness", "update"} else None, "1")):
             if cleanup_root is not None and (cleanup_root / ".hinstall/installation.json").exists():
                 try:
+                    if config.get("fault_profile") == "tampered_backup" and cleanup_root == root:
+                        listener_stopped(config["port"])
+                        continue
                     run_action(api("cleanup-" + str(len(str(cleanup_root))), registered=False), "stop",
                         {**bundles[version], "install_root": str(cleanup_root),
                          "work_dir": str(work / "legacy-recovery") if cleanup_root == legacy_root else bundles[version]["work_dir"]},

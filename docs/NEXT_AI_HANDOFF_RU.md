@@ -11,6 +11,7 @@ CP-20261028T143449Z-8878f171e2eb: installed lost-ACK профиль WIP, нуж�
 изолированный запуск на SDK 6edcbb83; AST PASS, fault сценарий пока NOT RUN.
 Дополнение CP-20261028T143633Z-a8c51a2df8c6: первый isolated installed lost-ACK
 PASS. Подробности и следующий резервный сценарий — TERRA61_2H_PROGRESS_RU.md.
+CP-20261028T143832Z-262d480572a6: tampered-backup профиль WIP, ещё NOT RUN.
 
 Автор продукта: Serhii Khomenko. Работа остановлена по указанию владельца.
 Компьютер не выключать; чужие процессы/порты8810/8811/8812 не менять.

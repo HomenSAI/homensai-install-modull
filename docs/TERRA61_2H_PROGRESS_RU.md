@@ -185,3 +185,13 @@ a6b481f0f8c92ecc80f25f8b044502e19b31913f подтверждены независ
 Команда внешнего runner (пути Windows, UID 1000, сеть отключена):
 `docker run --rm --name hinstall-terra-20261028-fault01 --network none --user 1000:1000 --mount type=bind,source=E:/homensai/homensai-install-modull,target=/checkout,readonly --mount type=bind,source=E:/homensai/homensai-install-modull/.git,target=/git,readonly --mount type=bind,source=E:/homensai/homensai-install-modull/.local-state/terra-20261028-evidence,target=/evidence --workdir /checkout hinstall-dev:verification python -B packaging/check_installed_reference_lifecycle.py --work-dir /tmp/hinstall-terra-fault01 --receipt /evidence/fault01.json --wheelhouse /opt/wheelhouse --sdk-revision 6edcbb83a018e72d235cc3eb192864e238a82755 --source-git-dir /git --profile update-lost-ack`.
 Следующий шаг: резервный тампер backup, если позволяет deadline.
+
+## 80/100 — CP-20261028T143832Z-262d480572a6 — HIM-054
+
+2026-10-28 14:38 UTC. Выполнены пункты плана 79–82 и 88 (общий счётчик 80;
+74–76 неприменимы). Подготовлен отдельный `update-tampered-backup` профиль:
+fixture меняет только backup:0 после issuance, ждёт отказ до migration apply,
+проверяет SQLite effect count, указатель, пользовательские данные и forward
+journal. AST PASS; run и отрицательный outcome ещё NOT RUN. Изменены только
+harness; runtime не менялся. Предыдущий commit 1480d8f/tree
+21b03290bde60d6cd0ea6b0f98dd553d61d3bc89 подтверждены независимым bare fetch.

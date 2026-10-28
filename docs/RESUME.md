@@ -12,6 +12,8 @@ installed happy-path PASS в DEV Docker, не clean-host. Runtime не изме�
 Receipt `packaging/acceptance-evidence/installed-update-lost-ack-terra-20261028.json`.
 Тестовая подмена ответа после реального signed apply, не SIGKILL/clean-host.
 Остальные fault сценарии и production gates остаются открытыми.
+CP-20261028T143832Z-262d480572a6: второй профиль tampered-backup подготовлен,
+AST PASS, прогон ещё NOT RUN; выполнить isolated Docker test.
 
 ## Финальный handoff CP-20261026-012
 

@@ -266,7 +266,7 @@
     "scope": "Не более двух installed update fault сценариев без изменений runtime; checkpoint и GitHub после каждых пяти выполненных пунктов",
     "prior_window": "Закрытое execution_plan ниже сохранено без изменений",
     "progress_document": "docs/TERRA61_2H_PROGRESS_RU.md",
-    "current_package": "CP-20261028T143633Z-a8c51a2df8c6: installed update lost-ACK PASS scoped on SDK 6edcbb83; second fault NOT RUN"
+    "current_package": "CP-20261028T143832Z-262d480572a6: installed lost-ACK PASS scoped; tampered-backup harness WIP, NOT RUN"
   },
   "execution_plan": {
     "path": "docs/SOL61_12H_PLAN_RU.md",

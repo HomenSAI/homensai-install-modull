@@ -17,11 +17,25 @@ def private_test_python(tmp_path):
         return source, hashlib.sha256(source.read_bytes()).hexdigest()
     payload = source.read_bytes()
     expected = hashlib.sha256(payload).hexdigest()
-    path = tmp_path / "private-test-python"
+    # Копия standalone Python вне его prefix не находит encodings/stdlib.
+    # Приватный venv layout связывает её с тем же DEV runtime без PYTHONHOME,
+    # расширения allowlist окружения или изменения общего toolcache.
+    runtime = tmp_path / "private-test-runtime"
+    runtime.mkdir(mode=0o700)
+    (runtime / "bin").mkdir(mode=0o700)
+    path = runtime / "bin" / "python"
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o700)
     with os.fdopen(fd, "wb") as stream:
         stream.write(payload)
     path.chmod(0o700)
+    config = runtime / "pyvenv.cfg"
+    config.write_text(
+        "home = " + str(Path(sys._base_executable).resolve(strict=True).parent) + "\n"
+        "include-system-site-packages = false\n"
+        "version = " + ".".join(map(str, sys.version_info[:3])) + "\n",
+        encoding="utf-8",
+    )
+    config.chmod(0o600)
     assert path.stat().st_nlink == 1 and not path.stat().st_mode & 0o077
     assert hashlib.sha256(path.read_bytes()).hexdigest() == expected
     return path, expected

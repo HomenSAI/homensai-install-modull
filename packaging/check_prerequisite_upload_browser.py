@@ -42,7 +42,7 @@ def main():
     reports = work / "reports"
     reports.mkdir(mode=0o700)
     environment = {"PATH": os.defpath + ":/usr/local/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "PIP_NO_INPUT": "1", "PIP_DISABLE_PIP_VERSION_CHECK": "1", "PYTHONDONTWRITEBYTECODE": "1", "NODE_PATH": args.node_path, "HINSTALL_TEST_BROWSER": str(args.browser.resolve())}
-    receipt = {"schema_version": 1, "status": "RUNNING", "checkpoint": args.checkpoint, "task_ids": ["HIM-033", "HIM-029", "HIM-035", "HIM-102", "HIM-062", "HIM-063"], "scenario_ids": ["ACC-05", "ACC-07", "ACC-08", "ACC-16", "ACC-23"], "started_at_utc": datetime.now(timezone.utc).isoformat(), "scope": "Installed wheel + настоящий Chromium Linux x64 в Docker; signed synthetic fixture; ru/en/de. Не Windows11/Ubuntu clean-host/native frozen/OS installer/full lifecycle.", "production_ready": False, "commands": [], "environment": {"python": sys.version, "platform": platform.platform(), "browser_path": str(args.browser), "venv_system_site_packages": False}, "work_dir": str(work)}
+    receipt = {"schema_version": 1, "status": "RUNNING", "checkpoint": args.checkpoint, "task_ids": ["HIM-033", "HIM-029", "HIM-035", "HIM-102", "HIM-062", "HIM-063"], "scenario_ids": ["ACC-05", "ACC-07", "ACC-08", "ACC-16", "ACC-23"], "started_at_utc": datetime.now(timezone.utc).isoformat(), "scope": "Installed wheel + настоящий Chromium Linux x64 в DEV-среде; signed synthetic fixture; ru/en/de. Не Windows11/Ubuntu clean-host/native frozen/OS installer/full lifecycle; контейнерная изоляция этим harness не подтверждается.", "production_ready": False, "commands": [], "environment": {"python": sys.version, "platform": platform.platform(), "browser_path": str(args.browser), "venv_system_site_packages": False}, "work_dir": str(work)}
     def command(argv, *, cwd=work):
         argv = [str(value) for value in argv]
         record = {"argv": argv, "cwd": str(cwd), "started_at_utc": datetime.now(timezone.utc).isoformat()}
@@ -65,6 +65,8 @@ def main():
         receipt["source_tree"] = command(["git", "rev-parse", "HEAD^{tree}"], cwd=ROOT).strip()
         receipt["source_status"] = command(["git", "status", "--porcelain=v1"], cwd=ROOT).splitlines()
         receipt["source_diff_sha256"] = sha(command(["git", "diff", "--binary", "HEAD"], cwd=ROOT).encode())
+        environment["SOURCE_DATE_EPOCH"] = command(["git", "show", "-s", "--format=%ct", receipt["source_commit"]], cwd=ROOT).strip()
+        receipt["environment"]["source_date_epoch"] = environment["SOURCE_DATE_EPOCH"]
         snapshot = work / "build-source"
         snapshot.mkdir()
         for name in ("homensai_install", "shared"):

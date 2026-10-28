@@ -135,6 +135,10 @@ def main():
     work.mkdir(parents=True, exist_ok=False)
     environment = {"PATH": os.defpath, "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "PIP_DISABLE_PIP_VERSION_CHECK": "1"}
     baseline = run(["git", "rev-parse", "HEAD"], cwd=ROOT, env=environment).strip()
+    source_tree = run(["git", "rev-parse", "HEAD^{tree}"], cwd=ROOT, env=environment).strip()
+    source_status = run(["git", "status", "--porcelain=v1"], cwd=ROOT, env=environment).splitlines()
+    source_diff_sha256 = sha(run(["git", "diff", "--binary", "HEAD"], cwd=ROOT, env=environment).encode())
+    environment["SOURCE_DATE_EPOCH"] = run(["git", "show", "-s", "--format=%ct", baseline], cwd=ROOT, env=environment).strip()
     snapshot = work / "build-source"
     snapshot.mkdir()
     for directory in ("homensai_install", "shared", "reference"):
@@ -220,11 +224,13 @@ def main():
     receipt = {"schema_version": 1, "checked_at_utc": datetime.now(timezone.utc).isoformat(), "status": "PASS",
                "scope": "installed SDK/CLI Linux x64 signed synthetic reference planning contract",
                "production_ready": False, "gate_closed": False, "source_baseline": baseline,
+               "source_tree": source_tree, "source_status": source_status, "source_diff_sha256": source_diff_sha256,
                "source_package_files": expected, "source_package_digest": sha(canonical(expected)),
                "harness_sha256": sha(Path(__file__).read_bytes()), "client_sha256": sha(client.read_bytes()),
                "wheel": {"name": wheel.name, "sha256": sha(wheel.read_bytes()), "exact_files_checked": len(expected)},
                "reference_wheel": {"name": reference_wheel.name, "sha256": sha(reference_wheel.read_bytes()), "installed_or_executed": False},
                "environment": {"python": sys.version, "platform": platform.platform(), "venv_system_site_packages": False,
+                               "source_date_epoch": environment["SOURCE_DATE_EPOCH"],
                                "external_work_directory": str(work), "pip_network_flags": "--no-index --no-deps --no-cache-dir --no-build-isolation"},
                "fixture": {"development": True, "ed25519_signature_verified_by_publisher": True,
                            "files": payload_before, "payload_unchanged": True, "runtime": "NON_EXECUTABLE_PLANNING_PLACEHOLDER",

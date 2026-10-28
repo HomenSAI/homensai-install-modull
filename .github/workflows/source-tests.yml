@@ -124,3 +124,55 @@ jobs:
         run: |
           "Portable source subset on Windows only." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
           "No administrator/UAC flow, native service installation, startup after reboot, Docker Desktop or frozen Windows installer acceptance is performed." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
+  linux-installed:
+    name: Linux installed SDK and reference lifecycle (DEV)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout reviewed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Select CPython 3.14.9 x64 with GIL
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14.9"
+          architecture: x64
+          check-latest: false
+          allow-prereleases: false
+          freethreaded: false
+      - name: Prepare exact build tools outside the checkout
+        run: |
+          python -m venv "$RUNNER_TEMP/hinstall-build"
+          echo "$RUNNER_TEMP/hinstall-build/bin" >> "$GITHUB_PATH"
+      - name: Download and verify the platform wheelhouse
+        run: |
+          python -m pip --isolated download --require-hashes --only-binary=:all: -r requirements-build.lock --dest "$RUNNER_TEMP/hinstall-wheelhouse"
+          python -m pip --isolated install --no-index --find-links "$RUNNER_TEMP/hinstall-wheelhouse" --require-hashes --only-binary=:all: -r requirements-build.lock
+          python -m pip --isolated check
+          python tools/check_build_lock.py --installed
+      - name: Verify installed public SDK and CLI outside the checkout
+        run: >-
+          python -B packaging/check_installed_sdk.py
+          --work-dir "$RUNNER_TEMP/hinstall-sdk-check"
+          --receipt "$RUNNER_TEMP/hinstall-receipts/sdk.json"
+      - name: Verify installed prerequisite planning and recovery
+        run: >-
+          python -B packaging/check_installed_prerequisites.py
+          --work-dir "$RUNNER_TEMP/hinstall-prerequisites-check"
+          --receipt "$RUNNER_TEMP/hinstall-receipts/prerequisites.json"
+          --wheelhouse "$RUNNER_TEMP/hinstall-wheelhouse"
+      - name: Verify installed reference fresh and consecutive updates
+        run: >-
+          python -B packaging/check_installed_reference_lifecycle.py
+          --work-dir "$RUNNER_TEMP/hinstall-reference-check"
+          --receipt "$RUNNER_TEMP/hinstall-receipts/reference-update.json"
+          --wheelhouse "$RUNNER_TEMP/hinstall-wheelhouse"
+          --sdk-revision "$GITHUB_SHA"
+          --profile update
+      - name: Record the exact installed check results
+        if: always()
+        run: |
+          python -B tools/summarize_installed_checks.py --receipts "$RUNNER_TEMP/hinstall-receipts" --summary "$GITHUB_STEP_SUMMARY" --source-revision "$GITHUB_SHA"

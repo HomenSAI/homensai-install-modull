@@ -113,6 +113,12 @@
     "operation": "api/schemas/operation.schema.json",
     "event": "api/schemas/event.schema.json"
   },
+  "documentation": {
+    "api": "api/resources/INSTALLER_API.md",
+    "integration": "api/resources/INTEGRATION_GUIDE.md",
+    "product_adapter": "api/resources/PRODUCT_ADAPTER_EXECUTION.md",
+    "http": "api/resources/openapi.yaml"
+  },
   "readiness": "development",
   "production_ready": false,
   "limits": {

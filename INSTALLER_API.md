@@ -70,6 +70,13 @@ JSON schemas поставляются в wheel и доступны через `a
 `api/schemas` и `api/discovery.json` в репозитории — проверяемые экспорты
 поставляемых схем/метаданных, а не независимая альтернативная спецификация.
 
+`describe()["documentation"]` содержит пути к четырём документам внутри пакета:
+API, руководству интеграции, протоколу ProductAdapter и OpenAPI. Читать их можно
+офлайн через `importlib.resources.files("homensai_install").joinpath(path)`.
+Встроенный `api/resources/discovery.json`, репозиторный экспорт и результат
+`describe()` должны совпадать полностью; наличие документации проверяется
+после установки wheel вне checkout.
+
 ## Target, options и доверие
 
 Target имеет поля:

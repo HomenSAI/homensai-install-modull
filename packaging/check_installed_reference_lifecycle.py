@@ -8,7 +8,9 @@ import argparse
 import base64
 from datetime import datetime, timezone
 import json
+import importlib.metadata
 import os
+import platform
 from pathlib import Path, PurePosixPath
 import re
 import shutil
@@ -22,6 +24,15 @@ from check_installed_product_adapter import check_reference_wheel, fixture, refe
 
 
 ROOT = Path(__file__).resolve().parents[1]
+UPDATE_FAULTS = {
+    "update-lost-ack": "lost_ack",
+    "update-tampered-backup": "tampered_backup",
+    "update-missing-ledger": "missing_ledger",
+    "update-foreign-backup": "foreign_backup",
+    "update-live-data-drift": "live_data_drift",
+    "update-candidate-health": "candidate_health",
+    "update-candidate-cleanup": "candidate_cleanup",
+}
 
 
 def main(argv=None):
@@ -31,7 +42,7 @@ def main(argv=None):
     parser.add_argument("--wheelhouse", type=Path, required=True)
     parser.add_argument("--sdk-revision", required=True)
     parser.add_argument("--source-git-dir", type=Path)
-    parser.add_argument("--profile", choices=("preparation", "fresh", "update-readiness", "update", "update-lost-ack", "update-tampered-backup", "update-missing-ledger"), default="preparation")
+    parser.add_argument("--profile", choices=("preparation", "fresh", "update-readiness", "update", *UPDATE_FAULTS), default="preparation")
     args = parser.parse_args(argv)
     work, output = args.work_dir.resolve(), args.receipt.absolute()
     exported = output.with_name(output.stem + "-evidence")
@@ -47,11 +58,12 @@ def main(argv=None):
         git += ["--git-dir=" + str(args.source_git_dir.resolve(strict=True)), "--work-tree=" + str(ROOT)]
     receipt = {"schema_version": 1, "started_at_utc": datetime.now(timezone.utc).isoformat(), "status": "FAIL",
         "profile": args.profile, "production_ready": False, "gate_closed": False, "author": "Serhii Khomenko",
-        "commands": [], "scope": "installed public SDK reference " + args.profile + ", Linux/native/user DEV container",
-        "sdk_source_revision": args.sdk_revision, "environment": {"python": sys.version, "uid": os.getuid(),
+        "commands": [], "scope": "installed public SDK reference " + args.profile + ", Linux/native/user DEV runner",
+        "sdk_source_revision": args.sdk_revision, "environment": {"python": sys.version, "platform": platform.platform(), "uid": os.getuid(),
+            "build_versions": {name: importlib.metadata.version(name) for name in ("pip", "setuptools", "packaging", "cryptography")},
             "network_downloads": False, "venv_system_site_packages": False, "work_dir": str(work),
-            "runtime_closure": "signed copied DEV ELF; borrowed container stdlib/libpython/OS libraries"},
-        "not_run": [("Adapter restore/rollback/repair/uninstall" if args.profile in {"update", "update-lost-ack", "update-tampered-backup", "update-missing-ledger"} else
+            "runtime_closure": "signed copied DEV ELF; borrowed runner stdlib/libpython/OS libraries"},
+        "not_run": [("Adapter restore/rollback/repair/uninstall" if args.profile in {"update", *UPDATE_FAULTS} else
                      "Adapter update/restore/rollback/repair/uninstall"), "Clean Ubuntu/Windows/Docker/service/reboot",
                     "Standalone runtime/security/license closure", "GUI", "Production signing", "Full G1-G5"],
         "harness_files": {name: sha((ROOT / "packaging" / name).read_bytes()) for name in
@@ -71,6 +83,8 @@ def main(argv=None):
         return completed.stdout
 
     try:
+        environment["SOURCE_DATE_EPOCH"] = command([*git, "show", "-s", "--format=%ct", args.sdk_revision], ROOT).strip()
+        receipt["environment"]["source_date_epoch"] = environment["SOURCE_DATE_EPOCH"]
         receipt["sdk_source_tree"] = command([*git, "rev-parse", args.sdk_revision + "^{tree}"], ROOT).strip()
         receipt["reference_source_head"] = command([*git, "rev-parse", "HEAD"], ROOT).strip()
         receipt["reference_source_status"] = command([*git, "status", "--porcelain"], ROOT).splitlines()
@@ -122,7 +136,7 @@ def main(argv=None):
         descriptor["environment_allowlist"].append("HOMENSAI_CONFIG_HOME")
         write_json(payload / "installer/adapter.json", descriptor)
         manifest = json.loads((work / "manifest.json").read_text())
-        if args.profile in {"fresh", "update-readiness", "update", "update-lost-ack", "update-tampered-backup", "update-missing-ledger"}:
+        if args.profile in {"fresh", "update-readiness", "update", *UPDATE_FAULTS}:
             (payload / "forbidden_legacy_migration.py").write_text("import os\nfrom pathlib import Path\n(Path(os.environ['HOMENSAI_DATA_HOME'])/'FORBIDDEN_LEGACY_MIGRATION').write_text('unexpected legacy hook')\nraise SystemExit(87)\n", encoding="utf-8")
             manifest["migrations"]["cmd"] = ["python", "-I", "-B", "forbidden_legacy_migration.py"]
             write_json(work / "manifest.json", manifest)
@@ -163,8 +177,8 @@ def main(argv=None):
         del private
         receipt["signed_bundles"] = signed_bundles
         config.update(site_packages=str(site), checkout=str(ROOT), client_report=str(work / "client-report.json"),
-                      bundle_options=bundle_options, profile="update" if args.profile in {"update-lost-ack", "update-tampered-backup", "update-missing-ledger"} else args.profile,
-                      fault_profile={"update-lost-ack": "lost_ack", "update-tampered-backup": "tampered_backup", "update-missing-ledger": "missing_ledger"}.get(args.profile),
+                      bundle_options=bundle_options, profile="update" if args.profile in UPDATE_FAULTS else args.profile,
+                      fault_profile=UPDATE_FAULTS.get(args.profile),
                       runtime_sha256=signed_bundles["1"]["runtime/bin/python"])
         config_path = work / "client-config.json"
         write_json(config_path, config)

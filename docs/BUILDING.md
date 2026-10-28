@@ -351,3 +351,17 @@ https://github.com/HomenSAI/homensai-install-modull/actions/runs/40170554823 .
 в доступном ответе; не приписывать её биллингу, YAML или инструментам без evidence.
 Receipt: `packaging/acceptance-evidence/github-ci-20261025-cp004.json`.
 Локальные Linux проверки относятся к собственным receipts и этим run не заменяются.
+
+## Проверка установленного wheel в CI
+
+Job `linux-installed` создаёт build venv, wheelhouse и все клиентские каталоги
+в `$RUNNER_TEMP`, вне checkout. После загрузки закреплённых wheel build и
+установка используют `--no-index`; клиентские guards запрещают обращение
+к checkout. Выполняются SDK/CLI, prerequisites и reference fresh→v2→v3.
+`tools/summarize_installed_checks.py` требует три успешные квитанции с точным
+`GITHUB_SHA`, корректным hash wheel и профилем `update`; missing/stale/FAIL
+завершают job ошибкой. Это Linux DEV acceptance, без закрытия release gates.
+
+Четыре installed harness используют `SOURCE_DATE_EPOCH` из проверяемого commit
+для ZIP timestamps. Совпадение отдельных wheel подтверждается их receipts;
+герметичность всей сборки native installer этим не заявляется.

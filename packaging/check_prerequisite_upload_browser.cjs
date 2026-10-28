@@ -151,7 +151,7 @@ async function main() {
   } catch (error) {failed = error; if (currentPage && !currentPage.isClosed()) try {await currentPage.screenshot({path: path.join(evidenceDir, 'failure.png'), fullPage: true});} catch {}}
   finally {await browser.close();}
   const receipt = {schema_version: 1, status: failed ? 'FAIL' : 'PASS', started_at_utc: started, finished_at_utc: new Date().toISOString(),
-    scope: 'Actual headless Chromium on installed wheel, Linux x64 Docker; signed synthetic prerequisite; ru/en/de. Not Windows/Ubuntu clean-host/frozen/full lifecycle acceptance.',
+    scope: 'Actual headless Chromium on installed wheel, Linux x64 DEV runner; signed synthetic prerequisite; ru/en/de. Not Windows/Ubuntu clean-host/frozen/full lifecycle acceptance; container isolation is not attested.',
     task_ids: ['HIM-033', 'HIM-029', 'HIM-035', 'HIM-102', 'HIM-062', 'HIM-063'], scenario_ids: ['ACC-05', 'ACC-07', 'ACC-08', 'ACC-16', 'ACC-23'],
     ledger: JSON.parse(fs.readFileSync(path.join(fixtureDir, 'ledger.json'), 'utf8')),
     browser_version: browser.version(), harness_sha256: sha(fs.readFileSync(__filename)), fixture, cases, browser_errors: browserErrors, external_requests: externalRequests,

@@ -9,6 +9,10 @@ import sys
 from urllib.request import ProxyHandler, build_opener
 
 
+PRE_APPLY_FAULTS = {"tampered_backup", "foreign_backup", "live_data_drift"}
+HEALTH_FAULTS = {"candidate_health", "candidate_cleanup"}
+
+
 def sha(value):
     return hashlib.sha256(value).hexdigest()
 
@@ -297,11 +301,12 @@ def main():
                     assert detail["product_adapter_source_binding"]["release"] == source_release
                     assert detail["update_failure_policy"] == "preserve_forward_journal_no_automatic_restore"
                     assert detail["migration_binding"]["migration_review_id"] == update_review["migration_review_id"]
-                    if config.get("fault_profile") == "tampered_backup" and target_version == 2:
-                        # Tamper only this disposable fixture after the real backup:0
-                        # receipt is issued, before the actual migration authorization.
-                        original_emit = current._emit
-                        tampered = []
+                    if config.get("fault_profile") in PRE_APPLY_FAULTS and target_version == 2:
+                        # Faults affect only this disposable fixture, after the real
+                        # backup receipt, before the original public operation applies.
+                        from homensai_install.migration_receipts import BackupReceiptStore
+                        original_emit, original_verify = current._emit, BackupReceiptStore.verify
+                        tampered, foreign = [], []
 
                         def tamper_after_backup(operation_id, event):
                             original_emit(operation_id, event)
@@ -317,23 +322,53 @@ def main():
                                 archive_path = Path(record["archive_path"])
                                 before_hash = sha(archive_path.read_bytes())
                                 assert before_hash == record["body"]["archive_sha256"]
-                                with archive_path.open("ab") as stream:
-                                    stream.write(b"tampered-after-verified-backup")
-                                tampered.append({"before_sha256": before_hash, "after_sha256": sha(archive_path.read_bytes()),
-                                                 "receipt_id": refs[0]["receipt_id"]})
+                                if config["fault_profile"] == "tampered_backup":
+                                    with archive_path.open("ab") as stream:
+                                        stream.write(b"tampered-after-verified-backup")
+                                    changed = {"before_sha256": before_hash, "after_sha256": sha(archive_path.read_bytes())}
+                                elif config["fault_profile"] == "live_data_drift":
+                                    before_document = sha(document.read_bytes())
+                                    document.write_text("Синтетические новые данные после проверенного backup", encoding="utf-8")
+                                    changed = {"before_sha256": before_document, "after_sha256": sha(document.read_bytes())}
+                                else:
+                                    changed = {"archive_sha256": before_hash}
+                                tampered.append({**changed, "receipt_id": refs[0]["receipt_id"]})
+
+                        def substitute_valid_foreign(store, receipt_id, *, expected_binding):
+                            record = store._read(receipt_id)
+                            foreign_binding = {**expected_binding, "operation_id": "op_foreign_acceptance"}
+                            issued = store.issue(record["archive_path"], foreign_binding,
+                                consistency_scope="owned_components_stopped_and_adapter_quiesced")
+                            assert issued["receipt_id"] != receipt_id and issued["migration_eligible"] is True
+                            # Prove the foreign receipt is valid for its own binding,
+                            # then let the real verifier reject it for this operation.
+                            assert original_verify(store, issued["receipt_id"], expected_binding=foreign_binding) == issued
+                            foreign.append({"original_receipt_id": receipt_id, "foreign_receipt_id": issued["receipt_id"],
+                                "archive_sha256": issued["archive_sha256"], "foreign_operation_id": issued["operation_id"],
+                                "expected_operation_id": expected_binding["operation_id"], "valid_for_own_binding": True})
+                            return original_verify(store, issued["receipt_id"], expected_binding=expected_binding)
 
                         current._emit = tamper_after_backup
+                        if config["fault_profile"] == "foreign_backup":
+                            BackupReceiptStore.verify = substitute_valid_foreign
                         try:
                             consent = [*update_plan["required_consents"], update_plan["review_consent_ref"]]
                             failed = current.submit(update_plan["plan_id"], update_plan["plan_digest"],
-                                consent, idempotency_key="tampered-backup-update", background=False)
+                                consent, idempotency_key="pre-apply-fault-update", background=False)
                         finally:
                             current._emit = original_emit
-                        assert len(tampered) == 1 and tampered[0]["before_sha256"] != tampered[0]["after_sha256"]
+                            BackupReceiptStore.verify = original_verify
+                        assert len(tampered) == 1
+                        if config["fault_profile"] != "foreign_backup":
+                            assert tampered[0]["before_sha256"] != tampered[0]["after_sha256"]
+                        else:
+                            assert len(foreign) == 1
                         assert failed["status"] == "RECOVERY_REQUIRED", failed
                         assert (failed.get("error") or {}).get("code") in {"PLAN_STALE", "RECOVERY_REQUIRED"}, failed
                         assert notes(database) == source_data
-                        assert sha(document.read_bytes()) == retained["document"]
+                        expected_document = (tampered[0]["after_sha256"] if config["fault_profile"] == "live_data_drift"
+                                             else retained["document"])
+                        assert sha(document.read_bytes()) == expected_document
                         assert sha(credential.read_bytes()) == retained["credential"]
                         assert sha(settings.read_bytes()) == retained["settings"]
                         assert json.loads((root / "services" / manifest["update"]["pointer_file"]).read_text()) == {"release": source_release}
@@ -349,11 +384,168 @@ def main():
                         forward = json.loads((root / "services" / ("update-" + native_paths[0].stem + ".json")).read_text())
                         assert forward["direction"] == "forward" and forward["outcome"] == "running"
                         listener_stopped(config["port"])
+                        current = api("fresh-sdk-state")
+                        operation_id = failed["operation_id"]
+                        reopened = current.status(operation_id)
+                        assert reopened["status"] == "RECOVERY_REQUIRED"
+                        duplicate = current.submit(update_plan["plan_id"], update_plan["plan_digest"],
+                            consent, idempotency_key="pre-apply-fault-update", background=False)
+                        assert duplicate["operation_id"] == operation_id and duplicate["status"] == "RECOVERY_REQUIRED"
+                        if config["fault_profile"] == "foreign_backup":
+                            BackupReceiptStore.verify = substitute_valid_foreign
+                        try:
+                            resumed = current.resume(operation_id, {}, background=False)
+                        finally:
+                            BackupReceiptStore.verify = original_verify
+                        assert resumed["operation_id"] == operation_id and resumed["status"] == "RECOVERY_REQUIRED", resumed
+                        assert notes(database) == source_data
+                        assert sha(document.read_bytes()) == expected_document
+                        assert sha(credential.read_bytes()) == retained["credential"] and sha(settings.read_bytes()) == retained["settings"]
+                        assert json.loads((root / "services" / manifest["update"]["pointer_file"]).read_text()) == {"release": source_release}
+                        with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
+                            assert db.execute("SELECT request_digest FROM product_adapter_effects").fetchall() == effects
+                            assert db.execute("SELECT version FROM schema_migrations ORDER BY version").fetchall() == [(1,)]
+                        after_resume = json.loads(native_paths[0].read_text())
+                        assert after_resume["product_adapter_backup_refs"] == state["product_adapter_backup_refs"]
+                        assert after_resume.get("product_adapter_migration_complete") is not True
+                        listener_stopped(config["port"])
                         active_update.update(status="PASS", expected_failure=True, source_schema=1,
                             business_effect_rows=1, public_operation_id=failed["operation_id"],
                             public_status=failed["status"], error_code=failed["error"]["code"],
-                            tampered_backup=tampered[0], user_data_preserved=True,
+                            fault_profile=config["fault_profile"], injection=tampered[0], foreign_receipts=foreign,
+                            reopened_status=reopened["status"], duplicate_status=duplicate["status"], resume_status=resumed["status"],
+                            same_original_operation_resumed=True, backup_refs_unchanged=True,
+                            user_data_preserved=True, preserved_document_sha256=expected_document,
                             migration_apply_not_completed=True, forward_journal_preserved=True)
+                        active_update = None
+                        break
+                    if config.get("fault_profile") in HEALTH_FAULTS and target_version == 2:
+                        from homensai_install.engine import EngineError
+                        original_health = NativeEngine._health
+                        original_quiesce = NativeEngine._update_adapter_quiesce
+                        health_injected, cleanup_injected = [], []
+
+                        def fail_after_real_health(engine, ctx):
+                            result = original_health(engine, ctx)
+                            if ctx.get("action") == "update" and ctx["release"] == target_release:
+                                assert not health_injected and result["ready"]
+                                document.write_text("Новые данные candidate после реального health", encoding="utf-8")
+                                candidate = json.loads((root / ".hinstall/processes.json").read_text())["web"]
+                                health_injected.append({"document_sha256": sha(document.read_bytes()),
+                                    "real_candidate_ready": True, "candidate_pid": candidate["pid"]})
+                                raise EngineError("HEALTH_CHECK_FAILED", "Синтетический installed candidate fault")
+                            return result
+
+                        def fail_candidate_cleanup(engine, ctx, key, release):
+                            if release == target_release and "/candidate_cleanup:" in key:
+                                assert not cleanup_injected
+                                cleanup_injected.append({"release": release, "phase_key": key})
+                                raise EngineError("OPERATION_CONFLICT", "Синтетический installed cleanup fault")
+                            return original_quiesce(engine, ctx, key, release)
+
+                        consent = [*update_plan["required_consents"], update_plan["review_consent_ref"]]
+                        key = "candidate-fault-update"
+                        NativeEngine._health = fail_after_real_health
+                        if config["fault_profile"] == "candidate_cleanup":
+                            NativeEngine._update_adapter_quiesce = fail_candidate_cleanup
+                        try:
+                            failed = current.submit(update_plan["plan_id"], update_plan["plan_digest"],
+                                consent, idempotency_key=key, background=False)
+                        finally:
+                            NativeEngine._health = original_health
+                            NativeEngine._update_adapter_quiesce = original_quiesce
+                        assert len(health_injected) == 1
+                        assert failed["status"] == "RECOVERY_REQUIRED" and failed["error"]["code"] == "HEALTH_CHECK_FAILED", failed
+                        operation_id = failed["operation_id"]
+                        native_paths = [p for p in (root / ".hinstall/operations").glob("*.json")
+                                        if json.loads(p.read_text()).get("migration_review_id") == update_review["migration_review_id"]]
+                        assert len(native_paths) == 1
+                        state = json.loads(native_paths[0].read_text())
+                        assert state["primary_error_code"] == "HEALTH_CHECK_FAILED"
+                        assert state["product_adapter_migration_complete"] is True
+                        scopes = list(state["product_adapter_quiesce_scopes"].values())
+                        if config["fault_profile"] == "candidate_cleanup":
+                            assert len(cleanup_injected) == 1 and state["cleanup_error_code"] == "OPERATION_CONFLICT"
+                            assert failed["error"]["details"]["primary_error_code"] == "HEALTH_CHECK_FAILED"
+                            assert failed["error"]["details"]["cleanup_error"] == {
+                                "phase": "candidate_cleanup", "code": "OPERATION_CONFLICT"}
+                        else:
+                            assert not cleanup_injected and "cleanup_error_code" not in state
+                            assert {(x["release"], x["complete"]) for x in scopes} == {(source_release, True), (target_release, True)}
+                        after_cleanup = json.loads((root / ".hinstall/processes.json").read_text())
+                        if config["fault_profile"] == "candidate_cleanup":
+                            assert after_cleanup["web"]["pid"] == health_injected[0]["candidate_pid"]
+                            assert after_cleanup["web"]["release"] == target_release
+                            executable = Path("/proc/" + str(after_cleanup["web"]["pid"]) + "/exe").resolve()
+                            assert executable.is_relative_to(root / "releases" / ("app-" + target_release))
+                            assert sha(executable.read_bytes()) == config["runtime_sha256"]
+                        else:
+                            assert not after_cleanup
+                            listener_stopped(config["port"])
+                        assert notes(database) == {"schema": 2, "notes": source_data["notes"]}
+                        assert sha(document.read_bytes()) == health_injected[0]["document_sha256"]
+                        assert sha(credential.read_bytes()) == retained["credential"]
+                        assert sha(settings.read_bytes()) == retained["settings"]
+                        pointer = root / "services" / manifest["update"]["pointer_file"]
+                        assert json.loads(pointer.read_text()) == {"release": target_release}
+                        forward_path = root / "services" / ("update-" + native_paths[0].stem + ".json")
+                        forward = json.loads(forward_path.read_text())
+                        assert forward["direction"] == "forward" and forward["outcome"] == "running"
+                        with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
+                            effects_before = db.execute("SELECT request_digest,result FROM product_adapter_effects ORDER BY request_digest").fetchall()
+                            assert len(effects_before) == 2
+                            assert db.execute("SELECT version FROM schema_migrations ORDER BY version").fetchall() == [(1,), (2,)]
+                        verified_backups = []
+                        for reference in state["product_adapter_backup_refs"].values():
+                            record = json.loads((root / ".hinstall/backup-receipts" / (reference["receipt_id"] + ".json")).read_text())
+                            assert record["receipt_id"] == sha(canonical(record["body"]))
+                            archive_path = Path(record["archive_path"])
+                            assert archive_crypto.is_encrypted(archive_path)
+                            assert sha(archive_path.read_bytes()) == record["body"]["archive_sha256"]
+                            oracle = work / ("candidate-fault-" + reference["purpose"].replace(":", "-") + "-restore")
+                            oracle.mkdir(mode=0o700)
+                            archive_crypto.restore_archive(archive_path, oracle,
+                                password_provider=lambda: config["archive_password"], expected_product_id=manifest["product_id"])
+                            assert notes(oracle / "roots/data/reference.sqlite") == source_data
+                            assert sha((oracle / "roots/data/user-files/Личные документы.txt").read_bytes()) == retained["document"]
+                            verified_backups.append({"purpose": reference["purpose"], "receipt_id": record["receipt_id"],
+                                "archive_sha256": record["body"]["archive_sha256"], "restored_source_schema": 1})
+                        assert len(verified_backups) == 2 and {r["purpose"] for r in verified_backups} == {"archive", "backup:0"}
+                        current = api("fresh-sdk-state")
+                        reopened = current.status(operation_id)
+                        assert reopened["status"] == "RECOVERY_REQUIRED" and reopened["error"]["code"] == "HEALTH_CHECK_FAILED"
+                        duplicate = current.submit(update_plan["plan_id"], update_plan["plan_digest"],
+                            consent, idempotency_key=key, background=False)
+                        assert duplicate["operation_id"] == operation_id and duplicate["status"] == "RECOVERY_REQUIRED"
+                        resumed = current.resume(operation_id, {}, background=False)
+                        assert resumed["operation_id"] == operation_id and resumed["status"] == "SUCCEEDED", resumed
+                        with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
+                            assert db.execute("SELECT request_digest,result FROM product_adapter_effects ORDER BY request_digest").fetchall() == effects_before
+                            assert db.execute("SELECT version FROM schema_migrations ORDER BY version").fetchall() == [(1,), (2,)]
+                        assert sha(document.read_bytes()) == health_injected[0]["document_sha256"]
+                        assert sha(credential.read_bytes()) == retained["credential"] and sha(settings.read_bytes()) == retained["settings"]
+                        assert json.loads(pointer.read_text()) == {"release": target_release}
+                        completed_state = json.loads(native_paths[0].read_text())
+                        assert completed_state["candidate_health_attempt"] == state["candidate_health_attempt"] + 1
+                        assert completed_state["product_adapter_backup_refs"] == state["product_adapter_backup_refs"]
+                        assert json.loads(forward_path.read_text())["outcome"] == "updated"
+                        with build_opener(ProxyHandler({})).open("http://127.0.0.1:" + str(config["port"]) + "/healthz", timeout=3) as response:
+                            recovered_health = json.load(response)
+                        assert recovered_health["release"] == target_release and recovered_health["database_schema"] == 2
+                        assert recovered_health["ready"] and recovered_health["installation_id"] == review["installation_id"]
+                        run_action(current, "stop", bundles["2"], "candidate-fault-final-stop")
+                        listener_stopped(config["port"])
+                        active_update.update(status="PASS", expected_failure=True,
+                            fault_profile=config["fault_profile"], public_operation_id=operation_id,
+                            public_status=failed["status"], primary_error_code=state["primary_error_code"],
+                            cleanup_error_code=state.get("cleanup_error_code"), candidate_stopped=not bool(after_cleanup),
+                            candidate_pid_before_cleanup=health_injected[0]["candidate_pid"],
+                            owned_candidate_identity_preserved_on_cleanup_failure=bool(after_cleanup),
+                            reopened_status=reopened["status"], duplicate_status=duplicate["status"], resume_status=resumed["status"],
+                            business_effect_rows=2, schema=2, verified_backups=verified_backups,
+                            preserved_candidate_document_sha256=health_injected[0]["document_sha256"],
+                            injection="failure_after_real_signed_candidate_health" + ("_and_candidate_quiesce_failure" if cleanup_injected else ""),
+                            same_original_operation_resumed=True, forward_journal_preserved=True, automatic_restore=False)
                         active_update = None
                         break
                     if config.get("fault_profile") in {"lost_ack", "missing_ledger"} and target_version == 2:
@@ -570,7 +762,7 @@ def main():
                         "user_data_and_config_preserved": True, "forward_journal_no_rollback": True,
                         "legacy_migration_marker_absent": True, "owned_pid_stable_on_duplicate_start": True})
                     active_update = None
-                if config.get("fault_profile") not in {"tampered_backup", "missing_ledger"}:
+                if config.get("fault_profile") not in {*PRE_APPLY_FAULTS, *HEALTH_FAULTS, "missing_ledger"}:
                     run_action(current, "stop", bundles["3"], "update-final-stop")
                 listener_stopped(config["port"])
                 for directory in (root / ".hinstall", work / "fresh-sdk-state"):
@@ -650,7 +842,7 @@ def main():
         for cleanup_root, version in ((legacy_root, "1"), (root if config["profile"] in {"fresh", "update-readiness", "update"} else None, "1")):
             if cleanup_root is not None and (cleanup_root / ".hinstall/installation.json").exists():
                 try:
-                    if config.get("fault_profile") in {"tampered_backup", "missing_ledger"} and cleanup_root == root:
+                    if config.get("fault_profile") in {*PRE_APPLY_FAULTS, "missing_ledger"} and cleanup_root == root:
                         listener_stopped(config["port"])
                         continue
                     run_action(api("cleanup-" + str(len(str(cleanup_root))), registered=False), "stop",

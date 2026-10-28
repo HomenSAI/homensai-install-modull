@@ -63,8 +63,12 @@ def main():
         api = InstallerAPI.from_bootstrap(state, trust_config=config["trust"], allow_development=True)
         description = api.describe()
         exported = json.loads(resources.files("homensai_install").joinpath("api/resources/discovery.json").read_text())
-        exported.pop("documentation")
         assert description == exported
+        package = resources.files("homensai_install")
+        assert set(description["documentation"]) == {"api", "integration", "product_adapter", "http"}
+        for document in description["documentation"].values():
+            assert document.startswith("api/resources/") and ".." not in Path(document).parts
+            assert package.joinpath(document).read_text(encoding="utf-8").strip(), "Offline documentation missing"
         assert description["production_ready"] is False
         assert importlib.metadata.version("homensai-install-module") == description["module_version"]
         for name in description["schemas"]:

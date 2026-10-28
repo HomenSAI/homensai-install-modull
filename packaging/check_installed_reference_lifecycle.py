@@ -41,6 +41,55 @@ UPDATE_FAULTS = {
 }
 
 
+_STAGES = {"setup", "source_snapshot", "wheel_build", "sdk_environment", "product_fixture",
+           "signed_payloads", "installed_client", "verify_inputs"}
+_REASONS = {"command_failed", "process_signal", "python_shared_library_missing", "shared_library_missing",
+            "python_stdlib_missing", "python_module_missing", "execution_permission_denied",
+            "executable_format_invalid", "python_assertion_failed"}
+
+
+def _command_failure_reason(returncode, log):
+    """Fixed buckets only: stdout never reproduces a command, path or output."""
+    value = log.lower()
+    if "error while loading shared libraries:" in value:
+        return "python_shared_library_missing" if "libpython" in value else "shared_library_missing"
+    if "no module named 'encodings'" in value or "failed to get the python codec" in value:
+        return "python_stdlib_missing"
+    if "modulenotfounderror:" in value or "no module named" in value:
+        return "python_module_missing"
+    if "permission denied" in value or "operation not permitted" in value:
+        return "execution_permission_denied"
+    if "exec format error" in value:
+        return "executable_format_invalid"
+    if "assertionerror" in value:
+        return "python_assertion_failed"
+    return "process_signal" if returncode < 0 else "command_failed"
+
+
+def _safe_failure_summary(error, commands, stage):
+    last = commands[-1] if commands else {}
+    code = last.get("exit_code")
+    code = code if type(code) is int else None
+    if code is not None and code != 0:
+        reason = last.get("failure_reason_class")
+        reason = reason if reason in _REASONS else "command_failed"
+        error_class = "command_failed"
+    elif isinstance(error, subprocess.TimeoutExpired):
+        reason, error_class = "command_timeout", "command_timeout"
+    elif isinstance(error, ModuleNotFoundError):
+        reason, error_class = "python_module_missing", "python_import"
+    elif isinstance(error, AssertionError):
+        reason = ("unexpected_runtime_symlink" if str(error) == "Неожиданная ссылка product runtime"
+                  else "validation_assertion_failed")
+        error_class = "validation_assertion"
+    elif isinstance(error, OSError):
+        reason, error_class = "filesystem_operation_failed", "filesystem_error"
+    else:
+        reason, error_class = "harness_operation_failed", "unexpected_error"
+    return {"stage": stage if stage in _STAGES else "setup", "command_index": len(commands) or None,
+            "exit_code": code, "reason_class": reason, "error_class": error_class}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--work-dir", type=Path, required=True)
@@ -77,6 +126,7 @@ def main(argv=None):
             ("check_installed_reference_lifecycle.py", "installed_reference_lifecycle_client.py", "check_installed_product_adapter.py",
              "check_installed_sdk.py", "check_installed_prerequisites.py")}}
     code = 1
+    stage = "source_snapshot"
 
     def command(argv, cwd=work):
         record = {"argv": [str(item) for item in argv], "cwd": str(cwd)}
@@ -86,6 +136,7 @@ def main(argv=None):
         (work / "reports" / ("command-" + str(len(receipt["commands"])) + ".log")).write_text(log, encoding="utf-8")
         record.update(exit_code=completed.returncode, log_sha256=sha(log.encode()))
         if completed.returncode:
+            record["failure_reason_class"] = _command_failure_reason(completed.returncode, log)
             raise RuntimeError("Команда " + str(len(receipt["commands"])) + ": " + log[-2500:])
         return completed.stdout
 
@@ -110,6 +161,7 @@ def main(argv=None):
         receipt.update(sdk_source_package_files=expected, reference_source_files=ref_expected)
         wheels = work / "wheels"
         wheels.mkdir()
+        stage = "wheel_build"
         for source in (snapshot, ref_snapshot / "reference"):
             command([sys.executable, "-I", "-B", "-m", "pip", "wheel", "--no-index", "--no-deps", "--no-cache-dir",
                      "--no-build-isolation", "--wheel-dir", wheels, source])
@@ -122,6 +174,7 @@ def main(argv=None):
         dependencies, lock = security_wheels(args.wheelhouse.resolve(), work / "security-wheels")
         receipt["dependencies"] = dependencies
         receipt["security_lock_sha256"] = sha(lock.read_bytes())
+        stage = "sdk_environment"
         venv = work / "environment"
         command([sys.executable, "-I", "-B", "-m", "venv", venv])
         python = venv / "bin/python"
@@ -134,8 +187,10 @@ def main(argv=None):
         check_wheel(wheel, expected, site)
         for dependency in dependencies:
             dependency["installed_verification"] = check_installed_dependency(lock.parent / dependency["filename"], site)
+        stage = "product_fixture"
         config, _, product_site = fixture(work, reference_wheel, command)
         check_reference_wheel(reference_wheel, ref_expected, product_site)
+        stage = "signed_payloads"
         payload = work / "payload"
         descriptor = json.loads((payload / "installer/adapter.json").read_text())
         descriptor["capabilities"].update({name: {"mutating": mutating, "idempotency": "application" if mutating else "read_only"}
@@ -201,9 +256,11 @@ def main(argv=None):
         config_path.chmod(0o600)
         client = work / "external_client.py"
         shutil.copy2(ROOT / "packaging/installed_reference_lifecycle_client.py", client)
+        stage = "installed_client"
         command([python, "-I", "-B", client, config_path])
         receipt["client"] = json.loads((work / "client-report.json").read_text())
         assert receipt["client"]["status"] == "PASS"
+        stage = "verify_inputs"
         check_wheel(wheel, expected, site)
         for version in (1, 2, 3):
             source = payload if version == 1 else work / ("payload-v" + str(version))
@@ -216,6 +273,7 @@ def main(argv=None):
         receipt.update(status="PASS", exact_inputs_and_installed_bytes_unchanged=True)
         code = 0
     except Exception as error:
+        receipt["safe_failure"] = _safe_failure_summary(error, receipt["commands"], stage)
         receipt["error"] = {"type": type(error).__name__, "message": str(error)[-4000:]}
         report_path = work / "client-report.json"
         if report_path.exists():
@@ -229,7 +287,14 @@ def main(argv=None):
         receipt["exported_evidence"] = str(exported)
         receipt["finished_at_utc"] = datetime.now(timezone.utc).isoformat()
         write_json(output, receipt)
-    print(json.dumps({"status": receipt["status"], "receipt": str(output), "profile": args.profile}))
+    summary = {"status": receipt["status"], "profile": args.profile}
+    if receipt["status"] == "PASS":
+        summary["receipt"] = str(output)
+    else:
+        summary["failure"] = receipt.get("safe_failure", {
+            "stage": "setup", "command_index": None, "exit_code": None,
+            "reason_class": "harness_operation_failed", "error_class": "unexpected_error"})
+    print(json.dumps(summary))
     return code
 
 

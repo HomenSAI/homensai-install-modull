@@ -243,6 +243,15 @@ reference profile**. Он использует уже подготовленны
 собирает reference wheel, при `--freeze` применяет PyInstaller и создаёт DEV
 подпись для тестов. Production publisher key этот builder не выпускает.
 
+Builder можно вызывать из другого рабочего каталога по абсолютному пути к
+скрипту. PyInstaller запускается из проверяемого исходного дерева, чтобы сборка
+ресурсов не зависела от каталога вызывающего процесса. После freeze builder
+читает фактический архив исполняемого файла: набор и SHA-256 всех ресурсов SDK
+должны совпадать с `tool.setuptools.package-data` этого дерева. Схема manifest,
+локализации, мастер и офлайн-документация входят в эту проверку. Отсутствующий,
+лишний или изменённый ресурс останавливает сборку; одного успешного завершения
+PyInstaller недостаточно для `BUILD_REPORT.json`.
+
 ```bash
 python packaging/build_reference.py \
   --runtime /absolute/path/to/verified-cpython-3.14-runtime \

@@ -8,6 +8,7 @@ Production signing этим скриптом не предоставляется
 from __future__ import annotations
 import argparse
 import base64
+import glob
 import hashlib
 import json
 import os
@@ -18,6 +19,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tomllib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,6 +31,40 @@ from shared.manifest import validate_manifest
 
 def write_json(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def frozen_resource_hashes(root=ROOT):
+    """Read the SDK's declared data contract from this source tree only."""
+    project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    resources = {}
+    for package, patterns in project["tool"]["setuptools"]["package-data"].items():
+        directory = root.joinpath(*package.split("."))
+        for pattern in patterns:
+            matches = sorted(path for path in directory.glob(pattern) if path.is_file())
+            if not matches and not glob.has_magic(pattern):
+                raise RuntimeError(f"Declared frozen resource pattern is empty: {package}/{pattern}")
+            for path in matches:
+                if path.is_symlink() or not path.resolve().is_relative_to(root.resolve()):
+                    raise RuntimeError("Frozen resources must be regular files in the source tree")
+                resources[path.relative_to(root).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+    if not resources:
+        raise RuntimeError("Declared frozen resource contract is empty")
+    return resources
+
+
+def verify_frozen_resources(executable, expected):
+    """Check the actual one-file archive, not just PyInstaller's exit status."""
+    from PyInstaller.archive.readers import CArchiveReader
+
+    archive = CArchiveReader(str(executable))
+    packaged = {name for name in archive.toc if name.startswith(("homensai_install/", "shared/"))}
+    if packaged != set(expected):
+        raise RuntimeError("Frozen SDK resource inventory differs from the declared source contract")
+    for name, digest in expected.items():
+        if hashlib.sha256(archive.extract(name)).hexdigest() != digest:
+            raise RuntimeError(f"Frozen SDK resource bytes differ from source: {name}")
+    return {"files_checked": len(expected),
+            "manifest_sha256": hashlib.sha256(canonical_bytes(expected)).hexdigest()}
 
 
 def main(argv=None):
@@ -164,21 +200,30 @@ def main(argv=None):
     # The private key is never exported or included in the bundle. An explicitly
     # supplied private DEV key lets test upgrades retain the same publisher identity.
     del key
+    frozen_resources = None
     if args.freeze:
+        expected_resources = frozen_resource_hashes()
+        # Explicit source paths avoid ambient imports during spec evaluation
+        # and do not collect undeclared files such as source-control placeholders.
+        resource_arguments = []
+        for name in sorted(expected_resources):
+            resource_arguments.extend(["--add-data", str(ROOT / name) + ":" + str(Path(name).parent)])
         environment = dict(os.environ, PYINSTALLER_CONFIG_DIR=str(build / "pyinstaller-cache"))
         subprocess.run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onefile",
             "--name", "HomenSAI-Reference-DEV", "--paths", str(ROOT),
             "--distpath", str(out), "--workpath", str(build / "freeze"), "--specpath", str(build),
-            "--collect-data", "homensai_install", "--collect-data", "shared",
+            *resource_arguments,
             "--hidden-import", "cryptography.hazmat.primitives.asymmetric.ed25519",
             "--exclude-module", "_dbm", "--exclude-module", "dbm", "--exclude-module", "ensurepip",
             "--exclude-module", "tkinter",
             "--add-data", str(out / "publisher-trust.json") + ":.",
-            str(ROOT / "packaging/bootstrap.py")], env=environment, check=True)
+            str(ROOT / "packaging/bootstrap.py")], env=environment, cwd=ROOT, check=True)
+        frozen_resources = verify_frozen_resources(out / "HomenSAI-Reference-DEV", expected_resources)
     write_json(out / "BUILD_REPORT.json", {"schema_version": 1, "release": args.release,
         "python": version, "target": inventory["target"], "reference_profile": profile, "files": len(files),
         "payload_bytes": sum((payload / name).stat().st_size for name in files),
         "development": True, "production_ready": False, "freeze": args.freeze,
+        "frozen_resources": frozen_resources,
         "blockers": ["production publisher signature/certificate", "runtime transitive licence audit",
                      "approved product EULA", "Windows/Docker/system-service acceptance"]})
     print(json.dumps({"output": str(out), "files": len(files), "production_ready": False}))

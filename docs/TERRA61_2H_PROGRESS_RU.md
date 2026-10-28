@@ -28,3 +28,13 @@ installed update faults NOT RUN, полный lifecycle и G0–G5 не прин
 tree `99bc9bd57f09f2375039ff942b0e7e922af492f8` совпал с локальным.
 Проверка: diff/check документа; никаких runtime тестов не запускалось.
 Далее: пункты 11–15.
+
+## 15/100 — CP-20261028T142513Z-d839698b6031 — HIM-054
+
+2026-10-28 14:25 UTC. Пункты 11–15: implementation status, публичный
+INSTALLER_API, сохранённый 12-часовой план как контекст, BUILDING и CHECKPOINTS.
+Target: Linux/native/user, реальные adapter и backup, исходная public operation;
+unknown effect не разрешает blind replay. Старое окно не запускается.
+Предыдущий checkpoint `5182b033e9ff5776d4ac78e0221bb235c098ac3d` и tree
+`2876fb31059ac2410ea71ba2c2a22a8c55d7716d` независимо подтверждены.
+Проверка: diff/check; runtime тестов пока нет. Далее пункты 16–20.

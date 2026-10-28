@@ -82,7 +82,7 @@ def _process_alive(pid):
 
 
 class _Ledger:
-    def __init__(self, directory, *, create=True):
+    def __init__(self, directory, *, create=True, expected_identity=None):
         try:
             self.directory = owned_directory(Path(directory), create=create)
         except FileNotFoundError:
@@ -104,6 +104,8 @@ class _Ledger:
                 or (os.name != "nt" and (info.st_uid != os.getuid() or info.st_mode & 0o077))):
             _fail("STATE_STORAGE_UNAVAILABLE", "adapter_ledger_permissions")
         self.file_identity = (info.st_dev, info.st_ino)
+        if expected_identity is not None and self.file_identity != expected_identity:
+            _fail('RECOVERY_REQUIRED', 'adapter_authoritative_ledger_replaced')
         with self.transaction() as db:
             if fresh:
                 db.execute("""CREATE TABLE calls (
@@ -355,13 +357,27 @@ class ExecutableProductAdapter:
                                  "descriptor_digest": self._descriptor_digest, "release": self.options["release"]})
         return request, request_digest
 
-    def invoke(self, hook: str, request: Mapping[str, object], *, existing_ledger: bool = False) -> Mapping[str, object]:
-        if type(existing_ledger) is not bool:
+    @staticmethod
+    def _ledger_identity(value):
+        if value is None:
+            return None
+        if (type(value) not in (tuple, list) or len(value) != 2
+                or any(type(item) is not int or item < 0 for item in value) or value[1] == 0):
+            _fail('INVALID_REQUEST', 'adapter_expected_ledger_identity')
+        return tuple(value)
+
+    def invoke(self, hook: str, request: Mapping[str, object], *, existing_ledger: bool = False,
+               require_existing_ledger: bool = False, expected_ledger_identity=None) -> Mapping[str, object]:
+        if type(existing_ledger) is not bool or type(require_existing_ledger) is not bool:
             _fail("INVALID_REQUEST", "adapter_existing_ledger_flag")
+        expected_identity = self._ledger_identity(expected_ledger_identity)
+        if expected_identity is not None and not (existing_ledger or require_existing_ledger):
+            _fail('INVALID_REQUEST', 'adapter_expected_ledger_requires_existing_file')
         request, request_digest = self._request(hook, request)
         self.capabilities()  # Полная повторная проверка подписи/байтов до записи intent и exec.
         self._execution_context()
-        ledger = _Ledger(self.state_dir, create=not existing_ledger)
+        ledger = _Ledger(self.state_dir, create=not (existing_ledger or require_existing_ledger),
+                         expected_identity=expected_identity)
         key = self._identity(request["idempotency_key"])
         authorize = ((lambda: self._authorize_migration(request)) if hook == "migration_apply"
                      else (lambda: self._authorize_recovery(request)) if hook in {"restore", "post_restore"} else None)
@@ -409,12 +425,13 @@ class ExecutableProductAdapter:
             raise _RecoveryAuthorizationRefused("RECOVERY_REQUIRED", phase="product_adapter",
                 details={"reason": "recovery_receipt_not_authorized"})
 
-    def reconcile(self, idempotency_key: str) -> Mapping[str, object]:
+    def reconcile(self, idempotency_key: str, *, expected_ledger_identity=None) -> Mapping[str, object]:
         self.capabilities()
         if "operation_status" not in self._descriptor["capabilities"]:
             _fail("CAPABILITY_UNSUPPORTED", "adapter_operation_status_not_declared")
         key = self._identity(idempotency_key)
-        ledger = _Ledger(self.state_dir, create=False)
+        ledger = _Ledger(self.state_dir, create=False,
+                         expected_identity=self._ledger_identity(expected_ledger_identity))
         old = ledger.claim_reconciliation(key)
         if old["state"] == "SUCCEEDED":
             return {"outcome": "applied", "result": old["result"], "replayed": True}

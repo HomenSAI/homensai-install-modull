@@ -280,6 +280,79 @@ def main():
                                 "settings": sha(settings.read_bytes())}
                 assert all(latest_files[name] != retained[name] for name in retained)
                 recovery_options = {**bundles["2"], "archive_path": str(source_snapshot), "acknowledge_data_loss": True}
+                retained_uninstall = None
+                if config.get("uninstall_before_restore"):
+                    assert action == "restore" and fault is None
+                    before_uninstall_plan = tree(root)
+                    uninstall_plan = current.plan("uninstall", manifest, target, options=bundles["2"])
+                    assert tree(root) == before_uninstall_plan
+                    _, removed = run_action(current, "uninstall", bundles["2"], "recovery-uninstall-preserve",
+                                            reviewed_plan=uninstall_plan)
+                    listener_stopped(config["port"])
+                    assert not list((root / "releases").iterdir())
+                    retained_uninstall = removed["result"]["retained_recovery"]
+                    assert removed["result"]["data_preserved"] is True and removed["result"]["recovery_available"] is True
+                    assert retained_uninstall["source_adapter_binding"] == uninstall_plan["engine_plan"]["product_adapter_binding"]
+                    assert retained_uninstall["source_adapter_binding"]["release"] == "reference-v2"
+                    witness = retained_uninstall["quiesce_witness"]
+                    assert witness["result"] == {"quiesced": True, "active_writers": 0}
+                    assert retained_uninstall["receipt_id"] == sha(canonical({k: v for k, v in retained_uninstall.items() if k != "receipt_id"}))
+                    owner_after_uninstall = json.loads((root / ".hinstall/installation.json").read_text())
+                    assert owner_after_uninstall["installed"] is False
+                    uninstall_token = sha(canonical([uninstall_plan["plan_id"], uninstall_plan["plan_digest"]]))[:32]
+                    assert owner_after_uninstall["retained_uninstall"] == {
+                        "operation_id": "op_" + uninstall_token, "receipt_id": retained_uninstall["receipt_id"]}
+                    source_ledger = root / ".hinstall/product-adapter/reference-v2/adapter-invocations.sqlite3"
+                    source_ledger_identity = (source_ledger.stat().st_dev, source_ledger.stat().st_ino)
+                    assert witness["ledger_identity"][:2] == list(source_ledger_identity)
+                    with sqlite3.connect(source_ledger.as_uri() + "?mode=ro", uri=True) as db:
+                        witnessed = db.execute("SELECT request_digest,operation_id,hook,state,result FROM calls WHERE call_id=?",
+                                               (witness["call_id"],)).fetchone()
+                    assert witnessed[:4] == (witness["request_digest"], witness["operation_id"], "quiesce", "SUCCEEDED")
+                    assert json.loads(witnessed[4]) == witness["result"]
+                    assert notes(database) == latest_data
+                    assert sha(document.read_bytes()) == latest_files["document"]
+                    assert sha(credential.read_bytes()) == latest_files["credential"]
+                    assert sha(settings.read_bytes()) == latest_files["settings"]
+                    # The immutable signed fixture inputs remain available for
+                    # final byte verification. This public request deliberately
+                    # supplies no usable incoming source; observed hook roots
+                    # below must be the independently verified private closure.
+                    unavailable_source = work / "incoming-payload-intentionally-unavailable"
+                    assert not unavailable_source.exists()
+                    recovery_options["payload_dir"] = str(unavailable_source)
+                    receipt_path = root / ".hinstall/uninstall-receipts" / (uninstall_token + ".json")
+                    original_receipt = receipt_path.read_bytes()
+                    bad_record = json.loads(original_receipt); bad_record["receipt_id"] = "0" * 64
+                    receipt_path.write_text(json.dumps(bad_record))
+                    before_bad_plan = tree(root)
+                    before_archives = set(work.rglob("*.hsac"))
+                    from homensai_install.adapters import ExecutableProductAdapter
+                    actual_execute = ExecutableProductAdapter._execute
+                    def forbid_unverified_hook(*args, **kwargs):
+                        raise AssertionError("Tampered retained receipt executed a hook")
+                    ExecutableProductAdapter._execute = forbid_unverified_hook
+                    try:
+                        try:
+                            current.plan("restore", manifest, target, options=recovery_options)
+                        except InstallerError as error:
+                            assert error.code in {"INTEGRITY_FAILED", "RECOVERY_REQUIRED", "OPERATION_CONFLICT"}
+                        else:
+                            raise AssertionError("Tampered retained receipt accepted into restore plan")
+                        assert tree(root) == before_bad_plan
+                        assert set(work.rglob("*.hsac")) == before_archives
+                    finally:
+                        ExecutableProductAdapter._execute = actual_execute
+                        # Explicitly restore only known synthetic fixture bytes.
+                        # The successful path below obtains a NEW public review.
+                        receipt_path.write_bytes(original_receipt)
+                    assert receipt_path.read_bytes() == original_receipt
+                    observations.append({"case": "installed_adapter_uninstall_preserve", "status": "PASS",
+                        "retained_recovery": retained_uninstall, "owned_release_payloads_removed": True,
+                        "latest_business_data_documents_settings_credentials_preserved": True,
+                        "tampered_receipt_refused_before_hook_data_or_archive_effect": True,
+                        "synthetic_receipt_restored_then_new_review_required": True,
+                        "incoming_payload_unavailable": True})
                 before_plan = tree(root)
                 recovery_plan = current.plan(action, manifest, target, options=recovery_options)
                 assert tree(root) == before_plan
@@ -294,16 +367,26 @@ def main():
                 from homensai_install.adapters import ExecutableProductAdapter
                 original_execute = ExecutableProductAdapter._execute
                 injected = []
+                retained_source_calls = []
 
                 def lose_recovery_ack(adapter, hook, request, request_digest):
+                    if config.get("uninstall_before_restore") and adapter.options["release"] == "reference-v2":
+                        closure = Path(bundles["2"]["work_dir"]) / (native_token + "-retained-adapter-source")
+                        assert Path(adapter.options["payload_dir"]) == closure / "payload"
+                        assert sha((closure / "payload/runtime/bin/python").read_bytes()) == config["runtime_sha256"]
+                        if hook == "quiesce":
+                            assert request["operation_id"] == "op_" + native_token
+                            assert request["idempotency_key"] == "quiesce_" + native_token
+                            assert request["operation_id"] != retained_uninstall["quiesce_witness"]["operation_id"]
+                        retained_source_calls.append({"hook": hook, "request_digest": request_digest})
                     result = original_execute(adapter, hook, request, request_digest)
-                    if hook == "restore" and adapter.options["release"] == "reference-v1":
+                    if fault and hook == "restore" and adapter.options["release"] == "reference-v1":
                         assert not injected
                         injected.append(request_digest)
                         raise InstallerError("ADAPTER_TIMEOUT")
                     return result
 
-                if fault:
+                if fault or config.get("uninstall_before_restore"):
                     ExecutableProductAdapter._execute = lose_recovery_ack
                 try:
                     recovered = current.submit(recovery_plan["plan_id"], recovery_plan["plan_digest"],
@@ -362,6 +445,15 @@ def main():
                         active_update.update(removed_sdk_ledger_sha256=removed_ledger_digest, ledger_recreated=False)
                 else:
                     assert recovered["status"] == "SUCCEEDED", recovered
+                if config.get("uninstall_before_restore"):
+                    assert any(item["hook"] == "quiesce" for item in retained_source_calls)
+                    assert (source_ledger.stat().st_dev, source_ledger.stat().st_ino) == source_ledger_identity
+                    assert not (root / "runtime/recovery/reference-v2").exists()
+                    final_owner = json.loads((root / ".hinstall/installation.json").read_text())
+                    assert final_owner["installed"] is True and "retained_uninstall" not in final_owner
+                    active_update.update(uninstall_before_restore=True,
+                        retained_source_calls=retained_source_calls, retained_source_closure_verified=True,
+                        authoritative_source_ledger_identity_preserved=True, fresh_restore_quiesce_distinct_from_uninstall=True)
                 state = json.loads(native_path.read_text())
                 safety = state["step_results"]["before_" + action]
                 proof = safety["receipt"]

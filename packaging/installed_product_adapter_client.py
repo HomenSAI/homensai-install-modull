@@ -226,19 +226,37 @@ def run(config, phase):
         assert effect_count(root) == before_effects
         observation = {"same_operation_id": True, "no_repeated_quiesce": True}
     elif phase == "unsupported":
-        for name in ("install", "update", "restore", "rollback", "repair", "reinstall", "uninstall"):
-            if name != "install":
-                assert api.capabilities(config["target"])["actions"][name]["supported"] is False
-            # Backend может поддерживать fresh в целом; этот signed descriptor
-            # объявляет лишь maintenance и обязан отказать до product effects.
+        capabilities = api.capabilities(config["target"])["actions"]
+        for name in ("repair", "reinstall", "install", "update"):
+            assert capabilities[name]["supported"] is (name in {"install", "update"})
+            # Generic fresh/update capability does not replace the signed
+            # migration hooks missing from this maintenance-only descriptor.
             try:
                 api.plan(name, manifest, config["target"], options=options)
             except InstallerError as error:
                 assert error.code == "CAPABILITY_UNSUPPORTED"
             else:
                 raise AssertionError("Unsupported adapter action accepted: " + name)
+        archive = json.loads((work / "backup-result.json").read_text())
+        planned = []
+        for name in ("uninstall", "restore", "rollback"):
+            assert capabilities[name]["supported"] is True
+            selected = dict(options)
+            if name != "uninstall":
+                selected["archive_path"] = archive["path"]
+            if name == "rollback":
+                selected["acknowledge_data_loss"] = True
+            review = api.plan(name, manifest, config["target"], options=selected)
+            assert review["engine_plan"]["product_adapter_binding"]["release"] == "reference-v1"
+            if name != "uninstall":
+                assert review["engine_plan"]["recovery_source_sha256"] == archive["sha256"]
+                assert {"migration_plan", "restore", "post_restore"} <= set(review["engine_plan"]["recovery_target_hooks"])
+            planned.append(name)
         assert effect_count(root) == before_effects
-        observation = {"unsupported_actions_rejected_before_effects": 7}
+        observation = {"unsupported_actions_rejected_before_effects": 4,
+                       "supported_read_only_plans": planned,
+                       "planned_lifecycle_executed": False,
+                       "recovery_target_hook_checks_deferred_to_execution": True}
     else:
         raise AssertionError("Unknown client phase")
     baseline = json.loads((work / "data-baseline.json").read_text())

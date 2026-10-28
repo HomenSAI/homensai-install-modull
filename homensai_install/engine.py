@@ -234,7 +234,7 @@ class NativeEngine:
                "rollback", "repair", "reinstall", "uninstall")
     MAINTENANCE_ACTIONS = {"start", "stop", "backup", "uninstall"}
 
-    ADAPTER_ACTIONS = {"install", "update", "start", "stop", "backup", "restore", "rollback"}
+    ADAPTER_ACTIONS = {"install", "update", "start", "stop", "backup", "restore", "rollback", "uninstall"}
 
     def __init__(self, verifier=None, secret_provider=None, *, development_runtime=None,
                  product_adapter_descriptor=None):
@@ -435,6 +435,7 @@ class NativeEngine:
 
     def plan(self, action, manifest, target, inventory, options):
         ctx = self._context(manifest, target, options)
+        ctx['action'] = action
         if action not in self.ACTIONS or not self.capabilities(target)["actions"][action]["supported"]:
             raise EngineError("CAPABILITY_UNSUPPORTED")
         self._check_uninstall_fence(ctx, action)
@@ -507,6 +508,8 @@ class NativeEngine:
             if not required <= set(adapter.capabilities()["hooks"]):
                 raise EngineError("CAPABILITY_UNSUPPORTED", "Нужные ProductAdapter hooks не объявлены")
             result["product_adapter_binding"] = binding
+            if ctx.get('retained_source_reference') is not None:
+                result['retained_source'] = ctx['retained_source_reference']
             result["product_adapter_hooks"] = sorted(required)
             if action in {"install", "update"}:
                 review = self._checked_migration_review(ctx, action, options.get("migration_review_id"))
@@ -910,6 +913,10 @@ class NativeEngine:
 
     def _release_product_adapter(self, ctx, release):
         """Закрепить adapter по собственным signed metadata выбранного выпуска."""
+        retained = self._retained_adapter_source(ctx, release)
+        if retained is not None:
+            ctx['retained_source_reference'] = retained.reference
+            return retained.adapter, retained.binding
         meta = self._installed(ctx, release)
         options = {**ctx["options"], "release": release, "payload_dir": str(self._release(ctx, release)),
                    "runtime_executable": meta["runtime_executable"],
@@ -917,6 +924,37 @@ class NativeEngine:
                    "signature_file": str(ctx["control"] / "releases" / (release + ".signature.json"))}
         return self._product_adapter({**ctx, "manifest": meta["manifest"], "target": meta["target"],
                                       "release": release, "options": options})
+
+    def _retained_adapter_source(self, ctx, release):
+        if self.product_adapter_descriptor is None:
+            return None
+        if ctx.get('recovery_adapter_role') == 'target' and release == ctx['release']:
+            return None
+        from .retained_adapter import RetainedSource
+        state = ctx.get('operation_state') or ctx.get('resume_operation_state') or {}
+        closure = state.get('retained_restore_source')
+        if closure is not None:
+            if type(closure) is not dict or type(closure.get('source_binding')) is not dict:
+                raise EngineError('RECOVERY_REQUIRED', 'Повреждён original source closure binding')
+            if closure['source_binding'].get('release') == release:
+                return RetainedSource.from_closure(self, ctx)
+            # The same restore now verifies its separately staged target. Its
+            # old uninstall marker never authorizes a fallback for that target.
+            return None
+        pending = ctx.get('uninstall_source_state')
+        if ctx.get('action') == 'uninstall' and pending is not None:
+            return RetainedSource.selected(self, ctx)
+        owner = self._owner(ctx)
+        if (ctx.get('action') in {'restore', 'rollback'} and owner
+                and owner.get('installed') is False and owner.get('retained_uninstall') is not None):
+            source = RetainedSource.selected(self, ctx)
+            if source.release == release:
+                return source
+        return None
+
+    def _source_metadata(self, ctx, release):
+        retained = self._retained_adapter_source(ctx, release)
+        return self._metadata(ctx, release) if retained is not None else self._installed(ctx, release)
 
     def _installed_product_adapter(self, ctx):
         adapter, binding = self._release_product_adapter(ctx, self._pointer(ctx))
@@ -955,6 +993,12 @@ class NativeEngine:
                  "release": self._pointer(ctx), "data_home": str(ctx["home"].roots["data"])})
         from .errors import InstallerError
         adapter = self._installed_product_adapter(ctx)
+        ledger_guard = {}
+        if ctx.get('retained_source_reference') is not None:
+            from .retained_adapter import prepare_execution
+            prepare_execution(adapter)
+            source = self._retained_adapter_source(ctx, self._pointer(ctx))
+            ledger_guard = {'expected_ledger_identity': source.receipt['quiesce_witness']['ledger_identity'][:2]}
         key = "quiesce_" + ctx["operation_token"]
         request = {"operation_id": "op_" + ctx["operation_token"], "idempotency_key": key,
                    "phase": "execute", "data": {"installation_id": self._owner(ctx, required=True)["installation_id"],
@@ -966,7 +1010,7 @@ class NativeEngine:
         try:
             if ctx.get("adapter_resume") and (started or state.get("product_adapter_unknown") is True):
                 try:
-                    outcome = adapter.reconcile(key)
+                    outcome = adapter.reconcile(key, **ledger_guard)
                 except InstallerError as error:
                     # A known intent with no authoritative reconciliation row
                     # is not proof that the product hook was never executed.
@@ -984,7 +1028,8 @@ class NativeEngine:
                 state["product_adapter_quiesce_started"] = True
                 state["product_adapter_quiesce_complete"] = False
                 _write(ctx["control"] / "operations" / (ctx["operation_token"] + ".json"), state)
-            result = adapter.invoke("quiesce", request, existing_ledger=started)["result"]
+            result = adapter.invoke("quiesce", request, existing_ledger=started,
+                **({'require_existing_ledger': True, **ledger_guard} if ledger_guard else {}))["result"]
             if result["quiesced"] is not True or result["active_writers"] != 0:
                 raise _UncertainEffect()
             return self._adapter_quiesce_completed(ctx, result)
@@ -1698,6 +1743,13 @@ class NativeEngine:
     def _recovery_copy(self, ctx, release):
         destination = checked_path(ctx["home"].roots["runtime"] / "recovery" / release)
         owner = self._owner(ctx, required=True)
+        if self.product_adapter_descriptor is not None and not self._release(ctx, release).exists():
+            from .retained_adapter import RetainedSource
+            selected = self._retained_adapter_source(ctx, release)
+            if selected is None:
+                raise EngineError('RECOVERY_REQUIRED', 'Нужен verified retained source')
+            RetainedSource(self, ctx, selected.state, selected.operation_id, directory=destination, remaining=False)
+            return destination
         def bind_identity():
             path = destination / "installation.json"
             if path.exists():
@@ -1801,7 +1853,7 @@ class NativeEngine:
                     or (not self._update_source_quiesced(ctx) if ctx.get("action") == "update"
                         else ctx.get("operation_state", {}).get("product_adapter_quiesce_complete") is not True)):
                 raise EngineError("RECOVERY_REQUIRED", "Backup receipt требует подтверждённой остановки писателей")
-            metadata = self._installed(ctx, release)
+            metadata = self._source_metadata(ctx, release)
             review = ctx.get("migration_review", {})
             receipt_binding = {"product_id": ctx["manifest"]["product_id"],
                 "installation_id": binding["installation_id"], "operation_id": "op_" + ctx["operation_token"],
@@ -1870,6 +1922,13 @@ class NativeEngine:
     def _before_recovery_backup(self, ctx, source_digest, password):
         if self._records(ctx):
             raise EngineError("RECOVERY_REQUIRED", "Recovery snapshot требует остановленных компонентов")
+        if ctx['operation_state'].get('retained_restore_source') is not None:
+            source = self._retained_adapter_source(ctx, ctx['product_adapter_binding']['release'])
+            from .retained_adapter import quiesce_witness
+            ctx['operation_state']['retained_restore_quiesce_witness'] = quiesce_witness(source.adapter,
+                installation_id=self._owner(ctx, required=True)['installation_id'],
+                operation_id='op_' + ctx['operation_token'], data_home=ctx['home'].roots['data'])
+            _write(ctx['control'] / 'operations' / (ctx['operation_token'] + '.json'), ctx['operation_state'])
         action = ctx["action"]
         backup = self._backup(ctx, ctx["work"] / (ctx["operation_token"] + "-before-" + action + ".hsac"), password)
         binding = self._recovery_backup_binding(ctx, source_digest)
@@ -1881,6 +1940,14 @@ class NativeEngine:
     def _authorize_recovery_replace(self, ctx, source_digest, password, safety):
         # This gate runs inside the replacement step, after its boundary/emit.
         # An existing filename/sidecar or a completed backup step is insufficient.
+        if ctx['operation_state'].get('retained_restore_source') is not None:
+            source = self._retained_adapter_source(ctx, ctx['product_adapter_binding']['release'])
+            from .retained_adapter import quiesce_witness
+            observed = quiesce_witness(source.adapter,
+                installation_id=self._owner(ctx, required=True)['installation_id'],
+                operation_id='op_' + ctx['operation_token'], data_home=ctx['home'].roots['data'])
+            if _digest(observed) != _digest(ctx['operation_state'].get('retained_restore_quiesce_witness')):
+                raise EngineError('RECOVERY_REQUIRED', 'Fresh restore quiesce witness изменился')
         binding = self._recovery_backup_binding(ctx, source_digest)
         if (type(safety) is not dict or safety.get("binding") != binding or self._records(ctx)
                 or ctx["operation_state"].get("recovery_replace_started") is True):
@@ -2087,6 +2154,9 @@ class NativeEngine:
         journal = ctx["control"] / "operations" / (token + ".json")
         with operation_lock(lock):
             previous = _read(journal) if journal.exists() else None
+            ctx['resume_operation_state'] = previous
+            if isinstance(plan.get('engine_plan'), dict):
+                ctx['reviewed_retained_source'] = plan['engine_plan'].get('retained_source')
             if previous and previous.get("status") in {"SUCCEEDED", "FAILED_ROLLED_BACK"}:
                 return previous["result"]
             self._check_uninstall_fence(ctx, action, journal)
@@ -2108,6 +2178,9 @@ class NativeEngine:
                     raise EngineError("PLAN_STALE", "Незавершённый план относится к другому active release")
                 ctx.update(action=action, operation_token=token, maintenance_binding=binding,
                            secret_cache=source["secret_cache"], adapter_resume=_adapter_resume)
+                ctx['resume_operation_state'] = previous
+                if action == 'uninstall' and previous and 'preserve_recovery' in previous.get('completed', []):
+                    ctx['uninstall_source_state'] = previous
                 if action == "uninstall":
                     from .uninstall_receipts import UninstallProtocol
                     reviewed_removal = detail.get("uninstall_removal") if detail else None
@@ -2144,6 +2217,8 @@ class NativeEngine:
                     restored = bool(previous and "restore" in previous.get("completed", []))
                     if not restored and self._pointer(ctx) != reviewed["release"]:
                         raise EngineError("PLAN_STALE", "Recovery source active release изменился")
+                elif action == 'uninstall':
+                    _, binding = self._release_product_adapter(ctx, self._pointer(ctx))
                 else:
                     _, binding = self._product_adapter(ctx)
                 if reviewed != binding:
@@ -2207,6 +2282,8 @@ class NativeEngine:
             state["status"] = "RUNNING"
             if ctx.get("maintenance_binding"):
                 state["maintenance_binding"] = ctx["maintenance_binding"]
+            if ctx.get('product_adapter_binding'):
+                state['product_adapter_binding'] = ctx['product_adapter_binding']
             if ctx.get("migration_review"):
                 state["migration_review_id"] = ctx["migration_review_id"]
                 state["migration_review_sha256"] = _digest(ctx["migration_review"])
@@ -2437,6 +2514,9 @@ class NativeEngine:
             step("preserve_recovery", protocol.preserve)
             return {"status": "SUCCEEDED", **step("remove_owned_code", protocol.remove)}
         if action in {"restore", "rollback"}:
+            if ctx.get('retained_source_reference') is not None or ctx['operation_state'].get('retained_restore_source'):
+                selected = self._retained_adapter_source(ctx, ctx['product_adapter_binding']['release'])
+                selected.checkpoint_restore_source(ctx)
             self._check_recovery_locators(ctx)
             if action == "rollback" and ctx["options"].get("acknowledge_data_loss") is not True:
                 raise EngineError("CONSENT_REQUIRED")
@@ -2501,6 +2581,7 @@ class NativeEngine:
             for context in ("service", "admin"):
                 self._secrets(meta["manifest"], restored_refs, context, cache=ctx["secret_cache"])
             recover_ctx = {**ctx, "manifest": meta["manifest"], "release": release,
+                           'recovery_adapter_role': 'target',
                            "modes": tuple(meta["modes"]),
                            "options": {**ctx["options"], **opts, "secret_refs": restored_refs}}
             target_adapter = None
@@ -2551,7 +2632,8 @@ class NativeEngine:
                     extracted["archive_sha256"], password))
             def activate():
                 self._ports(recover_ctx, trusted, password, emit).switch_pointer(token + "/switch", release)
-                _write(ctx["control"] / "installation.json", {**owner, "installed": True})
+                _write(ctx["control"] / "installation.json", {**{key: value for key, value in owner.items()
+                    if key != 'retained_uninstall'}, "installed": True})
             step("activate", activate)
             cleanup_ctx = {**recover_ctx, "recovery_cleanup": True}
             if target_adapter is not None and ctx["operation_state"].get("product_adapter_recovery_cleanup_pending"):

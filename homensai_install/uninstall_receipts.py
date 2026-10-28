@@ -107,10 +107,11 @@ def _read_receipt(path):
 
 
 class UninstallProtocol:
-    def __init__(self, engine, ctx, reviewed, state=None):
+    def __init__(self, engine, ctx, reviewed, state=None, *, retained_directory=None):
         from .engine import _digest
         self.engine, self.ctx, self.reviewed, self.state = engine, ctx, reviewed, state
         self.review_digest = _digest(reviewed)
+        self.retained_directory = retained_directory
 
     @staticmethod
     def review(engine, ctx):
@@ -143,7 +144,9 @@ class UninstallProtocol:
 
     def _retained(self):
         from .engine import _read, _digest
-        active = self.reviewed['active_release']; destination = self.ctx['home'].roots['runtime'] / 'recovery' / active
+        active = self.reviewed['active_release']
+        destination = (self.retained_directory if self.retained_directory is not None else
+                       self.ctx['home'].roots['runtime'] / 'recovery' / active)
         meta = self.engine._metadata(self.ctx, active)
         owner = _read(destination / 'installation.json')
         live_owner = self.engine._owner(self.ctx, required=True)
@@ -163,12 +166,27 @@ class UninstallProtocol:
         return _digest(files)
 
     def _body(self):
-        return {'schema_version': 1, 'kind': 'retained_uninstall_recovery',
+        body = {'schema_version': 1, 'kind': 'retained_uninstall_recovery',
                 'installation_id': self.reviewed['installation_id'],
                 'operation_id': 'op_' + self.ctx['operation_token'],
                 'review_sha256': self.review_digest, 'active_release': self.reviewed['active_release'],
                 'retained_payload_sha256': self._retained(),
                 'verification_scope': 'signed_active_payload_and_original_removal_set'}
+        if self.engine.product_adapter_descriptor is not None:
+            from .retained_adapter import adapter_from_retained, quiesce_witness
+            from .engine import _digest
+            destination = (self.retained_directory if self.retained_directory is not None else
+                           self.ctx['home'].roots['runtime'] / 'recovery' / self.reviewed['active_release'])
+            adapter, binding = adapter_from_retained(self.engine, self.ctx, self.reviewed['active_release'], destination)
+            if (self.state is None or self.state.get('product_adapter_quiesce_complete') is not True
+                    or _digest(self.state.get('product_adapter_binding')) != _digest(binding)):
+                _fail('RECOVERY_REQUIRED')
+            body['source_adapter_binding'] = binding
+            body['quiesce_witness'] = quiesce_witness(adapter,
+                installation_id=self.reviewed['installation_id'], operation_id=body['operation_id'],
+                data_home=self.ctx['home'].roots['data'])
+            body['verification_scope'] = 'signed_active_payload_original_removal_and_adapter_quiesce'
+        return body
 
     def receipt_path(self):
         return self.ctx['control'] / 'uninstall-receipts' / (self.ctx['operation_token'] + '.json')
@@ -276,5 +294,9 @@ class UninstallProtocol:
                     os.rmdir(target.name, dir_fd=parent); os.fsync(parent)
         self.state['uninstall_removal_complete'] = True; self.save()
         owner = self.engine._owner(self.ctx, required=True)
-        _write(self.ctx['control'] / 'installation.json', {**owner, 'installed': False})
-        return {'data_preserved': True, 'recovery_available': True, 'retained_recovery': self.verify_receipt()}
+        receipt = self.verify_receipt()
+        replacement = {**owner, 'installed': False}
+        if self.engine.product_adapter_descriptor is not None:
+            replacement['retained_uninstall'] = {'operation_id': receipt['operation_id'], 'receipt_id': receipt['receipt_id']}
+        _write(self.ctx['control'] / 'installation.json', replacement)
+        return {'data_preserved': True, 'recovery_available': True, 'retained_recovery': receipt}

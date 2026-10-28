@@ -29,6 +29,7 @@ RECOVERY_PROFILES = {
     "recovery-rollback": ("rollback", None),
     "recovery-lost-ack": ("rollback", "lost_ack"),
     "recovery-missing-ledger": ("rollback", "missing_ledger"),
+    "uninstall-restore": ("restore", None),
 }
 UPDATE_FAULTS = {
     "update-lost-ack": "lost_ack",
@@ -195,7 +196,8 @@ def main(argv=None):
             "build_versions": {name: importlib.metadata.version(name) for name in ("pip", "setuptools", "packaging", "cryptography")},
             "network_downloads": False, "venv_system_site_packages": False, "work_dir": str(work),
             "runtime_closure": "signed copied DEV ELF; borrowed runner stdlib/libpython/OS libraries"},
-        "not_run": [("Adapter repair/reinstall/uninstall" if args.profile in RECOVERY_PROFILES else
+        "not_run": [("Adapter repair/reinstall" if args.profile == "uninstall-restore" else
+                     "Adapter repair/reinstall/uninstall" if args.profile in RECOVERY_PROFILES else
                      "Adapter restore/rollback/repair/uninstall" if args.profile in {"update", *UPDATE_FAULTS} else
                      "Adapter update/restore/rollback/repair/uninstall"), "Clean Ubuntu/Windows/Docker/service/reboot",
                     "Standalone runtime/security/license closure", "GUI", "Production signing", "Full G1-G5"],
@@ -328,6 +330,7 @@ def main(argv=None):
                           "update" if args.profile in UPDATE_FAULTS else args.profile),
                       recovery_action=RECOVERY_PROFILES.get(args.profile, (None, None))[0],
                       recovery_fault=RECOVERY_PROFILES.get(args.profile, (None, None))[1],
+                      uninstall_before_restore=args.profile == "uninstall-restore",
                       fault_profile=UPDATE_FAULTS.get(args.profile),
                       runtime_sha256=signed_bundles["1"]["runtime/bin/python"])
         config_path = work / "client-config.json"

@@ -243,7 +243,7 @@ def test_direct_unreviewed_opt_in_execution_fails_before_hooks(installed):
     assert caught.value.code=='PLAN_STALE' and state(fixture)['ready']==0
 
 
-@pytest.mark.parametrize('action',['repair','reinstall','uninstall'])
+@pytest.mark.parametrize('action',['repair','reinstall'])
 def test_unimplemented_adapter_lifecycle_rejected_before_effects(installed,action):
     fixture,bundle,_=installed
     assert fixture.engine.capabilities(fixture.target)['actions'][action]['supported'] is False

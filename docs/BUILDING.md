@@ -365,11 +365,25 @@ Receipt: `packaging/acceptance-evidence/github-ci-20261025-cp004.json`.
 
 Job `linux-installed` создаёт build venv, wheelhouse и все клиентские каталоги
 в `$RUNNER_TEMP`, вне checkout. После загрузки закреплённых wheel build и
-установка используют `--no-index`; клиентские guards запрещают обращение
-к checkout. Выполняются SDK/CLI, prerequisites и reference fresh→v2→v3.
-`tools/summarize_installed_checks.py` требует три успешные квитанции с точным
-`GITHUB_SHA`, корректным hash wheel и профилем `update`; missing/stale/FAIL
-завершают job ошибкой. Это Linux DEV acceptance, без закрытия release gates.
+установка используют `--no-index`. Клиенты запускаются вне исходников и
+проверяют происхождение установленных модулей и неизменность package bytes.
+Выполняются SDK/CLI, prerequisites и 13 reference profiles: последовательные
+updates, семь update fault scenarios, четыре recovery scenarios и
+`uninstall-restore`.
+
+`tools/summarize_installed_checks.py --include-fault-profiles` требует все
+15 успешных квитанций с точным `GITHUB_SHA`, ожидаемым profile и одинаковым
+SHA-256 SDK wheel. Missing/stale/FAIL, неправильный профиль или иной wheel
+завершают job ошибкой. Отказ одного reference profile не пропускает остальные;
+каждый использует собственный work directory и имя receipt. Общая сводка
+выполняется также после отказа предыдущего шага.
+
+`uninstall-restore` проверяет registered fresh v1→update v2→uninstall с
+сохранением данных→restore snapshot v1. Source v2 исполняется из проверенной
+копии вне заменяемых roots с прежним ledger и новым quiesce key. Отдельно
+проверяются отказ при повреждённом retained receipt, настоящий полный
+`before_restore` и сохранность данных, настроек, credentials и схемы.
+Это Linux DEV acceptance, без закрытия release gates.
 
 Четыре installed harness используют `SOURCE_DATE_EPOCH` из проверяемого commit
 для ZIP timestamps. Совпадение отдельных wheel подтверждается их receipts;

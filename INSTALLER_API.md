@@ -656,9 +656,9 @@ Job Object backend и приёмки. Версия/entrypoint доступны �
 может явно включить `NativeEngine(verifier=signed_verifier,
 product_adapter_descriptor="installer/adapter.json")`. Эта регистрация доступна
 только для Linux/native/user: single-step fresh `install`, single-step `update`,
-`start`, `stop`, `backup`, а также явные `restore` и `rollback` той же установки.
-SDK по умолчанию её не включает. `repair`, `reinstall` и `uninstall` при
-включённом adapter заранее отклоняются.
+`start`, `stop`, `backup`, `uninstall` с сохранением данных, а также явные
+`restore` и `rollback` той же установки. SDK по умолчанию её не включает.
+`repair` и `reinstall` при включённом adapter заранее отклоняются.
 Без регистрации сохраняется прежний native путь manifest v2.
 
 План закрепляет descriptor и verified release; перед эффектами binding проверяется
@@ -673,7 +673,7 @@ proof и явного prepare_migration. Single-step update требует от�
 Restore и rollback требуют отдельного полного архива текущего состояния,
 проверенного recovery payload и явного reconciliation исходной операции при
 неопределённом результате. Полная платформенная приёмка, а также зарегистрированные
-adapter repair/reinstall/uninstall остаются открытыми.
+adapter repair/reinstall остаются открытыми.
 Подробный контракт: `PRODUCT_ADAPTER_EXECUTION.md` в ресурсах установленного SDK
 и [документ проекта](docs/PRODUCT_ADAPTER_EXECUTION.md). Общий lifecycle в продукт
 не копируется; полная приёмка HIM-015/023 остаётся открытой.
@@ -801,8 +801,8 @@ review = api.plan("install", manifest, target,
 
 Зарегистрированный adapter поддерживает эти действия в development scope
 Linux/native/user. Это same-installation recovery: установка, target, DataHome,
-выбранные modes и pointer locator должны совпадать. `repair`, `reinstall` и
-`uninstall` через ProductAdapter пока не поддерживаются. Проверяйте текущий
+выбранные modes и pointer locator должны совпадать. `repair` и `reinstall`
+через ProductAdapter пока не поддерживаются. Проверяйте текущий
 `capabilities(target)` и результат `plan`, а не только список действий discovery.
 
 `archive_path` указывает на полный зашифрованный snapshot вне управляемых
@@ -841,3 +841,27 @@ readiness и cleanup сохраняются раздельно в публичн
 автоматический повтор разрушительного шага. Это fail-closed recovery boundary;
 полная автоматическая приёмка power-loss, Windows/Docker и clean-host остаётся
 отдельной задачей.
+
+### ProductAdapter uninstall и retained source
+
+Зарегистрированный Linux/native/user adapter поддерживает `uninstall` с
+сохранением данных. Протокол проверяет полный reviewed removal set и durable
+intents, как описано в разделе native uninstall. Его `retained_recovery`
+дополнительно содержит `source_adapter_binding` и `quiesce_witness`: подписанный
+активный adapter и подтверждённую invocation в прежнем authoritative ledger.
+Потеря ledger или неизвестный outcome не разрешают повторять quiesce.
+
+При частичном удалении нужен явный `resume` исходной операции. После завершённого
+удаления новый `restore` выбирает сохранённый source только по связанным owner
+marker, завершённому журналу и receipt. Содержимое, подписи, installation
+identity и binding проверяются до hooks и архивов. Входной payload и поиск
+последнего файла в каталоге не заменяют это доказательство.
+
+Для новой операции восстановления создаётся собственное подтверждение quiesce
+и полный `before_restore` текущих данных. Source adapter сохраняется в private
+рабочей области вне заменяемых roots, чтобы original resume оставался возможен
+после замены runtime root. Эта копия привязана к одной операции и использует
+существующий ledger. План не запускает hooks, не создаёт ledger и не меняет
+права исполнения. После activation прежний uninstall marker не разрешает
+новые retained-source планы. Подробный протокол описан в
+[PRODUCT_ADAPTER_EXECUTION.md](docs/PRODUCT_ADAPTER_EXECUTION.md).

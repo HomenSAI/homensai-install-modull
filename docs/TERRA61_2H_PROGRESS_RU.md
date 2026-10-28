@@ -80,3 +80,14 @@ source `6edcbb83a018e72d235cc3eb192864e238a82755`, borrowed DEV runtime.
 Оба реестра: production_ready=false. Предыдущий commit 57a014c и tree
 8f1e87cfa3fdf5fdf7ed1f951be80ee3e3fb7378 проверены независимым bare fetch.
 Diff/check: PASS; новые installed тесты ещё NOT RUN. Далее изучить harness.
+
+## 40/100 — CP-20261028T142847Z-66570f99185a — HIM-054
+
+2026-10-28 14:28 UTC. Пункты 36–40: изучены runner и client installed
+reference lifecycle. SDK устанавливается вне checkout из указанного Git SHA;
+public factory/prepare/plan/submit выполняют fresh и update 1→2→3. Source
+`integration_tests/test_native_migration.py` содержит fresh lost ACK/UNKNOWN
+и missing ledger; `test_native_product_adapter.py` — missing ledger в stop.
+Ни один не доказывает installed update fault. Исторический SDK CP011 сохраняется.
+Предыдущий GitHub commit 5ef0846/tree 6ea248b5049b86e7caca841b1d70749d55000288
+подтверждены отдельным bare fetch. Diff/check PASS; новая приёмка NOT RUN.

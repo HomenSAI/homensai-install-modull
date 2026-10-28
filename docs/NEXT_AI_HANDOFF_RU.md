@@ -14,6 +14,16 @@ PASS. Подробности и следующий резервный сцена
 CP-20261028T143832Z-262d480572a6: tampered-backup профиль WIP, ещё NOT RUN.
 Дополнение CP-20261028T143954Z-972d8c3a1cf6: ожидаемый отказ tampered-backup
 PASS в isolated DEV. Осталось повторить затронутые проверки финального harness.
+Следующий независимый пакет после завершения этого окна: installed update
+missing ledger после реального эффекта и unknown reconciliation, затем foreign
+receipt/live drift и candidate health/cleanup. Использовать закреплённый SDK,
+original public operation и отдельные receipts; не переносить текущие PASS
+на другие сценарии. Далее отдельный before-restore/before-rollback protocol.
+Проверить состояние source regression по актуальному `work-state.json`/progress
+и сохранить фактический результат перед завершением окна.
+GitHub CI run 40708599284 (75ed388): Windows portable PASS, Linux source
+3 FAIL в prerequisite runner/engine, интеграция skipped. Точное свойство
+исполняемого Python, вызвавшее отказ, не установлено; receipt в backlog.
 
 Автор продукта: Serhii Khomenko. Работа остановлена по указанию владельца.
 Компьютер не выключать; чужие процессы/порты8810/8811/8812 не менять.

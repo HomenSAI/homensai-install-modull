@@ -4,6 +4,21 @@
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
+  "terra_source_regressions": {
+    "checkpoint_id": "CP-20261028T144733Z-8f7f018b7b73",
+    "status": "PASS_SCOPED",
+    "scope": "83 source cases Linux DEV Docker; not full suite or clean-host acceptance",
+    "receipt": "packaging/acceptance-evidence/source-regressions-terra-20261028.json"
+  },
+  "terra_ci_run95": {
+    "status": "FAIL",
+    "source_commit": "75ed388a4837018c0de9b4b79a7a3c53d399279d",
+    "run_id": 40708599284,
+    "linux": "3 failed, 2386 passed, 1 skipped, 10 subtests; integration NOT RUN",
+    "windows": "PASS portable source subset",
+    "cause": "Exact runner executable file property not established",
+    "receipt": "packaging/acceptance-evidence/github-ci-terra-20261028-run95.json"
+  },
   "terra_20261028_lost_ack": {
     "checkpoint_id": "CP-20261028T143633Z-a8c51a2df8c6",
     "status": "PASS_SCOPED",

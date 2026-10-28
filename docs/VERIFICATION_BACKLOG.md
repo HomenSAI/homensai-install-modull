@@ -10,6 +10,13 @@ Terra CP-20261028T143954Z-972d8c3a1cf6: tampered backup после реальн�
 backup:0 — ожидаемый RECOVERY_REQUIRED до v2 migration effect, данные и forward
 journal сохранены; installed Linux DEV PASS. Это не полный ACC-09/10/11/12.
 
+GitHub CI run 40708599284 на 75ed388: Linux source FAIL — 3 failed, 2386
+passed, 1 skip, 10 subtests; Linux integration NOT RUN после source failure.
+Windows portable subset PASS. Два теста получили INTEGRITY_FAILED при проверке
+Python executable, третий — RECOVERY_REQUIRED вместо AWAITING_USER. Точное
+свойство файла на runner неизвестно. Receipt github-ci-terra-20261028-run95.json;
+не ослаблять проверку исполняемого файла ради зелёного CI.
+
 ## Финальный handoff CP-20261026-012
 
 Работа завершена по указанию владельца в окне до17:00Berlin/16:00UTC. Single-step adapter update Linux/native/user реализован и принят в DEV scope. Полный frozen source/integration: 2625PASS/3skip/15subtests, 1181.13s,208inputs unchanged. Installed public factory→fresh1→update2→update3 на immutable SDK6edcbb83 PASS:70SDK/7reference/161dependency files unchanged; effects1/2/3, source/target runtime+health identity, данные/settings/syntheticcredential сохранны. Все4update encrypted archives действительно decrypt/restored в oracle. Root2datafaultPASS/25contractPASS; core180PASS и отдельно223PASS/1root-exportdeselect (пересекаются с full, не складывать). CI SDKCP011:Linux/Windows source jobs success. Forward journal не делает automatic legacy restore; UNKNOWN/missingledger не разрешает повтор. Public restore/rollback/repair/reinstall/uninstall adapter capabilities остаютсяfalse. BorrowedDEVruntime, это не clean-host/standalone acceptance. Production_ready=false, G0–G5 OPEN. Веб-страница текущей работы опубликована privately; финальная публикация её результатов выполняется после этого checkpoint и хранится внешнейreceipt.

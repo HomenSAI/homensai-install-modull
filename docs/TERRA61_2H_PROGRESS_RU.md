@@ -223,3 +223,17 @@ receipt `packaging/acceptance-evidence/installed-update-lost-ack-final-terra-202
 Source regression в собственном контейнере `hinstall-terra-20261028-regressions`
 ещё RUNNING; не считать PASS до завершения. Предыдущий commit 4f6f3ca/tree
 fc6e80c4de75751477725143868735ff1bd6283a подтверждены bare fetch.
+
+## 93/100 — CP-20261028T144733Z-8f7f018b7b73 — HIM-054
+
+2026-10-28 14:47 UTC. Пункты 90–91: source regression 83 PASS/0 skip,
+включая 40 update, 18 receipt и 25 adapter contract (это части одного набора).
+JUnit и receipt: `source-regressions-terra-20261028.xml/.json`. Source inputs
+runtime/tests не изменялись во время запуска, но документация обновлялась.
+GitHub CI run95 для 75ed388: Windows portable PASS, Linux source 3 FAIL/
+2386 PASS/1 skip/10 subtests; integration после FAIL NOT RUN. Два отказа
+`prerequisite_executable_not_private_regular`, третий RECOVERY_REQUIRED вместо
+AWAITING_USER; точное свойство runner-файла не установлено. Receipt
+`github-ci-terra-20261028-run95.json`. Не заявлять зелёный общий CI.
+Предыдущий commit 75ed388/tree 4c095656081e30aebb460739e05f40c4965466da
+подтверждены bare fetch. Следующий шаг: сохранить этот checkpoint и закрыть окно.

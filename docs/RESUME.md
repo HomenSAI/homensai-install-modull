@@ -20,6 +20,9 @@ AST PASS, прогон ещё NOT RUN; выполнить isolated Docker test.
 Linux DEV, не clean-host и не полная приёмка HIM-054.
 CP-20261028T144201Z-4d26028d6ee8: lost-ACK повторён после добавления второго
 профиля — PASS на итоговом harness; focused source regression ещё RUNNING.
+CP-20261028T144733Z-8f7f018b7b73: focused source regression завершился
+83 PASS/0 skip в Linux DEV; GitHub CI run95 Linux source — 3 FAIL,
+Windows portable PASS, причина первых отказов полностью не установлена.
 
 ## Финальный handoff CP-20261026-012
 

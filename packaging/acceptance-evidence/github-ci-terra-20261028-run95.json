@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "task_id": "HIM-054",
+  "checked_at_utc": "2026-10-28T14:46:00Z",
+  "source_commit": "75ed388a4837018c0de9b4b79a7a3c53d399279d",
+  "run_id": 40708599284,
+  "run_url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40708599284",
+  "overall_status": "FAIL",
+  "windows": {"job_id": 122887520010, "status": "PASS", "scope": "portable source subset; not Windows clean-host acceptance"},
+  "linux": {
+    "job_id": 122887520255,
+    "status": "FAIL",
+    "source_suite": {"passed": 2386, "failed": 3, "skipped": 1, "subtests_passed": 10},
+    "integration_step": "NOT RUN: skipped after source failure",
+    "failed_cases": [
+      {"test": "tests/test_prerequisites_execution.py::test_real_fixed_runner_is_reached_only_after_signed_pins_and_consent", "observation": "RECOVERY_REQUIRED instead of AWAITING_USER"},
+      {"test": "tests/test_prerequisites_runner.py::test_real_exact_argv_has_no_shell_or_parent_secrets", "observation": "INTEGRITY_FAILED: prerequisite_executable_not_private_regular"},
+      {"test": "tests/test_prerequisites_runner.py::test_timeout_returns_unknown_without_claiming_or_killing_system_installer", "observation": "INTEGRITY_FAILED: prerequisite_executable_not_private_regular"}
+    ],
+    "cause": "Exact runner file property causing refusal is not established. Do not weaken integrity checks."
+  },
+  "production_ready": false
+}

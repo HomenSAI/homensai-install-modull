@@ -1,5 +1,11 @@
 # Журнал выполнения
 
+2026-10-28 14:47 UTC — HIM-054 / CP-20261028T144733Z-8f7f018b7b73:
+83 focused source cases PASS/0 skip в offline Linux DEV Docker; 40 update,
+18 receipt и 25 adapter contract входят в общий счётчик. GitHub CI run95:
+Windows portable PASS, Linux source 3 FAIL, integration skipped. Receipt в
+`packaging/acceptance-evidence/github-ci-terra-20261028-run95.json`.
+
 2026-10-28 14:42 UTC — HIM-054 / CP-20261028T144201Z-4d26028d6ee8:
 повтор installed lost-ACK после изменения harness PASS; wheel SHA256
 `2ba4965b113d1c490ca90ae066488196b2bf317b395b224a5bdea956ba6f846e`.

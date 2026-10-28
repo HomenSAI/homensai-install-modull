@@ -1,5 +1,11 @@
 # Невыполненные проверки — обязательное задание следующему ИИ
 
+Terra CP-20261028T143633Z-a8c51a2df8c6: installed update lost-ACK PASS в
+изолированном Linux DEV контейнере на SDK 6edcbb83; реальный signed adapter,
+backup authorizer и public SDK, инъекция потери ответа после apply. Дубликат
+submit не повторил effect, resume той же операции SUCCEEDED. Это не SIGKILL,
+power-loss или clean-host; остальные installed faults и ACC-09/12 остаются открыты.
+
 ## Финальный handoff CP-20261026-012
 
 Работа завершена по указанию владельца в окне до17:00Berlin/16:00UTC. Single-step adapter update Linux/native/user реализован и принят в DEV scope. Полный frozen source/integration: 2625PASS/3skip/15subtests, 1181.13s,208inputs unchanged. Installed public factory→fresh1→update2→update3 на immutable SDK6edcbb83 PASS:70SDK/7reference/161dependency files unchanged; effects1/2/3, source/target runtime+health identity, данные/settings/syntheticcredential сохранны. Все4update encrypted archives действительно decrypt/restored в oracle. Root2datafaultPASS/25contractPASS; core180PASS и отдельно223PASS/1root-exportdeselect (пересекаются с full, не складывать). CI SDKCP011:Linux/Windows source jobs success. Forward journal не делает automatic legacy restore; UNKNOWN/missingledger не разрешает повтор. Public restore/rollback/repair/reinstall/uninstall adapter capabilities остаютсяfalse. BorrowedDEVruntime, это не clean-host/standalone acceptance. Production_ready=false, G0–G5 OPEN. Веб-страница текущей работы опубликована privately; финальная публикация её результатов выполняется после этого checkpoint и хранится внешнейreceipt.

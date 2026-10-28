@@ -4,6 +4,16 @@
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
   "purpose": "Реестр проверок и оставшейся приёмки; не второй список реализации.",
   "production_ready": false,
+  "terra_20261028_lost_ack": {
+    "checkpoint_id": "CP-20261028T143633Z-a8c51a2df8c6",
+    "status": "PASS_SCOPED",
+    "scope": "Installed public SDK Linux/native/user DEV; injected response loss after real signed apply; not SIGKILL or clean-host",
+    "sdk_source_sha": "6edcbb83a018e72d235cc3eb192864e238a82755",
+    "wheel_sha256": "c7c0e21e38559fd9aa28032205e5d61aed22a31434b92f84e94812f94dccfb96",
+    "receipt": "packaging/acceptance-evidence/installed-update-lost-ack-terra-20261028.json",
+    "full_acceptance": "NOT RUN",
+    "ready": false
+  },
   "unaccepted_task_ids": [
     "HIM-003",
     "HIM-008",

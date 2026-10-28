@@ -875,6 +875,11 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 Terra CP-20261028T143449Z-8878f171e2eb: отдельный installed lost-ACK harness
 подготовлен как WIP; только синтаксис проверен, сценарий NOT RUN. Основные
 runtime/capabilities не менялись; приёмка HIM-054 остаётся IN_PROGRESS.
+Terra CP-20261028T143633Z-a8c51a2df8c6: installed public v1→v2 lost ACK
+PASS в Linux DEV Docker на SDK 6edcbb83; настоящий adapter выполнил один update,
+UNKNOWN и duplicate submit не повторили его, original operation resume SUCCEEDED.
+Инъекция transport-ответа в тестовом клиенте, не SIGKILL/clean-host; прочие
+faults и полная матрица NOT RUN. Receipt installed-update-lost-ack-terra-20261028.json.
 Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-012
 Текущий scoped результат CP-20261026-012: полный source и installed public fresh1→update2→update3 PASS на SDK6edcbb83; реальные4backup archives восстановлены. Полная target/lifecycle матрица НЕ ГОТОВА; receipts в docs/RESUME.md.
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.

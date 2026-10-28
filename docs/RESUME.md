@@ -7,6 +7,12 @@ AST PASS, реальный прогон ещё NOT RUN. SDK source `6edcbb83`; �
 installed happy-path PASS в DEV Docker, не clean-host. Runtime не изменён;
 подробности и следующая проверка в `docs/TERRA61_2H_PROGRESS_RU.md`.
 
+Дополнение CP-20261028T143633Z-a8c51a2df8c6: первый installed lost-ACK
+профиль PASS на SDK `6edcbb83`, wheel `c7c0e21e38559fd9aa28032205e5d61aed22a31434b92f84e94812f94dccfb96`.
+Receipt `packaging/acceptance-evidence/installed-update-lost-ack-terra-20261028.json`.
+Тестовая подмена ответа после реального signed apply, не SIGKILL/clean-host.
+Остальные fault сценарии и production gates остаются открытыми.
+
 ## Финальный handoff CP-20261026-012
 
 Работа завершена по указанию владельца в окне до17:00Berlin/16:00UTC. Single-step adapter update Linux/native/user реализован и принят в DEV scope. Полный frozen source/integration: 2625PASS/3skip/15subtests, 1181.13s,208inputs unchanged. Installed public factory→fresh1→update2→update3 на immutable SDK6edcbb83 PASS:70SDK/7reference/161dependency files unchanged; effects1/2/3, source/target runtime+health identity, данные/settings/syntheticcredential сохранны. Все4update encrypted archives действительно decrypt/restored в oracle. Root2datafaultPASS/25contractPASS; core180PASS и отдельно223PASS/1root-exportdeselect (пересекаются с full, не складывать). CI SDKCP011:Linux/Windows source jobs success. Forward journal не делает automatic legacy restore; UNKNOWN/missingledger не разрешает повтор. Public restore/rollback/repair/reinstall/uninstall adapter capabilities остаютсяfalse. BorrowedDEVruntime, это не clean-host/standalone acceptance. Production_ready=false, G0–G5 OPEN. Веб-страница текущей работы опубликована privately; финальная публикация её результатов выполняется после этого checkpoint и хранится внешнейreceipt.

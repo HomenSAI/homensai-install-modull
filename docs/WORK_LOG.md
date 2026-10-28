@@ -1,5 +1,12 @@
 # Журнал выполнения
 
+2026-10-28 14:36 UTC — HIM-054 / CP-20261028T143633Z-a8c51a2df8c6:
+installed lost-ACK через public SDK и настоящий signed reference adapter: PASS
+в Linux DEV Docker, сохранены два эффекта fresh+update, duplicate и resume той
+же операции; инъекция после реального apply не является process-kill. Receipt
+`packaging/acceptance-evidence/installed-update-lost-ack-terra-20261028.json`.
+Полная приёмка и второй fault остаются NOT RUN; runtime не изменён.
+
 ## CP-20261025-001 — 25.10.2026, Europe/Berlin
 
 Пользователь поручил подготовить PROMPT и ToDo, затем исполнить весь список,

@@ -165,3 +165,23 @@ packaging harness, runtime SDK не менялся. AST parse PASS; фактич
 fault проверка NOT RUN. Черновик сохраняется для безопасного восстановления.
 Предыдущий commit fa6d558/tree 08208333b123d6c973d0846437b275b63717925a
 подтверждены bare fetch. Следующий шаг: изолированный прогон profile и receipt.
+
+## 75/100 — CP-20261028T143633Z-a8c51a2df8c6 — HIM-054
+
+2026-10-28 14:36 UTC. Пункты 71–73, 77–78 выполнены; пункты 74–76
+неприменимы: исходный прогон PASS, исправления/повтор после исправления не было.
+Изолированный Linux DEV Docker exit 0: после реального signed update apply
+смоделирована потеря ответа; операция RECOVERY_REQUIRED, повторный submit с
+тем же ID не повторил эффект, явный resume SUCCEEDED; ledger UNKNOWN→SUCCEEDED,
+2 business effects (fresh+update), данные/настройки сохранены. SDK source
+`6edcbb83a018e72d235cc3eb192864e238a82755`, wheel SHA256
+`c7c0e21e38559fd9aa28032205e5d61aed22a31434b92f84e94812f94dccfb96`;
+70 SDK/7 reference/161 dependency files unchanged. Receipt:
+`packaging/acceptance-evidence/installed-update-lost-ack-terra-20261028.json`.
+Инъекция в процессе клиента, не process-kill/power loss/clean-host; полный
+HIM/ACC и остальные faults остаются открыты. Предыдущий commit 38066e0/tree
+a6b481f0f8c92ecc80f25f8b044502e19b31913f подтверждены независимым bare fetch.
+
+Команда внешнего runner (пути Windows, UID 1000, сеть отключена):
+`docker run --rm --name hinstall-terra-20261028-fault01 --network none --user 1000:1000 --mount type=bind,source=E:/homensai/homensai-install-modull,target=/checkout,readonly --mount type=bind,source=E:/homensai/homensai-install-modull/.git,target=/git,readonly --mount type=bind,source=E:/homensai/homensai-install-modull/.local-state/terra-20261028-evidence,target=/evidence --workdir /checkout hinstall-dev:verification python -B packaging/check_installed_reference_lifecycle.py --work-dir /tmp/hinstall-terra-fault01 --receipt /evidence/fault01.json --wheelhouse /opt/wheelhouse --sdk-revision 6edcbb83a018e72d235cc3eb192864e238a82755 --source-git-dir /git --profile update-lost-ack`.
+Следующий шаг: резервный тампер backup, если позволяет deadline.

@@ -1,5 +1,4 @@
 """Real bounded synthetic processes; no package/system installation."""
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -15,11 +14,10 @@ from homensai_install.prerequisite_runner import (
 
 
 @pytest.fixture
-def python_executable():
+def python_executable(private_test_python):
     if sys.platform != "linux":
         pytest.skip("POSIX synthetic subprocess acceptance; not a Windows package claim")
-    path = Path(sys.executable).resolve()
-    return path, hashlib.sha256(path.read_bytes()).hexdigest()
+    return private_test_python
 
 
 def test_real_exact_argv_has_no_shell_or_parent_secrets(tmp_path, python_executable, monkeypatch):

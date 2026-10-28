@@ -107,3 +107,14 @@ Receipt: `packaging/acceptance-evidence/github-ci-terra-200-probe-20261028.json`
 `packaging/acceptance-evidence/ci-mode-reproduction-terra-200.py/.json`.
 Предыдущий checkpoint 4d390ac/tree f98202a800217451537545ca4c5f9108c96d38dd
 подтверждён bare fetch. Далее подтвердить и реализовать безопасную fixture.
+
+## 45/200 — CP-20261028T160201Z-52634a2bf6fb — HIM-086
+
+2026-10-28 16:02 UTC. Задачи 040–044: решение и альтернативы F-003 записаны;
+создана test fixture копии Python с mode0700/nlink1/SHA, только собственный
+tmp_path. В DEV Docker копия выполняет python -I с json/sqlite3; исходный test
+неверного pin сохранён. Windows поведение выбранного executable не подменено.
+Изменены только три файла tests; runtime guards не изменены. AST/diff PASS;
+исходные 3 CI tests и полная регрессия ещё NOT RUN, patch — WIP.
+Предыдущий checkpoint bf14bb8/tree b8f0e2a1c1c661dfea4304e7af96b4f2d7034aff
+подтверждён bare fetch. Далее негативные guards и точные regression checks.

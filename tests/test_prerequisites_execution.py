@@ -459,7 +459,7 @@ def test_state_hardlink_is_not_opened_as_database(bundle, tmp_path):
     assert victim.read_bytes() == b"must-not-change"
 
 
-def test_real_fixed_runner_is_reached_only_after_signed_pins_and_consent(bundle, tmp_path, monkeypatch):
+def test_real_fixed_runner_is_reached_only_after_signed_pins_and_consent(bundle, tmp_path, monkeypatch, private_test_python):
     from homensai_install.prerequisite_runner import FixedCommandRunner
     marker = tmp_path / "synthetic-result.json"
     content = ("import json,os,pathlib\npathlib.Path(" + repr(str(marker)) + ").write_text(json.dumps(sorted(os.environ)))\n").encode()
@@ -469,8 +469,9 @@ def test_real_fixed_runner_is_reached_only_after_signed_pins_and_consent(bundle,
     resign(bundle)
     adapters = registry(bundle)
     old = adapters["install-base"]
-    adapters["install-base"] = FixedCommandAdapter("install-base", os_name="linux", argv=old.argv,
-        artifact_suffixes=old.artifact_suffixes, executable_sha256=old.executable_sha256,
+    executable, executable_sha256 = private_test_python
+    adapters["install-base"] = FixedCommandAdapter("install-base", os_name="linux", argv=(str(executable), *old.argv[1:]),
+        artifact_suffixes=old.artifact_suffixes, executable_sha256=executable_sha256,
         runner_factory=FixedCommandRunner)
     def discover():
         if marker.exists(): present(bundle, "base")

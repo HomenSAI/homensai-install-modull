@@ -131,3 +131,13 @@ factory/prepare/plan/submit/resume. Эффекты наблюдаются по �
 реальным SIGKILL или доказательством отключения питания. Исполнение NOT RUN.
 Предыдущий commit 2ba3bb5/tree 304ff3dc7138dcaa5bb50dd64fa87452f6652254
 подтверждены bare fetch. Diff/check PASS.
+
+## 60/100 — CP-20261028T143206Z-d2de5691f9be — HIM-054
+
+2026-10-28 14:32 UTC. Пункты 56–60: определены oracles: SQLite notes,
+schema_migrations/product_adapter_effects, хеши synthetic document/credential/
+settings, native journal и SQLite ledger. Для lost ACK ожидаются UNKNOWN и
+ровно два бизнес-эффекта (fresh + update), повтор submit без нового эффекта,
+resume той же operation и сверка ledger с бизнес-receipt. Тест NOT RUN.
+Предыдущий commit 39ad37a/tree 3ff7e43a891db577633a09c32c10c0bbbfcdbd59
+подтверждены bare fetch; diff/check PASS.

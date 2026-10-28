@@ -120,3 +120,14 @@ cleanup UNKNOWN. Они используют source fixture/внедрение �
 документацией, runtime не менялся; тесты новых сценариев NOT RUN.
 Предыдущий commit 6139339 и tree eb96e415c98646b7d9d51454424c4359b086e909
 подтверждены bare fetch. Diff/check PASS. Далее определить безопасный injection.
+
+## 55/100 — CP-20261028T143119Z-34e162d7e282 — HIM-054
+
+2026-10-28 14:31 UTC. Пункты 51–55: тестовая инъекция планируется после
+реального `_execute(migration_apply)` в установленном клиенте, до записи ACK;
+штатный authorizer backup и подписи не заменяются. Операция проходит public
+factory/prepare/plan/submit/resume. Эффекты наблюдаются по отдельной таблице
+`product_adapter_effects` и `schema_migrations`; вмешательство не является
+реальным SIGKILL или доказательством отключения питания. Исполнение NOT RUN.
+Предыдущий commit 2ba3bb5/tree 304ff3dc7138dcaa5bb50dd64fa87452f6652254
+подтверждены bare fetch. Diff/check PASS.

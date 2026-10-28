@@ -1,6 +1,7 @@
 """CI failure diagnostics expose fixed classes, never private command output."""
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 
@@ -53,6 +54,7 @@ def test_untrusted_reason_and_stage_do_not_escape_fixed_vocabulary(harness):
                       'reason_class': 'command_failed', 'error_class': 'command_failed'}
 
 
+@pytest.mark.skipif(not hasattr(os, 'getuid'), reason='Linux installed harness entrypoint requires POSIX uid')
 def test_failure_stdout_has_stage_index_exit_class_but_no_receipt_path_or_stderr(harness, tmp_path, monkeypatch, capsys):
     private = '/private/runner-path/private-literal-do-not-echo'
     def failed(argv, **kwargs):
@@ -70,3 +72,78 @@ def test_failure_stdout_has_stage_index_exit_class_but_no_receipt_path_or_stderr
     assert private not in output and str(tmp_path) not in output and 'libpython3.14' not in output
     # Private evidence still retains the exact original failure locally.
     assert private in json.loads(receipt.read_text())['error']['message']
+
+
+@pytest.mark.parametrize('log,reason', [
+    ("ImportError: /private/_ssl.so: version `OPENSSL_PRIVATE' not found", 'python_ssl_import_failed'),
+    ("ImportError: /private/_sqlite3.so: undefined symbol: private_symbol", 'python_sqlite_import_failed'),
+    ("ModuleNotFoundError: No module named '_ssl'", 'python_ssl_import_failed'),
+])
+def test_product_extension_import_failures_have_fixed_classes(harness, log, reason):
+    assert harness._command_failure_reason(1, log) == reason
+    assert '/private/' not in json.dumps(harness._safe_failure_summary(RuntimeError(log),
+        [{'exit_code': 1, 'failure_reason_class': reason}], 'product_import_probe'))
+
+
+def test_safe_client_summary_uses_catalog_codes_and_last_known_action(harness):
+    report = {'status': 'FAIL', 'error': {'code': 'ADAPTER_EXECUTION_FAILED', 'type': 'InstallerError',
+        'message': '/private/secret'}, 'observations': [{'status': 'PASS'}, {'status': 'FAIL'}, {'status': 'PASS'}],
+        'actions': [{'action': 'install', 'status': 'SUCCEEDED', 'error_code': None},
+                    {'action': 'update', 'status': 'RECOVERY_REQUIRED', 'error_code': 'INTEGRITY_FAILED'},
+                    {'action': '/private/secret', 'status': '/private/secret', 'error_code': '/private/secret'}]}
+    result = harness._safe_client_summary(report)
+    assert result == {'available': True, 'status': 'FAIL', 'error_code': 'ADAPTER_EXECUTION_FAILED',
+        'error_type': 'InstallerError', 'passed_cases': 2,
+        'last_safe_action': {'action': 'update', 'status': 'RECOVERY_REQUIRED', 'error_code': 'INTEGRITY_FAILED'}}
+    assert '/private/' not in json.dumps(result)
+
+
+@pytest.mark.parametrize('value', ['/private/secret', {'secret': 'value'}, ['SECRET'], 123, None])
+def test_arbitrary_client_error_values_are_not_printed(harness, value):
+    report = {'status': value, 'error': {'code': value, 'type': value},
+        'observations': [{'status': value}], 'actions': [{'action': 'install', 'status': value, 'error_code': value}]}
+    result = harness._safe_client_summary(report)
+    assert result['error_code'] is None and result['error_type'] is None and result['status'] is None
+    assert result['last_safe_action'] == {'action': 'install', 'status': None, 'error_code': None}
+    assert result['passed_cases'] == 0 and 'secret' not in json.dumps(result).lower()
+
+
+def test_only_codes_from_actual_sdk_catalog_are_exposed(harness):
+    assert 'ADAPTER_EXECUTION_FAILED' in harness._CATALOG_ERROR_CODES
+    result = harness._safe_client_summary({'error': {'code': 'HARNESS_CHECK_FAILED', 'type': 'AssertionError'}})
+    assert result['error_code'] is None and result['error_type'] == 'AssertionError'
+
+
+@pytest.mark.parametrize('content', [b'{', b'[]', b'\xff', b'x' * (1024 * 1024 + 1)])
+def test_invalid_or_oversize_client_report_is_unavailable(harness, tmp_path, content):
+    path = tmp_path / 'client-report.json';path.write_bytes(content)
+    assert harness._safe_client_summary(harness._read_client_report(path)) == {'available': False}
+
+
+def test_missing_client_report_and_bounded_counters(harness, tmp_path):
+    assert harness._read_client_report(tmp_path / 'absent') is None
+    assert harness._safe_client_summary({'observations': [{'status': 'PASS'}] * 2000})['passed_cases'] == 1024
+
+
+def test_product_import_probe_uses_exact_product_python_and_no_loader_env(harness, tmp_path):
+    calls = []
+    def command(argv, **kwargs):
+        calls.append((argv, kwargs));return 'product_imports_ok\n'
+    assert harness._probe_product_imports(tmp_path, command) == 'product_imports_ok\n'
+    argv, kwargs = calls[0]
+    assert argv[:4] == [tmp_path / 'payload/runtime/bin/python', '-I', '-B', '-c']
+    assert argv[4] == "import ssl,sqlite3;import homensai_reference.adapter;print('product_imports_ok')"
+    assert kwargs == {'cwd': tmp_path / 'payload'}
+
+
+def test_installed_client_failure_whitelists_report_for_public_summary(harness):
+    report = {'status': 'FAIL', 'error': {'code': 'INTEGRITY_FAILED', 'type': 'InstallerError',
+        'message': '/private/secret'}, 'observations': [], 'actions': []}
+    failure = harness._safe_failure_summary(RuntimeError('/private/secret'),
+        [{'exit_code': 1, 'failure_reason_class': 'command_failed'}], 'installed_client', client_report=report)
+    assert failure['client']['error_code'] == 'INTEGRITY_FAILED'
+    assert failure['client']['error_type'] == 'InstallerError'
+    assert failure['client']['passed_cases'] == 0 and failure['client']['last_safe_action'] is None
+    assert '/private/' not in json.dumps(failure) and 'message' not in failure
+    missing = harness._safe_failure_summary(RuntimeError('private'), [], 'installed_client')
+    assert missing['client'] == {'available': False}

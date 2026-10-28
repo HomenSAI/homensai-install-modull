@@ -42,10 +42,10 @@ UPDATE_FAULTS = {
 
 
 _STAGES = {"setup", "source_snapshot", "wheel_build", "sdk_environment", "product_fixture",
-           "signed_payloads", "installed_client", "verify_inputs"}
+           "product_import_probe", "signed_payloads", "installed_client", "verify_inputs"}
 _REASONS = {"command_failed", "process_signal", "python_shared_library_missing", "shared_library_missing",
             "python_stdlib_missing", "python_module_missing", "execution_permission_denied",
-            "executable_format_invalid", "python_assertion_failed"}
+            "executable_format_invalid", "python_assertion_failed", "python_ssl_import_failed", "python_sqlite_import_failed"}
 
 
 def _command_failure_reason(returncode, log):
@@ -55,6 +55,11 @@ def _command_failure_reason(returncode, log):
         return "python_shared_library_missing" if "libpython" in value else "shared_library_missing"
     if "no module named 'encodings'" in value or "failed to get the python codec" in value:
         return "python_stdlib_missing"
+    if "importerror:" in value or "modulenotfounderror:" in value:
+        if "_ssl" in value:
+            return "python_ssl_import_failed"
+        if "_sqlite3" in value:
+            return "python_sqlite_import_failed"
     if "modulenotfounderror:" in value or "no module named" in value:
         return "python_module_missing"
     if "permission denied" in value or "operation not permitted" in value:
@@ -66,7 +71,7 @@ def _command_failure_reason(returncode, log):
     return "process_signal" if returncode < 0 else "command_failed"
 
 
-def _safe_failure_summary(error, commands, stage):
+def _safe_failure_summary(error, commands, stage, *, client_report=None):
     last = commands[-1] if commands else {}
     code = last.get("exit_code")
     code = code if type(code) is int else None
@@ -86,8 +91,77 @@ def _safe_failure_summary(error, commands, stage):
         reason, error_class = "filesystem_operation_failed", "filesystem_error"
     else:
         reason, error_class = "harness_operation_failed", "unexpected_error"
-    return {"stage": stage if stage in _STAGES else "setup", "command_index": len(commands) or None,
-            "exit_code": code, "reason_class": reason, "error_class": error_class}
+    result = {"stage": stage if stage in _STAGES else "setup", "command_index": len(commands) or None,
+              "exit_code": code, "reason_class": reason, "error_class": error_class}
+    if stage == "installed_client":
+        result["client"] = _safe_client_summary(client_report)
+    return result
+
+
+_CLIENT_TYPES = frozenset({"InstallerError", "AssertionError", "RuntimeError", "ValueError", "OSError",
+    "FileNotFoundError", "PermissionError", "TimeoutExpired", "ModuleNotFoundError", "ImportError",
+    "JSONDecodeError", "OperationalError", "KeyError", "TypeError"})
+_CLIENT_ACTIONS = frozenset({"install", "update", "restore", "rollback", "start", "stop", "backup",
+    "repair", "reinstall", "uninstall"})
+_CLIENT_STATUSES = frozenset({"PASS", "FAIL", "SUCCEEDED", "FAILED", "RECOVERY_REQUIRED", "FAILED_ROLLED_BACK",
+    "QUEUED", "RUNNING", "CANCELED", "AWAITING_USER", "WAITING_REBOOT"})
+
+
+def _catalog_error_codes():
+    try:
+        values = json.loads((ROOT / "homensai_install/catalog/errors.v1.json").read_text(encoding="utf-8"))["errors"]
+        return frozenset(key for key in values if re.fullmatch(r"[A-Z][A-Z0-9_]{0,79}", key))
+    except (OSError, ValueError, KeyError, TypeError):
+        return frozenset()
+
+
+_CATALOG_ERROR_CODES = _catalog_error_codes()
+
+
+def _fixed(value, allowed):
+    return value if type(value) is str and value in allowed else None
+
+
+def _safe_client_summary(report):
+    """Только catalog codes, фиксированные types/actions и вычисленный counter."""
+    if type(report) is not dict:
+        return {"available": False}
+    error = report.get("error")
+    error = error if type(error) is dict else {}
+    observations = report.get("observations")
+    observations = observations if type(observations) is list else []
+    actions = report.get("actions")
+    actions = actions if type(actions) is list else []
+    last = None
+    for item in reversed(actions[-1024:]):
+        if type(item) is dict and _fixed(item.get("action"), _CLIENT_ACTIONS) is not None:
+            last = {"action": item["action"], "status": _fixed(item.get("status"), _CLIENT_STATUSES),
+                    "error_code": _fixed(item.get("error_code"), _CATALOG_ERROR_CODES)}
+            break
+    return {"available": True, "status": _fixed(report.get("status"), _CLIENT_STATUSES),
+        "error_code": _fixed(error.get("code"), _CATALOG_ERROR_CODES),
+        "error_type": _fixed(error.get("type"), _CLIENT_TYPES),
+        "passed_cases": min(1024, sum(type(item) is dict and item.get("status") == "PASS" for item in observations)),
+        "last_safe_action": last}
+
+
+def _read_client_report(path):
+    try:
+        with path.open("rb") as stream:
+            raw = stream.read(1024 * 1024 + 1)
+        if len(raw) > 1024 * 1024:
+            return None
+        result = json.loads(raw)
+        return result if type(result) is dict else None
+    except (OSError, ValueError, UnicodeError, RecursionError):
+        return None
+
+
+def _probe_product_imports(work, command):
+    # Pure imports before signing/native actions, with the same sanitized
+    # command environment. No host loader variables or allowlist changes.
+    return command([work / "payload/runtime/bin/python", "-I", "-B", "-c",
+        "import ssl,sqlite3;import homensai_reference.adapter;print('product_imports_ok')"], cwd=work / "payload")
 
 
 def main(argv=None):
@@ -190,6 +264,8 @@ def main(argv=None):
         stage = "product_fixture"
         config, _, product_site = fixture(work, reference_wheel, command)
         check_reference_wheel(reference_wheel, ref_expected, product_site)
+        stage = "product_import_probe"
+        _probe_product_imports(work, command)
         stage = "signed_payloads"
         payload = work / "payload"
         descriptor = json.loads((payload / "installer/adapter.json").read_text())
@@ -273,11 +349,11 @@ def main(argv=None):
         receipt.update(status="PASS", exact_inputs_and_installed_bytes_unchanged=True)
         code = 0
     except Exception as error:
-        receipt["safe_failure"] = _safe_failure_summary(error, receipt["commands"], stage)
+        report = _read_client_report(work / "client-report.json")
+        receipt["safe_failure"] = _safe_failure_summary(error, receipt["commands"], stage, client_report=report)
         receipt["error"] = {"type": type(error).__name__, "message": str(error)[-4000:]}
-        report_path = work / "client-report.json"
-        if report_path.exists():
-            receipt["client"] = json.loads(report_path.read_text())
+        if report is not None:
+            receipt["client"] = report
     finally:
         output.parent.mkdir(parents=True, exist_ok=True)
         exported.mkdir(mode=0o700)

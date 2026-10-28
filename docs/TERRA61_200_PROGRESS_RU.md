@@ -25,3 +25,14 @@ Runtime не изменялся, новые тесты NOT RUN. Отдельны
 Предыдущий checkpoint afb572f/tree 8fe12b0232831b5cc89ea782f58da9b6d19808d7
 подтверждён независимым bare fetch. Новые runtime tests NOT RUN.
 Следующее: завершить 004 и 006–008, перейти к диагностике CI.
+
+## 15/200 — CP-20261028T155029Z-35a69bd61366 — HIM-009
+
+2026-10-28 15:50 UTC. Выполнены задачи 007, 015–018. Оба installed receipts
+привязаны к SDK 6edcbb83 и текущим hashes runner/client; 83 source cases
+сверены с JUnit. F-002: исторические WIP/NOT RUN в RESUME/handoff отделены
+от новой актуальной сводки, старые evidence сохранены. ProductAdapter требует
+original-operation reconciliation; missing ledger не означает отсутствие effect.
+Предыдущий checkpoint f76e023/tree d824806b3a2b44fbea3e3edbd440013407d983bc
+подтверждён независимым bare fetch. Проверка: diff/check; runtime tests NOT RUN.
+Следующее: 004, 006, 008 и точная диагностика CI; записи об истории не стирать.

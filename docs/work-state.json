@@ -266,8 +266,8 @@
     "plan": "TERRA61_HIGH_200_TASKS_RU.txt",
     "progress": "docs/TERRA61_200_PROGRESS_RU.md",
     "findings": "docs/TERRA61_200_FINDINGS_RU.md",
-    "completed_count": 10,
-    "completed_tasks": [1, 2, 3, 5, 9, 10, 11, 12, 13, 14],
+    "completed_count": 15,
+    "completed_tasks": [1, 2, 3, 5, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
     "next_step": "Завершить чтение canonical TODO и реестров, затем диагностировать Linux CI",
     "active_test_processes": []
   },

@@ -1,6 +1,17 @@
 # Продолжение разработки
 
-## Завершённое окно Terra 28.10.2026 — HIM-054
+## Активная очередь Terra: 200 задач
+
+28.10.2026, начало 15:46:26 UTC. Задание владельца:
+`TERRA61_HIGH_200_TASKS_RU.txt`; прогресс и находки — в
+`docs/TERRA61_200_PROGRESS_RU.md` и `docs/TERRA61_200_FINDINGS_RU.md`.
+Предыдущее окно завершено: installed lost-ACK и tampered-backup PASS только
+в Linux DEV; 83 source cases PASS. GitHub Linux CI run101 и run95 имеют 3 FAIL,
+Windows portable PASS, Linux integration skipped; причина runner не установлена.
+`production_ready=false`, G0–G5 OPEN. Предыдущие промежуточные WIP/NOT RUN и
+RUNNING ниже описывают историю на момент конкретных checkpoint, не текущий статус.
+
+## История завершённого окна Terra 28.10.2026 — HIM-054
 
 CP-20261028T143449Z-8878f171e2eb: отдельный installed lost-ACK профиль — WIP,
 AST PASS, реальный прогон ещё NOT RUN. SDK source `6edcbb83`; свежий baseline

@@ -1,5 +1,15 @@
 # Продолжение после CP-20261026-012
 
+## Текущая очередь: Terra 200 задач
+
+Запущена владельцем 28.10.2026 в 15:46:26 UTC; новый дедлайн не задан.
+`TERRA61_HIGH_200_TASKS_RU.txt`, прогресс `docs/TERRA61_200_PROGRESS_RU.md`,
+находки `docs/TERRA61_200_FINDINGS_RU.md`, состояние `terra_200_execution_window`.
+Предыдущее окно закрыто: оба installed fault профиля и 83 source cases имеют
+scoped PASS в DEV. Linux GitHub CI run101/run95: три source FAIL, Windows
+portable PASS, Linux integration skipped; точная причина ещё не доказана.
+Следующий приоритет — безопасная диагностика CI, затем installed fault profiles.
+
 ## Завершённое окно Terra 28.10.2026
 
 Владелец явно запустил двухчасовой ограниченный пакет Terra: начало
@@ -9,6 +19,8 @@
 Один агент; максимум два installed fault сценария, runtime не менять. Старое
 закрытое окно ниже — история. Прогресс: `docs/TERRA61_2H_PROGRESS_RU.md`;
 текущее состояние окна: `terra_execution_window` в `work-state.json`.
+### История предыдущих checkpoint (статусы относятся к моменту записи)
+
 CP-20261028T143449Z-8878f171e2eb: installed lost-ACK профиль WIP, нужен
 изолированный запуск на SDK 6edcbb83; AST PASS, fault сценарий пока NOT RUN.
 Дополнение CP-20261028T143633Z-a8c51a2df8c6: первый isolated installed lost-ACK

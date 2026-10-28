@@ -1,5 +1,11 @@
 # Журнал выполнения
 
+2026-10-28 14:42 UTC — HIM-054 / CP-20261028T144201Z-4d26028d6ee8:
+повтор installed lost-ACK после изменения harness PASS; wheel SHA256
+`2ba4965b113d1c490ca90ae066488196b2bf317b395b224a5bdea956ba6f846e`.
+Receipt `packaging/acceptance-evidence/installed-update-lost-ack-final-terra-20261028.json`.
+Focused source regression ещё RUNNING, результат не предрешён.
+
 2026-10-28 14:39 UTC — HIM-054 / CP-20261028T143954Z-972d8c3a1cf6:
 installed tampered backup в Linux DEV — ожидаемый отказ PASS: после выдачи
 backup receipt архив изменён, public update вернул RECOVERY_REQUIRED до второго

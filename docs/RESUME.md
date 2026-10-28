@@ -18,6 +18,8 @@ AST PASS, прогон ещё NOT RUN; выполнить isolated Docker test.
 ожидаемый отказ PASS, schema v1/effect count 1 и данные сохранены. Receipt
 `packaging/acceptance-evidence/installed-update-tampered-backup-terra-20261028.json`;
 Linux DEV, не clean-host и не полная приёмка HIM-054.
+CP-20261028T144201Z-4d26028d6ee8: lost-ACK повторён после добавления второго
+профиля — PASS на итоговом harness; focused source regression ещё RUNNING.
 
 ## Финальный handoff CP-20261026-012
 

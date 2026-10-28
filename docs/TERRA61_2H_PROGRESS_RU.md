@@ -212,3 +212,14 @@ Runner: тот же Docker recipe что для fault01, с `--name hinstall-ter
 6906393acc7604b1ea752a7638039fa1da96cfd2 подтверждены bare fetch.
 Следующий шаг: повторить затронутый lost-ACK профиль после изменения harness,
 затем проверить source contracts и итоговый handoff.
+
+## 90/100 — CP-20261028T144201Z-4d26028d6ee8 — HIM-054
+
+2026-10-28 14:42 UTC. Дополнительно выполнены пункты плана 87, 92–95:
+новые сценарии остановлены; оба receipt проверены, HIM/ACC и реестры обновлены
+в ограниченном scope. Lost-ACK повторён на финальном harness: PASS, SDK
+6edcbb83, wheel SHA256 2ba4965b113d1c490ca90ae066488196b2bf317b395b224a5bdea956ba6f846e;
+receipt `packaging/acceptance-evidence/installed-update-lost-ack-final-terra-20261028.json`.
+Source regression в собственном контейнере `hinstall-terra-20261028-regressions`
+ещё RUNNING; не считать PASS до завершения. Предыдущий commit 4f6f3ca/tree
+fc6e80c4de75751477725143868735ff1bd6283a подтверждены bare fetch.

@@ -69,3 +69,14 @@ Docker Engine 29.9.2 доступен; `hinstall-dev:verification` имеет im
 Это не проверка product Docker. Предыдущий GitHub commit b854fb3 и tree
 aa1601f7204c5e8559a6113b052f96d01a2c0393 подтверждены независимым bare fetch.
 Diff/check: PASS. Далее изучение receipts и базового статуса, пункты 31–35.
+
+## 35/100 — CP-20261028T142800Z-993d4906f24a — HIM-054
+
+2026-10-28 14:28 UTC. Пункты 31–35: изучены source и installed receipts
+CP012/CP011, независимая квитанция ref/tree CP012; результаты октября 26 —
+исторические, installed update faults NOT RUN. Прежний wheel hash:
+`44bba27101bf1397ad3ebd5379f1e4adcf921b035cd2559979dc14daa8a90f0d`;
+source `6edcbb83a018e72d235cc3eb192864e238a82755`, borrowed DEV runtime.
+Оба реестра: production_ready=false. Предыдущий commit 57a014c и tree
+8f1e87cfa3fdf5fdf7ed1f951be80ee3e3fb7378 проверены независимым bare fetch.
+Diff/check: PASS; новые installed тесты ещё NOT RUN. Далее изучить harness.

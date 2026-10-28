@@ -1,5 +1,12 @@
 # Продолжение разработки
 
+## Активное окно Terra 28.10.2026 — HIM-054
+
+CP-20261028T143449Z-8878f171e2eb: отдельный installed lost-ACK профиль — WIP,
+AST PASS, реальный прогон ещё NOT RUN. SDK source `6edcbb83`; свежий baseline
+installed happy-path PASS в DEV Docker, не clean-host. Runtime не изменён;
+подробности и следующая проверка в `docs/TERRA61_2H_PROGRESS_RU.md`.
+
 ## Финальный handoff CP-20261026-012
 
 Работа завершена по указанию владельца в окне до17:00Berlin/16:00UTC. Single-step adapter update Linux/native/user реализован и принят в DEV scope. Полный frozen source/integration: 2625PASS/3skip/15subtests, 1181.13s,208inputs unchanged. Installed public factory→fresh1→update2→update3 на immutable SDK6edcbb83 PASS:70SDK/7reference/161dependency files unchanged; effects1/2/3, source/target runtime+health identity, данные/settings/syntheticcredential сохранны. Все4update encrypted archives действительно decrypt/restored в oracle. Root2datafaultPASS/25contractPASS; core180PASS и отдельно223PASS/1root-exportdeselect (пересекаются с full, не складывать). CI SDKCP011:Linux/Windows source jobs success. Forward journal не делает automatic legacy restore; UNKNOWN/missingledger не разрешает повтор. Public restore/rollback/repair/reinstall/uninstall adapter capabilities остаютсяfalse. BorrowedDEVruntime, это не clean-host/standalone acceptance. Production_ready=false, G0–G5 OPEN. Веб-страница текущей работы опубликована privately; финальная публикация её результатов выполняется после этого checkpoint и хранится внешнейreceipt.

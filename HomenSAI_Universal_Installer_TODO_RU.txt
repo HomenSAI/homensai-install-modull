@@ -872,6 +872,9 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-054. Реализовать последовательные updates v1 → v2 → v3
+Terra CP-20261028T143449Z-8878f171e2eb: отдельный installed lost-ACK harness
+подготовлен как WIP; только синтаксис проверен, сценарий NOT RUN. Основные
+runtime/capabilities не менялись; приёмка HIM-054 остаётся IN_PROGRESS.
 Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-012
 Текущий scoped результат CP-20261026-012: полный source и installed public fresh1→update2→update3 PASS на SDK6edcbb83; реальные4backup archives восстановлены. Полная target/lifecycle матрица НЕ ГОТОВА; receipts в docs/RESUME.md.
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.

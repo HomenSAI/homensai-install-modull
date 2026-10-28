@@ -297,8 +297,72 @@ def main():
                     assert detail["product_adapter_source_binding"]["release"] == source_release
                     assert detail["update_failure_policy"] == "preserve_forward_journal_no_automatic_restore"
                     assert detail["migration_binding"]["migration_review_id"] == update_review["migration_review_id"]
-                    _, updated = run_action(current, "update", update_options, "true-adapter-update-" + str(target_version),
-                                            reviewed_plan=update_plan)
+                    if config.get("fault_profile") == "lost_ack" and target_version == 2:
+                        # Test-only transport fault, after the real signed subprocess has
+                        # committed its SQLite effect and returned a validated response.
+                        # Receipt authorization and signature verification remain real.
+                        from homensai_install.adapters import ExecutableProductAdapter
+                        original_execute = ExecutableProductAdapter._execute
+                        injected = []
+
+                        def lose_ack(adapter, hook, request, request_digest):
+                            result = original_execute(adapter, hook, request, request_digest)
+                            if hook == "migration_apply" and adapter.options["release"] == target_release:
+                                assert not injected
+                                injected.append(request_digest)
+                                raise InstallerError("ADAPTER_EXECUTION_FAILED")
+                            return result
+
+                        consent = [*update_plan["required_consents"], update_plan["review_consent_ref"]]
+                        key = "true-adapter-update-" + str(target_version)
+                        ExecutableProductAdapter._execute = lose_ack
+                        try:
+                            interrupted = current.submit(update_plan["plan_id"], update_plan["plan_digest"],
+                                consent, idempotency_key=key, background=False)
+                        finally:
+                            ExecutableProductAdapter._execute = original_execute
+                        assert len(injected) == 1
+                        assert interrupted["status"] == "RECOVERY_REQUIRED", interrupted
+                        assert (interrupted.get("error") or {}).get("code") == "RECOVERY_REQUIRED"
+                        operation_id = interrupted["operation_id"]
+                        with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
+                            effects_before = db.execute("SELECT request_digest,result FROM product_adapter_effects ORDER BY request_digest").fetchall()
+                            assert len(effects_before) == 2
+                            assert db.execute("SELECT version FROM schema_migrations ORDER BY version").fetchall() == [(1,), (2,)]
+                        ledger = root / ".hinstall/product-adapter" / target_release / "adapter-invocations.sqlite3"
+                        with sqlite3.connect(ledger.as_uri() + "?mode=ro", uri=True) as db:
+                            calls = db.execute("SELECT request_digest,state FROM calls WHERE hook='migration_apply'").fetchall()
+                            assert calls == [(injected[0], "UNKNOWN")]
+                        native = [json.loads(path.read_text()) for path in (root / ".hinstall/operations").glob("*.json")
+                                  if json.loads(path.read_text()).get("migration_review_id") == update_review["migration_review_id"]]
+                        assert len(native) == 1 and native[0]["product_adapter_migration_started"] is True
+                        assert native[0].get("product_adapter_migration_complete") is not True
+                        assert native[0].get("product_adapter_unknown") is True
+                        assert notes(database)["notes"] == source_data["notes"]
+                        assert sha(document.read_bytes()) == retained["document"]
+                        assert sha(credential.read_bytes()) == retained["credential"]
+                        assert sha(settings.read_bytes()) == retained["settings"]
+                        duplicate = current.submit(update_plan["plan_id"], update_plan["plan_digest"],
+                            consent, idempotency_key=key, background=False)
+                        assert duplicate["operation_id"] == operation_id and duplicate["status"] == "RECOVERY_REQUIRED"
+                        with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
+                            assert db.execute("SELECT request_digest,result FROM product_adapter_effects ORDER BY request_digest").fetchall() == effects_before
+                        updated = current.resume(operation_id, {}, background=False)
+                        assert updated["operation_id"] == operation_id and updated["status"] == "SUCCEEDED", updated
+                        with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
+                            assert db.execute("SELECT request_digest,result FROM product_adapter_effects ORDER BY request_digest").fetchall() == effects_before
+                        with sqlite3.connect(ledger.as_uri() + "?mode=ro", uri=True) as db:
+                            assert db.execute("SELECT request_digest,state FROM calls WHERE hook='migration_apply'").fetchall() == [(injected[0], "SUCCEEDED")]
+                        observations.append({"case": "installed_update_lost_ack_same_operation", "status": "PASS",
+                            "operation_id": operation_id, "injection": "transport_response_lost_after_real_signed_apply",
+                            "before_status": interrupted["status"], "duplicate_status": duplicate["status"],
+                            "resume_status": updated["status"], "business_effect_rows": len(effects_before),
+                            "adapter_ledger_before": "UNKNOWN", "adapter_ledger_after": "SUCCEEDED",
+                            "request_digest": injected[0], "user_data_preserved": True,
+                            "real_native_authorizer": True, "automatic_restore": False})
+                    else:
+                        _, updated = run_action(current, "update", update_options, "true-adapter-update-" + str(target_version),
+                                                reviewed_plan=update_plan)
                     assert updated["result"]["release"] == target_release
                     pointer = root / "services" / manifest["update"]["pointer_file"]
                     assert json.loads(pointer.read_text()) == {"release": target_release}

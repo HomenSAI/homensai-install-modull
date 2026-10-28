@@ -31,7 +31,7 @@ def main(argv=None):
     parser.add_argument("--wheelhouse", type=Path, required=True)
     parser.add_argument("--sdk-revision", required=True)
     parser.add_argument("--source-git-dir", type=Path)
-    parser.add_argument("--profile", choices=("preparation", "fresh", "update-readiness", "update"), default="preparation")
+    parser.add_argument("--profile", choices=("preparation", "fresh", "update-readiness", "update", "update-lost-ack"), default="preparation")
     args = parser.parse_args(argv)
     work, output = args.work_dir.resolve(), args.receipt.absolute()
     exported = output.with_name(output.stem + "-evidence")
@@ -51,7 +51,7 @@ def main(argv=None):
         "sdk_source_revision": args.sdk_revision, "environment": {"python": sys.version, "uid": os.getuid(),
             "network_downloads": False, "venv_system_site_packages": False, "work_dir": str(work),
             "runtime_closure": "signed copied DEV ELF; borrowed container stdlib/libpython/OS libraries"},
-        "not_run": [("Adapter restore/rollback/repair/uninstall" if args.profile == "update" else
+        "not_run": [("Adapter restore/rollback/repair/uninstall" if args.profile in {"update", "update-lost-ack"} else
                      "Adapter update/restore/rollback/repair/uninstall"), "Clean Ubuntu/Windows/Docker/service/reboot",
                     "Standalone runtime/security/license closure", "GUI", "Production signing", "Full G1-G5"],
         "harness_files": {name: sha((ROOT / "packaging" / name).read_bytes()) for name in
@@ -122,7 +122,7 @@ def main(argv=None):
         descriptor["environment_allowlist"].append("HOMENSAI_CONFIG_HOME")
         write_json(payload / "installer/adapter.json", descriptor)
         manifest = json.loads((work / "manifest.json").read_text())
-        if args.profile in {"fresh", "update-readiness", "update"}:
+        if args.profile in {"fresh", "update-readiness", "update", "update-lost-ack"}:
             (payload / "forbidden_legacy_migration.py").write_text("import os\nfrom pathlib import Path\n(Path(os.environ['HOMENSAI_DATA_HOME'])/'FORBIDDEN_LEGACY_MIGRATION').write_text('unexpected legacy hook')\nraise SystemExit(87)\n", encoding="utf-8")
             manifest["migrations"]["cmd"] = ["python", "-I", "-B", "forbidden_legacy_migration.py"]
             write_json(work / "manifest.json", manifest)
@@ -163,7 +163,8 @@ def main(argv=None):
         del private
         receipt["signed_bundles"] = signed_bundles
         config.update(site_packages=str(site), checkout=str(ROOT), client_report=str(work / "client-report.json"),
-                      bundle_options=bundle_options, profile=args.profile,
+                      bundle_options=bundle_options, profile="update" if args.profile == "update-lost-ack" else args.profile,
+                      fault_profile="lost_ack" if args.profile == "update-lost-ack" else None,
                       runtime_sha256=signed_bundles["1"]["runtime/bin/python"])
         config_path = work / "client-config.json"
         write_json(config_path, config)

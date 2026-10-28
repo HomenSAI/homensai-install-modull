@@ -7,6 +7,8 @@
 Один агент; максимум два installed fault сценария, runtime не менять. Старое
 закрытое окно ниже — история. Прогресс: `docs/TERRA61_2H_PROGRESS_RU.md`;
 текущее состояние окна: `terra_execution_window` в `work-state.json`.
+CP-20261028T143449Z-8878f171e2eb: installed lost-ACK профиль WIP, нужен
+изолированный запуск на SDK 6edcbb83; AST PASS, fault сценарий пока NOT RUN.
 
 Автор продукта: Serhii Khomenko. Работа остановлена по указанию владельца.
 Компьютер не выключать; чужие процессы/порты8810/8811/8812 не менять.

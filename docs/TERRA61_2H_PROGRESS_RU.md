@@ -154,3 +154,14 @@ baseline: PASS, Linux/native/user с borrowed DEV runtime, public fresh→v2→v
 `packaging/acceptance-evidence/installed-update-baseline-terra-20261028.json`.
 Предыдущий commit 1d20cd0/tree 469f21655ff3b2fa8fa4499ae3ecaf80b7e0cca2
 подтверждены bare fetch. Проверка документа/JSON/diff; теперь реализация теста.
+
+## 70/100 — CP-20261028T143449Z-8878f171e2eb — HIM-054
+
+2026-10-28 14:34 UTC. Пункты 66–70: добавлен отдельный runner profile
+`update-lost-ack`; внешняя fixture после настоящего signed migration_apply
+имитирует потерю ответа, затем проверяет UNKNOWN, journal, реальные SQLite
+effects, данные, duplicate submit и resume исходной операции. Изменены только
+packaging harness, runtime SDK не менялся. AST parse PASS; фактическая installed
+fault проверка NOT RUN. Черновик сохраняется для безопасного восстановления.
+Предыдущий commit fa6d558/tree 08208333b123d6c973d0846437b275b63717925a
+подтверждены bare fetch. Следующий шаг: изолированный прогон profile и receipt.

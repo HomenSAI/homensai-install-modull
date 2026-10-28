@@ -356,7 +356,7 @@ def main():
                             migration_apply_not_completed=True, forward_journal_preserved=True)
                         active_update = None
                         break
-                    if config.get("fault_profile") == "lost_ack" and target_version == 2:
+                    if config.get("fault_profile") in {"lost_ack", "missing_ledger"} and target_version == 2:
                         # Test-only transport fault, after the real signed subprocess has
                         # committed its SQLite effect and returned a validated response.
                         # Receipt authorization and signature verification remain real.
@@ -401,6 +401,47 @@ def main():
                         assert sha(document.read_bytes()) == retained["document"]
                         assert sha(credential.read_bytes()) == retained["credential"]
                         assert sha(settings.read_bytes()) == retained["settings"]
+                        if config.get("fault_profile") == "missing_ledger":
+                            # Only the disposable target adapter ledger is removed;
+                            # native/API journals and product SQLite stay untouched.
+                            ledger_digest = sha(ledger.read_bytes())
+                            ledger.unlink()
+                            assert not ledger.exists()
+                            current = api("fresh-sdk-state")
+                            after_reopen = current.status(operation_id)
+                            assert after_reopen["operation_id"] == operation_id
+                            assert after_reopen["status"] == "RECOVERY_REQUIRED"
+                            assert not ledger.exists()
+                            duplicate = current.submit(update_plan["plan_id"], update_plan["plan_digest"],
+                                consent, idempotency_key=key, background=False)
+                            assert duplicate["operation_id"] == operation_id and duplicate["status"] == "RECOVERY_REQUIRED"
+                            assert not ledger.exists()
+                            resumed = current.resume(operation_id, {}, background=False)
+                            assert resumed["operation_id"] == operation_id and resumed["status"] == "RECOVERY_REQUIRED", resumed
+                            assert not ledger.exists()
+                            with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
+                                assert db.execute("SELECT request_digest,result FROM product_adapter_effects ORDER BY request_digest").fetchall() == effects_before
+                                assert db.execute("SELECT version FROM schema_migrations ORDER BY version").fetchall() == [(1,), (2,)]
+                            assert notes(database)["notes"] == source_data["notes"]
+                            assert sha(document.read_bytes()) == retained["document"]
+                            assert sha(credential.read_bytes()) == retained["credential"]
+                            assert sha(settings.read_bytes()) == retained["settings"]
+                            assert json.loads((root / "services" / manifest["update"]["pointer_file"]).read_text()) == {"release": source_release}
+                            native_paths = [p for p in (root / ".hinstall/operations").glob("*.json")
+                                            if json.loads(p.read_text()).get("migration_review_id") == update_review["migration_review_id"]]
+                            assert len(native_paths) == 1
+                            forward = json.loads((root / "services" / ("update-" + native_paths[0].stem + ".json")).read_text())
+                            assert forward["direction"] == "forward" and forward["outcome"] == "running"
+                            listener_stopped(config["port"])
+                            active_update.update(status="PASS", expected_failure=True,
+                                case="installed_update_missing_ledger_same_operation", operation_id=operation_id,
+                                ledger_before_sha256=ledger_digest, ledger_recreated=False,
+                                before_status=interrupted["status"], reopened_status=after_reopen["status"],
+                                duplicate_status=duplicate["status"], resume_status=resumed["status"],
+                                business_effect_rows=len(effects_before), schema=2,
+                                user_data_preserved=True, forward_journal_preserved=True)
+                            active_update = None
+                            break
                         duplicate = current.submit(update_plan["plan_id"], update_plan["plan_digest"],
                             consent, idempotency_key=key, background=False)
                         assert duplicate["operation_id"] == operation_id and duplicate["status"] == "RECOVERY_REQUIRED"
@@ -527,7 +568,7 @@ def main():
                         "user_data_and_config_preserved": True, "forward_journal_no_rollback": True,
                         "legacy_migration_marker_absent": True, "owned_pid_stable_on_duplicate_start": True})
                     active_update = None
-                if config.get("fault_profile") != "tampered_backup":
+                if config.get("fault_profile") not in {"tampered_backup", "missing_ledger"}:
                     run_action(current, "stop", bundles["3"], "update-final-stop")
                 listener_stopped(config["port"])
                 for directory in (root / ".hinstall", work / "fresh-sdk-state"):
@@ -607,7 +648,7 @@ def main():
         for cleanup_root, version in ((legacy_root, "1"), (root if config["profile"] in {"fresh", "update-readiness", "update"} else None, "1")):
             if cleanup_root is not None and (cleanup_root / ".hinstall/installation.json").exists():
                 try:
-                    if config.get("fault_profile") == "tampered_backup" and cleanup_root == root:
+                    if config.get("fault_profile") in {"tampered_backup", "missing_ledger"} and cleanup_root == root:
                         listener_stopped(config["port"])
                         continue
                     run_action(api("cleanup-" + str(len(str(cleanup_root))), registered=False), "stop",

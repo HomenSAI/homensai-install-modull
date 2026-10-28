@@ -1296,6 +1296,11 @@ Terra CP-20261028T160331Z-0a43ef8c1beb: test fixture использует при
 SHA-проверенную копию Python; 50 focused cases PASS в Linux DEV Docker,
 включая прежние три CI cases и отрицательные writable/hardlink/symlink.
 CI Python3.14.9 и полный suite ещё NOT RUN; runtime не изменён.
+Terra CP-20261028T161418Z-e7a7c5c83951: GitHub run125 на 4bc2b1f:
+Linux source2392 PASS/1 skip/10 subtests, integration236 PASS/2 skips/5 subtests,
+Windows portable549 PASS/4 skips. Runner Python mode0755, тогда как в исходном
+FAIL наблюдался0777; причинность fix на runner с0777 ещё не доказана.
+Временно подготовлен missing-ledger harness WIP; тест NOT RUN.
 Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-020
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-085; PROMPT: § 7–8, 14.

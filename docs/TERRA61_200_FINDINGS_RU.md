@@ -77,6 +77,16 @@ CP-20261028T160201Z-52634a2bf6fb: подготовлен test-only fixture patch
 CP-20261028T160331Z-0a43ef8c1beb: 50 focused source cases PASS/0 skip
 в offline DEV, включая три исходно падавших и новые writable/hardlink/symlink.
 F-003 остаётся OPEN до CI на Python3.14.9; source для production не менялся.
+CP-20261028T161418Z-e7a7c5c83951: GitHub run125 на 4bc2b1f PASS:
+Linux source2392/1skip/10subtests, integration236/2skip/5subtests, Windows
+portable549/4skip. Probe нового runner: тот же SHA Python3.14.9, но mode0755,
+вместо0777 на ранее неудавшемся run117. Следовательно, успешный CI сам по себе
+не доказывает эффективность fixture при unsafe source mode; F-003 остаётся OPEN
+до контролируемого end-to-end воспроизведения. Причина изменения mode неизвестна.
+Дополнительная локальная проверка после изменения общего conftest:
+`docker run --rm --name hinstall-terra-200-state-regression --network none --user 1000:1000 --mount type=bind,source=E:/homensai/homensai-install-modull,target=/workspace,readonly --workdir /workspace hinstall-dev:verification python -m pytest -q -p no:cacheprovider tests/test_prerequisites_state_files.py`
+завершилась exit 0, 53 PASS за 2.08 s в Linux DEV Python3.14.3. Это отдельный
+набор с пересекающейся областью, не установленная платформа и не полная приёмка.
 
 ## F-005 — первая попытка воспроизведения не нашла модуль проекта
 

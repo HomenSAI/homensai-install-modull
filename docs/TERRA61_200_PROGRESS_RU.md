@@ -129,3 +129,16 @@ CI cases; runtime и policy не изменены. Точный dirty-input hash
 GitHub Python3.14.9 и полный suite NOT RUN для последнего patch. Предыдущий
 checkpoint e314ce4/tree 240e602319bd71c34f5efa7e016e2d9dd15c6237 подтверждён
 bare fetch. Далее дождаться исходного CI run и сохранить настоящий результат.
+
+## 55/200 — CP-20261028T161418Z-e7a7c5c83951 — HIM-086 / HIM-054
+
+2026-10-28 16:14 UTC. Задачи 050–052, 062–063 завершены: исходный CI FAIL и
+локальный PASS отдельно сохранены; Linux3.14.3 и GitHub3.14.9 проверены,
+Windows portable PASS. Run125 на 4bc2b1f: Linux source2392 PASS/1 skip/
+10 subtests; integration236 PASS/2 skips/5 subtests; Windows549 PASS/4 skips.
+Важное ограничение: общий Python теперь mode0755, ранее был0777. Сам успех CI
+не доказывает исправление на runner с0777. Receipt `github-ci-terra-200-run125.json`.
+Подготовлен черновой installed missing-ledger profile; AST PASS, run NOT RUN.
+Предыдущий commit 4bc2b1f/tree 62a3081bab00afb61a078d70564eb81f4163f1c6
+подтверждён bare fetch. Далее контролируемый тест fixture с исходным mode0777
+и фактический installed missing-ledger run; не объявлять полную приёмку.

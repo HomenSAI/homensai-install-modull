@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "checkpoint_id": "CP-20261026-012",
+  "checkpoint_id_scope": "Исторический основной checkpoint до окон Terra; не определяет текущий HEAD. Актуальные checkpoints и remote ref устанавливаются из Git и внешних receipts.",
   "branch": "codex/universal-installer-20261025",
   "baseline_sha": "f90a20acbe824bede0174acd8ed241896b47581a",
   "canonical_todo": "HomenSAI_Universal_Installer_TODO_RU.txt",
@@ -101,6 +102,7 @@
     "linux_docker": "NOT RUN: daemon доступен; browser/source в DEV контейнере не являются product Docker backend acceptance"
   },
   "last_confirmed_github_sha": "6edcbb83a018e72d235cc3eb192864e238a82755",
+  "last_confirmed_github_sha_scope": "Исторический SDK CP011, не актуальная вершина GitHub; см. независимые checkpoint receipts.",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",
@@ -266,8 +268,8 @@
     "plan": "TERRA61_HIGH_200_TASKS_RU.txt",
     "progress": "docs/TERRA61_200_PROGRESS_RU.md",
     "findings": "docs/TERRA61_200_FINDINGS_RU.md",
-    "completed_count": 15,
-    "completed_tasks": [1, 2, 3, 5, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+    "completed_count": 20,
+    "completed_tasks": [1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 24],
     "next_step": "Завершить чтение canonical TODO и реестров, затем диагностировать Linux CI",
     "active_test_processes": []
   },

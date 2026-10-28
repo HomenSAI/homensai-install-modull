@@ -36,3 +36,20 @@ original-operation reconciliation; missing ledger не означает отсу
 Предыдущий checkpoint f76e023/tree d824806b3a2b44fbea3e3edbd440013407d983bc
 подтверждён независимым bare fetch. Проверка: diff/check; runtime tests NOT RUN.
 Следующее: 004, 006, 008 и точная диагностика CI; записи об истории не стирать.
+
+Текущий остаток: расследовать GitHub Linux CI 3 FAIL с read-only probe, не
+ослабляя integrity; затем installed missing ledger, UNKNOWN, foreign receipt,
+live drift и health/cleanup. Restore/rollback требуют отдельного будущего пакета.
+Отдельный Docker Git остаётся SYNC_BLOCKED; production_ready=false, G0–G5 OPEN.
+
+## 20/200 — CP-20261028T155158Z-6d4706d4e304 — HIM-009
+
+2026-10-28 15:52 UTC. Задачи 006, 008, 019, 020 и 024: прочитаны
+verification backlog/status, BUILDING/CHECKPOINTS/third-party policy и help;
+уточнён scope исторических checkpoint/SHA полей state (F-004), записаны
+оставшиеся installed faults и CI priority. Между 61d6ec3 и 5cd601b diff
+tests/runtime/shared/workflow пуст; это не доказывает причину CI FAIL.
+Актуальный CI run 40720079570 для 5455d07 ещё IN_PROGRESS; не PASS.
+Проверки: JSON parse, diff/check. Предыдущий commit 5455d07/tree
+af491f482335b5fb78e2c06a19a68c6ac23a109e подтверждён bare fetch.
+Далее завершить 004 и наблюдать CI, затем исследовать проверку executable.

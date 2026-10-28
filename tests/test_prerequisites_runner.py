@@ -9,8 +9,9 @@ import pytest
 from homensai_install.errors import InstallerError
 from homensai_install.prerequisite_runner import (
     CommandResult, FixedCommandAdapter, FixedCommandRunner,
-    docker_desktop_user_adapter, docker_ubuntu_deb_adapter, system_markers,
+    docker_desktop_user_adapter, docker_ubuntu_deb_adapter, system_markers, verify_regular_file,
 )
+from shared.datahome import DataHomeError
 
 
 @pytest.fixture
@@ -63,6 +64,23 @@ def test_changed_executable_pin_blocks_process_launch(tmp_path, python_executabl
     runner = FixedCommandRunner([argv], executable_hashes={str(executable): "0" * 64})
     with pytest.raises(InstallerError) as caught: runner.run(argv)
     assert caught.value.code == "INTEGRITY_FAILED"
+
+
+@pytest.mark.parametrize("unsafe", ["writable", "hardlink", "symlink"])
+def test_unsafe_executable_is_rejected_before_use(tmp_path, private_test_python, unsafe):
+    if sys.platform != "linux":
+        pytest.skip("POSIX file safety checks")
+    path, digest = private_test_python
+    if unsafe == "writable":
+        path.chmod(0o777)
+    elif unsafe == "hardlink":
+        os.link(path, tmp_path / "second-link")
+    else:
+        link = tmp_path / "python-link"
+        link.symlink_to(path)
+        path = link
+    with pytest.raises((InstallerError, DataHomeError)):
+        verify_regular_file(str(path), digest)
 
 
 @pytest.mark.parametrize("executable", ["python", "/bin/sh", "/bin/bash", "/fake/cmd.exe", "/fake/powershell.exe", "/fake/install.cmd"])

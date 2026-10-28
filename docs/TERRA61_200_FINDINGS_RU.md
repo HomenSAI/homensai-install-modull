@@ -74,6 +74,9 @@ GitHub Python3.14.9 и полный исходный набор требуют �
 CP-20261028T160201Z-52634a2bf6fb: подготовлен test-only fixture patch;
 запускаемость собственной копии CPython3.14.3 проверена, CI 3.14.9 ещё нет.
 Исходный тест неправильного executable pin сохранён; runtime не изменён.
+CP-20261028T160331Z-0a43ef8c1beb: 50 focused source cases PASS/0 skip
+в offline DEV, включая три исходно падавших и новые writable/hardlink/symlink.
+F-003 остаётся OPEN до CI на Python3.14.9; source для production не менялся.
 
 ## F-005 — первая попытка воспроизведения не нашла модуль проекта
 

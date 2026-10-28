@@ -118,3 +118,14 @@ tmp_path. В DEV Docker копия выполняет python -I с json/sqlite3;
 исходные 3 CI tests и полная регрессия ещё NOT RUN, patch — WIP.
 Предыдущий checkpoint bf14bb8/tree b8f0e2a1c1c661dfea4304e7af96b4f2d7034aff
 подтверждён bare fetch. Далее негативные guards и точные regression checks.
+
+## 50/200 — CP-20261028T160331Z-0a43ef8c1beb — HIM-086
+
+2026-10-28 16:03 UTC. Задачи 045–049: добавлены и проверены отрицательные
+случаи writable/hardlink/symlink; прежние no-shell/secrets/timeout/hash-pin
+сохранены. Docker Python3.14.3 offline: 50 PASS/0 skip, включая исходные три
+CI cases; runtime и policy не изменены. Точный dirty-input hashes и JUnit:
+`packaging/acceptance-evidence/ci-fixture-targeted-terra-200.json/.xml`.
+GitHub Python3.14.9 и полный suite NOT RUN для последнего patch. Предыдущий
+checkpoint e314ce4/tree 240e602319bd71c34f5efa7e016e2d9dd15c6237 подтверждён
+bare fetch. Далее дождаться исходного CI run и сохранить настоящий результат.

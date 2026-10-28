@@ -366,11 +366,16 @@ class NativeLifecycleTests(unittest.TestCase):
         with self.assertRaises(SimulatedCrash):
             self.engine.execute(plan, crash)
         (self.root / "releases" / "app-v1" / "server.py").unlink()
-        result = self.new_engine().resume(plan, {})
-        self.assertTrue(result["data_preserved"])
-        self.assertEqual(result["effective_active"]["release"], "v1")
+        # A manual disappearance has no original-operation deletion intent.
+        # Verified recovery bytes alone cannot authorize treating it as ours.
+        before = {p.relative_to(self.root / "releases").as_posix(): p.read_bytes()
+                  for p in (self.root / "releases").rglob("*") if p.is_file()}
+        with self.assertRaises(EngineError) as error:
+            self.new_engine().resume(plan, {})
+        self.assertEqual(error.exception.code, "INTEGRITY_FAILED")
+        self.assertEqual(before, {p.relative_to(self.root / "releases").as_posix(): p.read_bytes()
+                                 for p in (self.root / "releases").rglob("*") if p.is_file()})
         self.assertEqual(data.read_text(), "preserve during interrupted uninstall")
-        self.assertEqual(self.engine.execute(plan), result)
 
     def test_late_rollback_restores_archived_secret_refs_instead_of_new_bootstrap_refs(self):
         first = self.bundle("v1", runtime_tag="old", synthetic_secret="archived-first-secret")

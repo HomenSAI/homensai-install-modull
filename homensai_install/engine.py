@@ -437,6 +437,7 @@ class NativeEngine:
         ctx = self._context(manifest, target, options)
         if action not in self.ACTIONS or not self.capabilities(target)["actions"][action]["supported"]:
             raise EngineError("CAPABILITY_UNSUPPORTED")
+        self._check_uninstall_fence(ctx, action)
         effective_active = None
         if action in self.MAINTENANCE_ACTIONS:
             ctx, effective_active = self._maintenance_context(ctx)
@@ -483,6 +484,9 @@ class NativeEngine:
                 "legacy_commands_not_executed": ["backup.cmd", "restore.cmd"]}
         if effective_active is not None:
             result["effective_active"] = effective_active
+        if action == "uninstall":
+            from .uninstall_receipts import UninstallProtocol
+            result["uninstall_removal"] = UninstallProtocol.review(self, ctx)
         if self.product_adapter_descriptor is not None:
             if action in {"restore", "rollback"}:
                 adapter, binding = self._release_product_adapter(ctx, self._pointer(ctx))
@@ -1149,6 +1153,8 @@ class NativeEngine:
         partial_remove = (isinstance(uninstall_state, dict) and uninstall_state.get("action") == "uninstall"
                           and "preserve_recovery" in uninstall_state.get("completed", []))
         if partial_remove:
+            if not isinstance(uninstall_state.get("uninstall_removal"), dict):
+                raise EngineError("RECOVERY_REQUIRED", "Нужен исходный verified uninstall protocol")
             recovery = checked_path(source["home"].roots["runtime"] / "recovery" / active)
             if _read(recovery / "release.json") != meta:
                 raise EngineError("INTEGRITY_FAILED", "Recovery metadata отличаются от active release")
@@ -1202,6 +1208,19 @@ class NativeEngine:
                 or _file_digest(ctx["options"]["inventory_file"]) != binding["signed_inventory_sha256"]
                 or _file_digest(ctx["options"]["signature_file"]) != binding["signature_sha256"]):
             raise EngineError("PLAN_STALE", "Привязка активного выпуска изменилась после review")
+
+    @staticmethod
+    def _check_uninstall_fence(ctx, action, original=None):
+        if action == "stop":
+            return
+        folder = ctx["control"] / "operations"
+        for pending in folder.glob("*.json") if folder.exists() else ():
+            if pending == original:
+                continue
+            other = _read(pending)
+            if (other.get("action") == "uninstall"
+                    and other.get("status") not in {"SUCCEEDED", "FAILED_ROLLED_BACK"}):
+                raise EngineError("RECOVERY_REQUIRED", "Нужна исходная незавершённая uninstall операция")
 
     def _prepare(self, ctx):
         owner = self._owner(ctx)
@@ -2070,6 +2089,7 @@ class NativeEngine:
             previous = _read(journal) if journal.exists() else None
             if previous and previous.get("status") in {"SUCCEEDED", "FAILED_ROLLED_BACK"}:
                 return previous["result"]
+            self._check_uninstall_fence(ctx, action, journal)
             if action in self.MAINTENANCE_ACTIONS:
                 source = ctx
                 ctx, binding = self._maintenance_context(source, uninstall_state=previous if action == "uninstall" else None)
@@ -2088,6 +2108,20 @@ class NativeEngine:
                     raise EngineError("PLAN_STALE", "Незавершённый план относится к другому active release")
                 ctx.update(action=action, operation_token=token, maintenance_binding=binding,
                            secret_cache=source["secret_cache"], adapter_resume=_adapter_resume)
+                if action == "uninstall":
+                    from .uninstall_receipts import UninstallProtocol
+                    reviewed_removal = detail.get("uninstall_removal") if detail else None
+                    partial = previous and "preserve_recovery" in previous.get("completed", [])
+                    if partial:
+                        original = previous.get("uninstall_removal")
+                        if not isinstance(original, dict) or reviewed_removal not in (None, original):
+                            raise EngineError("RECOVERY_REQUIRED", "Нужен исходный removal set")
+                        ctx["uninstall_removal"] = original
+                    else:
+                        actual = UninstallProtocol.review(self, ctx)
+                        if detail is not None and _digest(reviewed_removal) != _digest(actual):
+                            raise EngineError("PLAN_STALE", "Согласованный набор удаляемых файлов изменился")
+                        ctx["uninstall_removal"] = actual
                 records = self._records(ctx)
                 if action == "start":
                     unresolved = any(record.get("status") == "launching" for record in records.values())
@@ -2144,9 +2178,14 @@ class NativeEngine:
                      or previous.get("product_adapter_migration_authorization_refused") is True))
             adapter_recovery_resume = (self.product_adapter_descriptor is not None and action in {"restore", "rollback"}
                                        and _adapter_resume and previous is not None)
+            uninstall_resume = (action == "uninstall" and _adapter_resume and previous is not None
+                                and (isinstance(previous.get("uninstall_removal"), dict)
+                                     and "preserve_recovery" in previous.get("completed", [])
+                                     or not previous.get("uninstall_intents")
+                                     and not previous.get("uninstall_directory_intents")))
             if (previous and previous.get("status") in {"FAILED", "RECOVERY_REQUIRED"}
                     and action not in {"start", "stop", "update"} and not adapter_backup_resume
-                    and not adapter_install_resume and not adapter_recovery_resume):
+                    and not adapter_install_resume and not adapter_recovery_resume and not uninstall_resume):
                 raise EngineError("RECOVERY_REQUIRED", "Неудавшийся шаг требует проверенного восстановления")
             # Незавершённый другой mutating plan нельзя обойти новым token.
             if action not in {"stop"}:
@@ -2392,34 +2431,11 @@ class NativeEngine:
             step("start", lambda: self._start(ctx))
             return {"status": "SUCCEEDED", "health": step("health", lambda: self._health(ctx))}
         if action == "uninstall":
+            from .uninstall_receipts import UninstallProtocol
+            protocol = UninstallProtocol(self, ctx, ctx["uninstall_removal"], ctx["operation_state"])
             step("stop", lambda: self._stop(ctx))
-            step("preserve_recovery", lambda: {"path": str(self._recovery_copy(ctx, active))})
-            def remove():
-                for meta_file in (ctx["control"] / "releases").glob("*.json"):
-                    if meta_file.name.endswith((".inventory.json", ".signature.json")):
-                        continue
-                    meta = _read(meta_file)
-                    release_path = self._release(ctx, meta["release"])
-                    for relative in meta["inventory"]:
-                        file = checked_path(release_path / relative)
-                        if not contains(release_path, file):
-                            raise EngineError("INTEGRITY_FAILED")
-                        if file.is_file():
-                            file.unlink()
-                    if release_path.exists():
-                        for directory in sorted((p for p in release_path.rglob("*") if p.is_dir()), key=lambda x: len(x.parts), reverse=True):
-                            checked_path(directory)
-                            try:
-                                directory.rmdir()
-                            except OSError:
-                                pass
-                        try:
-                            release_path.rmdir()
-                        except OSError:
-                            pass
-                _write(ctx["control"] / "installation.json", {**owner, "installed": False})
-                return {"data_preserved": True, "recovery_available": True}
-            return {"status": "SUCCEEDED", **step("remove_owned_code", remove)}
+            step("preserve_recovery", protocol.preserve)
+            return {"status": "SUCCEEDED", **step("remove_owned_code", protocol.remove)}
         if action in {"restore", "rollback"}:
             self._check_recovery_locators(ctx)
             if action == "rollback" and ctx["options"].get("acknowledge_data_loss") is not True:

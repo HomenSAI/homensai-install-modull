@@ -64,3 +64,14 @@ portable PASS. Run40353896055 был полностью успешен, два �
 условие не установлено: F-003 остаётся OPEN. Предыдущий commit 90b2cd9/tree
 513fd4e9c2178c5c7b439de729a2550858a35075 подтверждён bare fetch.
 Новое runtime не изменялось; локальный probe ещё NOT RUN.
+
+## 30/200 — CP-20261028T155417Z-3f3d2c84dc0d — HIM-086
+
+2026-10-28 15:54 UTC. Задачи 004, 027–030: канонический TODO и
+соответствующие HIM/ACC рассмотрены; оба падающих runner fixture получают
+resolved sys.executable и его SHA. Четыре возможных условия файлового отказа
+остаются гипотезами. Создан read-only `tools/ci_python_probe.py` с type/mode,
+nlink/size/hash и проверкой неизменности на дескрипторе; AST PASS, запуск
+ещё NOT RUN. Нет чтения полного environment и вывода содержимого executable.
+Предыдущий commit 4f3ed40/tree fdd2bc7b75c7cb38abe0c68dc44a67224f5bb932
+подтверждён bare fetch. Далее выполнить probe в Docker и получить CI runner facts.

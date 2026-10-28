@@ -1276,6 +1276,9 @@ Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 ========================================================================
 
 [ ] HIM-086. Завершить воспроизводимые локальные и CI-сборки
+Terra CP-20261028T155417Z-3f3d2c84dc0d: подготовлен read-only probe
+файловых свойств Python для разбора повторяемого Linux CI FAIL; AST PASS,
+сам probe на Docker и runner ещё NOT RUN. Runtime и политика защиты не менялись.
 Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-020
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-085; PROMPT: § 7–8, 14.

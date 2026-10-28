@@ -58,3 +58,14 @@ Checkpoint `379a50a17480661d4c1059e949248ed7d9faa4e5`, tree
 `c84dfe1015d5ab66ab9ebd3d901c14bf0b61aecb`. Локальный tracking ref устарел,
 поэтому status ahead 8 не означает неотправленную работу. Diff/check: PASS;
 новых runtime проверок нет. Далее worktree/stash/Docker, пункты 26–30.
+
+## 30/100 — CP-20261028T142717Z-1207251cebf0 — HIM-054
+
+2026-10-28 14:27 UTC. Пункты 26–30: четыре agent worktree чистые;
+архивный stash CP021 сохранён. Исходный untracked план включён с разрешения
+владельца в первый checkpoint; других новых пользовательских файлов нет.
+Docker Engine 29.9.2 доступен; `hinstall-dev:verification` имеет image ID
+`sha256:1b3529768706aaacabb525d6fd3168680cc2b0ffa1aee6994a3d2e5cdb8fd4c1`.
+Это не проверка product Docker. Предыдущий GitHub commit b854fb3 и tree
+aa1601f7204c5e8559a6113b052f96d01a2c0393 подтверждены независимым bare fetch.
+Diff/check: PASS. Далее изучение receipts и базового статуса, пункты 31–35.

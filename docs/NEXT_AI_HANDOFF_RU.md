@@ -1,14 +1,14 @@
 # Продолжение после CP-20261026-012
 
-## Текущая очередь: Terra 200 задач
+## Очередь Terra 200 задач остановлена владельцем
 
-Запущена владельцем 28.10.2026 в 15:46:26 UTC; новый дедлайн не задан.
-`TERRA61_HIGH_200_TASKS_RU.txt`, прогресс `docs/TERRA61_200_PROGRESS_RU.md`,
-находки `docs/TERRA61_200_FINDINGS_RU.md`, состояние `terra_200_execution_window`.
-Предыдущее окно закрыто: оба installed fault профиля и 83 source cases имеют
-scoped PASS в DEV. Linux GitHub CI run101/run95: три source FAIL, Windows
-portable PASS, Linux integration skipped; точная причина ещё не доказана.
-Следующий приоритет — безопасная диагностика CI, затем installed fault profiles.
+2026-10-28T16:25:11Z. Завершено 77/200; пункты 084 и 085 выполнены после
+последнего checkpoint 75/200. Точный список и незавершённые условия — в
+docs/work-state.json и плане. Продолжение на другом компьютере:
+docs/TERRA61_200_TRANSFER_RU.md; находки docs/TERRA61_200_FINDINGS_RU.md,
+подробности docs/TERRA61_200_PROGRESS_RU.md. Следующий плановый checkpoint
+80/200. CI run 40724824553 отменён после успешного синтетического fixture
+шага; полный PASS на этот run не распространяется. G0–G5 OPEN.
 
 ## Завершённое окно Terra 28.10.2026
 

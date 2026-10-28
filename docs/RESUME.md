@@ -1,15 +1,14 @@
 # Продолжение разработки
 
-## Активная очередь Terra: 200 задач
+## Очередь Terra 200 задач остановлена владельцем
 
-28.10.2026, начало 15:46:26 UTC. Задание владельца:
-`TERRA61_HIGH_200_TASKS_RU.txt`; прогресс и находки — в
-`docs/TERRA61_200_PROGRESS_RU.md` и `docs/TERRA61_200_FINDINGS_RU.md`.
-Предыдущее окно завершено: installed lost-ACK и tampered-backup PASS только
-в Linux DEV; 83 source cases PASS. GitHub Linux CI run101 и run95 имеют 3 FAIL,
-Windows portable PASS, Linux integration skipped; причина runner не установлена.
-`production_ready=false`, G0–G5 OPEN. Предыдущие промежуточные WIP/NOT RUN и
-RUNNING ниже описывают историю на момент конкретных checkpoint, не текущий статус.
+2026-10-28T16:25:11Z. Завершено 77/200; пункты 084 и 085 выполнены после
+последнего checkpoint 75/200. Точный список и незавершённые условия — в
+docs/work-state.json и плане. Продолжение на другом компьютере:
+docs/TERRA61_200_TRANSFER_RU.md; находки docs/TERRA61_200_FINDINGS_RU.md,
+подробности docs/TERRA61_200_PROGRESS_RU.md. Следующий плановый checkpoint
+80/200. CI run 40724824553 отменён после успешного синтетического fixture
+шага; полный PASS на этот run не распространяется. G0–G5 OPEN.
 
 ## История завершённого окна Terra 28.10.2026 — HIM-054
 

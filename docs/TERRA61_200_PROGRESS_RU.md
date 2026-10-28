@@ -197,3 +197,15 @@ public fresh с синтетическими данными; инъекция п
 не SIGKILL и не power-loss. Предыдущий checkpoint c81b450/tree
 2a2b912203d9fdc0285cac23432f46acc80b2045 подтверждён bare fetch.
 Проверка документа и существующего receipt; новые тесты не запускались.
+
+## 77/200 — CP-20261028T162443Z-dc515129ff54 — остановка по просьбе владельца
+
+2026-10-28T16:25:11Z. Пункт 084: reviewed public SDK update v1→v2 с реальным
+backup. Пункт 085: фактический signed migration_apply, затем искусственная
+потеря ответа; исходная операция RECOVERY_REQUIRED. Это сверка ранее записанных
+DEV receipts, а не новое доказательство clean-host или power-loss. Пункт 086
+не засчитан. Следующая пятёрка завершается на 80/200. Состояние и инструкции
+переноса: docs/TERRA61_200_TRANSFER_RU.md. CI run 40724824553 отменён после
+успешного отдельного synthetic unsafe-mode fixture шага; полный PASS отсутствует.
+Предыдущий подтверждённый GitHub checkpoint 1a966c755cd074776e96ae7d0cf6ccd4c93b46d8,
+tree d599ba4895cc873db7b9428d76e0ce8a018751a6. Docker Git remote SYNC_BLOCKED.

@@ -142,3 +142,14 @@ Windows portable PASS. Run125 на 4bc2b1f: Linux source2392 PASS/1 skip/
 Предыдущий commit 4bc2b1f/tree 62a3081bab00afb61a078d70564eb81f4163f1c6
 подтверждён bare fetch. Далее контролируемый тест fixture с исходным mode0777
 и фактический installed missing-ledger run; не объявлять полную приёмку.
+
+## 60/200 — CP-20261028T161542Z-978d780a9bc3 — HIM-086
+
+2026-10-28 16:15 UTC. Задачи 053–055, 058–059: run125 на 4bc2b1f полностью
+выполнен: Linux source2392 PASS/1 skip/10subtests, integration236 PASS/2skip/
+5subtests; Windows portable549 PASS/4skip. Права workflow/actions сохранены.
+Текущий runner Python mode0755; прежний FAIL был на mode0777, поэтому F-003
+остаётся OPEN до контролируемого end-to-end теста fixture. Дополнительно
+Docker state-file tests 53 PASS, не суммировать с остальными наборами.
+Предыдущий checkpoint 02b343a/tree 58fcc8f185f736180ddbfff2bcec160a42cd32ce
+подтверждён bare fetch. Missing-ledger harness остаётся WIP/NOT RUN.

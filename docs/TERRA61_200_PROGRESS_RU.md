@@ -183,3 +183,17 @@ GitHub run131/40724824553: controlled fixture unsafe-mode step success;
 Linux suite IN_PROGRESS на момент сохранения, Windows portable success.
 Предыдущий checkpoint 828f643/tree 4ef7eb46879a2d88773670cb8705259b7476d62c
 подтверждён bare fetch. Полная приёмка и оставшиеся fault профили открыты.
+
+Baseline installed harness: SDK 6edcbb83; последний client сохранён в
+CP-20261028T162118Z-63a741880fea. На этом client повторно выполнены lost ACK,
+tampered backup и missing ledger в Linux DEV; неподтверждённые профили:
+устойчивый UNKNOWN, foreign receipt, live drift, health/cleanup и clean-host.
+
+## 75/200 — CP-20261028T162226Z-b77b0757fb64 — HIM-054
+
+2026-10-28 16:22 UTC. Задачи 079–082, 083: tampered-backup повтор PASS;
+зафиксирован baseline и оставшиеся профили. Missing ledger: новая fixture
+public fresh с синтетическими данными; инъекция после реального signed v2 apply,
+не SIGKILL и не power-loss. Предыдущий checkpoint c81b450/tree
+2a2b912203d9fdc0285cac23432f46acc80b2045 подтверждён bare fetch.
+Проверка документа и существующего receipt; новые тесты не запускались.

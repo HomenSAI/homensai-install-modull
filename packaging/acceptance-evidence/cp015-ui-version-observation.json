@@ -1,0 +1,1 @@
+{"node":"v24.22.1","pattern":"^v?[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:\\+[A-Za-z0-9_.-]+)?$","observations":[{"text":"1.2","matches":true},{"text":"1.2\n","matches":false},{"text":"1.2\r","matches":false},{"text":"1.2 ","matches":false}]}

@@ -1,0 +1,62 @@
+.F
+=================================== FAILURES ===================================
+_ test_update_actual_sigkill_boundaries_keep_original_journal_and_one_apply[after_backup] _
+
+migration = <migration_native_fixture.NativeLifecycleTests testMethod=runTest>
+phase = 'after_backup'
+
+    @pytest.mark.parametrize('phase', ['before_backup', 'after_backup', 'after_stage', 'before_ledger', 'after_ledger', 'after_apply', 'after_pointer'])
+    def test_update_actual_sigkill_boundaries_keep_original_journal_and_one_apply(migration, phase):
+        plan, prepared = planned_update(migration)
+        kill_update_controller(migration, plan, phase)
+        effects = 2 if phase in {'after_apply', 'after_pointer'} else 1
+        assert migration_effect_count(migration) == effects
+        if phase in {'before_ledger', 'after_ledger'}:
+            with pytest.raises(EngineError) as caught: migration.engine.resume(plan, {})
+            assert caught.value.code == 'RECOVERY_REQUIRED'
+        else:
+>           assert migration.engine.resume(plan, {})['status'] == 'SUCCEEDED'
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+integration_tests/test_native_adapter_update.py:287:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+homensai_install/engine.py:2234: in resume
+    return self.execute(plan, emit, cancel_requested, _adapter_resume=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+homensai_install/engine.py:1969: in execute
+    result = self._execute_locked(ctx, action, token, inventory, password, step, emit)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+homensai_install/engine.py:2090: in _execute_locked
+    state = txn.run()
+            ^^^^^^^^^
+shared/update_plan.py:311: in run
+    self._execute(state, phase)
+shared/update_plan.py:264: in _execute
+    ports.backup(key, purpose, tuple(manifest["backup"]["cmd"]))
+homensai_install/engine.py:1786: in backup
+    result = engine._backup(ctx, self.archive_path(key), password)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+homensai_install/engine.py:1752: in _backup
+    result["backup_receipt"] = self._backup_receipt_store(ctx, password).issue(path, receipt_binding,
+homensai_install/migration_receipts.py:154: in issue
+    verified = self._verified(archive_path, binding)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+homensai_install/migration_receipts.py:142: in _verified
+    if self.recovery_verifier(candidate, deepcopy(binding)) is not True:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+homensai_install/engine.py:1708: in recovery
+    return assert_live_snapshot_matches(ctx["home"].roots, candidate,
+homensai_install/migration_snapshot.py:192: in assert_live_snapshot_matches
+    _fail()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _fail():
+>       raise InstallerError("RECOVERY_REQUIRED", phase="product_adapter",
+                             details={"reason": "migration_live_snapshot_not_verified"})
+E       homensai_install.errors.InstallerError: RECOVERY_REQUIRED
+
+homensai_install/migration_snapshot.py:25: InstallerError
+=========================== short test summary info ============================
+FAILED integration_tests/test_native_adapter_update.py::test_update_actual_sigkill_boundaries_keep_original_journal_and_one_apply[after_backup]
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 1 passed, 23 deselected in 29.17s

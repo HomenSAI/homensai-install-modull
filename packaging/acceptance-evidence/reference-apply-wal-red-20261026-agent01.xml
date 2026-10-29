@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.631" timestamp="2026-10-26T09:00:57.125618+00:00" hostname="648ba81a5d84"><testcase classname="integration_tests.test_reference_migration_apply" name="test_reconciliation_of_wal_database_is_unknown_and_creates_no_sidecars" time="0.046"><failure message="AssertionError: assert {'data/refere...852b855', ...} == {'data/refere...9884a11', ...}&#10;  &#10;  Omitting 6 identical items, use -vv to show&#10;  Left contains 2 more items:&#10;  {'data/reference.sqlite-shm': 'fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb',&#10;   'data/reference.sqlite-wal': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'}&#10;  Use -v to get more diff">reference = (PosixPath('/tmp/pytest-of-unknown/pytest-0/test_reconciliation_of_wal_dat0'), PosixPath('/tmp/pytest-of-unknown/pytes...onciliation_of_wal_dat0/config'), PosixPath('/tmp/pytest-of-unknown/pytest-0/test_reconciliation_of_wal_dat0/release'))
+
+    def test_reconciliation_of_wal_database_is_unknown_and_creates_no_sidecars(reference):
+        root, data, _, _ = reference
+        call = prepare()
+        adapter.execute(call)
+        db = sqlite3.connect(data / "reference.sqlite")
+        assert db.execute("PRAGMA journal_mode=WAL").fetchone() == ("wal",)
+        db.close()
+        before = tree(root)
+        assert not (data / "reference.sqlite-wal").exists() and not (data / "reference.sqlite-shm").exists()
+        observed = status(call)
+&gt;       assert tree(root) == before
+E       AssertionError: assert {'data/refere...852b855', ...} == {'data/refere...9884a11', ...}
+E
+E         Omitting 6 identical items, use -vv to show
+E         Left contains 2 more items:
+E         {'data/reference.sqlite-shm': 'fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb',
+E          'data/reference.sqlite-wal': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'}
+E         Use -v to get more diff
+
+/workspace/integration_tests/test_reference_migration_apply.py:233: AssertionError</failure></testcase></testsuite></testsuites>

@@ -1,0 +1,160 @@
+{
+  "api_version": "1.0",
+  "module_version": "0.1.0",
+  "adapter_protocol_version": "1.0",
+  "error_catalog_version": "1.0.0",
+  "builtin_error_catalog_version": "1.0.0",
+  "error_catalog_updates": {
+    "registration": "trusted_sdk_bootstrap_policy",
+    "requires_explicit_policy": true,
+    "delivery": "local_signed_file_preview_apply",
+    "apply_platforms": [
+      "linux"
+    ],
+    "methods": [
+      "errors_catalog_status",
+      "errors_catalog_preview",
+      "errors_catalog_apply"
+    ],
+    "content_scope": "translations_of_builtin_codes",
+    "behavior_updates": false,
+    "http_import": false,
+    "network_delivery": false,
+    "historical_error_envelopes": "builtin_catalog"
+  },
+  "manifest_schemas": [
+    1,
+    2
+  ],
+  "normalized_model_version": 1,
+  "sdk": "homensai_install.api.v1.InstallerAPI",
+  "cli": "hinstall",
+  "product_adapter": {
+    "sdk": "homensai_install.adapters.ExecutableProductAdapter",
+    "protocol_version": "1.0",
+    "registration": "explicit_sdk",
+    "lifecycle_engine_registration": true,
+    "lifecycle_registration": "trusted_native_engine_constructor",
+    "lifecycle_engine_actions": [
+      "install",
+      "start",
+      "stop",
+      "backup",
+      "update",
+      "restore",
+      "rollback",
+      "uninstall",
+      "repair",
+      "reinstall"
+    ],
+    "migration_preparation": "explicit_sdk_backend_extension",
+    "migration_execution": true,
+    "migration_actions": [
+      "install",
+      "update"
+    ],
+    "migration_max_steps": 1,
+    "default_registration": false,
+    "recovery_execution": true,
+    "recovery_actions": [
+      "restore",
+      "rollback"
+    ],
+    "recovery_failure_policy": "preserve_before_recovery_snapshot_no_automatic_retry",
+    "execution_platforms": [
+      "linux"
+    ],
+    "execution_mode": "native",
+    "execution_scope": "user"
+  },
+  "scaffold": {
+    "sdk": "homensai_install.scaffold.scaffold_product",
+    "cli": "hinstall init-adapter",
+    "missing_inputs": "DRAFT_BLOCKED"
+  },
+  "locales": [
+    "ru",
+    "en",
+    "de"
+  ],
+  "backends": {
+    "sdk": "homensai_install.backends.BackendRouter",
+    "bootstrap_sdk": "homensai_install.api.v1.InstallerAPI.from_bootstrap",
+    "registration": "explicit_bootstrap",
+    "default": "native:user",
+    "selection": "reviewed_target",
+    "implicit_fallback": false,
+    "availability": "capabilities_for_exact_target"
+  },
+  "prerequisites": {
+    "registration": "explicit_sdk",
+    "execution": "synchronous_default_background_opt_in",
+    "background_ack": "durable_queued_operation",
+    "recovery_listing": true,
+    "http_transport": "explicit_wizard_session",
+    "http_plan_input": "server_plan_id",
+    "cli_transport": "explicit_trusted_sdk",
+    "cli_execution": "synchronous",
+    "busy_probe": "registered_store_claim_or_controller",
+    "durable_byte_progress": true,
+    "automatic_default_factory": false,
+    "gui_auto_flow": true,
+    "readiness": "source_contract",
+    "production_ready": false
+  },
+  "operations": [
+    "describe",
+    "capabilities",
+    "validate",
+    "discover",
+    "prepare_migration",
+    "plan",
+    "submit",
+    "operations.list",
+    "status",
+    "events",
+    "cancel",
+    "resume",
+    "errors.describe",
+    "errors.search",
+    "diagnostics.get",
+    "diagnostics.export",
+    "statistics.query",
+    "prerequisites.capabilities",
+    "prerequisites.identity",
+    "prerequisites.busy",
+    "prerequisites.license",
+    "prerequisites.plan",
+    "prerequisites.start",
+    "prerequisites.status",
+    "prerequisites.operations.list",
+    "prerequisites.events",
+    "prerequisites.attempts",
+    "prerequisites.recheck",
+    "prerequisites.resume",
+    "prerequisites.cancel",
+    "prerequisites.choose_boundary",
+    "prerequisites.replace_plan"
+  ],
+  "schemas": {
+    "manifest": "shared/manifest.schema.json",
+    "request": "api/schemas/request.schema.json",
+    "plan": "api/schemas/plan.schema.json",
+    "operation": "api/schemas/operation.schema.json",
+    "event": "api/schemas/event.schema.json"
+  },
+  "documentation": {
+    "api": "api/resources/INSTALLER_API.md",
+    "integration": "api/resources/INTEGRATION_GUIDE.md",
+    "product_adapter": "api/resources/PRODUCT_ADAPTER_EXECUTION.md",
+    "http": "api/resources/openapi.yaml"
+  },
+  "readiness": "development",
+  "production_ready": false,
+  "limits": {
+    "input_json_bytes": 2097152,
+    "json_depth": 48,
+    "event_page_size": 1000,
+    "operation_list_size": 200
+  }
+}

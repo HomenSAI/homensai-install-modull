@@ -1,0 +1,117 @@
+{
+  "type": "object",
+  "properties": {
+    "model_version": {
+      "const": 1
+    },
+    "source_schema_version": {
+      "enum": [
+        1,
+        2
+      ]
+    },
+    "product": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "archive_before_replace": {
+      "const": true
+    },
+    "source_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "native_complete": {
+      "type": "boolean"
+    },
+    "paths": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "runtime": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "data_home_env": {
+      "type": "string"
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "web": {
+      "type": "object"
+    },
+    "migrations": {
+      "type": "object"
+    },
+    "docker": {
+      "type": "object"
+    },
+    "modes": {
+      "type": "array"
+    },
+    "mutual_exclusion": {
+      "type": "array"
+    },
+    "secrets": {
+      "type": "array"
+    },
+    "backup": {
+      "type": "object"
+    },
+    "restore": {
+      "type": "object"
+    },
+    "update": {
+      "type": "object"
+    },
+    "hooks": {
+      "type": "object"
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "model_version",
+    "source_schema_version",
+    "product",
+    "archive_before_replace",
+    "source_digest",
+    "native_complete",
+    "paths",
+    "runtime",
+    "components",
+    "web",
+    "migrations",
+    "modes",
+    "mutual_exclusion",
+    "secrets",
+    "warnings"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Normalized read-only manifest model v1"
+}

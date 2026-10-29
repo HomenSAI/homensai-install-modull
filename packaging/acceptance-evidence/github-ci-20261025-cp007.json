@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-008",
+  "observed_checkpoint": "CP-20261025-007",
+  "head_sha": "4fa7cc26bc4fb8fa8ae2ddca3a531a9a2afe5625",
+  "scope": "GitHub Actions availability; no test steps executed",
+  "status": "BLOCKED",
+  "cause": "Unknown from available API: jobs completed/failure with runner_id=0 and steps=[]",
+  "runs": [
+    {
+      "run_id": 40186125750,
+      "jobs": [
+        {
+          "id": 121147160213,
+          "name": "Linux source and user-process integration (no installer acceptance)",
+          "status": "completed",
+          "conclusion": "failure",
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "steps": [],
+          "url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40186125750/job/121147160213"
+        },
+        {
+          "id": 121147160309,
+          "name": "Windows portable source subset (no service installation)",
+          "status": "completed",
+          "conclusion": "failure",
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "windows-2025"
+          ],
+          "steps": [],
+          "url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40186125750/job/121147160309"
+        }
+      ]
+    },
+    {
+      "run_id": 40186123426,
+      "jobs": [
+        {
+          "id": 121147153761,
+          "name": "Linux source and user-process integration (no installer acceptance)",
+          "status": "completed",
+          "conclusion": "failure",
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "steps": [],
+          "url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40186123426/job/121147153761"
+        },
+        {
+          "id": 121147154048,
+          "name": "Windows portable source subset (no service installation)",
+          "status": "completed",
+          "conclusion": "failure",
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "windows-2025"
+          ],
+          "steps": [],
+          "url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40186123426/job/121147154048"
+        }
+      ]
+    }
+  ],
+  "production_ready": false
+}

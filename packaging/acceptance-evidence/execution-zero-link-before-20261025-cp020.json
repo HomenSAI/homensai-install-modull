@@ -1,0 +1,31 @@
+{
+  "checkpoint": "CP-20261025-020",
+  "status": "FAIL",
+  "input_sha256": {
+    "homensai_install/execution_lease.py": "093f6c0d8f54a543064c8e00cb8a92d8323377e3a77c88b55d1044e4662ed3c5"
+  },
+  "observed": {
+    "elapsed": 0.03203296900028363,
+    "writes": 6,
+    "checks": 318,
+    "metadata": [
+      {
+        "name": "prerequisites.sqlite3-journal",
+        "nlink": 0,
+        "mode": "0o100600",
+        "uid": 0,
+        "fresh": "ENOENT"
+      }
+    ],
+    "failure": {
+      "code": "STATE_STORAGE_UNAVAILABLE",
+      "context": {
+        "details": {
+          "reason": "execution_domain_file_not_private"
+        }
+      }
+    }
+  },
+  "scope": "Собственный SQLite writer/reader в isolated Docker, real metadata; не OS installer/platform acceptance.",
+  "production_ready": false
+}

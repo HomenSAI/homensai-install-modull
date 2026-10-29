@@ -1,0 +1,127 @@
+{
+  "type": "object",
+  "properties": {
+    "api_version": {
+      "const": "1.0"
+    },
+    "plan_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "action": {
+      "enum": [
+        "build",
+        "install",
+        "update",
+        "modify_components",
+        "repair",
+        "reinstall",
+        "uninstall",
+        "backup",
+        "restore",
+        "rollback",
+        "start",
+        "stop"
+      ]
+    },
+    "source_manifest": {
+      "type": "object"
+    },
+    "normalized_manifest": {
+      "$ref": "normalized.schema.json"
+    },
+    "manifest_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "target": {
+      "type": "object",
+      "properties": {
+        "os": {
+          "enum": [
+            "linux",
+            "windows"
+          ]
+        },
+        "arch": {
+          "enum": [
+            "x64",
+            "arm64"
+          ]
+        },
+        "mode": {
+          "enum": [
+            "native",
+            "docker"
+          ]
+        },
+        "scope": {
+          "enum": [
+            "user",
+            "service"
+          ]
+        }
+      },
+      "required": [
+        "os",
+        "arch",
+        "mode",
+        "scope"
+      ],
+      "additionalProperties": false
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "migration_review_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "inventory_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "engine_plan": {
+      "type": "object"
+    },
+    "required_consents": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "plan_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "review_consent_ref": {
+      "type": "string",
+      "pattern": "^plan:[0-9a-f]{64}$"
+    }
+  },
+  "required": [
+    "api_version",
+    "plan_id",
+    "created_at",
+    "action",
+    "source_manifest",
+    "normalized_manifest",
+    "manifest_digest",
+    "target",
+    "options",
+    "inventory_fingerprint",
+    "engine_plan",
+    "required_consents",
+    "plan_digest",
+    "review_consent_ref"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Immutable execution plan v1"
+}

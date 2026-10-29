@@ -1,0 +1,423 @@
+{
+  "schema_version": 1,
+  "checked_at_utc": "2026-10-25T20:59:20.557710+00:00",
+  "status": "PASS",
+  "scope": "installed SDK/CLI Linux x64 signed synthetic reference planning contract",
+  "production_ready": false,
+  "gate_closed": false,
+  "source_baseline": "e3482cc41c715f58eb09def91db3dd0d473d168e",
+  "source_package_files": {
+    "homensai_install/__init__.py": "23319568614d158aa4b9d9d38fb824f4fca7d6cf941647536d5e25dd2d86b366",
+    "homensai_install/__main__.py": "935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d",
+    "homensai_install/adapters.py": "b94358367cb7db8e83fb05eaa819fd67e5156a4ab16296982c40553d3eeb6b99",
+    "homensai_install/api/__init__.py": "d90cb75adf5f560ed2bc563961e22c71a3254dfc9fd68c8996acf51e8adf240e",
+    "homensai_install/api/journal.py": "e7e0e71fb6576847639871dbf1ac7bb7b7842c0be2a886460250afec5914c801",
+    "homensai_install/api/model.py": "ae38ba380cdef51a1c4955511953c6f7c9696e6996b8c3be6ee2e9e44cd56c82",
+    "homensai_install/api/resources/INSTALLER_API.md": "40ae76a2fb7d1969ecfa1513737318b03c69f6b84b04ab4f9a3288fb08b49e54",
+    "homensai_install/api/resources/INTEGRATION_GUIDE.md": "65785f7f96ca257442d7b0031b82b2d0efec10f30134129201a9bf07a4827919",
+    "homensai_install/api/resources/PRODUCT_ADAPTER_EXECUTION.md": "cc8c69f75e2ee85890840f8dcaf35d1f39fadfdeff51853cd1c46916ac0d30f3",
+    "homensai_install/api/resources/discovery.json": "bb73028ad3efc0d1695b5bfd3dad618f15afb28beb413633fa016ca7a9cc2aa7",
+    "homensai_install/api/resources/openapi.yaml": "918ac80d3fab0a9a7adf28d58f24ea1db1c1b6258315a33805fcb28224468574",
+    "homensai_install/api/schemas/event.schema.json": "98d27aea1422ab94df888fee3ac6d7bdc56f7a5bcec55c2139113017a5da4767",
+    "homensai_install/api/schemas/normalized.schema.json": "0377695226479804b3f9e9cb7543ad1941261bcbafef92f810367cb761baaaea",
+    "homensai_install/api/schemas/operation.schema.json": "f6d6a8969df040eab98b03fcc5625da8fd53107c72f989d0d379da03c70788f6",
+    "homensai_install/api/schemas/plan.schema.json": "13d603c20072f31cfca9f4690748661faaa3d6c33a37439394901dc877beed11",
+    "homensai_install/api/schemas/request.schema.json": "2aa3d8bf2a66a78519833468919da1504221f1bbe587dd19ebac2dab57127ca2",
+    "homensai_install/api/v1.py": "d13ea36005f87d18fae58d2d2b9bb3cf7cca9af61ac4ea150d6917385e3c4476",
+    "homensai_install/backends.py": "24c2cd89f48e9f64f580274c46d5d2d058bde4ea1913cf1bb6ce94cac08833f3",
+    "homensai_install/catalog/errors.v1.json": "33288134e406a1907e83cf0d06682a780346ccddb1a354ab900a858e8d3e4582",
+    "homensai_install/cli.py": "50ba071b46b0e9b530b3f5233afcd9790758d241db7257760d64e2b02499762e",
+    "homensai_install/diagnostics.py": "66a62f6b6adf73d1be149b3033703d977bb2b7bf08295844ddaff4d3b014950f",
+    "homensai_install/docker_cli.py": "8d98f92855f35126231cb2cf3f7be6208552e7cc14c5a9d70287ceb9fe5bf44b",
+    "homensai_install/docker_commands.py": "01e40bad589ee59028cc391fc15a9ef63faf05719ac9069243ddd10e3aa52dd0",
+    "homensai_install/docker_contract.py": "dcc843afa3863336c2ececeb5dd37448bfdf3abbdec84c6e5ffd8ef0dbd92ea9",
+    "homensai_install/docker_engine.py": "a769728394f8bf144cdd077443cb3a93820ed117c0acff23bd82750c7ad47d6e",
+    "homensai_install/docker_lifecycle.py": "b9c5269ea0fd45fb91bd8c2399fe34cd37ad936c7abe6f8d031e04838a1bb210",
+    "homensai_install/downloads.py": "a2775a7e9fd8c3d1c23ed167d7104310f068095901843fe1c0567d3da1936bba",
+    "homensai_install/engine.py": "76e6f1ba35dd58ebe3328bb9cae582cba2f2ee0509145ecd3574cde693db8a56",
+    "homensai_install/errors.py": "05f438a1ed6439cb0886248ed24251a08915353db5538307d7f2497fe5cd5cca",
+    "homensai_install/execution_lease.py": "71fed1209d0b6c2902c658395fc2f1a7c7990ac058c5023e98b06428cef79c03",
+    "homensai_install/gui.py": "fa5ac75bc626c6e58a5b043fb47baa775ff3cb0f3a5c328fb1bea77ff025799c",
+    "homensai_install/i18n.py": "cc4ae69d3fc6d2473b9080c2f662a516c584736ac9564ea34eb62ba3e619fe94",
+    "homensai_install/local_artifacts.py": "f504aa1f2337da364dad700441784519d9439aed6a08ef78295e6c397682101d",
+    "homensai_install/locales/de.json": "fd5d69d44e555fc5731cc6ac04a335f8dea4e545e7c9ee52b8a8b45dee998586",
+    "homensai_install/locales/en.json": "4449b590485850d1c89b7208d1b106dcb5bf350d2ffe284157d7ec9bcaa5311f",
+    "homensai_install/locales/ru.json": "e2b43560348c45b66f2cde81252f7fe2bcd41b968f067a6dde4f4e7cda2f3904",
+    "homensai_install/prerequisite_async.py": "acc27592d3dea208043938067518e9d6054421d4036b6c3ad7569a80403e168a",
+    "homensai_install/prerequisite_catalog.py": "78b865a4f707faafa03453edb871a46b07a57ecdb609fb604b405b0736aef538",
+    "homensai_install/prerequisite_execution.py": "ec08c3ceb5e15e32d8fd8b34f7bc0654a107098617a1f3cc3362e4f53d9c598e",
+    "homensai_install/prerequisite_progress.py": "a6f04e2260d6ad9c42198b712bcfffd1e1b0cc86d0125b6f12664904d7922b85",
+    "homensai_install/prerequisite_runner.py": "e7b1d681f02400c04c129b6d5e0adc73f68352ea68deb7bd6f59c85e598675c2",
+    "homensai_install/prerequisite_state.py": "76a1699cf8ecabf5fb6e01184a8c833a198796b5bc07df43f120e579f4977afa",
+    "homensai_install/prerequisites.py": "f3c5b4a3ee32d2fa06429a83933089a850a537dd4b965e5de7fa28e0bb99f1bd",
+    "homensai_install/process_liveness.py": "e27d2a11660be42c4e51e32240b7016fc4a9c5e6794a43d7fc335696b6c2e8a5",
+    "homensai_install/scaffold.py": "91c5e6e1beed4affe834e20f0b66555c5873b9af527fe3476d1c6c9c7cd64c42",
+    "homensai_install/service_contracts.py": "631cffe0a01936875214550d12cc94e95a1b3125ca179fcbb040a7fd8d66309c",
+    "homensai_install/service_manager.py": "f37f2f3cb16d118e95b25fd76ab26029e5e02f2798445711e48fd32671742c5e",
+    "homensai_install/service_systemd.py": "ba84ef1b3bce03f6d75974c877ebb93e3dc547100336c043be20cc2e6924c190",
+    "homensai_install/trust.py": "a6e3db84ad9f9d0380b72c89856a6d03eed2b48227f3e41d16c7a8d1270ac31a",
+    "homensai_install/wizard/app.js": "c9fca5cf005c92d8b968cb4b102e101c50bc7ba84fc2bd3c7cc7e6d4ea50d9f7",
+    "homensai_install/wizard/index.html": "d74c895868de6428c6d431a16b8f7a05d932884f59934492d0bee18bce87bf2d",
+    "homensai_install/wizard/locales.json": "36876ab1d32246cff20e4cd6a8a5a9e2e54b1683644179fd38a96793c29fc469",
+    "homensai_install/wizard/style.css": "a016942ec107bb254748dc92d0ecda6b0cb8b4d73ba05c7a500eda839515b558",
+    "shared/__init__.py": "a1fbf3cc018b4067361b81154240dafecbb3a8bcaaa7dc40616cf50028b8f620",
+    "shared/adapters_docker.py": "49eca8dca5442a3a04cba8aaf1dbd567fb51f2080056bcc481adbd205d373475",
+    "shared/adapters_fs.py": "eecd85a7e7ffc7fedb02cbd7c11efeb5d78a3831c61910b7209f1afea845cdee",
+    "shared/archive.py": "8fe1608c7b32cbf4a68a3f4dea5c51754b9f3a76a1fd7f7441532e2925074ff1",
+    "shared/archive_crypto.py": "373c324e8e91e3f1a913bf21df8d75bce305b090890daefebc5aa9a981ad071d",
+    "shared/ctl.py": "578703a8501c179c3467ca93cbd63e140a8305a59d661465f7677aa8dc18abe7",
+    "shared/datahome.py": "d098a741fad91d3f049142e562888dcec1ab81b26122177b2b03f2383c85a0f8",
+    "shared/doctor.py": "4219979e3a6272035cb73136a66eb0495f89e1a5fdd074476dfadac8a052c2ec",
+    "shared/linux_sh.py": "bd2879348370345d1082f23aea81f82896f4ea223c70d53c4fc0c9c315009e4d",
+    "shared/manifest.py": "9de8092a5f78d27d3f49cbde8ef02fd364edf117d1673c35a364110a209976a3",
+    "shared/manifest.schema.json": "a8fce321b4621836558b23d171d4861cb0434b27c25f58e285a8a098b9ef797a",
+    "shared/render_docker.py": "c052cf877c70627f5a1e91b58e42c306f7f8d25317b711514a40a47fbb49fae0",
+    "shared/services.py": "e2b0c76b293ea647b507f0eb99a48020b51b0a1311456559ce5123906ee294ac",
+    "shared/update_plan.py": "57b76249ae4d2dd172c01b967e12c0f03946e353d501f3cd85ed603eb26a37d3",
+    "shared/windows_ps.py": "23a38271ad1f760baa4e7ad425fa70fa734100f8f407345891a0e58638aa1944"
+  },
+  "source_package_digest": "d520cbbedfcc1bb6baf8393139abaf5ceb327dc2c3eac95ecb67eced9865eb98",
+  "harness_sha256": "e0f15c2fa675f314b6d7beaf79ad1a3f4305f2a1965cc3a5bd9b32d1a328a4d4",
+  "client_sha256": "50440958a9ef2918b23f4a076e66b184740431029d2e17b568fd290a01ce99d2",
+  "wheel": {
+    "name": "homensai_install_module-0.1.0-py3-none-any.whl",
+    "sha256": "b97c123943d29a43a12a88e2bd81b2432362cd85100d2014fda575fa937b3e74",
+    "exact_files_checked": 68
+  },
+  "reference_wheel": {
+    "name": "homensai_reference-1.0.0-py3-none-any.whl",
+    "sha256": "f0eee142f9da34b8cd98b11f694b53aefc0c290f65b63f7ce77ec25fd2ddcc91",
+    "installed_or_executed": false
+  },
+  "environment": {
+    "python": "3.14.3 (main, Apr  7 2026, 02:23:36) [GCC 12.2.0]",
+    "platform": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+    "venv_system_site_packages": false,
+    "external_work_directory": "/tmp/hinstall-cp021-sdk",
+    "pip_network_flags": "--no-index --no-deps --no-cache-dir --no-build-isolation"
+  },
+  "fixture": {
+    "development": true,
+    "ed25519_signature_verified_by_publisher": true,
+    "files": {
+      "forbidden_hook.py": "afa5fcd84a60df70de4fbb02508a53b0b959a88200ef47530e579440db98e6a3",
+      "legal/de.txt": "b764afee52fb2ce4169ea6c9e93da1793de244d36086a1c93a64474c352e5559",
+      "legal/en.txt": "7311c962e24ad63e858c8f19a27b39362158f8074de965d25e82e12ed6aae8ac",
+      "legal/ru.txt": "5b699751a53e11eda66a13f85f00c38404374e27d852e1eaf2a99b2079e2c763",
+      "locks/linux.lock": "f9b8571fdcce7d27386527a570f6b68ac29631a7434672b3fc6acb8361805905",
+      "locks/windows.lock": "f9b8571fdcce7d27386527a570f6b68ac29631a7434672b3fc6acb8361805905",
+      "runtime/PLANNING_ONLY.txt": "3230aee86e3e0e00b52c6f43234764cc5e7ec3d365047be71ab5d77ca2a2a2cf",
+      "vendor/homensai_reference-1.0.0-py3-none-any.whl": "f0eee142f9da34b8cd98b11f694b53aefc0c290f65b63f7ce77ec25fd2ddcc91"
+    },
+    "payload_unchanged": true,
+    "runtime": "NON_EXECUTABLE_PLANNING_PLACEHOLDER",
+    "installer_payload_verification": "deferred until execute; execute was not called"
+  },
+  "sdk": {
+    "description": {
+      "api_version": "1.0",
+      "module_version": "0.1.0",
+      "adapter_protocol_version": "1.0",
+      "error_catalog_version": "1.0.0",
+      "manifest_schemas": [
+        1,
+        2
+      ],
+      "normalized_model_version": 1,
+      "sdk": "homensai_install.api.v1.InstallerAPI",
+      "cli": "hinstall",
+      "product_adapter": {
+        "sdk": "homensai_install.adapters.ExecutableProductAdapter",
+        "protocol_version": "1.0",
+        "registration": "explicit_sdk",
+        "lifecycle_engine_registration": true,
+        "lifecycle_registration": "trusted_native_engine_constructor",
+        "lifecycle_engine_actions": [
+          "start",
+          "stop",
+          "backup"
+        ],
+        "migration_execution": false,
+        "default_registration": false,
+        "execution_platforms": [
+          "linux"
+        ],
+        "execution_mode": "native",
+        "execution_scope": "user"
+      },
+      "scaffold": {
+        "sdk": "homensai_install.scaffold.scaffold_product",
+        "cli": "hinstall init-adapter",
+        "missing_inputs": "DRAFT_BLOCKED"
+      },
+      "locales": [
+        "ru",
+        "en",
+        "de"
+      ],
+      "backends": {
+        "sdk": "homensai_install.backends.BackendRouter",
+        "bootstrap_sdk": "homensai_install.api.v1.InstallerAPI.from_bootstrap",
+        "registration": "explicit_bootstrap",
+        "default": "native:user",
+        "selection": "reviewed_target",
+        "implicit_fallback": false,
+        "availability": "capabilities_for_exact_target"
+      },
+      "prerequisites": {
+        "registration": "explicit_sdk",
+        "execution": "synchronous_default_background_opt_in",
+        "background_ack": "durable_queued_operation",
+        "recovery_listing": true,
+        "http_transport": "explicit_wizard_session",
+        "http_plan_input": "server_plan_id",
+        "cli_transport": "explicit_trusted_sdk",
+        "cli_execution": "synchronous",
+        "busy_probe": "registered_store_claim_or_controller",
+        "durable_byte_progress": true,
+        "automatic_default_factory": false,
+        "gui_auto_flow": true,
+        "readiness": "source_contract",
+        "production_ready": false
+      },
+      "operations": [
+        "describe",
+        "capabilities",
+        "validate",
+        "discover",
+        "plan",
+        "submit",
+        "operations.list",
+        "status",
+        "events",
+        "cancel",
+        "resume",
+        "errors.describe",
+        "errors.search",
+        "diagnostics.get",
+        "diagnostics.export",
+        "statistics.query",
+        "prerequisites.capabilities",
+        "prerequisites.identity",
+        "prerequisites.busy",
+        "prerequisites.license",
+        "prerequisites.plan",
+        "prerequisites.start",
+        "prerequisites.status",
+        "prerequisites.operations.list",
+        "prerequisites.events",
+        "prerequisites.attempts",
+        "prerequisites.recheck",
+        "prerequisites.resume",
+        "prerequisites.cancel",
+        "prerequisites.choose_boundary",
+        "prerequisites.replace_plan"
+      ],
+      "schemas": {
+        "manifest": "shared/manifest.schema.json",
+        "request": "api/schemas/request.schema.json",
+        "plan": "api/schemas/plan.schema.json",
+        "operation": "api/schemas/operation.schema.json",
+        "event": "api/schemas/event.schema.json"
+      },
+      "readiness": "development",
+      "production_ready": false,
+      "limits": {
+        "input_json_bytes": 2097152,
+        "json_depth": 48,
+        "event_page_size": 1000,
+        "operation_list_size": 200
+      }
+    },
+    "manifest_digest": "f85e7f5bba1a5e5aabe6b0dd53df65d27cdbb03d753f39573312a648ae23d960",
+    "engine_plan": {
+      "steps": [
+        {
+          "id": "verify",
+          "component_id": "product",
+          "weight": 1
+        },
+        {
+          "id": "prepare",
+          "component_id": "product",
+          "weight": 1
+        },
+        {
+          "id": "stage",
+          "component_id": "product",
+          "weight": 1
+        },
+        {
+          "id": "migrate",
+          "component_id": "product",
+          "weight": 1
+        },
+        {
+          "id": "activate",
+          "component_id": "product",
+          "weight": 1
+        },
+        {
+          "id": "start",
+          "component_id": "product",
+          "weight": 1
+        },
+        {
+          "id": "health",
+          "component_id": "product",
+          "weight": 1
+        }
+      ],
+      "resources": [
+        "/tmp/hinstall-cp021-sdk/install-root",
+        "/tmp/hinstall-cp021-sdk/recovery-root"
+      ],
+      "required_consents": [
+        "action:install",
+        "terms:5b699751a53e11eda66a13f85f00c38404374e27d852e1eaf2a99b2079e2c763"
+      ],
+      "scope": "user-session",
+      "preserves_user_data": true,
+      "production_ready": false,
+      "backup_strategy": "filesystem_quiesced",
+      "product_backup_hooks_supported": false,
+      "consistency_requires": [
+        "all_writers_are_owned_components",
+        "graceful_stop_completed"
+      ],
+      "legacy_commands_not_executed": [
+        "backup.cmd",
+        "restore.cmd"
+      ],
+      "backend_routing": {
+        "version": 1,
+        "id": "native:user",
+        "target": {
+          "os": "linux",
+          "arch": "x64",
+          "mode": "native",
+          "scope": "user"
+        }
+      }
+    },
+    "required_consents": [
+      "action:install",
+      "terms:5b699751a53e11eda66a13f85f00c38404374e27d852e1eaf2a99b2079e2c763"
+    ],
+    "target": {
+      "os": "linux",
+      "arch": "x64",
+      "mode": "native",
+      "scope": "user"
+    },
+    "negative_error_codes": [
+      "CAPABILITY_UNSUPPORTED",
+      "CAPABILITY_UNSUPPORTED",
+      "INVALID_REQUEST",
+      "INVALID_REQUEST"
+    ],
+    "journal_reload": true,
+    "operations": [],
+    "schemas": [
+      "manifest",
+      "request",
+      "plan",
+      "operation",
+      "event"
+    ],
+    "module_origins": {
+      "homensai_install": "homensai_install/__init__.py",
+      "homensai_install.process_liveness": "homensai_install/process_liveness.py",
+      "shared": "shared/__init__.py",
+      "shared.manifest": "shared/manifest.py",
+      "homensai_install.api.model": "homensai_install/api/model.py",
+      "homensai_install.api.journal": "homensai_install/api/journal.py",
+      "homensai_install.api.v1": "homensai_install/api/v1.py",
+      "homensai_install.api": "homensai_install/api/__init__.py",
+      "homensai_install.i18n": "homensai_install/i18n.py",
+      "homensai_install.errors": "homensai_install/errors.py",
+      "shared.datahome": "shared/datahome.py",
+      "shared.archive": "shared/archive.py",
+      "shared.archive_crypto": "shared/archive_crypto.py",
+      "shared.services": "shared/services.py",
+      "shared.update_plan": "shared/update_plan.py",
+      "shared.adapters_fs": "shared/adapters_fs.py",
+      "homensai_install.engine": "homensai_install/engine.py",
+      "homensai_install.backends": "homensai_install/backends.py",
+      "homensai_install.trust": "homensai_install/trust.py",
+      "homensai_install.execution_lease": "homensai_install/execution_lease.py",
+      "homensai_install.prerequisites": "homensai_install/prerequisites.py"
+    },
+    "denied_attempts": [],
+    "loopback_port_probes": 2,
+    "exit_code": 0
+  },
+  "cli": [
+    {
+      "command": "describe",
+      "exit_code": 0,
+      "denied_attempts": [],
+      "loopback_port_probes": 0,
+      "module_count": 21
+    },
+    {
+      "command": "validate",
+      "exit_code": 0,
+      "denied_attempts": [],
+      "loopback_port_probes": 0,
+      "module_count": 21
+    },
+    {
+      "command": "discover",
+      "exit_code": 0,
+      "denied_attempts": [],
+      "loopback_port_probes": 1,
+      "module_count": 22
+    },
+    {
+      "command": "plan",
+      "exit_code": 0,
+      "denied_attempts": [],
+      "loopback_port_probes": 1,
+      "module_count": 22
+    },
+    {
+      "command": "unsupported",
+      "exit_code": 2,
+      "denied_attempts": [],
+      "loopback_port_probes": 0,
+      "module_count": 21
+    },
+    {
+      "command": "prerequisites-capabilities",
+      "exit_code": 0,
+      "denied_attempts": [],
+      "loopback_port_probes": 0,
+      "module_count": 21
+    },
+    {
+      "command": "prerequisites-unconfigured",
+      "exit_code": 2,
+      "denied_attempts": [],
+      "loopback_port_probes": 0,
+      "module_count": 21
+    }
+  ],
+  "wrong_resource_wheel_rejected": true,
+  "missing_package_no_checkout_fallback": true,
+  "no_product_effects": true,
+  "network_traffic_or_child_process_attempts_in_clients": 0,
+  "not_run": [
+    "product install/update/restore/rollback",
+    "Python 3.14 reference runtime execution",
+    "Windows",
+    "Docker",
+    "service integration",
+    "GUI consent",
+    "production signing",
+    "clean machine dependency/license closure",
+    "full G1 and release gates",
+    "installed registered prerequisite coordinator lifecycle",
+    "installed prerequisite HTTP/GUI transport"
+  ]
+}

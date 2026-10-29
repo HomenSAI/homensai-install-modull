@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261026-CORE-001",
+  "task_id": "HIM-050",
+  "related_task_ids": [
+    "HIM-054",
+    "HIM-056",
+    "HIM-063"
+  ],
+  "baseline_source_sha": "cd319a03f47fe9b7e4888afffe88f311329a3ce9",
+  "started_at_utc": "2026-10-26T08:25:06Z",
+  "recorded_at_utc": "2026-10-26T08:45:00Z",
+  "owner": "core_lifecycle",
+  "status": "PASS_SCOPED",
+  "production_ready": false,
+  "scope": "Linux source/integration; реальные синтетические subprocess/HTTP/SQLite/encrypted archives. Не installed wheel и не OS/platform acceptance.",
+  "environment": {
+    "image": "hinstall-dev:verification",
+    "image_id": "sha256:1b3529768706aaacabb525d6fd3168680cc2b0ffa1aee6994a3d2e5cdb8fd4c1",
+    "python": "3.14.3",
+    "network": "none",
+    "privileged": false,
+    "docker_socket_mounted": false
+  },
+  "input_sha256": {
+    "homensai_install/adapters.py": "b67db7780dc6a88cc6cd0e223abcc82dc8a9cb692628e17a91f095efec3e668d",
+    "homensai_install/engine.py": "7d8bc952792a72916d3495aa8652a8f636a299fa3941bb92aa875ec79acf8216",
+    "homensai_install/migration_receipts.py": "3c18d780f6c92d304ee46ca8033341c0983b80dd5e8829beb9f33147095369bb",
+    "tests/test_adapters_protocol.py": "bdeef83261528f17f9c16eec7c946fa9aa640c50922f9aebb5fa56868e5453b9",
+    "tests/test_native_product_adapter_contract.py": "a50000aeb8cce9435562690fe59f2c107438acc9513e1a32f7285a394db58951",
+    "tests/test_migration_receipts.py": "b691c5aed6bb334d60365af6d38bb591101e61e950e45959b54d7de0390b3762",
+    "integration_tests/test_native_product_adapter.py": "aa72b9b4284b75f0867dbcbdc8f61c4e25cccaf2724f9342a0bed8f0127baed2",
+    "integration_tests/test_native_engine.py": "1886045cc4292f200759d749067c8507de4feec10d396fb9b74c0d3b288b6406"
+  },
+  "verification": {
+    "command": "docker run --rm --network none --mount type=bind,source=<core-worktree>,target=/workspace,readonly hinstall-dev:verification python -m pytest -q -p no:cacheprovider tests/test_migration_receipts.py tests/test_adapters_protocol.py tests/test_native_product_adapter_contract.py integration_tests/test_native_product_adapter.py integration_tests/test_native_engine.py",
+    "exit_code": 0,
+    "passed": 138,
+    "subtests_passed": 5,
+    "elapsed_seconds": 183.55,
+    "raw_log": "core-lifecycle-20261026-run01/focused-green.log",
+    "observed": "Default deny, actual archive decrypt/restore + signed recovery/installation binding; ciphertext/foreign identity/release/operation/plan/tamper/link/FIFO refusal; historical identity marker addition; SUCCEEDED replay and lost ACK reconcile without re-migration."
+  },
+  "initial_failure": {
+    "command": "python -m pytest -q -p no:cacheprovider tests/test_native_product_adapter_contract.py -k fabricated",
+    "exit_code": 1,
+    "failed": 1,
+    "observation": "Baseline выполнял migration_apply с произвольным well-formed backup_receipt_id; DID NOT RAISE InstallerError.",
+    "raw_log": "core-lifecycle-20261026-run01/default-deny-red.log"
+  },
+  "intermediate_attempts": [
+    {
+      "status": "FAIL_HARNESS",
+      "observation": "Receipt fixture initially passed dict instead of install_root to resolve_datahome; fixed."
+    },
+    {
+      "status": "FAIL_HARNESS",
+      "observation": "Tampered signed payload tests expected RECOVERY_REQUIRED only; verifier correctly raised INTEGRITY_FAILED. Assertion narrowed to actual per-case stable code."
+    }
+  ],
+  "limitations": [
+    "NativeEngine adapter install/update capabilities remain false.",
+    "Maintenance backup receipt has unknown from_schema_version and no reviewed migration binding: migration_eligible=false, verification_scope=recovery_only.",
+    "Trusted callback authorization is not a product sandbox and is unavailable from request/options.",
+    "Quiescence scope covers owned components and declared adapter; arbitrary external writers are not universally detected.",
+    "Fresh-empty and prepared migration review are next implementation package; full lifecycle remains incomplete."
+  ],
+  "next_action": "Добавить explicit prepare_migration, immutable private review ID, fresh-empty proof и schema recheck; root интегрирует исходники, обновляет canonical HIM/ACC/docs и отправляет feature branch."
+}

@@ -1,0 +1,17 @@
+{
+  "checkpoint": "CP-20261025-021",
+  "source_parent": "4d6282dc4d983822e952c3b2c9cfb75eacbc7eae",
+  "files": {
+    "homensai_install/engine.py": "01a5602c42892cf71efba0d83386e164b9338591ac377c6ed273bb425ebeabd8",
+    "homensai_install/adapters.py": "9332301eb731cef5e95915cd3cbf844ead381f569726e2037a2f0302d36d4eaf",
+    "homensai_install/api/v1.py": "a8a997eda9e6419512a166d7262fdfccba3dec172a2e5cd165b699c4a81bd754",
+    "api/discovery.json": "bb73028ad3efc0d1695b5bfd3dad618f15afb28beb413633fa016ca7a9cc2aa7",
+    "homensai_install/api/resources/discovery.json": "bb73028ad3efc0d1695b5bfd3dad618f15afb28beb413633fa016ca7a9cc2aa7",
+    "docs/PRODUCT_ADAPTER_EXECUTION.md": "e29272b03b35b95a6a235941c43714c02fa4ba26e6783c19f1d90d8d7d63d0fc",
+    "tests/test_native_product_adapter_contract.py": "dc8ecd4bc47ff2ebfe6b6d837fb7874467791a79bd16005ea79656f5995312e3",
+    "integration_tests/test_native_product_adapter.py": "9304be341596fb08e72b986fa2b48109699ea1f08a20c3011ef95756f7a3c1c6"
+  },
+  "tracked_patch": "build/cp021-invocation-final/tracked-diff.patch",
+  "tracked_patch_sha256": "27153136308c9b5d11fe0c399ae246cee8f5ad609980761981c18368246dd9a7",
+  "note": "Apply tracked patch with 3-way merge, preserving newer Windows liveness helper changes. Copy only the three listed untracked test/doc files. No commits/push performed by this agent."
+}

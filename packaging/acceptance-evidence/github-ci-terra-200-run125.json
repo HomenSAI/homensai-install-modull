@@ -1,0 +1,15 @@
+{
+  "checkpoint_id": "CP-20261028T161418Z-e7a7c5c83951",
+  "task_id": "HIM-086",
+  "source_commit": "4bc2b1f421e5d50ef5b06ffdb9abb2ac2839e020",
+  "run_id": 40722287588,
+  "run_url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40722287588",
+  "status": "PASS_SCOPED",
+  "linux_job_id": 122936290014,
+  "linux_source": {"passed": 2392, "skipped": 1, "subtests_passed": 10},
+  "linux_integration": {"passed": 236, "skipped": 2, "subtests_passed": 5},
+  "windows_job_id": 122936291101,
+  "windows_portable": {"passed": 549, "skipped": 4},
+  "probe": {"python_version": "3.14.9", "mode_octal": "0o755", "hardlink_count": 1, "regular_file": true, "sha256": "53c66318fe2966e23d7e361e8b1ec5c08d12cab5ee97b50847539f8645d08073"},
+  "limits": "Earlier failing GitHub runner observed mode 0777, current successful runner observed 0755. CI success does not establish the new fixture works on GitHub while source interpreter is 0777. Local test covers 0755 copied Python only; controlled end-to-end unsafe-source reproduction still needed. No clean-host or production acceptance."
+}

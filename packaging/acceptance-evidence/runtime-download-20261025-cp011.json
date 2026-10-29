@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "checked_at_utc": "2026-10-25T12:09:41.494412+00:00",
+  "scope": "newly downloaded pinned DEV runtime, not historical provenance",
+  "source_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260325/cpython-3.14.3%2B20260325-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+  "sha256": "34e8e7ea5192308f0fe6d93becdf3eeb00a64a1fdbb4beead98d0edb93b68cdd",
+  "bytes": 36239204,
+  "expected_match": true,
+  "safe_extraction": "Python tarfile data filter",
+  "runtime_version": "3.14.3 (main, Mar 24 2026, 22:50:36) [Clang 22.1.1 ]\nx86_64\n",
+  "archive": "/workspace/scratch/1c36bef26117/dev-build-inputs/cpython-3.14.3.tar.gz",
+  "python": "/workspace/scratch/1c36bef26117/dev-build-inputs/cpython314/python/bin/python3.14",
+  "production_ready": false,
+  "production_security_review": "NOT DONE; historical DEV 3.14.3 only",
+  "attempts": [
+    {
+      "sandbox_download": "NOT RUN",
+      "reason": "browser-proxy unreachable"
+    },
+    {
+      "approved_https_download": "PASS"
+    }
+  ]
+}

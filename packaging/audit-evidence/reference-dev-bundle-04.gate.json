@@ -1,0 +1,2887 @@
+{
+  "schema_version": 1,
+  "policy_id": "homensai-commercial-and-noncommercial-distribution-v1",
+  "inventory_id": "reference-dev-bundle-04-2026-10-25",
+  "mode": "production",
+  "status": "BLOCKED",
+  "production_eligible": false,
+  "issues": [
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "release:complete_artifact_scope",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "release:transitive_closure",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "release:source_provenance",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "release:security_baseline",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "release:product_licensing",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "homensai-first-party",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "homensai-first-party"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "homensai-first-party"
+    },
+    {
+      "code": "FIRST_PARTY_AUTHORIZATION_UNVERIFIED",
+      "component_id": "homensai-first-party"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "cpython",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "cpython"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "cpython"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "cpython",
+      "detail": "UNKNOWN"
+    },
+    {
+      "code": "SPECIAL_REVIEW_REQUIRED",
+      "component_id": "cpython",
+      "detail": "CNRI-Python"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "cpython",
+      "detail": "record_modifications"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "cpython",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "cpython"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-bzip2",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-bzip2"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-bzip2"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-bzip2",
+      "detail": "record_modifications"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-bzip2",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "pbs-bzip2"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-expat",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-expat"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-expat"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-expat",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "pbs-expat"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-libedit",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-libedit"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-libedit"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-libedit",
+      "detail": "no_endorsement"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-libedit",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "pbs-libedit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-libffi",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-libffi"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-libffi"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-libffi",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "pbs-libffi"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-mpdecimal",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-mpdecimal"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-mpdecimal"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-mpdecimal",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "pbs-mpdecimal"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-ncurses",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-ncurses"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-ncurses"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-ncurses",
+      "detail": "no_endorsement"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-ncurses",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "pbs-ncurses"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-openssl-3.5",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-openssl-3.5"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-openssl-3.5"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-openssl-3.5",
+      "detail": "preserve_notice_if_supplied"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-openssl-3.5",
+      "detail": "record_modifications"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-openssl-3.5",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "pbs-openssl-3.5"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-sqlite",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-sqlite"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-sqlite"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-sqlite",
+      "detail": "UNKNOWN"
+    },
+    {
+      "code": "SPECIAL_REVIEW_REQUIRED",
+      "component_id": "pbs-sqlite",
+      "detail": "LicenseRef-SQLite-Public-Domain"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-sqlite",
+      "detail": "verify_public_domain_provenance"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-uuid",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-uuid"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-uuid"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-uuid",
+      "detail": "no_endorsement"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-uuid",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "pbs-uuid"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-xz",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-xz"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-xz"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-zlib",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-zlib"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-zlib"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-zlib",
+      "detail": "record_modifications"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-zlib",
+      "detail": "retain_applicable_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "pbs-zlib"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-zstd",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-zstd"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-zstd"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-zstd",
+      "detail": "no_endorsement"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-zstd",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "pbs-zstd"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-bdb",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-bdb"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-bdb"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-bdb",
+      "detail": "UNKNOWN"
+    },
+    {
+      "code": "SPECIAL_REVIEW_REQUIRED",
+      "component_id": "pbs-bdb",
+      "detail": "Sleepycat"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-bdb",
+      "detail": "accompanying_software_source_compatibility"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-bdb",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-bdb",
+      "detail": "source_availability"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "pbs-bdb"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-tcl",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-tcl"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-tcl"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-tcl",
+      "detail": "record_modifications"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-tcl",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "pbs-tcl"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-tk",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-tk"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-tk"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-tk",
+      "detail": "record_modifications"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-tk",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "pbs-tk"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-libX11",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-libX11"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-libX11"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-libX11",
+      "detail": "no_endorsement"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-libX11",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "pbs-libX11"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-libXau",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-libXau"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-libXau"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-libXau",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "pbs-libXau"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pbs-libxcb",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pbs-libxcb"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pbs-libxcb"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pbs-libxcb",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "pbs-libxcb"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "itcl",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "itcl"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "itcl"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "itcl",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "tcl-thread",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "tcl-thread"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "tcl-thread"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "tcl-thread",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "tk-demo-assets",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "tk-demo-assets"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "tk-demo-assets"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "tk-demo-assets",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pypi-altgraph",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pypi-altgraph"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pypi-altgraph"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pypi-build",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pypi-build"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pypi-build"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pypi-cffi",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pypi-cffi"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pypi-cffi"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pypi-cryptography",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pypi-cryptography"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pypi-cryptography"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pypi-cryptography",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pypi-iniconfig",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pypi-iniconfig"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pypi-iniconfig"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pypi-packaging",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pypi-packaging"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pypi-packaging"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pypi-packaging",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pypi-pluggy",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pypi-pluggy"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pypi-pluggy"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pypi-pycparser",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pypi-pycparser"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pypi-pycparser"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pypi-pygments",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pypi-pygments"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pypi-pygments"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pypi-pyinstaller",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pypi-pyinstaller"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pypi-pyinstaller"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pypi-pyinstaller-hooks-contrib",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pypi-pyinstaller-hooks-contrib"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pypi-pyinstaller-hooks-contrib"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pypi-pyproject-hooks",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pypi-pyproject-hooks"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pypi-pyproject-hooks"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pypi-pytest",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pypi-pytest"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pypi-pytest"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pypi-setuptools",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pypi-setuptools"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pypi-setuptools"
+    },
+    {
+      "code": "COMPONENT_VERSION_UNKNOWN",
+      "component_id": "cffi-native-libffi"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "cffi-native-libffi",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "cffi-native-libffi"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "cffi-native-libffi"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "cffi-native-libffi",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "cffi-native-libffi"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pyinstaller-bootloader",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pyinstaller-bootloader"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pyinstaller-bootloader"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pyinstaller-bootloader",
+      "detail": "UNKNOWN"
+    },
+    {
+      "code": "SPECIAL_REVIEW_REQUIRED",
+      "component_id": "pyinstaller-bootloader",
+      "detail": "GPL-2.0-or-later WITH Bootloader-exception"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pyinstaller-bootloader",
+      "detail": "verify_exception_scope"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pyinstaller-runtime-hooks",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pyinstaller-runtime-hooks"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pyinstaller-runtime-hooks"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pyinstaller-runtime-hooks",
+      "detail": "preserve_notice_if_supplied"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pyinstaller-runtime-hooks",
+      "detail": "record_modifications"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "pyinstaller-runtime-hooks",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "pyinstaller-runtime-hooks"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "contrib-runtime-hooks",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "contrib-runtime-hooks"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "contrib-runtime-hooks"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "contrib-runtime-hooks",
+      "detail": "preserve_notice_if_supplied"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "contrib-runtime-hooks",
+      "detail": "record_modifications"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "contrib-runtime-hooks",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "contrib-runtime-hooks"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "libgcc-runtime",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "libgcc-runtime"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "libgcc-runtime"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "libgcc-runtime",
+      "detail": "UNKNOWN"
+    },
+    {
+      "code": "SPECIAL_REVIEW_REQUIRED",
+      "component_id": "libgcc-runtime",
+      "detail": "GPL-3.0-or-later WITH GCC-exception-3.1"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "libgcc-runtime",
+      "detail": "runtime_redistribution_source_compliance"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "libgcc-runtime",
+      "detail": "verify_exception_scope"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "openssl-cryptography",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "openssl-cryptography"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "openssl-cryptography"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "openssl-cryptography",
+      "detail": "preserve_notice_if_supplied"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "openssl-cryptography",
+      "detail": "record_modifications"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "openssl-cryptography",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "openssl-cryptography"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-cryptography-cffi",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-cryptography-cffi"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-cryptography-cffi"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-cryptography-cffi",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-cryptography-crypto",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-cryptography-crypto"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-cryptography-crypto"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-cryptography-crypto",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-cryptography-keepalive",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-cryptography-keepalive"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-cryptography-keepalive"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-cryptography-keepalive",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-cryptography-key-parsing",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-cryptography-key-parsing"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-cryptography-key-parsing"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-cryptography-key-parsing",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-cryptography-openssl",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-cryptography-openssl"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-cryptography-openssl"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-cryptography-openssl",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-cryptography-x509",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-cryptography-x509"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-cryptography-x509"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-cryptography-x509",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-cryptography-x509-verification",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-cryptography-x509-verification"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-cryptography-x509-verification"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-cryptography-x509-verification",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-asn1",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-asn1"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-asn1"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "rust-asn1",
+      "detail": "no_endorsement"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "rust-asn1",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "rust-asn1"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-asn1_derive",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-asn1_derive"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-asn1_derive"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "rust-asn1_derive",
+      "detail": "no_endorsement"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "rust-asn1_derive",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "rust-asn1_derive"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-base64",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-base64"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-base64"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-base64",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-bitflags",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-bitflags"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-bitflags"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-bitflags",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-cc",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-cc"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-cc"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-cc",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-cfg-if",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-cfg-if"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-cfg-if"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-cfg-if",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-find-msvc-tools",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-find-msvc-tools"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-find-msvc-tools"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-find-msvc-tools",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-foreign-types-shared",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-foreign-types-shared"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-foreign-types-shared"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-foreign-types-shared",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-foreign-types",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-foreign-types"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-foreign-types"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-foreign-types",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-heck",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-heck"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-heck"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-heck",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-itoa",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-itoa"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-itoa"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-itoa",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-libc",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-libc"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-libc"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-libc",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-once_cell",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-once_cell"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-once_cell"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-once_cell",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-openssl-macros",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-openssl-macros"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-openssl-macros"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-openssl-macros",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-openssl-sys",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-openssl-sys"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-openssl-sys"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "rust-openssl-sys",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "rust-openssl-sys"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-openssl",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-openssl"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-openssl"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "rust-openssl",
+      "detail": "preserve_notice_if_supplied"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "rust-openssl",
+      "detail": "record_modifications"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "rust-openssl",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "rust-openssl"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-pem",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-pem"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-pem"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "rust-pem",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "rust-pem"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-pkg-config",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-pkg-config"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-pkg-config"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-pkg-config",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-portable-atomic",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-portable-atomic"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-portable-atomic"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-portable-atomic",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-proc-macro2",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-proc-macro2"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-proc-macro2"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-proc-macro2",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-pyo3-build-config",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-pyo3-build-config"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-pyo3-build-config"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-pyo3-build-config",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-pyo3-ffi",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-pyo3-ffi"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-pyo3-ffi"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-pyo3-ffi",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-pyo3-macros-backend",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-pyo3-macros-backend"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-pyo3-macros-backend"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-pyo3-macros-backend",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-pyo3-macros",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-pyo3-macros"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-pyo3-macros"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-pyo3-macros",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-pyo3",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-pyo3"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-pyo3"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-pyo3",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-quote",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-quote"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-quote"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-quote",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-self_cell",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-self_cell"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-self_cell"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-self_cell",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-shlex",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-shlex"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-shlex"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-shlex",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-syn",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-syn"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-syn"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-syn",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-target-lexicon",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-target-lexicon"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-target-lexicon"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-target-lexicon",
+      "detail": "UNKNOWN"
+    },
+    {
+      "code": "SPECIAL_REVIEW_REQUIRED",
+      "component_id": "rust-target-lexicon",
+      "detail": "Apache-2.0 WITH LLVM-exception"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "rust-target-lexicon",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "rust-target-lexicon",
+      "detail": "verify_exception_scope"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "rust-target-lexicon"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-unicode-ident",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-unicode-ident"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-unicode-ident"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-unicode-ident",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "rust-vcpkg",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "rust-vcpkg"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "rust-vcpkg"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "rust-vcpkg",
+      "detail": "OR license choice must be explicit"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "ensurepip-pip",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "ensurepip-pip"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "ensurepip-pip"
+    },
+    {
+      "code": "OBLIGATION_UNSATISFIED",
+      "component_id": "ensurepip-pip",
+      "detail": "retain_license_notice"
+    },
+    {
+      "code": "REVIEW_EVIDENCE_MISSING",
+      "component_id": "ensurepip-pip"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-cachecontrol",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-cachecontrol"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-cachecontrol"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-cachecontrol",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-distlib",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-distlib"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-distlib"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-distlib",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-distro",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-distro"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-distro"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-distro",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-msgpack",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-msgpack"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-msgpack"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-msgpack",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-packaging",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-packaging"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-packaging"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-packaging",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-platformdirs",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-platformdirs"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-platformdirs"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-platformdirs",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-pyproject-hooks",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-pyproject-hooks"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-pyproject-hooks"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-pyproject-hooks",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-requests",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-requests"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-requests"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-requests",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-certifi",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-certifi"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-certifi"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-certifi",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-idna",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-idna"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-idna"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-idna",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-urllib3",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-urllib3"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-urllib3"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-urllib3",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-rich",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-rich"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-rich"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-rich",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-pygments",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-pygments"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-pygments"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-pygments",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-resolvelib",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-resolvelib"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-resolvelib"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-resolvelib",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-setuptools",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-setuptools"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-setuptools"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-setuptools",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-tomli",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-tomli"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-tomli"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-tomli",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-tomli-w",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-tomli-w"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-tomli-w"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-tomli-w",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-truststore",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-truststore"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-truststore"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-truststore",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "REVIEW_NOT_APPROVED",
+      "component_id": "pip-vendor-dependency-groups",
+      "detail": "PENDING_REVIEW"
+    },
+    {
+      "code": "TRANSITIVE_REVIEW_INCOMPLETE",
+      "component_id": "pip-vendor-dependency-groups"
+    },
+    {
+      "code": "LICENSE_CONFLICT_NOT_CLEARED",
+      "component_id": "pip-vendor-dependency-groups"
+    },
+    {
+      "code": "LICENSE_EXPRESSION_UNRESOLVED",
+      "component_id": "pip-vendor-dependency-groups",
+      "detail": "missing or oversized license expression"
+    },
+    {
+      "code": "ARTIFACT_UNDECLARED",
+      "detail": "build-work/HomenSAI-Reference-DEV.spec"
+    },
+    {
+      "code": "ARTIFACT_UNDECLARED",
+      "detail": "build-work/freeze/HomenSAI-Reference-DEV/Analysis-00.toc"
+    },
+    {
+      "code": "ARTIFACT_UNDECLARED",
+      "detail": "build-work/freeze/HomenSAI-Reference-DEV/EXE-00.toc"
+    },
+    {
+      "code": "ARTIFACT_UNDECLARED",
+      "detail": "build-work/freeze/HomenSAI-Reference-DEV/HomenSAI-Reference-DEV.pkg"
+    },
+    {
+      "code": "ARTIFACT_UNDECLARED",
+      "detail": "build-work/freeze/HomenSAI-Reference-DEV/PKG-00.toc"
+    },
+    {
+      "code": "ARTIFACT_UNDECLARED",
+      "detail": "build-work/freeze/HomenSAI-Reference-DEV/PYZ-00.pyz"
+    },
+    {
+      "code": "ARTIFACT_UNDECLARED",
+      "detail": "build-work/freeze/HomenSAI-Reference-DEV/PYZ-00.toc"
+    },
+    {
+      "code": "ARTIFACT_UNDECLARED",
+      "detail": "build-work/freeze/HomenSAI-Reference-DEV/base_library.zip"
+    },
+    {
+      "code": "ARTIFACT_UNDECLARED",
+      "detail": "build-work/freeze/HomenSAI-Reference-DEV/localpycs/pyimod01_archive.pyc"
+    },
+    {
+      "code": "ARTIFACT_UNDECLARED",
+      "detail": "build-work/freeze/HomenSAI-Reference-DEV/localpycs/pyimod02_importers.pyc"
+    },
+    {
+      "code": "ARTIFACT_UNDECLARED",
+      "detail": "build-work/freeze/HomenSAI-Reference-DEV/localpycs/pyimod03_ctypes.pyc"
+    },
+    {
+      "code": "ARTIFACT_UNDECLARED",
+      "detail": "build-work/freeze/HomenSAI-Reference-DEV/localpycs/struct.pyc"
+    },
+    {
+      "code": "ARTIFACT_UNDECLARED",
+      "detail": "build-work/freeze/HomenSAI-Reference-DEV/warn-HomenSAI-Reference-DEV.txt"
+    },
+    {
+      "code": "ARTIFACT_UNDECLARED",
+      "detail": "build-work/freeze/HomenSAI-Reference-DEV/xref-HomenSAI-Reference-DEV.html"
+    },
+    {
+      "code": "ARTIFACT_UNDECLARED",
+      "detail": "build-work/wheel/homensai_reference-1.0.0-py3-none-any.whl"
+    }
+  ],
+  "components": [
+    {
+      "component_id": "homensai-first-party",
+      "scope": "first_party",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "cpython",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "CNRI-Python",
+        "Python-2.0"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-bzip2",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "bzip2-1.0.6"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-expat",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "MIT"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-libedit",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "BSD-3-Clause"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-libffi",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "MIT"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-mpdecimal",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "BSD-2-Clause"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-ncurses",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "X11"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-openssl-3.5",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "Apache-2.0"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-sqlite",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "LicenseRef-SQLite-Public-Domain"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-uuid",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "BSD-3-Clause"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-xz",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "0BSD"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-zlib",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "Zlib"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-zstd",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "BSD-3-Clause"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-bdb",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "Sleepycat"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-tcl",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "TCL"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-tk",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "TCL"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-libX11",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "MIT",
+        "X11"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-libXau",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "MIT"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pbs-libxcb",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "MIT"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "itcl",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "tcl-thread",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "tk-demo-assets",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pypi-altgraph",
+      "scope": "build_only",
+      "selected_licenses": [
+        "MIT"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pypi-build",
+      "scope": "build_only",
+      "selected_licenses": [
+        "MIT"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pypi-cffi",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "MIT-0"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pypi-cryptography",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pypi-iniconfig",
+      "scope": "build_only",
+      "selected_licenses": [
+        "MIT"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pypi-packaging",
+      "scope": "build_only",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pypi-pluggy",
+      "scope": "build_only",
+      "selected_licenses": [
+        "MIT"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pypi-pycparser",
+      "scope": "build_only",
+      "selected_licenses": [
+        "BSD-3-Clause"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pypi-pygments",
+      "scope": "build_only",
+      "selected_licenses": [
+        "BSD-2-Clause"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pypi-pyinstaller",
+      "scope": "build_only",
+      "selected_licenses": [
+        "Apache-2.0",
+        "GPL-2.0-or-later"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pypi-pyinstaller-hooks-contrib",
+      "scope": "build_only",
+      "selected_licenses": [
+        "Apache-2.0",
+        "GPL-2.0-or-later"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pypi-pyproject-hooks",
+      "scope": "build_only",
+      "selected_licenses": [
+        "MIT"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pypi-pytest",
+      "scope": "build_only",
+      "selected_licenses": [
+        "MIT"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pypi-setuptools",
+      "scope": "build_only",
+      "selected_licenses": [
+        "MIT"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "cffi-native-libffi",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "MIT"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pyinstaller-bootloader",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "GPL-2.0-or-later WITH Bootloader-exception"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pyinstaller-runtime-hooks",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "Apache-2.0"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "contrib-runtime-hooks",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "Apache-2.0"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "libgcc-runtime",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "GPL-3.0-or-later WITH GCC-exception-3.1"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "openssl-cryptography",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "Apache-2.0"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-cryptography-cffi",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-cryptography-crypto",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-cryptography-keepalive",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-cryptography-key-parsing",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-cryptography-openssl",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-cryptography-x509",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-cryptography-x509-verification",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-asn1",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "BSD-3-Clause"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-asn1_derive",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "BSD-3-Clause"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-base64",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-bitflags",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-cc",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-cfg-if",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-find-msvc-tools",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-foreign-types-shared",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-foreign-types",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-heck",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-itoa",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-libc",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-once_cell",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-openssl-macros",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-openssl-sys",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "MIT"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-openssl",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "Apache-2.0"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-pem",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "MIT"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-pkg-config",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-portable-atomic",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-proc-macro2",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-pyo3-build-config",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-pyo3-ffi",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-pyo3-macros-backend",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-pyo3-macros",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-pyo3",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-quote",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-self_cell",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-shlex",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-syn",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-target-lexicon",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "Apache-2.0 WITH LLVM-exception"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-unicode-ident",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "rust-vcpkg",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "ensurepip-pip",
+      "scope": "redistributed",
+      "selected_licenses": [
+        "MIT"
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-cachecontrol",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-distlib",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-distro",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-msgpack",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-packaging",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-platformdirs",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-pyproject-hooks",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-requests",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-certifi",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-idna",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-urllib3",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-rich",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-pygments",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-resolvelib",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-setuptools",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-tomli",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-tomli-w",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-truststore",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    },
+    {
+      "component_id": "pip-vendor-dependency-groups",
+      "scope": "redistributed",
+      "selected_licenses": [],
+      "status": "BLOCKED"
+    }
+  ],
+  "counts": {
+    "components": 102,
+    "artifacts": 1471,
+    "issues": 482
+  },
+  "limitations": [
+    "Checks trusted review records and files; does not infer legal permission or prove a reviewer identity.",
+    "Static/embedded dependency completeness requires an approved closure review bound to this inventory.",
+    "A PASS here does not replace security, publisher-signature or installed-platform acceptance gates."
+  ]
+}

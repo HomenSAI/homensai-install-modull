@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="0.905" timestamp="2026-10-26T09:00:29.005941+00:00" hostname="e816e30d9df6"><testcase classname="integration_tests.test_reference_migration_apply" name="test_reconciliation_of_wal_database_is_unknown_and_creates_no_sidecars" time="0.061"><failure message="AssertionError: assert 'applied' == 'unknown'&#10;  &#10;  - unknown&#10;  + applied">reference = (PosixPath('/tmp/pytest-of-unknown/pytest-0/test_reconciliation_of_wal_dat0'), PosixPath('/tmp/pytest-of-unknown/pytes...onciliation_of_wal_dat0/config'), PosixPath('/tmp/pytest-of-unknown/pytest-0/test_reconciliation_of_wal_dat0/release'))
+
+    def test_reconciliation_of_wal_database_is_unknown_and_creates_no_sidecars(reference):
+        root, data, _, _ = reference
+        call = prepare()
+        adapter.execute(call)
+        db = sqlite3.connect(data / "reference.sqlite")
+        assert db.execute("PRAGMA journal_mode=WAL").fetchone() == ("wal",)
+        db.close()
+        before = tree(root)
+        assert not (data / "reference.sqlite-wal").exists() and not (data / "reference.sqlite-shm").exists()
+&gt;       assert status(call)["outcome"] == "unknown"
+E       AssertionError: assert 'applied' == 'unknown'
+E
+E         - unknown
+E         + applied
+
+/workspace/integration_tests/test_reference_migration_apply.py:232: AssertionError</failure></testcase><testcase classname="integration_tests.test_reference_migration_apply" name="test_malformed_business_effect_result_is_unknown_without_traceback_or_write" time="0.046"><failure message="AttributeError: 'list' object has no attribute 'get'">reference = (PosixPath('/tmp/pytest-of-unknown/pytest-0/test_malformed_business_effect0'), PosixPath('/tmp/pytest-of-unknown/pytes...formed_business_effect0/config'), PosixPath('/tmp/pytest-of-unknown/pytest-0/test_malformed_business_effect0/release'))
+
+    def test_malformed_business_effect_result_is_unknown_without_traceback_or_write(reference):
+        root, data, _, _ = reference
+        call = prepare()
+        adapter.execute(call)
+        with sqlite3.connect(data / "reference.sqlite") as db:
+            db.execute("UPDATE product_adapter_effects SET result='[]'")
+            db.commit()
+        before = tree(root)
+&gt;       assert status(call)["outcome"] == "unknown"
+               ^^^^^^^^^^^^
+
+/workspace/integration_tests/test_reference_migration_apply.py:244:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/workspace/integration_tests/test_reference_migration_apply.py:67: in status
+    return adapter.execute({**original, "hook": "operation_status", "data": {"hook": "migration_apply", "request_digest": original["request_digest"]}})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/workspace/reference/src/homensai_reference/adapter.py:340: in execute
+    return _operation_status(request, home)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/workspace/reference/src/homensai_reference/adapter.py:89: in _operation_status
+    return _migration_operation_status(request, home)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+request = {'protocol_version': '1.0', 'product_id': 'homensai-reference', 'hook': 'operation_status', 'idempotency_key': 'migration-1', ...}
+home = PosixPath('/tmp/pytest-of-unknown/pytest-0/test_malformed_business_effect0/data')
+
+    def _migration_operation_status(request, home):
+        unknown = {"outcome": "unknown", "request_digest": request["request_digest"]}
+        # Reconciliation envelope содержит только исходный digest и hook. Identity
+        # и результат берём из атомарно зафиксированного business effect, а не из
+        # отсутствующей строки отдельного application ledger.
+        path = safe_path(home / "reference.sqlite")
+        if not path.exists():
+            return unknown
+        connection = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=2)
+        try:
+            if not connection.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='product_adapter_effects'").fetchone():
+                return unknown
+            row = connection.execute("SELECT request_digest,result FROM product_adapter_effects WHERE effect_key=?",
+                                     (request["idempotency_key"],)).fetchone()
+            if row is None or row[0] != request["request_digest"]:
+                return unknown
+            result = json.loads(row[1])
+            schema = connection.execute("PRAGMA user_version").fetchone()[0]
+            validate_schema(connection, schema)
+&gt;           if (result.get("state_version") != str(schema) or result.get("applied") is not True
+                ^^^^^^^^^^
+                    or connection.execute("PRAGMA quick_check").fetchall() != [("ok",)]
+                    or not _required_files_ready(home, _config_home())):
+E                   AttributeError: 'list' object has no attribute 'get'
+
+/workspace/reference/src/homensai_reference/adapter.py:307: AttributeError</failure></testcase></testsuite></testsuites>

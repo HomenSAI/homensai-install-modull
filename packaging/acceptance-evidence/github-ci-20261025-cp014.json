@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-014",
+  "verified_by": "GitHub connector GET runs and per-run jobs",
+  "source_sha": "c3b3400461a38fdb8c3b92d2ba0512457988aa47",
+  "status": "BLOCKED",
+  "tests_status": "NOT RUN",
+  "production_ready": false,
+  "observed": [
+    {
+      "run_id": 40211879732,
+      "url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40211879732",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-10-25T16:29:00Z",
+      "jobs": [
+        {
+          "job_id": 121224649086,
+          "name": "Linux source and user-process integration (no installer acceptance)",
+          "runner_id": 0,
+          "runner_name": "",
+          "steps": [],
+          "status": "completed",
+          "conclusion": "failure",
+          "started_at": "2026-10-25T16:29:00Z",
+          "completed_at": "2026-10-25T16:29:03Z"
+        },
+        {
+          "job_id": 121224649280,
+          "name": "Windows portable source subset (no service installation)",
+          "runner_id": 0,
+          "runner_name": "",
+          "steps": [],
+          "status": "completed",
+          "conclusion": "failure",
+          "started_at": "2026-10-25T16:29:00Z",
+          "completed_at": "2026-10-25T16:29:03Z"
+        }
+      ]
+    },
+    {
+      "run_id": 40211875386,
+      "url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40211875386",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-10-25T16:28:57Z",
+      "jobs": [
+        {
+          "job_id": 121224635253,
+          "name": "Windows portable source subset (no service installation)",
+          "runner_id": 0,
+          "runner_name": "",
+          "steps": [],
+          "status": "completed",
+          "conclusion": "failure",
+          "started_at": "2026-10-25T16:28:57Z",
+          "completed_at": "2026-10-25T16:28:59Z"
+        },
+        {
+          "job_id": 121224635427,
+          "name": "Linux source and user-process integration (no installer acceptance)",
+          "runner_id": 0,
+          "runner_name": "",
+          "steps": [],
+          "status": "completed",
+          "conclusion": "failure",
+          "started_at": "2026-10-25T16:28:57Z",
+          "completed_at": "2026-10-25T16:29:00Z"
+        }
+      ]
+    }
+  ],
+  "conclusion": "Четыре задания получили failure до выделения runner: runner_id=0, steps=[]. Это не выполненные тесты с отрицательным результатом. Точная причина из доступного ответа не установлена.",
+  "next_action": "Получить рабочий CI runner и выполнить заявленные jobs; не менять billing, permissions или workflow по предположению."
+}

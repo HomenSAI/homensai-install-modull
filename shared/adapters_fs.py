@@ -86,8 +86,14 @@ def _copy_file(source: Path, destination: Path) -> None:
     checked_path(source)
     destination = checked_path(destination)
     temporary = destination.with_name(".copy-" + uuid.uuid4().hex + ".tmp")
+    def private_file(path, flags):
+        return os.open(path, flags | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0), 0o600)
     try:
-        with source.open("rb") as incoming, temporary.open("xb") as outgoing:
+        # Protect the unpublished inode before any credential/database bytes
+        # enter it; chmod after replace would expose a public temporary copy.
+        with source.open("rb") as incoming, open(temporary, "xb", opener=private_file) as outgoing:
+            if os.name != "nt":
+                os.fchmod(outgoing.fileno(), 0o600)
             while block := incoming.read(1024 * 1024):
                 outgoing.write(block)
             outgoing.flush()
@@ -96,6 +102,37 @@ def _copy_file(source: Path, destination: Path) -> None:
         _sync_directory(destination.parent)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def _private_recovery_directory(path: Path) -> None:
+    """Owned target directories only; unrelated parents keep their permissions."""
+    path = checked_path(path)
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    info = path.lstat()
+    if not stat.S_ISDIR(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
+        raise UpdateError("Recovery target должен быть обычным каталогом")
+    if os.name != "nt":
+        if info.st_uid != os.geteuid():
+            raise UpdateError("Recovery target принадлежит другому пользователю")
+        descriptor = None
+        try:
+            descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            captured = os.fstat(descriptor)
+            def identity(value):
+                return (value.st_dev, value.st_ino, value.st_uid, value.st_gid, stat.S_IFMT(value.st_mode))
+            if not stat.S_ISDIR(captured.st_mode) or identity(captured) != identity(info):
+                raise UpdateError("Recovery target изменился до проверки прав")
+            os.fchmod(descriptor, 0o700)
+            named = path.lstat()
+            current = os.fstat(descriptor)
+            if (identity(named) != identity(captured) or identity(current) != identity(captured)
+                    or stat.S_IMODE(named.st_mode) != 0o700 or stat.S_IMODE(current.st_mode) != 0o700):
+                raise UpdateError("Recovery target изменился при проверке прав")
+        except OSError:
+            raise UpdateError("Не удалось подтвердить права recovery target") from None
+        finally:
+            if descriptor is not None:
+                os.close(descriptor)
 
 
 class FilesystemPorts:
@@ -275,7 +312,7 @@ class FilesystemPorts:
     def _reconcile(source: Path, target: Path, preserved: set[str]) -> None:
         """Повторяемое восстановление: управляющие файлы не заменяются/не удаляются."""
         desired_dirs, desired_files = _tree(source)
-        checked_path(target).mkdir(parents=True, exist_ok=True)
+        _private_recovery_directory(target)
         actual_dirs, actual_files = _tree(target)
         for name in sorted(actual_files):
             if name not in preserved and (name not in desired_files or name in desired_dirs):
@@ -284,7 +321,7 @@ class FilesystemPorts:
             if name not in preserved and name not in desired_dirs:
                 checked_path(target / name).rmdir()
         for name in sorted(desired_dirs - preserved, key=lambda name: (name.count("/"), name)):
-            checked_path(target / name).mkdir(parents=True, exist_ok=True)
+            _private_recovery_directory(target / name)
         for name in sorted(desired_files.keys() - preserved):
             _copy_file(source / name, checked_path(target / name))
         for name in sorted(desired_dirs, key=len, reverse=True):

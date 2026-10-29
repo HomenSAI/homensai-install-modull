@@ -1,0 +1,408 @@
+# Фактическое состояние реализации
+
+## Финальный handoff CP-20261026-012
+
+Работа завершена по указанию владельца в окне до17:00Berlin/16:00UTC. Single-step adapter update Linux/native/user реализован и принят в DEV scope. Полный frozen source/integration: 2625PASS/3skip/15subtests, 1181.13s,208inputs unchanged. Installed public factory→fresh1→update2→update3 на immutable SDK6edcbb83 PASS:70SDK/7reference/161dependency files unchanged; effects1/2/3, source/target runtime+health identity, данные/settings/syntheticcredential сохранны. Все4update encrypted archives действительно decrypt/restored в oracle. Root2datafaultPASS/25contractPASS; core180PASS и отдельно223PASS/1root-exportdeselect (пересекаются с full, не складывать). CI SDKCP011:Linux/Windows source jobs success. Forward journal не делает automatic legacy restore; UNKNOWN/missingledger не разрешает повтор. Public restore/rollback/repair/reinstall/uninstall adapter capabilities остаютсяfalse. BorrowedDEVruntime, это не clean-host/standalone acceptance. Production_ready=false, G0–G5 OPEN. Веб-страница текущей работы опубликована privately; финальная публикация её результатов выполняется после этого checkpoint и хранится внешнейreceipt.
+
+Следующий шаг: На immutable SDKCP011 добавить independent installed update fault profile: lostACK/UNKNOWN/missingledger, tampered/foreign backup, live data drift и candidate health/cleanup failure через original public SDK operation. Затем реализовать отдельный verified before-restore/before-rollback backup protocol и adapter restore/rollback; capabilities не включать заранее. Windows11/Ubuntu24cleanhost, productDocker/services, GUI12locale-target сочетаний, JobPilot/Rent и production trust/licences остаются отдельными обязательными gates. Новое окно — только по явной команде владельца.
+
+Receipts: source-20261026-cp012.json; installed-update-forward-20261026-cp011.json. Текущий sync pending до внешней checkpoint receipt; собственного будущего SHA здесь нет.
+
+## История кандидата CP-20261026-011
+
+Интегрирован core runtime freeze091c0f4: single-step Linux/native/user adapter update с отдельными source/target bindings, phase-scoped quiesce, реальными encrypted backup receipts archive+backup:0 и live snapshot comparison. UpdatePlan сохраняет forward journal без automatic legacy restore; UNKNOWN требует original-operation reconciliation, missing ledger не разрешает повтор; health error сохраняет данные/отдельные primary+cleanupcodes. Public capability update включена как development. Public no-override1→2→3/identity/sourcequiesce/health5PASS; precap177PASS/1XFAIL, root2actualdatafaultPASS и25contractPASS (исходныйAPIdeclarationFAIL сохранён иисправлен). Полный финальный source и independent installed update на этом SDK ещё PENDING. Production_ready=false, G0–G5 OPEN.
+
+Следующий шаг: installed public1→2→3 с actual restore oracle и финальный полный source/integration на стабильных bytes. CP010 GitHub/CI success подтверждены; CP011sync pending до внешней receipt. Deadline16:00UTC/17:00CET.
+
+## История пакета CP-20261026-010
+
+Интегрирован Linux-only helper безопасного сравнения всех пяти live persistent roots со restored backup: bytes+dirs, fd-relative O_NOFOLLOW, links/hardlinks/reparse/гонки fail-closed; исключаются только bytes точного own update journal. Agent149PASS/1Windows-onlyskip (59 новых helper cases), root59PASS/2SKIP; два root fault tests ждут update capability, это НЕ PASS lifecycle. Installed update-readiness повторён на immutable SDKCP009/e4f8dbc:69SDK/7reference/161dependency files unchanged, fresh/preparation и три отказа update PASS. Полный update execution ещё в отдельном core worktree, публичная capability основной ветки false. По запросу владельца создана private веб-страница статуса; публикация Sites succeeded. Production_ready=false, все G0–G5 OPEN; baseline2497PASS относится к CP008/f90a20a, новый полный suite ещё NOT RUN.
+
+Окно до16:00UTC/17:00CET сохраняется. Страница: [текущая работа](https://homensai-installer-work-20261026.hoseskhom.chatgpt.site). Sync CP009 подтверждён e4f8dbc/ref/tree; CP010 pending до внешней квитанции.
+
+## История запуска CP-20261026-009
+
+Возобновлена работа по новому указанию владельца до 17:00 Berlin (16:00UTC), старое окно архивировано. Полный baseline CP008/f90a20a:2497PASS/3skip/15subtests,542.76s,431inputs unchanged. Добавлены private update review schema2/from_adapter_binding и source adapter/failure policy в read-only engine plan; fresh schema1 и public7fields сохранены. Исходный RED4FAIL/2PASS сохранён; core112PASS/1XFAIL и отдельно64PASS, root11PASS/1XFAIL (наборы пересекаются). Installed update-readiness на SDKf90a20a: PASS, 69SDK/7reference/161dependency files unchanged; public fresh и readonly update preparation, отказы v2/reviewed-v2/v3 до mutation, effectcount1. Update execution/capability пока выключены, полный1→2→3 XFAIL/NOT RUN. Следующий пакет: scoped quiesce, реальный backup/receipt, live snapshot comparison и fail-closed forward journal без automatic legacy restore. Production_ready=false, G0–G5 OPEN.
+
+Окно: 2026-10-26T14:35:31Z–16:00:00Z; Europe/Berlin15:35:31–17:00CET. Текущий sync pending до внешней квитанции. Нижележащие остановки CP008 — история.
+
+Дата: 26.10.2026. Checkpoint: **CP-20261026-012**.
+Ветка `codex/universal-installer-20261025`. **`production_ready=false`.**
+Исходный commit: `a16a55d58e65ccf64ed2ba0c853a0053baea6689`.
+
+
+
+## Финальный статус CP-20261026-008
+
+Работа остановлена по явному указанию владельца перед выключением. Single-step fresh Linux/native/user завершён: source171PASS+5subtests; root84targetedPASS; installed true fresh PASS на immutable SDK a5130d19343bfa4475147d8af34f653f7c30f7f2, 69 SDK/7 reference/161 dependency files и 3 signed bundle trees неизменны. Public factory→prepare→plan→submit, настоящий fresh proof, один migration effect, start/stop/duplicate start и encrypted full backup restore проверены. Legacy migration sentinel не исполнился; синтетический authorizer в этой приёмке не использовался. Runtime borrowed из DEV image: это не clean-host/standalone acceptance. Update1→2→3 ещё NOT IMPLEMENTED/NOT RUN, capability=false; полный suite после последнего fresh не повторялся (CP004 2416PASS исторический). Все G0–G5 OPEN, production_ready=false. Следующее точное действие — docs/NEXT_AI_HANDOFF_RU.md: RED adapter update test и source/target bindings + real backup per step. Агенты и тесты остановлены, компьютер владелец выключает сам.
+
+## Историческое сохранение CP-20261026-006
+
+По просьбе владельца сохранено текущее состояние. В основной ветке: явная SDK factory-регистрация ProductAdapter, 36 targeted PASS; установленная preparation на точном CP005 — 5 случаев PASS (69 SDK / 7 reference / 161 dependency files). Сохранён исходный harness FAIL неправильного имени capability, исправлено на registered. Fresh engine пакет ddbe107 прошёл 171 source PASS и 5 subtests, включая SIGKILL; он отправлен отдельной веткой GitHub и ещё не интегрирован root. Installed fresh и update по-прежнему NOT RUN; capabilities основной ветки не расширены этим source-only пакетом. Агентские ветки и основной handoff сохранены; активных тестовых процессов нет. production_ready=false, все G0–G5 OPEN. Продолжение: интегрировать ddbe107 с независимым review/public SDK resume/factory, затем installed fresh и updates 1→2→3. Исходное окно UTC08:25:06–20:25:06 сохраняется.
+
+## Исторический этап CP-20261026-005
+
+Реализованы явная NativeEngine.prepare_migration, неизменяемый MigrationReviewStore и проверка пустых каталогов/владельца для fresh. Обычный plan не вызывает hooks. SDK bridge проверен настоящим подписанным процессом и SQLite. Root воспроизвёл 4 FAIL: журналы FAILED/QUEUED/UNKNOWN/null допускали новый review; исправлено, исходный RED сохранён. Reference наблюдает схему без записи; изменение SQL и business receipt фиксируются одним COMMIT, неизвестный исход остаётся UNKNOWN. Объединённый целевой прогон: 201 PASS за 46.79 s, 11 входов не менялись. Агент проверил installed transport faults на точном e693025 с синтетическим authorizer; это не приёмка engine. Новый полный suite и установленный artifact CP005: NOT RUN. CP004 full 2416 PASS и maintenance 8 clients — исторические результаты. Adapter install/update ещё выключены до проверенного fresh/apply. production_ready=false, G0–G5 OPEN. Далее: installed public preparation на CP005, затем single-step fresh с настоящим proof/SIGKILL и updates 1→2→3.
+
+## Исторический этап CP-20261026-004
+
+Интегрированы настоящие encrypted BackupReceiptStore с проверкой восстановленного signed payload/installation identity и default-deny migration authorizer. Maintenance receipt recovery_only не разрешает миграцию. Добавлен explicit SDK/BackendRouter prepare_migration bridge; NativeEngine preparation/install/update ещё unsupported в этом CP. Independent installed reference maintenance:8clientsPASS/69SDK files/7reference files, реальные process/HTTP/SQLite/archive restore, UID1000, source/package/deps unchanged; bootstraplegacy и runtime borrowed явно ограничены. Full frozen source/integration:2416PASS/3skip/15subtests,682.08s; после нормализацииEOF в двух docs выполнены78overlappingcontract checks и новыйinstalledwheelPASS. Все G0–G5OPEN, production_ready=false. Окно продолжается; следующий пакет explicit migration preparation/fresh witness, затем single-step apply.
+
+## Исторический этап CP021
+
+CP-20261025-021: подключён ExecutableProductAdapter к NativeEngine через явный trusted constructor opt-in только Linux/native/user start/stop/backup. Reviewed plan закрепляет signed descriptor/payload/runtime; readiness требует свежие release/installation/probe identity вместе с прежними owned PID/listener/HTTP. Durable quiesce intent и строгий ledger reconciliation не разрешают повтор UNKNOWN после утраты ledger или отсутствующей ожидаемой invocation. Backup использует настоящий полный encrypted архив. Исправлен воспроизведённый дефект: secondary recovery start/readiness больше не маскирует primary backup error, оба безопасных кода сохранены в native journal/public details. Все исходные FAIL и reverse-fault RED сохранены отдельно. Final source/integration: 2363 PASS, 3 skip, 15 subtests, inputs unchanged. Installed SDK/CLI и synthetic prerequisites PASS; actual Chromium установленного wheel: 24 PASS ru/en/de. Во всех трёх отдельных wheel совпадают 68 package files; SHA архивов различаются и не объявлены bit-reproducible. Windows10/Python3.14.3: 492 и отдельно57 PASS, 4 POSIX skip. Это не Windows11/platform acceptance. Installed ProductAdapter maintenance отдельно NOT RUN; новые maintenance процессы/HTTP/backup приняты на source уровне. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json.
+
+## Исторический этап CP020
+
+CP-20261025-020: реализован безопасный browser local prerequisite upload: явный File, bounded raw streaming, signed size/SHA-256, private staging, opaque handles, cancel/interrupt, новый review/consents; исполнение использует прежние SDK/coordinator/lease. ru/en/de: 245 ключей, 39 Node групп (входят в pytest). Исправлены quota при неудачной очистке/открытом canceled writer, rollback временной plan reservation, подтверждённая SQLite zero-link sidecar race и Windows PID liveness без сигналов. Усилен test harness финализатора lease; старые FAIL сохранены. Полный Linux source/integration: 2309 PASS, 3 skip, 15 subtests, inputs unchanged. Установленные SDK/CLI и prerequisites: PASS; настоящий Chromium: 24 PASS. Во всех трёх wheel совпали 67 package files, разные SHA самих архивов явно сохранены. Windows10/Python3.14.3: 492 + 57 PASS (наборы раздельны), 4 POSIX skip; это НЕ Windows11 acceptance. CI CP019 реально выполнил Linux/Windows checks; Windows workflow расширен новыми regressions, текущий CI CP020 до push NOT RUN. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/local-artifact-upload-20261025-cp020.json.
+
+## Исторический выполненный шаг CP018
+
+CP-20261025-018: Добавлен сохраняемый measured download_progress и согласованный SDK/CLI/HTTP/OpenAPI контракт: 17 полей с signed plan/artifact binding, одна транзакция snapshot/event, обязательный writer, защита от stale transfer/attempt и сохранение cancellation. 100% разрешены только после SHA-256 staged-файла, не означают READY. Replan очищает проекцию даже при прежнем digest; восстановление использует фактический partial offset, не сохранённый byte counter. Мастер ru/en/de показывает отдельную загрузку, потерю связи и дочитывает страницы events по полученным sequence. Исправлены воспроизведённые SQLite sidecar races в prerequisite store и execution domain; чтение/запись через connection уже созданного prerequisite store не пересоздаёт исчезнувшую основную БД. Fresh constructor сохраняет отдельное явное создание новой БД.
+
+Combined source+integration Python 3.14.3: 2192 PASS, 1 Windows-only skip, 15 subtests (156.754 s, включая runner), 182 inputs неизменны. Текущий installed wheel: 10 isolated clients/11 CLI calls PASS (6.958 s), 65 package и 161 dependency files неизменны. Public SDK подтверждает verified100 до synthetic installer при RUNNING/notREADY; новый процесс дочитывает все events страницами limit 3. Shipped JS: 29 Node групп, ru/en/de по 227 ключей; Node входит в pytest wrapper. Сохранены исходные FAIL: mandatory writer/cleanup, early progress throttle, same-digest replan, UI pagination/unknown verified source и обе SQLite races, а также harness/environment отказы. Пересекающиеся focused/agent/Node counts не суммируются. Current actual browser/frozen, Windows/ACL/UAC, live Docker/services, реальные OS installers/reboot/relogin, hardware power-loss и полная product acceptance NOT RUN; CI CP017 четыре jobs без runner/steps. Все G0–G5 OPEN, production_ready=false.
+
+## Исторический шаг CP-20261025-017
+
+CP-20261025-017: Реализован общий product/prerequisite execution lease в доверенном original-owner domain: постоянный OS lock, durable claim/fencing и передача владения от reserve до завершения worker. Старые незавершённые v1 операции учитываются через проверяемый реестр известных журналов; новый API state_dir, отмена неизвестного эффекта и повреждённый/подменённый журнал не обходят блокировку. Синхронное исполнение больше не удерживает общий Python lock во время долгого engine; status/cancel доступны. Исправлена блокировка duplicate ACK/resume собственной product claim.
+
+Точный combined source+integration на Python 3.14.3: 2097 PASS, 1 Windows-only skip, 15 subtests (148.508 s, включая runner); 176 входных файлов не менялись. Новый installed wheel: 10 clients/11 CLI calls PASS (7.109 s), 64 package и 161 dependency files неизменны. Независимые 57 source + 1 actual loopback HTTP PASS пересекаются с full suite и не суммируются. Исходные 2 sync-lock, 6 legacy-bypass, 4 malformed/inode и 2 GUI FAIL сохранены вместе с исправлениями, harness failures и непринятым прогоном с изменявшимися inputs. Windows/ACL/UAC, actual browser/frozen, реальные installers/reboot/relogin, live Docker/services, hardware power-loss и полная product acceptance NOT RUN; CI CP016: четыре jobs без runner/steps. Автоматическое восстановление control journal с новой файловой identity NOT IMPLEMENTED; неизвестные ранее незарегистрированные roots и старые binaries вне протокола не покрываются. Все G0–G5 OPEN, production_ready=false.
+
+## Исторический шаг CP-20261025-016
+
+CP-20261025-016: Добавлен воспроизводимый offline installed harness: новый wheel, чистый venv, pinned security closure с require-hashes, внешние isolated clients без checkout/network/subprocess. Проверены manual→READY, dependency-order auto с postconditions, потерянный ACK/idempotent replay, cancel/restore, подпись/согласия, events/attempts/redaction и настоящий CLI parser с trusted injection. Сохранён read-only разбор общего execution lease и durable progress; эти механизмы не реализованы.
+
+Root current wheel: 10 независимых clients/11 CLI calls PASS (7.362 s), 63 package и 161 dependency files побайтно совпали до/после, ordinary denied attempts=0; отдельный guard self-test блокирует checkout/DNS/subprocess. Wheel 7cdf5f5e73054f3ccfbd2b7f6622cb390e114c1d21efb68b907553ce66a5a507. Два начальных agent harness FAIL и промежуточные PASS сохранены; ошибочно ожидалась CLI version1 вместо1.0. Все142 runtime/API/test inputs идентичны CP015; новый full pytest вCP016 не запускался, исходный scoped результат CP0151974PASS/3skips/10subtests +processHTTP5PASS не расширяется. Actual OS installers/process-kill/full product/frozen/browser/Windows/Docker NOT RUN. CI CP015 четыре jobs без runner/steps; full G1–G5 и production acceptance НЕ ГОТОВО.
+
+## Исторический шаг CP-20261025-015
+
+CP-20261025-015: Реализован условный мастер подготовки через общий HTTP/SDK: auto/manual/use/skip, signed version requirements, отдельные product/license/action/plan согласия, progress состояний, явные cancel/recheck/replan/resume. Reload и потерянный ACK читают тот же ID без implicit start/resume; active=true/null блокирует действия, READY требует нового product preflight/terms/review. Исправлены подтверждённая потеря polling после Refresh и неверный inner SDK api_version в OpenAPI; HTTP envelope остаётся 1, SDK 1.0. ru/en/de: 215 ключей.
+
+Полный source на Python 3.14.3: 1974 PASS, 3 skips, 10 subtests (75.88 s). Два Linux skip отдельно вместе с тремя настоящими loopback HTTP: 5 PASS (2.58 s); Windows case NOT RUN. Настоящий JS в Node VM: 19 новых групп и 6 прежних PASS, они входят в pytest wrappers и не прибавляются к source count. Исходные polling/API-schema FAIL сохранены с последующим PASS; newline hypothesis явно не подтверждена. Current installed wheel/frozen/actual browser/OS acceptance NOT RUN; browser BLOCKED, CI CP-014 четыре jobs без runner/steps. Global lease, durable byte progress и browser local artifact selection NOT IMPLEMENTED.
+
+## Исторический шаг CP-20261025-014
+
+CP-20261025-014: В capabilities добавлена проверяемая проекция шести полей требований версии/обязательности/scope. Данные берутся из повторно проверенного подписанного каталога, без discovery, effects, путей или команд. Сохранённый plan v1, digest и consent refs не меняются; старая queued операция восстанавливается прежним контрактом. OpenAPI и встроенные API документы синхронизированы.
+
+55 целевых source/API/HTTP проверок PASS, 0 skips (5.933 s), Python 3.14.3; 12 новых случаев входят в эти 55. Root сравнил все семь интегрированных файлов с проверенным commit 2c6d3c9 и receipt-хешами. Первый harness-прогон 9 PASS/3 FAIL сохранён: исправлено ошибочное ожидание отсутствующего store после trusted constructor. Новый полный source suite/installed wheel/browser/OS acceptance NOT RUN; source1961 PASS CP-013 остаётся историческим результатом других bytes. GUI ещё в разработке.
+
+## Исторический шаг CP-20261025-013
+
+CP-20261025-013: Восстановлена неотправленная локальная CP-012 и подтверждены GitHub ref/tree. Независимый повтор выявил устаревший снимок в тесте отмены: durable журнал уже содержал CANCELED. Дополнительно исправлена преждевременная проекция execution.active=False при финальном observer. Пока worker удерживает reservation — active=True; занятый/неизвестный внешний controller — active=null. Тест заново читает журнал после освобождения потока, не ослабляя требование CANCELED.
+
+Текущие source bytes: 1961 PASS, 3 skips, 10 subtests (78.82 s), Python 3.14.3. Два пропущенных Linux process/D-Bus случая и три настоящих loopback HTTP случая отдельно: 5 PASS (2.61 s), JUnit receipt. Windows-only case NOT RUN. Пять детерминированных новых regressions FAIL на CP-012 и PASS после исправления; focused141 PASS (20.88 s), области пересекаются. Первоначальный recovery-прогон 1955 PASS/1 FAIL/3 skips сохранён. Новый installed/frozen/browser/full platform acceptance NOT RUN; Chromium --version вне sandbox также exit139, причина не установлена.
+
+## Исторический шаг CP-20261025-012
+
+CP-20261025-012: Подключены HTTP routes и синхронный CLI к тому же доверенно зарегистрированному prerequisite coordinator. HTTP сравнивает полный signed payload, хранит планы на сервере, требует явные согласия и выдаёт durable background ACK. Status/events/cancel отвечают при медленных probes/installers; повтор start не становится resume. Подготовка и READY сбрасывают product review. Общий read-only busy guard видит claim старого каталога без раскрытия чужого ID. Исправлена реальная гонка отмены при sync recheck: принятая отмена не теряется при финальном сохранении, неизвестный installer сохраняет receipt/claim, отмена перед intent не запускает installer.
+
+Текущий root full source на Python 3.14.3: 1956 PASS, 3 skips, 10 subtests (84.26 s); два Linux skip отдельно выполнены с matching PID namespace: 2 PASS (0.12 s), Windows-only case NOT RUN. HTTP focused 141 PASS и настоящий loopback 3 PASS; CLI focused 69 PASS; независимый core/HTTP review 12+8 PASS, области пересекаются. Installed SDK planning: 63 exact files и 7 CLI calls PASS, wheel 5c327073061674dec7917915ce07d4ceea5eb9e3e2685e9c3867d3b39bb197e1. Ранее выявленные FAIL/EPERM сохранены в истории. GUI flow, durable byte events и atomic cross-executor lease ещё NOT IMPLEMENTED; registered installed prerequisite lifecycle, live OS/Windows/Docker/browser/frozen acceptance NOT RUN. Browser BLOCKED: официальный альтернативный архив проверен, запуск SIGSEGV с неизвестной причиной. CI CP-011: 4 jobs без runner/steps, тесты NOT RUN.
+
+## Исторические проверки CP-008
+
+В общий checkout интегрированы Docker install/uninstall, systemd user platform
+port с защитой границы native/user и prerequisite coordinator через общий SDK.
+Проверки выполнены на Linux x64 / Python 3.12.14:
+
+| Область | Результат | Что подтверждает |
+|---|---|---|
+| Полный root source suite | **1856 PASS, 1 skip, 10 subtests**, 70.24 s | Интегрированные исходники и контракты; моделируемые Docker/service ответы не являются live acceptance |
+| Отдельные Linux integration tests | **49 PASS, 5 subtests**, 43.23 s | Собственные реальные процессы, loopback HTTP и синтетические данные в согласованном PID/proc namespace |
+| SDK wheel вне checkout | **44 Python files, 18 resources**, 5 CLI вызовов, 0 network attempts | Совпадение package bytes, импорт новых модулей и офлайн-контракты; lifecycle установленного продукта этим не проверяется |
+
+Это разные области проверки; их counts не складываются. Точные команды и scope
+полного прогона — в [source receipt CP-008](../packaging/acceptance-evidence/source-20261025-cp008.json)
+и [WORK_LOG.md](WORK_LOG.md). Независимый review и отдельные regressions записаны
+в [review receipt CP-008](../packaging/acceptance-evidence/review-20261025-cp008.json).
+[Installed SDK receipt CP-008](../packaging/acceptance-evidence/sdk-installed-20261025-cp008.json)
+содержит wheel SHA-256
+`c4d862c6c0ea9c49b9126e0cae630fd70ef1b172e285d2f508606a68b6189268`,
+хеши 44 Python files и 18 resources; новые state-файлы при этой проверке не создавались.
+Исторические frozen/SDK результаты ниже относятся к своим прежним artifacts.
+Новая frozen CP-008 сборка и полная platform acceptance этими прогонами не приняты.
+
+## Что сохранено и как используется
+
+| Область исходного ядра | Решение | Текущее применение и граница |
+|---|---|---|
+| `shared/manifest.py`, schema v1/v2 | Сохранить, интегрировать | Строгая исходная проверка перед нормализацией в публичном API; v1 не превращается молча в готовый v2 runtime. |
+| `shared/datahome.py` | Сохранить, исправить совместимость | Владение путями, запрет опасных ссылок; совместимая проверка Windows reserved names на Python 3.12/3.14. |
+| `shared/update_plan.py` | Сохранить, интегрировать | Последовательность update/rollback; новый фасад дополняет durable recovery и согласиями. |
+| `shared/adapters_fs.py` | Сохранить, интегрировать | Проверка полного дерева и staging; NativeEngine связывает с реальным процессом и health. |
+| `shared/archive.py`, `archive_crypto.py` | Сохранить, интегрировать | Проверяемые полные архивы, AES-GCM/scrypt; пароль через отдельный provider. |
+| `shared/adapters_docker.py` | Сохранить legacy Compose интерфейс | Общий API использует отдельный DockerEngine через BackendRouter; legacy adapter не получает его гарантии автоматически. |
+| `shared/services.py`, Linux/Windows generators | Сохранить contracts и generators | Добавлен исполняемый SystemdUserManager; native/service orchestration и Windows SCM ещё не подключены. |
+| `shared/ctl.py`, doctor | Сохранить совместимость | Новый `hinstall` — публичный фасад; прежние команды остаются доступными. |
+| Пакет и discovery | Добавить | `pyproject.toml`, SDK, CLI, schemas, OpenAPI, `INSTALLER_API.md`; проверка установленного wheel вне checkout. |
+| Подпись поставки | Добавить | Ed25519 + SHA-256, manifest/target/runtime binding; production trust root ещё не выпущен. |
+| Диагностика и три языка | Добавить | SQLite + ограниченный fallback, 43 codes, ru/en/de, local statistics/export. |
+| GUI и end-user bootstrap | Реализован DEV Linux профиль и условный prerequisites GUI | CP-015: ru/en/de, явные согласия/auto/manual/recovery, actual JS Node contracts PASS. Current browser/frozen/OS acceptance открыта; frozen install/backup/uninstall/restore и browser export CP-004/005 — исторические artifacts. |
+
+## Проверяемое покрытие
+
+Доступен Linux x64 в изолированной облачной среде. Для исходных тестов
+в CP-006/007/008 используется Python 3.12.14; исторический CP-005 — Python 3.14.3.
+Это не компьютер владельца и не его Docker. Обычная sandbox shell имеет
+несовпадающие PID/proc namespaces; положительные process tests выполнялись
+отдельно там, где это соответствие проверено.
+
+NativeEngine реализует Linux **user-session**: установку, запуск/остановку,
+readiness по идентичности продукта/установки/релиза, update и автоматический
+rollback, backup/restore, repair и сохранное uninstall. Реальные процессы и
+HTTP используются только с синтетическими данными на loopback.
+
+Проверяются обрывы после migration и переключения release, повтор старта и health,
+cancel/resume, неоднозначное завершение migration, владение PID и отказ до
+изменения чужого каталога. Источником истины для восстановления является журнал
+операции; DiagnosticStore — необязательная диагностическая проекция.
+
+Windows native, Docker на обеих ОС и службы уровня ОС ещё не приняты. API
+возвращает capability ограничения; результат unit tests не заменяет эти проверки.
+Начальные targets по [TARGET_MATRIX.md](TARGET_MATRIX.md): **Windows 11 x64** и
+**Ubuntu 24.04 LTS x86_64 с glibc**, для каждой ОС native/Docker и ru/en/de.
+Публичный начальный scope — `user`. Windows Server, другие дистрибутивы,
+ARM64, musl и macOS не входят в первую матрицу. Наличие target в плане разработки
+не означает принятую поддержку. Linux headless должен использовать CLI или
+безопасный доступ к мастеру по SSH; открывать мастер на внешнем интерфейсе нельзя.
+
+## Интегрированные platform ports CP-008
+
+### Docker install/uninstall
+
+`DockerEngine` через BackendRouter выполняет fresh install, start/stop, health,
+encrypted backup и uninstall с сохранением данных. Install создаёт только
+собственные network/container по reviewed plan; полный signed payload закреплён
+в плане и ownership receipt. Перед каждым effect сохраняется intent; неизвестный
+RPC требует сверки фактического ресурса и explicit resume, без слепого повтора.
+Verified payload, inventory и signature сохраняются до первого create RPC.
+Если исходный cache исчез, resume может использовать повторно проверенные owned
+recovery bytes. Uninstall проверяет foreign network/namespace consumers до stop
+и сохраняет DataHome, images и recovery metadata.
+
+Исполняемый профиль ограничен локальным rootful Linux daemon в тех же
+mount/network namespaces, проверенным endpoint и совпадающим non-root UID:GID
+установщика/контейнера. Install/start/backup требуют Engine >= 28.0.0. Проверка
+host identity через `/proc` остаётся реальным условием допуска: доступ к Docker
+socket или членство в docker group не гарантируют чтение root-owned dockerd.
+При недоступной проверке backend отказывает; trusted host adapter и live
+проверка обычного пользователя ещё требуются.
+
+Каждый image должен уже присутствовать с полным RepoDigest и image ID;
+используется `--pull=never`. Получение/import образов и полный offline image
+bundle не реализованы; образы не входят в recovery/data archive. Update,
+restore, rollback, repair, reinstall, migration/product-secret hooks и отдельная
+compensation failed install ещё не поддерживаются. Автозапуск после reboot
+не предоставляется (`restart=no`). Windows Desktop/WSL, VM, remote и rootless
+требуют отдельных adapters. Live Docker acceptance в текущей среде BLOCKED.
+Контракт: [DOCKER_ENGINE.md](DOCKER_ENGINE.md), проверки и ограничения:
+[DOCKER_PROVISIONING.md](DOCKER_PROVISIONING.md).
+
+### Systemd user port и граница native/user
+
+`SystemdUserManager` и доверенный runner реализуют register, enable/disable,
+start/stop/status/uninstall принадлежащих установке units. Проверяются весь
+installed signed release, effective unit/argv/environment, PID/cgroup и
+отсутствие чужих overrides. Port использует общий root lifecycle lock,
+durable pending/done receipts и explicit resume. Неизвестный stop или живой
+writer не дают разрешения на snapshot. DataHome, releases и recovery сохраняются.
+
+Native/user дополнительно отказывает при зарегистрированных units, pending
+операции или недостоверном service journal; параллельного управления данными
+двумя execution scopes не допускается. Это integration guard, а общий
+`native/service` backend ещё unavailable. Встраивание port в NativeEngine требует
+разделения существующего lock lease и полного lifecycle orchestration.
+Windows WinSW остаётся signed renderer, SCM adapter отсутствует. Настоящие
+systemd/product lifecycle, restart policy, logout/login, reboot/autostart и ACL
+не приняты. Private D-Bus и моделируемый manager не заменяют эти проверки.
+Подробности: [SERVICE_MANAGER.md](SERVICE_MANAGER.md).
+
+### Prerequisites через явную SDK registration
+
+`SignedPrerequisiteCatalog` и `PrerequisiteCoordinator` используют существующие
+trust/download primitives: полный payload binding, exact artifact pins и
+licence text, dependency order, отдельные согласия и fixed adapters без shell.
+Есть auto/manual/use/skip в допустимых границах, ручной recheck без download/exec,
+история попыток, сохранённые reboot/relogin states, now/later и explicit resume.
+Новый PID или повторное окно не заменяют смену boot/session marker; неизвестный
+исход не разрешает повтор installer.
+
+`InstallerAPI(prerequisites=coordinator)` делегирует тот же coordinator без
+второго executor. Регистрация приходит только от trusted bootstrap; production
+registry с настоящими версиями, hashes, условиями и publisher policy автоматически
+не создаётся. `READY` означает готовность prerequisites; перед product install
+нужны fresh discover и новый reviewed product plan. SDK facade готов в source;
+GUI auto-flow, неблокирующая host integration, Windows elevation/Authenticode/
+ACL/session providers, реальные OS package installs и reboot/relogin acceptance
+остаются открытыми. Эти методы не превращены в произвольный CLI/HTTP installer.
+Подробности: [PREREQUISITES.md](PREREQUISITES.md) и
+[INSTALLER_API.md](../INSTALLER_API.md).
+
+## Что требуется для выпуска
+
+1. Принять reference через GUI во всех четырёх сочетаниях ОС/режима и трёх языках.
+2. Интегрировать systemd port в общий service lifecycle, реализовать Windows SCM
+   и принять реальные stop/restart/logout/reboot/autostart сценарии.
+3. Довести Docker host attestation, получение/offline transport images и оставшиеся
+   lifecycle actions; принять их на настоящем daemon и соответствующих Windows adapters.
+4. Завершить Windows native bootstrap, production prerequisite catalogue и GUI
+   auto-flow; принять elevation, ручной путь и настоящий reboot/relogin.
+5. Подключить и принять реальные JobPilot/Rent, отдельные миграции и полное
+   восстановление. [Аудит исходников](PRODUCT_AUDIT_20261025.md) закрывает HIM-006,
+   но не product acceptance; JobPilot build2 rollback FAIL остаётся открытым.
+6. Закрепить полный dependency inventory, лицензии и сборки всех платформ,
+   обязательный production licence checker, publisher key/certificate и юридические тексты.
+7. Диагностировать CI: [наблюдавшиеся runs CP-007](../packaging/acceptance-evidence/github-ci-20261025-cp007.json)
+   завершились до выделения runner/steps, source tests там не исполнялись;
+   точная причина доступным API не установлена.
+8. Подключить Git владельца в Docker и подтвердить оба remotes. Все G0–G5 остаются OPEN.
+
+Нельзя обещать абсолютную защиту от вирусов или криптографически доказать
+безопасность программы одной контрольной суммой. Проверка подписи устанавливает
+происхождение и целостность относительно закреплённого ключа. CRC для этой цели
+не используется. Установщик не должен генерировать новый доверенный publisher key
+при каждой установке или принимать ключ из неподписанного скачивания.
+
+
+## Исторические проверки CP-004
+
+Этот и следующие исторические разделы описывают прежние исходники и artifacts.
+Их counts, hashes и receipts сохранены отдельно; они не являются новой
+проверкой CP-008 или доказательством live Docker/systemd/Windows acceptance.
+
+Полный source suite на Python 3.14.3: **1493 passed, 1 skipped, 10 subtests**, 35.41 s.
+Предшествовавший прогон выявил два пропуска диагностической проекции при пустой
+версии продукта; причина исправлена и общий прогон повторён успешно.
+Отдельные Linux NativeEngine/API/HTTP integration: **26 PASS**; GUI/trust/prerequisite
+целевые проверки: **53 PASS**. Это разные области проверки, их числа не складываются.
+
+Настоящий frozen Linux x64 bundle05: 896 подписанных payload files,
+install (ru), encrypted backup (en), uninstall (de) с сохранением пользовательского
+файла, restore (ru), реальный HTTP/SQLite readiness, errors/search/statistics,
+preview/confirmed support export, stop (en) — PASS. Ошибок JavaScript не было.
+Browser screenshots просмотрены. DEV bootstrap включает runtime; host Python
+не используется установленным reference продуктом.
+
+Reference v1/v2/v3 имеет настоящие SQLite migrations, проверяемые данные,
+настройки, optional test secret и контролируемые migration/health failures.
+ProductAdapter protocol и scaffold проверены: signed descriptor, fixed argv,
+bounded I/O, timeout, durable effect receipts и запрет слепого повторения.
+Executable adapter пока не заменяет автоматически legacy hooks NativeEngine.
+
+Build lock закрепляет 17 версий и 22 SHA-256 wheels для Linux/Windows x64;
+Linux установленный набор совпадает. Добавлены CI source checks с закреплёнными
+GitHub Actions. Факт создания workflow не означает выполненную CI-проверку;
+результат конкретного run должен быть записан отдельно.
+
+Production лицензии остаются BLOCKED: удалены ненужные BDB/Tcl/ensurepip, но
+встроенные runtime/frozen зависимости и обязательные notices требуют закрытия
+по точным bytes. Development publisher key, черновик EULA и непринятые платформы
+также не допускают production release. Исторические integrity failures сохранены
+в журнале; неизвестные файлы не исключаются из проверки ради успешного теста.
+
+Подтверждено перед CP-004: frozen bad-health update → FAILED_ROLLED_BACK;
+фактический HTTP сайт v3.0.0/SQLite3 ready=true и user file сохранены.
+
+
+## Исторические доказательства CP-005 после CP-004
+
+- Настоящий frozen controller был SIGKILL во время stage. Новый process и новый
+  browser context нашли прежний operation_id в RECOVERY_REQUIRED; автоматического
+  replay не было. Нажатие Resume завершило ту же операцию, SQLite/HTTPready PASS.
+- Frozen repair(v3) и явный late rollback(v3→v2) через GUI PASS. Отдельно проверен
+  зашифрованный snapshot перед поздним откатом: внутри SQLite schema3, после
+  восстановления рабочая БД schema2. Это доказательство сохранения состояния
+  перед заменой, а не только проверки файлового расширения архива.
+- На CP-005 DockerCLI/contract/controller был реализован для start/stop/backup уже подготовленных
+  owned containers. Scoped163PASS+10subtests: реальные crypto/files/syntheticELF,
+  моделируемый daemon. Provisioning/update/restore на этом checkpoint ещё не были
+  реализованы, реального Docker acceptance не было. Текущая реализация описана выше.
+- GitHub CI наCP004 создал Linux/Windows jobs и завершился failure до runner/steps.
+  Проверки там не исполнялись; scopeCI BLOCKED. Причина в доступном ответе неизвестна.
+
+Выявленный stop после late rollback исправлен: обслуживание привязано к
+подписанному активному выпуску. Старую неактивную попытку закрыли через новый GUI;
+новые reviewed stop(de)/start(en)/backup(ru)/stop(en) завершились успешно для v2,
+хотя был открыт bootstrap v3. Реальный сайт сообщил v2.0.0/SQLite2 ready=true;
+архив принадлежит тому же выпуску. Screenshots ru/en/de сохранены и просмотрены.
+
+Restore/late rollback использует архивные credential refs без incoming overlay.
+Девять новых реальных integration cases проверяют maintenance и archived secrets;
+отсутствующий старый секрет не останавливает и не меняет текущую версию.
+
+Независимый review выявил гонку delayed status→concurrent resume→cancel. Snapshot
+CAS под SQLite write transaction сохраняет новую попытку и resource claim; same-owner
+resume также защищён monotonic event sequence. GUI при RUNNING продолжает polling.
+Source interleavings и отдельный browser response-contract проверены; последний
+использует воспроизведённые ответы, а не настоящий конкурентный backend.
+
+Итоговый core SDK установлен в clean venv вне checkout: 9 групп, 35 Python files,
+18 packaged resources, 17 guarded CLI invocations, 0 socket attempts; state не
+создан. Wheel/исходный snapshot и точные границы находятся в sdk-installed receipt.
+
+Точные исторические test counts, artifact hashes, успешные сценарии и сохранённые
+исторические FAIL: packaging/acceptance-evidence/source-20261025-cp005.json,
+linux-frozen-20261025-cp005.json и sdk-installed-20261025.json. Отдельный final
+crash-run сначала увидел RUNNING немедленно после SIGKILL; позже owner уже отсутствовал.
+Этот FAIL сохранён. Проверка должна дождаться подтверждённого RECOVERY_REQUIRED,
+не выполнять скрытый resume и не подменять отсутствие готовности успехом.
+
+
+Финальная проверка CP-005 после исправлений CAS и Linux owner liveness:
+**1637 source PASS, 1 skip, 10 subtests** (40.50s); отдельно **47 integration
+PASS, 5 subtests** (41.57s). В последние входят 12 liveness cases: настоящий
+собственный unreaped zombie распознаётся завершённым, permission/read failures
+остаются unknown/alive, API отмечает recovery без engine effects. Причина старого
+первого frozen FAIL этим не считается доказанной. Установленный SDK и актуальные
+package resources повторно проверены по точным bytes.
+
+Финальный frozen bundle после owner fix повторно прошёл реальный SIGKILL на stage:
+новый controller/browser сразу увидел RECOVERY_REQUIRED, явный Resume завершил
+ту же op_e4a33118c10642058bfc85447bee5581, actual v1/SQLite1 ready=true.
+Продукт остановлен, собственные тестовые controller processes завершены; failed
+fixtures сохранены. Точный executable/inventory hash — CP-005 frozen receipt.
+
+
+## Историческое дополнение CP-007
+
+BackendRouter связывает общий API/CLI/GUI с явными native/Docker backend; отдельные
+signed payload/terms выбранного режима и симметричный ownership guard проверены.
+Full source 1659 PASS, real Linux integration 47 PASS; последний focused 65 PASS.
+Точные scopes/subtests/bytes — CP-007 receipts. Installed wheel проверен вне
+checkout: 36 Python files, 18 resources, offline CLI без сети. На этом checkpoint
+Docker provisioning, systemd port и prerequisites ещё разрабатывались отдельно.
+Они интегрированы в CP-008 в пределах, описанных выше; live gates остаются открытыми.
+
+
+## CP-20261025-019 — восстановление и начальные проверки
+
+CP-20261025-019: сохранён CONTINUE_DEVELOPMENT_PROMPT_RU.txt без изменения исходного задания; сверены CP018 branch/ref/HEAD. Новый Docker DEV build с CPython 3.14.3 и require-hashes доступен. До runtime-изменений проверены установленный SDK (65 package files, 7 CLI), prerequisites SDK/CLI (10 clients, 11 CLI) и документированный Windows source профиль (492 PASS; фактически Windows10Home, НЕ Windows11). Полный source/integration baseline ещё PENDING в изолированном snapshot; первая среда имеет недостающие gcc/system Python/D-Bus, готовится полный профиль. Отдельный Docker Git BLOCKED: remote не настроен, Gitea3010 API403. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/baseline-environment-20261025-cp019.json.
+
+Следующий шаг: Завершить полный baseline в дополненной Docker-среде; затем CP020: безопасный браузерный выбор локального prerequisite-файла, source/HTTP/Node и installed/browser проверки. До выключения в22:30 Berlin завершить проверенные checkpoints и push, непроверенное сохранить явно.
+
+
+## CP-20261025-020 — local artifact upload и исправления baseline
+
+CP-20261025-020: реализован безопасный browser local prerequisite upload: явный File, bounded raw streaming, signed size/SHA-256, private staging, opaque handles, cancel/interrupt, новый review/consents; исполнение использует прежние SDK/coordinator/lease. ru/en/de: 245 ключей, 39 Node групп (входят в pytest). Исправлены quota при неудачной очистке/открытом canceled writer, rollback временной plan reservation, подтверждённая SQLite zero-link sidecar race и Windows PID liveness без сигналов. Усилен test harness финализатора lease; старые FAIL сохранены. Полный Linux source/integration: 2309 PASS, 3 skip, 15 subtests, inputs unchanged. Установленные SDK/CLI и prerequisites: PASS; настоящий Chromium: 24 PASS. Во всех трёх wheel совпали 67 package files, разные SHA самих архивов явно сохранены. Windows10/Python3.14.3: 492 + 57 PASS (наборы раздельны), 4 POSIX skip; это НЕ Windows11 acceptance. CI CP019 реально выполнил Linux/Windows checks; Windows workflow расширен новыми regressions, текущий CI CP020 до push NOT RUN. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/local-artifact-upload-20261025-cp020.json.
+
+Оставшиеся проверки: Полные ACC01–23 и 12 reference GUI target×locale сочетаний; Windows11/native Setup/UAC/ACL/другой администратор/реальные reboot и relogin; Ubuntu24 clean native installer, live Docker product lifecycle/systemd acceptance; Реальные prerequisite OS installers и контролируемые live TLS/proxy/offline failures; Полный независимый installed reference artifact, JobPilot/Rent lifecycle; Межсессионная безопасная очистка retained uploads и перенос control journals на новую identity; Production signing/legal/licence approvals и полная воспроизводимость выпускных artifacts.
+
+Следующий шаг: CP021: узкое trusted ProductAdapter maintenance подключение с signed review binding, свежей identity и строгим UNKNOWN reconciliation; сначала закрыть reviewer regression missing invocation. Затем реальная платформенная/reference приёмка.
+
+
+## CP-20261025-021 — ProductAdapter maintenance и сохранение primary error
+
+CP-20261025-021: подключён ExecutableProductAdapter к NativeEngine через явный trusted constructor opt-in только Linux/native/user start/stop/backup. Reviewed plan закрепляет signed descriptor/payload/runtime; readiness требует свежие release/installation/probe identity вместе с прежними owned PID/listener/HTTP. Durable quiesce intent и строгий ledger reconciliation не разрешают повтор UNKNOWN после утраты ledger или отсутствующей ожидаемой invocation. Backup использует настоящий полный encrypted архив. Исправлен воспроизведённый дефект: secondary recovery start/readiness больше не маскирует primary backup error, оба безопасных кода сохранены в native journal/public details. Все исходные FAIL и reverse-fault RED сохранены отдельно. Final source/integration: 2363 PASS, 3 skip, 15 subtests, inputs unchanged. Installed SDK/CLI и synthetic prerequisites PASS; actual Chromium установленного wheel: 24 PASS ru/en/de. Во всех трёх отдельных wheel совпадают 68 package files; SHA архивов различаются и не объявлены bit-reproducible. Windows10/Python3.14.3: 492 и отдельно57 PASS, 4 POSIX skip. Это не Windows11/platform acceptance. Installed ProductAdapter maintenance отдельно NOT RUN; новые maintenance процессы/HTTP/backup приняты на source уровне. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/product-adapter-maintenance-20261025-cp021.json.
+
+Следующий шаг: Реализовать migration_plan/apply с настоящими backup receipts и fresh-empty, затем независимый installed reference artifact и полный lifecycle; выполнить оставшуюся реальную четырёхплатформенную приёмку.
+
+Ограничения: ProductAdapter install/update/restore/rollback/repair/reinstall/uninstall paths are explicitly unsupported before effects; Migration plan/apply with real backup receipt contract and fresh-empty still requires implementation; Standalone durable ledger file identity across new constructors/forensic valid-image replacement and trusted relocation remain open; Full installed ProductAdapter maintenance lifecycle: NOT RUN; current real maintenance processes/HTTP/backup tested from source; Independent external reference setup artifact/full lifecycle and JobPilot/Rent acceptance NOT RUN; Windows11/UAC/ACL/real reboot/relogin, Ubuntu clean native installer/systemd service and product Docker backend full acceptance NOT RUN; 12 reference target×locale combinations and full ACC01–23 not complete; Production signing/licence/legal approvals and release reproducibility open.
+
+
+## CP-20261025-022 — сохранение перед выключением
+
+CP-20261025-022 — только материалы продолжения: README теперь ведёт к актуальному RESUME и явно помечает обзор CP008 как исторический. Код и все68 package files совпадают с проверенным CP021; новых runtime-тестов для этой правки документации не запускали. Последний код: CP021, source2363PASS/3skip/15subtests; installed synthetic SDK/CLI, Chromium24cases и Windows492+57PASS/4POSIXskip сохранены с точными пределами. production_ready=false, всеG0–G5OPEN. Основная рабочая папка E:/homensai/homensai-install-modull; вспомогательный worktree E:/homensai/homensai-install-modull-core-cp021 сохраняет исходный проверенный черновик, интегрированный в основную ветку вместе с последующими исправлениями. Для продолжения использовать основную папку и её канонический ToDo. Собственные тестовые процессы завершены; отдельный Docker Git BLOCKED до URL и авторизации.
+
+
+## CP-20261025-023 — завершение и выключение
+
+CP-20261025-023 — окончательный статус по просьбе владельца, без новых задач. Все68 package files неизменны относительно проверенного CP021. Локальные результаты:2363PASS/3skip/15subtests; installed SDK/CLI и prerequisites PASS; Chromium24PASS ru/en/de; Windows492+57PASS/4POSIXskip. Последний код CP021 и документация CP022 подтверждены на GitHub. CP022 GitHub Actions push/PR завершились success: Linux2261source+102integration PASS,3skip,15subtests; Windows549PASS/4skip. Собственных процессов, активных контейнеров и слушающих TCP портов проекта не обнаружено; рабочая папка была чистой. Соседняя сессия остановлена по подтверждению владельца. После успешного сохранения и независимой проверки remote отправить ровно одну команду shutdown.exe /s /f /t30; результат хранить локальной квитанцией .git/hinstall-checkpoints/shutdown-20261025.json, не повторять автоматически. Этот doc-only checkpoint использует [skip ci] по указанию не запускать новые задачи. Production_ready=false, всеG0–G5OPEN; Docker Git BLOCKED до URL и авторизации. Следующая разработка: migration/backup-receipt/fresh-empty contract и independent installed reference lifecycle; возобновлять только по новому указанию владельца.

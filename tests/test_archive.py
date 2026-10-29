@@ -15,6 +15,14 @@ from shared.archive import ArchiveError, build_archive, restore_archive, verify_
 from shared.datahome import DataHome
 
 
+def test_insufficient_space_exposes_typed_cause_without_changing_archive_error_contract(tmp_path, monkeypatch):
+    monkeypatch.setattr(module.shutil, 'disk_usage', lambda _: SimpleNamespace(free=module.RESERVE + 4095))
+    with pytest.raises(ArchiveError) as caught: module._space(tmp_path, 4096)
+    assert type(caught.value).__name__ == 'InsufficientSpaceError'
+    monkeypatch.setattr(module.shutil, 'disk_usage', lambda _: SimpleNamespace(free=module.RESERVE + 4096))
+    module._space(tmp_path, 4096)
+
+
 @pytest.fixture
 def home(tmp_path):
     roots = {name: tmp_path / "source" / name for name in ("data", "backup", "services", "config", "runtime")}

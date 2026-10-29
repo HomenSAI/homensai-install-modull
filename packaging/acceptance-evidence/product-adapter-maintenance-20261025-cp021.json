@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "checkpoint": "CP-20261025-021",
+  "author": "Serhii Khomenko",
+  "source_parent": "e3482cc41c715f58eb09def91db3dd0d473d168e",
+  "status": "PASS_SCOPED_NOT_PRODUCTION_ACCEPTANCE",
+  "production_ready": false,
+  "task_ids": [
+    "HIM-015",
+    "HIM-023",
+    "HIM-036",
+    "HIM-050",
+    "HIM-054",
+    "HIM-055",
+    "HIM-056",
+    "HIM-062",
+    "HIM-064",
+    "HIM-065",
+    "HIM-068"
+  ],
+  "scenario_ids": [
+    "ACC-04",
+    "ACC-10",
+    "ACC-11",
+    "ACC-12",
+    "ACC-16",
+    "ACC-17",
+    "ACC-20"
+  ],
+  "implemented": [
+    "Trusted constructor opt-in ExecutableProductAdapter → NativeEngine для Linux/native/user start/stop/backup",
+    "Signed descriptor/payload/runtime/target binding в reviewed engine plan; повторная проверка перед effects",
+    "Свежая readiness с release/installation/probe identity плюс прежние owned PID/listener/HTTP проверки",
+    "Durable quiesce intent, strict reconciliation applied/not_applied/unknown и отсутствие replay после lost/blank ledger или missing invocation",
+    "Полный существующий encrypted filesystem backup, а не синтетическая backup receipt строка",
+    "Первичная backup ошибка сохраняется отдельно от последующей recovery start/readiness ошибки в journal и public details"
+  ],
+  "source": {
+    "observed": "2363 passed, 3 skipped, 15 subtests passed in 452.78s (0:07:32)",
+    "passed": 2363,
+    "skipped": 3,
+    "subtests_passed": 15,
+    "inputs_unchanged": true,
+    "duration_seconds": 454.78326788899994,
+    "receipt": "packaging/acceptance-evidence/source-20261025-cp021.json"
+  },
+  "focused_before_final_merge": {
+    "passed": 189,
+    "subtests_passed": 5,
+    "scope": "Пересекается с final source; до final Windows helper merge и primary-error fix; не суммировать",
+    "receipt": "packaging/acceptance-evidence/core-maintenance-focused-20261025-cp021.json"
+  },
+  "installed_profiles": [
+    {
+      "scope": "SDK/CLI synthetic planning, 7 CLI calls",
+      "wheel": {
+        "name": "homensai_install_module-0.1.0-py3-none-any.whl",
+        "sha256": "b97c123943d29a43a12a88e2bd81b2432362cd85100d2014fda575fa937b3e74",
+        "exact_files_checked": 68
+      },
+      "receipt": "packaging/acceptance-evidence/sdk-installed-20261025-cp021.json"
+    },
+    {
+      "scope": "Synthetic prerequisite coordinator, 10 clients/11 CLI calls",
+      "wheel": {
+        "name": "homensai_install_module-0.1.0-py3-none-any.whl",
+        "sha256": "7a4b1472af9ce7e7df2e27d17052ceb78fc873ca412e47f5e36333fe492c73b2",
+        "exact_files_checked": 68
+      },
+      "receipt": "packaging/acceptance-evidence/installed-prerequisites-20261025-cp021.json"
+    },
+    {
+      "scope": "Actual Chromium installed synthetic prerequisite fixture, 24 cases ru/en/de; no OS installer/product effects",
+      "wheel": {
+        "name": "homensai_install_module-0.1.0-py3-none-any.whl",
+        "sha256": "000d3d6ef0e567bd263792c5ac7d118ed8c01df7cf271d5df7aa3255be664006",
+        "exact_files_checked": 68
+      },
+      "receipt": "packaging/acceptance-evidence/local-upload-browser-20261025-cp021-attempt3.json"
+    }
+  ],
+  "package_files": 68,
+  "source_package_digest": "d520cbbedfcc1bb6baf8393139abaf5ceb327dc2c3eac95ecb67eced9865eb98",
+  "wheel_archives_identical": false,
+  "package_files_identical_across_installed_profiles": true,
+  "windows": {
+    "scope": "Windows10Home/Python3.14.3, not Windows11/UAC/Setup/platform acceptance",
+    "passed_portable": 492,
+    "passed_liveness_and_upload": 57,
+    "skipped_posix": 4,
+    "receipt": "packaging/acceptance-evidence/windows-final-20261025-cp021.json"
+  },
+  "preserved_failures": [
+    "Known native quiesce intent with existing ledger but missing row previously replayed effect; exact reverse-fault RED and independent before/after observations preserved",
+    "Primary backup failure was masked by recovery health failure; original FAIL + 3 post-fix regression PASS preserved",
+    "Intermediate ledger pop failure preserved with its scope; earlier focused PASS not transferred to later bytes"
+  ],
+  "not_implemented_or_not_run": [
+    "ProductAdapter install/update/restore/rollback/repair/reinstall/uninstall paths are explicitly unsupported before effects",
+    "Migration plan/apply with real backup receipt contract and fresh-empty still requires implementation",
+    "Standalone durable ledger file identity across new constructors/forensic valid-image replacement and trusted relocation remain open",
+    "Full installed ProductAdapter maintenance lifecycle: NOT RUN; current real maintenance processes/HTTP/backup tested from source",
+    "Independent external reference setup artifact/full lifecycle and JobPilot/Rent acceptance NOT RUN",
+    "Windows11/UAC/ACL/real reboot/relogin, Ubuntu clean native installer/systemd service and product Docker backend full acceptance NOT RUN",
+    "12 reference target×locale combinations and full ACC01–23 not complete",
+    "Production signing/licence/legal approvals and release reproducibility open"
+  ],
+  "sync": {
+    "local": "CHECKPOINT_PENDING",
+    "github": "CHECKPOINT_PENDING; CP020 independent commit/tree/ref confirmed, its Linux/Windows CI PASS",
+    "docker_git": "BLOCKED: no configured repository remote; Gitea3010 requires sign-in"
+  },
+  "next_step": "Реализовать migration_plan/apply с настоящими backup receipts и fresh-empty, затем независимый installed reference artifact и полный lifecycle; выполнить оставшуюся реальную четырёхплатформенную приёмку."
+}

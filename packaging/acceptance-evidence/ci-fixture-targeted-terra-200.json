@@ -1,0 +1,22 @@
+{
+  "checkpoint_id": "CP-20261028T160331Z-0a43ef8c1beb",
+  "task_id": "HIM-086",
+  "source_head": "e314ce402dd33b3cefd1bbf462f1dc2f050a64dd",
+  "source_dirty": true,
+  "changed_test_hashes": {
+    "tests/conftest.py": "be29f172aa76506d810471bcebd0527e7cf44ed0cf81a4e56987bec313002652",
+    "tests/test_prerequisites_runner.py": "ec87caf89f3720cdc34a52970055f7cb8e9c464a3fe125b29a8d6e96b98697d3",
+    "tests/test_prerequisites_execution.py": "02d016bc84f0e2d0303654252a106c36536a4daec377b2f9b2612923a9e5c49c"
+  },
+  "image_id": "sha256:1b3529768706aaacabb525d6fd3168680cc2b0ffa1aee6994a3d2e5cdb8fd4c1",
+  "scope": "Linux DEV Docker Python3.14.3 UID1000 offline; not GitHub runner or full suite",
+  "command": "docker run --rm --name hinstall-terra-200-ci-targeted --network none --user 1000:1000 --mount type=bind,source=E:/homensai/homensai-install-modull,target=/workspace,readonly --mount type=bind,source=E:/homensai/homensai-install-modull/.local-state/terra-20261028-evidence,target=/evidence --workdir /workspace hinstall-dev:verification python -m pytest -q -p no:cacheprovider --junitxml=/evidence/ci-targeted.xml tests/test_prerequisites_runner.py tests/test_prerequisites_execution.py",
+  "status": "PASS",
+  "passed": 50,
+  "skipped": 0,
+  "exit_code": 0,
+  "junit": "packaging/acceptance-evidence/ci-fixture-targeted-terra-200.xml",
+  "junit_sha256": "c26c155431d41e66e5fa200846ea4af4f9a06036a598a688fa35356278fd45b4",
+  "initial_ci_fail": "packaging/acceptance-evidence/github-ci-terra-200-probe-20261028.json",
+  "limits": "The previous three CI cases passed locally; GitHub Python3.14.9 verification still required. No runtime trust checks changed."
+}

@@ -1,0 +1,436 @@
+.FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF                  [100%]
+=================================== FAILURES ===================================
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[changed_bytes-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[changed_bytes-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[missing_file-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[missing_file-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[extra_file-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[extra_file-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[extra_empty_dir-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[extra_empty_dir-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[missing_empty_dir-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[missing_empty_dir-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[lock_changed-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[lock_changed-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[product_ledger_changed-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[product_ledger_changed-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[neighbor_journal-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[neighbor_journal-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[nested_journal-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[nested_journal-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[missing_root-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[missing_root-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[missing_journal-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[missing_journal-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[journal_directory-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[journal_directory-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[file_hardlink-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[file_hardlink-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[journal_hardlink-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[journal_hardlink-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[file_symlink-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[file_symlink-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[directory_symlink-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[directory_symlink-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[journal_symlink-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[journal_symlink-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+__ test_every_nonexception_difference_and_unsafe_entry_is_rejected[fifo-live] __
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[fifo-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[shared_writable_file-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[shared_writable_file-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[shared_writable_journal-live] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_every_nonexception_difference_and_unsafe_entry_is_rejected[shared_writable_journal-restored] _
+tests/test_migration_snapshot.py:95: in test_every_nonexception_difference_and_unsafe_entry_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[uppercase_token] _
+tests/test_migration_snapshot.py:112: in test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted
+    refused((live, restored, journal))
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[short_token] _
+tests/test_migration_snapshot.py:112: in test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted
+    refused((live, restored, journal))
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[wrong_prefix] _
+tests/test_migration_snapshot.py:112: in test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted
+    refused((live, restored, journal))
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[nested] _
+tests/test_migration_snapshot.py:112: in test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted
+    refused((live, restored, journal))
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[other_root] _
+tests/test_migration_snapshot.py:112: in test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted
+    refused((live, restored, journal))
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[missing_mapping_root] _
+tests/test_migration_snapshot.py:112: in test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted
+    refused((live, restored, journal))
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[extra_mapping_root] _
+tests/test_migration_snapshot.py:112: in test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted
+    refused((live, restored, journal))
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[overlapping_roots] _
+tests/test_migration_snapshot.py:112: in test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted
+    refused((live, restored, journal))
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[extra_restored_root] _
+tests/test_migration_snapshot.py:112: in test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted
+    refused((live, restored, journal))
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_ test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[relative_candidate] _
+tests/test_migration_snapshot.py:112: in test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted
+    refused((live, restored, journal))
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+____________ test_fd_open_substitution_before_file_read_is_rejected ____________
+tests/test_migration_snapshot.py:131: in test_fd_open_substitution_before_file_read_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_________________ test_file_change_during_fd_read_is_rejected __________________
+tests/test_migration_snapshot.py:147: in test_file_change_during_fd_read_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+______ test_previously_scanned_root_drift_during_backup_scan_is_rejected _______
+tests/test_migration_snapshot.py:162: in test_previously_scanned_root_drift_during_backup_scan_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+_____________ test_unsupported_safe_directory_backend_is_rejected ______________
+tests/test_migration_snapshot.py:168: in test_unsupported_safe_directory_backend_is_rejected
+    refused(trees)
+tests/test_migration_snapshot.py:50: in refused
+    assert caught.value.details == {"reason": "migration_live_snapshot_not_verified"}
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'InstallerError' object has no attribute 'details'
+=========================== short test summary info ============================
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[changed_bytes-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[changed_bytes-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[missing_file-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[missing_file-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[extra_file-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[extra_file-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[extra_empty_dir-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[extra_empty_dir-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[missing_empty_dir-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[missing_empty_dir-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[lock_changed-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[lock_changed-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[product_ledger_changed-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[product_ledger_changed-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[neighbor_journal-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[neighbor_journal-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[nested_journal-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[nested_journal-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[missing_root-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[missing_root-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[missing_journal-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[missing_journal-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[journal_directory-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[journal_directory-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[file_hardlink-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[file_hardlink-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[journal_hardlink-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[journal_hardlink-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[file_symlink-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[file_symlink-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[directory_symlink-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[directory_symlink-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[journal_symlink-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[journal_symlink-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[fifo-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[fifo-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[shared_writable_file-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[shared_writable_file-restored]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[shared_writable_journal-live]
+FAILED tests/test_migration_snapshot.py::test_every_nonexception_difference_and_unsafe_entry_is_rejected[shared_writable_journal-restored]
+FAILED tests/test_migration_snapshot.py::test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[uppercase_token]
+FAILED tests/test_migration_snapshot.py::test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[short_token]
+FAILED tests/test_migration_snapshot.py::test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[wrong_prefix]
+FAILED tests/test_migration_snapshot.py::test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[nested]
+FAILED tests/test_migration_snapshot.py::test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[other_root]
+FAILED tests/test_migration_snapshot.py::test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[missing_mapping_root]
+FAILED tests/test_migration_snapshot.py::test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[extra_mapping_root]
+FAILED tests/test_migration_snapshot.py::test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[overlapping_roots]
+FAILED tests/test_migration_snapshot.py::test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[extra_restored_root]
+FAILED tests/test_migration_snapshot.py::test_only_exact_five_root_mapping_and_direct_services_journal_are_accepted[relative_candidate]
+FAILED tests/test_migration_snapshot.py::test_fd_open_substitution_before_file_read_is_rejected
+FAILED tests/test_migration_snapshot.py::test_file_change_during_fd_read_is_rejected
+FAILED tests/test_migration_snapshot.py::test_previously_scanned_root_drift_during_backup_scan_is_rejected
+FAILED tests/test_migration_snapshot.py::test_unsupported_safe_directory_backend_is_rejected
+54 failed, 1 passed in 2.95s

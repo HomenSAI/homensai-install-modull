@@ -1,0 +1,60 @@
+........................................................................ [  3%]
+........................................................................ [  7%]
+........................................................................ [ 11%]
+........................................................................ [ 14%]
+........................................................................ [ 18%]
+........................................................................ [ 22%]
+................................s....................................... [ 25%]
+........................................................................ [ 29%]
+........................................................................ [ 33%]
+........................................................................ [ 36%]
+........................................................................ [ 40%]
+........................................................................ [ 44%]
+........................................................................ [ 47%]
+........................................................................ [ 51%]
+........................................................................ [ 55%]
+........................................................................ [ 58%]
+........................................................................ [ 62%]
+........................................................................ [ 66%]
+.............................................................. [ 69%]
+.....F.................................................................. [ 72%]
+........................................................................ [ 76%]
+........................................................................ [ 80%]
+.......................................................................s [ 84%]
+.s...................................................................... [ 87%]
+........................................................................ [ 91%]
+........................................................................ [ 95%]
+........................................................................ [ 98%]
+.........................                                                [100%]
+=================================== FAILURES ===================================
+_ test_cancel_at_dispatch_boundaries_is_consumed_without_another_resume[prerequisite_background_finished] _
+
+bundle = {'payload': PosixPath('/tmp/hinstall-resume-cp012-04f338/test_cancel_at_dispatch_bounda2/payload'), 'manifest': {'sche...ser'}, 'private': <cryptography.hazmat.bindings._rust.openssl.ed25519.Ed25519PrivateKey object at 0x7f3c6178fe10>, ...}
+phase = 'prerequisite_background_finished'
+
+    @pytest.mark.parametrize("phase", ["prerequisite_background_queued", "prerequisite_pass_complete",
+                                        "prerequisite_background_finished"])
+    def test_cancel_at_dispatch_boundaries_is_consumed_without_another_resume(bundle, phase):
+        observations = []
+        controller = coordinator(bundle)
+
+        def observe(event):
+            if event["message_code"] == phase:
+                observations.append(controller.cancel("async_one"))
+
+        api = api_for(bundle, event_callback=observe)
+        plan = api.prerequisites_plan()
+        api.prerequisites_start("async_one", plan, plan["required_consents"], background=True)
+        result = settled(api)
+>       assert observations and result["status"] == "CANCELED"
+E       AssertionError: assert ([{'blocking_components': ['base', 'client'], 'cancel_requested': True, 'catalog_digest': 'd2653a73b3592364957a8b576b81...{'automatic_install_supported': False, 'component_id': 'client', 'detected_version': None, 'evidence': [], ...}], ...}] and 'AWAITING_USER' == 'CANCELED'
+E
+E         - CANCELED
+E         + AWAITING_USER)
+
+tests/test_prerequisites_async.py:137: AssertionError
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_datahome.py:105: Проверка пути POSIX на Windows
+SKIPPED [1] tests/test_service_systemd.py:89: PID/proc namespaces differ; rerun outside isolated PID sandbox
+SKIPPED [1] tests/test_service_systemd.py:121: private bus regression needs matching namespaces and system busctl/dbus-daemon
+1 failed, 1955 passed, 3 skipped, 10 subtests passed in 80.66s (0:01:20)

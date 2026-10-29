@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "description": "Configured HTTP result contains SDK API_VERSION=1.0, outer HTTP envelope remains 1.",
+  "test": "tests/test_prerequisites_projection.py::test_http_projection_binding_and_published_resource_contract",
+  "attempts": [
+    {
+      "stage": "before",
+      "status": "FAIL",
+      "raw_xml_encoding": "UTF-8 string, original bytes reproduced by encoding xml",
+      "raw_xml_sha256": "c9ad67167d481fef27f1ba65bec230c6e3347a884e507fdb3a9da314d0b44e83",
+      "xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?><testsuites name=\"pytest tests\"><testsuite name=\"pytest\" errors=\"0\" failures=\"1\" skipped=\"0\" tests=\"1\" time=\"0.521\" timestamp=\"2026-10-25T17:29:49.265202+01:00\" hostname=\"063b995bf262\"><testcase classname=\"tests.test_prerequisites_projection\" name=\"test_http_projection_binding_and_published_resource_contract\" time=\"0.103\"><failure message=\"AssertionError: assert '1' == '1.0'&#10;  &#10;  - 1.0&#10;  + 1\">bundle = {'payload': PosixPath('/tmp/hinstall-cp015-schema-before-04f338/test_http_projection_binding_a0/payload'), 'manifest':...ser'}, 'private': &lt;cryptography.hazmat.bindings._rust.openssl.ed25519.Ed25519PrivateKey object at 0x7f5407a87a50&gt;, ...}\n\n    def test_http_projection_binding_and_published_resource_contract(bundle):\n        session, _ = wizard(bundle)\n        caps = session.route(\"GET\", \"/prerequisites/capabilities\", {}, {})\n        result = session.route(\"POST\", \"/prerequisites/plans\", {}, {\"locale\": \"en\"})\n        assert caps[\"requirements\"] == session.api.prerequisites_capabilities()[\"requirements\"]\n        for key in (\"product_id\", \"owner_id\", \"target\", \"catalog_digest\"):\n            assert caps[key] == caps[\"binding\"][key] == result[\"plan\"][key]\n        assert {item[\"component_id\"] for item in caps[\"requirements\"]} == {\n            item[\"component_id\"] for item in result[\"plan\"][\"components\"]}\n    \n        root = Path(__file__).resolve().parents[1]\n        contract = json.loads((root / \"api/openapi.yaml\").read_text())\n        schemas = contract[\"components\"][\"schemas\"]\n        requirement = schemas[\"PrerequisiteRequirement\"]\n        assert set(requirement[\"required\"]) == set(requirement[\"properties\"]) == REQUIREMENT_FIELDS\n        assert requirement[\"additionalProperties\"] is False\n        for field in (\"minimum_version\", \"maximum_version\"):\n            assert set(requirement[\"properties\"][field][\"type\"]) == {\"string\", \"null\"}\n            pattern = requirement[\"properties\"][field][\"pattern\"]\n            assert re.search(pattern, \"v1.2.0+build\") and re.search(pattern, \"1.2\")\n            assert not re.search(pattern, \"1.2.0-rc1\") and not re.search(pattern, \"1.2\\n\")\n        capability = schemas[\"PrerequisiteCapabilitiesResult\"]\n        # HTTP envelope version and inner public SDK version are separate contracts.\n        # Compare the actual configured route result, not only the two schema copies.\n&gt;       assert capability[\"properties\"][\"api_version\"][\"const\"] == caps[\"api_version\"] == API_VERSION\nE       AssertionError: assert '1' == '1.0'\nE         \nE         - 1.0\nE         + 1\n\ntests/test_prerequisites_projection.py:160: AssertionError</failure></testcase></testsuite></testsuites>"
+    },
+    {
+      "stage": "after",
+      "status": "PASS",
+      "raw_xml_encoding": "UTF-8 string, original bytes reproduced by encoding xml",
+      "raw_xml_sha256": "d2a5873065eba967dc1af3acf46080fc0f00d87555f89e93b2cf8c9ea6b354a8",
+      "xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?><testsuites name=\"pytest tests\"><testsuite name=\"pytest\" errors=\"0\" failures=\"0\" skipped=\"0\" tests=\"1\" time=\"0.364\" timestamp=\"2026-10-25T17:30:02.436924+01:00\" hostname=\"063b995bf262\"><testcase classname=\"tests.test_prerequisites_projection\" name=\"test_http_projection_binding_and_published_resource_contract\" time=\"0.113\" /></testsuite></testsuites>"
+    }
+  ]
+}

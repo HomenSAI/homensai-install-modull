@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-25T06:27:22Z",
+  "verification": "Read official GitHub tag refs, action.yml and LICENSE at exact commit; no action was executed by this check.",
+  "actions": [
+    {
+      "repository": "actions/checkout",
+      "tag": "v7.0.1",
+      "commit": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "license_expression": "MIT",
+      "action_yml_blob_sha": "5b0524f730db83f9513c18ab31a6c086c7239076",
+      "license_blob_sha": "a67dca8b4f65d6bd351f6b1e333ce2cd84d843a5",
+      "source_url": "https://github.com/actions/checkout/tree/3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "tag_api_url": "https://api.github.com/repos/actions/checkout/git/ref/tags/v7.0.1",
+      "license_url": "https://github.com/actions/checkout/blob/3d3c42e5aac5ba805825da76410c181273ba90b1/LICENSE"
+    },
+    {
+      "repository": "actions/setup-python",
+      "tag": "v7.1.0",
+      "commit": "6d4fd22b20465ccc0f7354476588e8df7c9ca0e0",
+      "license_expression": "MIT",
+      "action_yml_blob_sha": "645de4f5108b28bcc7ed043ee171770b0754cc35",
+      "license_blob_sha": "a426ef259d6c5d705e9c1405075c3b318093c65e",
+      "source_url": "https://github.com/actions/setup-python/tree/6d4fd22b20465ccc0f7354476588e8df7c9ca0e0",
+      "tag_api_url": "https://api.github.com/repos/actions/setup-python/git/ref/tags/v7.1.0",
+      "license_url": "https://github.com/actions/setup-python/blob/6d4fd22b20465ccc0f7354476588e8df7c9ca0e0/LICENSE"
+    }
+  ],
+  "python_selection": {
+    "version": "3.14.9",
+    "architecture": "x64",
+    "freethreaded": false,
+    "manifest_url": "https://github.com/actions/python-versions/blob/main/versions-manifest.json",
+    "manifest_blob_sha": "bff7d7859bd37f83c6fbb8b9b16d7f69c8ed4c75",
+    "stable": true,
+    "release_url": "https://github.com/actions/python-versions/releases/tag/3.14.9-39619022138",
+    "files": [
+      {
+        "filename": "python-3.14.9-linux-24.04-x64.tar.gz",
+        "arch": "x64",
+        "platform": "linux",
+        "platform_version": "24.04",
+        "download_url": "https://github.com/actions/python-versions/releases/download/3.14.9-39619022138/python-3.14.9-linux-24.04-x64.tar.gz"
+      },
+      {
+        "filename": "python-3.14.9-win32-x64.zip",
+        "arch": "x64",
+        "platform": "win32",
+        "download_url": "https://github.com/actions/python-versions/releases/download/3.14.9-39619022138/python-3.14.9-win32-x64.zip"
+      }
+    ],
+    "archive_hash_verification": "NOT_PERFORMED_BY_THIS_RECEIPT",
+    "execution_status": "NOT_RUN"
+  }
+}

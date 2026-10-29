@@ -1,0 +1,334 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-005",
+  "observed_date": "2026-10-25",
+  "scope": "Synthetic Linux x64 user-session only",
+  "results": {
+    "controller_crash_resume": {
+      "scope": "Linux x64 frozen DEV controller crash + fresh browser GUI",
+      "interrupted_phase": "stage",
+      "same_operation_id": "op_f4451ae0d2c243fbb999fbac520db8df",
+      "recovery_status": "RECOVERY_REQUIRED",
+      "automatic_replay": false,
+      "status": "SUCCEEDED",
+      "health": {
+        "product_id": "homensai-reference",
+        "installation_id": "117b8562cebd4aca8e9823ff14bfe779",
+        "release": "reference-1.0.0-dev",
+        "product_version": "1.0.0",
+        "database_schema": 1,
+        "expected_database_schema": 1,
+        "api_key_configured": false,
+        "api_key_required": false,
+        "ready": true,
+        "checks": {
+          "database": true,
+          "settings": true,
+          "api_key": true,
+          "profile": true
+        }
+      },
+      "product_stopped": true,
+      "production_ready": false
+    },
+    "repair": {
+      "scope": "Linux x64 frozen DEV GUI + bundled runtime",
+      "action": "repair",
+      "status": "SUCCEEDED",
+      "operation_id": "op_5caeaaee1aac49fcafa2080e65131590",
+      "health": {
+        "product_id": "homensai-reference",
+        "installation_id": "6031766b5f30474ca70b40569e19e2c3",
+        "release": "reference-3.0.0-dev",
+        "product_version": "3.0.0",
+        "database_schema": 3,
+        "expected_database_schema": 3,
+        "api_key_configured": false,
+        "api_key_required": false,
+        "ready": true,
+        "checks": {
+          "database": true,
+          "settings": true,
+          "api_key": true,
+          "profile": true
+        }
+      },
+      "user_file_preserved": true,
+      "browser_errors": [],
+      "production_ready": false
+    },
+    "late_rollback": {
+      "scope": "Linux x64 frozen DEV GUI + bundled runtime",
+      "action": "rollback",
+      "status": "SUCCEEDED",
+      "operation_id": "op_afce06610d244d0ca9b3998a50fb9c2e",
+      "health": {
+        "product_id": "homensai-reference",
+        "installation_id": "6031766b5f30474ca70b40569e19e2c3",
+        "release": "reference-2.0.0-dev",
+        "product_version": "2.0.0",
+        "database_schema": 2,
+        "expected_database_schema": 2,
+        "api_key_configured": false,
+        "api_key_required": false,
+        "ready": true,
+        "checks": {
+          "database": true,
+          "settings": true,
+          "api_key": true,
+          "profile": true
+        }
+      },
+      "user_file_preserved": true,
+      "browser_errors": [],
+      "production_ready": false
+    },
+    "before_rollback_snapshot": {
+      "encrypted_before_snapshot_verified": true,
+      "before_schema": 3,
+      "restored_live_schema": 2,
+      "archive_sha256": "10dc3f3edad36980f9d095ecb747156fec2e455f0b8d062a43ae81c9c2b4c55a",
+      "production_ready": false
+    },
+    "maintenance_after_rollback": {
+      "scope": "Linux x64 frozen latest bootstrap after rollback",
+      "old_operation": "op_3a5fc8c15a784b399adb8b083a4baa1b",
+      "inactive_attempt_canceled": true,
+      "actions": [
+        {
+          "action": "stop",
+          "locale": "de",
+          "status": "SUCCEEDED",
+          "operation_id": "op_fc022a1049784b2eb446db854a93bc54",
+          "effective_release": "reference-2.0.0-dev"
+        },
+        {
+          "action": "start",
+          "locale": "en",
+          "status": "SUCCEEDED",
+          "operation_id": "op_b918b6b34fd6448db29bdb0b6796cb64",
+          "effective_release": "reference-2.0.0-dev"
+        },
+        {
+          "action": "backup",
+          "locale": "ru",
+          "status": "SUCCEEDED",
+          "operation_id": "op_e855a6ceda384b4ea31bcf50a8683a87",
+          "effective_release": "reference-2.0.0-dev"
+        },
+        {
+          "action": "stop",
+          "locale": "en",
+          "status": "SUCCEEDED",
+          "operation_id": "op_a141a62b229f45eba2e9f81d31f87b96",
+          "effective_release": "reference-2.0.0-dev"
+        }
+      ],
+      "actual_health": {
+        "product_id": "homensai-reference",
+        "installation_id": "6031766b5f30474ca70b40569e19e2c3",
+        "release": "reference-2.0.0-dev",
+        "product_version": "2.0.0",
+        "database_schema": 2,
+        "expected_database_schema": 2,
+        "api_key_configured": false,
+        "api_key_required": false,
+        "ready": true,
+        "checks": {
+          "database": true,
+          "settings": true,
+          "api_key": true,
+          "profile": true
+        }
+      },
+      "archive_sha256": "2ae0f626c9c2a26cfe9e187f182367c6e5849ec66c011b1e0718daeca015a2af",
+      "browser_errors": [],
+      "product_stopped": true,
+      "production_ready": false
+    },
+    "gui_cancel_concurrency_contract": {
+      "scope": "Frozen GUI response-race contract with replayed API snapshots",
+      "status": "PASS",
+      "live_response": "RUNNING",
+      "returned_to_progress": true,
+      "active_polls": 1,
+      "final_status": "CANCELED",
+      "real_operation_unchanged": true,
+      "browser_errors": [],
+      "real_concurrent_backend": false,
+      "production_ready": false
+    },
+    "controller_crash_resume_final": {
+      "scope": "Linux x64 frozen DEV controller crash + fresh browser GUI",
+      "interrupted_phase": "stage",
+      "same_operation_id": "op_e4a33118c10642058bfc85447bee5581",
+      "recovery_status": "RECOVERY_REQUIRED",
+      "initial_recovery_observation": "RECOVERY_REQUIRED",
+      "automatic_replay": false,
+      "status": "SUCCEEDED",
+      "health": {
+        "product_id": "homensai-reference",
+        "installation_id": "2f0bb7bbc3164420859c59113ce9c46e",
+        "release": "reference-1.0.0-dev",
+        "product_version": "1.0.0",
+        "database_schema": 1,
+        "expected_database_schema": 1,
+        "api_key_configured": false,
+        "api_key_required": false,
+        "ready": true,
+        "checks": {
+          "database": true,
+          "settings": true,
+          "api_key": true,
+          "profile": true
+        }
+      },
+      "product_stopped": true,
+      "production_ready": false
+    }
+  },
+  "crash_bundle": {
+    "executable_sha256": "46ff9292471c09f31a82005b7ceb844ce83c95e235fdbd5ac54de18f43c1aea1",
+    "inventory_sha256": "2394a2f13b62163f81097f3e0536c836223cdf89cf2993dceb5313c9b011f599",
+    "build_report": {
+      "schema_version": 1,
+      "release": "reference-1.0.0-dev",
+      "python": "3.14.3",
+      "target": {
+        "os": "linux",
+        "arch": "x64",
+        "mode": "native"
+      },
+      "reference_profile": {
+        "schema_version": 1,
+        "product_version": "1.0.0",
+        "database_schema": 1,
+        "health_failure": false,
+        "migration_failure": false,
+        "require_api_key": false
+      },
+      "files": 896,
+      "payload_bytes": 168898765,
+      "development": true,
+      "production_ready": false,
+      "freeze": true,
+      "blockers": [
+        "production publisher signature/certificate",
+        "runtime transitive licence audit",
+        "approved product EULA",
+        "Windows/Docker/system-service acceptance"
+      ]
+    }
+  },
+  "limits": [
+    "Process-kill is not power-loss or reboot acceptance",
+    "Windows/Docker/OS services not accepted",
+    "Historical PLAN_STALE after rollback retained; fixed latest-bootstrap GUI cancellation + new active-release-bound plan verified successfully"
+  ],
+  "production_ready": false,
+  "maintenance_bundle": {
+    "executable_sha256": "5bfe7886f6c03f39125e938b85aba3243a866939f74f70f213ec0b3cf8d1ddd4",
+    "inventory_sha256": "d219c334ce8a468133b27e0e5c1dd7250c45743f89060f20689da04f3b894e13",
+    "build_report": {
+      "schema_version": 1,
+      "release": "reference-3.0.0-dev",
+      "python": "3.14.3",
+      "target": {
+        "os": "linux",
+        "arch": "x64",
+        "mode": "native"
+      },
+      "reference_profile": {
+        "schema_version": 1,
+        "product_version": "3.0.0",
+        "database_schema": 3,
+        "health_failure": false,
+        "migration_failure": false,
+        "require_api_key": false
+      },
+      "files": 896,
+      "payload_bytes": 168898765,
+      "development": true,
+      "production_ready": false,
+      "freeze": true,
+      "blockers": [
+        "production publisher signature/certificate",
+        "runtime transitive licence audit",
+        "approved product EULA",
+        "Windows/Docker/system-service acceptance"
+      ]
+    }
+  },
+  "screenshots": {
+    "wizard-ru.png": {
+      "sha256": "1a0741b2f91b5993022e441ad0722c23d30c41a60d74cb373271054e7597dee1",
+      "bytes": 117478,
+      "reviewed": true
+    },
+    "wizard-en.png": {
+      "sha256": "069e2d3beb9272f357718e2f8970403018fbd0694f4830335b25f96083569a2c",
+      "bytes": 94516,
+      "reviewed": true
+    },
+    "wizard-de.png": {
+      "sha256": "dafe4e6969eec685ae4939fa042c7eae119f87e78d119213f877fae29946ba8e",
+      "bytes": 92559,
+      "reviewed": true
+    }
+  },
+  "cas_bundle": {
+    "executable_sha256": "23318af615ef11ecf81942bb1cfc07375017ca40a1777aff27211ea643ffa258",
+    "inventory_sha256": "f64c56be603bbc2ab019dc957e5d855a202ac66edcb0433aae6f9c4642b8e7a4"
+  },
+  "historical_failures": [
+    {
+      "scope": "First final-CAS frozen crash harness run",
+      "status": "FAIL",
+      "reason": "First immediate recovery observation was RUNNING, expected RECOVERY_REQUIRED",
+      "operation_id": "op_143d78a3c3e64d8b9d9a66c8b1c15ccf",
+      "interrupted_phase": "stage",
+      "owner_pid_observed_later_missing": 47727,
+      "cause": "Not established from this observation; PID was already absent at later inspection",
+      "fixture_preserved": true
+    }
+  ],
+  "final_owner_bundle": {
+    "executable_sha256": "3c50ab24c4e6c13bd7722c1027405af7b6d9026981cfd9912a83551fd47a3dfe",
+    "inventory_sha256": "a54ac81c0a44163dbd86df0633dfd0caf314882ac9dec47b992e289fac514e21",
+    "build_report": {
+      "schema_version": 1,
+      "release": "reference-1.0.0-dev",
+      "python": "3.14.3",
+      "target": {
+        "os": "linux",
+        "arch": "x64",
+        "mode": "native"
+      },
+      "reference_profile": {
+        "schema_version": 1,
+        "product_version": "1.0.0",
+        "database_schema": 1,
+        "health_failure": false,
+        "migration_failure": false,
+        "require_api_key": false
+      },
+      "files": 896,
+      "payload_bytes": 168898765,
+      "development": true,
+      "production_ready": false,
+      "freeze": true,
+      "blockers": [
+        "production publisher signature/certificate",
+        "runtime transitive licence audit",
+        "approved product EULA",
+        "Windows/Docker/system-service acceptance"
+      ]
+    }
+  },
+  "cleanup": {
+    "previous_owned_controller_processes_stopped": 24,
+    "pidfd_identity_checked": true,
+    "current_crash_harness_owned_product_stopped": true,
+    "failed_fixtures_preserved": true
+  }
+}

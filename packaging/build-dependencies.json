@@ -1,0 +1,1153 @@
+{
+  "schema_version": 1,
+  "python": "3.14-standard",
+  "packages": [
+    {
+      "name": "altgraph",
+      "version": "0.17.5",
+      "marker": null,
+      "metadata_url": "https://pypi.org/pypi/altgraph/0.17.5/json",
+      "metadata_sha256": "378b0103a514bcb2a2fc35f1016e7c53bd94425857f4c36152152810f0316bd5",
+      "requires_python": null,
+      "requires_dist": [],
+      "license_expression": null,
+      "license": "MIT",
+      "files": [
+        {
+          "filename": "altgraph-0.17.5-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/a9/ba/000a1996d4308bc65120167c21241a3b205464a2e0b58deda26ae8ac21d1/altgraph-0.17.5-py2.py3-none-any.whl",
+          "size": 21228,
+          "requires_python": null,
+          "upload_time_iso_8601": "2025-11-21T20:35:49.444851Z",
+          "sha256": "f3a22400bce1b0c701683820ac4f3b159cd301acab067c51c653e06961600597",
+          "targets": [
+            "linux-x64",
+            "windows-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "dc60641dba229a3aef09f764f562c38d908b930c92615af2e626af31d6ff19b5",
+          "wheel_requires_dist": [],
+          "wheel_license_expression": null,
+          "wheel_license_files": [
+            "LICENSE"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "altgraph-0.17.5.dist-info/LICENSE",
+              "size": 1002,
+              "sha256": "6c194d6db0c64d45535d10c95142b9b0cda7b7dcc7f1ddee302b3d536f3dbe46"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        }
+      ]
+    },
+    {
+      "name": "build",
+      "version": "1.6.1",
+      "marker": null,
+      "metadata_url": "https://pypi.org/pypi/build/1.6.1/json",
+      "metadata_sha256": "064e9dcb80e948b5de7a841c3fd9b5644a980eb27bb644fb7f562b7d773b157b",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "packaging>=24.0",
+        "pyproject_hooks",
+        "colorama; os_name == \"nt\"",
+        "importlib-metadata>=4.6; python_full_version < \"3.10.2\"",
+        "tomli>=1.1.0; python_version < \"3.11\"",
+        "keyring; extra == \"keyring\"",
+        "uv>=0.1.18; extra == \"uv\"",
+        "virtualenv>=20.36.1; extra == \"virtualenv\""
+      ],
+      "license_expression": "MIT",
+      "license": null,
+      "files": [
+        {
+          "filename": "build-1.6.1-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/ad/9b/9fb3585dabcd73a1b2a6267f63f62649347c9e6d072c9fde365b105abb2c/build-1.6.1-py3-none-any.whl",
+          "size": 31179,
+          "requires_python": ">=3.10",
+          "upload_time_iso_8601": "2026-09-10T07:55:59.148398Z",
+          "sha256": "ecd351a4be9d35a9eaaba244a7687143c9c7d4aea6ac964e7e7ddab20cbcf4e7",
+          "targets": [
+            "linux-x64",
+            "windows-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "f3623590844a25dcf308a71a988c73e293b7ef779a1f43acb83ad1be218d61a0",
+          "wheel_requires_dist": [
+            "packaging >= 24.0",
+            "pyproject_hooks",
+            "colorama; os_name == \"nt\"",
+            "importlib-metadata >= 4.6; python_full_version < \"3.10.2\"",
+            "tomli >= 1.1.0; python_version < \"3.11\"",
+            "keyring ; extra == \"keyring\"",
+            "uv >= 0.1.18 ; extra == \"uv\"",
+            "virtualenv >= 20.36.1 ; extra == \"virtualenv\""
+          ],
+          "wheel_license_expression": "MIT",
+          "wheel_license_files": [
+            "LICENSE"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "build-1.6.1.dist-info/licenses/LICENSE",
+              "size": 1113,
+              "sha256": "aaf9a29ca5907971ccf07de025375db34539a8d5eeebce20b46099805722106f"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        }
+      ]
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1",
+      "marker": null,
+      "metadata_url": "https://pypi.org/pypi/cffi/2.1.1/json",
+      "metadata_sha256": "2255e530e3f80593a354e3d84a29966924d0e10309d1e3a6d50f845ab7d8df66",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "pycparser; implementation_name != \"PyPy\""
+      ],
+      "license_expression": "MIT-0",
+      "license": null,
+      "files": [
+        {
+          "filename": "cffi-2.1.1-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+          "url": "https://files.pythonhosted.org/packages/e9/02/4e7d553a7ac4b4238b38b3c1b80d486e9d4436f8d2acbf87a0997fe3f402/cffi-2.1.1-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+          "size": 221525,
+          "requires_python": ">=3.10",
+          "upload_time_iso_8601": "2026-08-03T21:20:25.758239Z",
+          "sha256": "b0431303acaea1089ad4b3e9ce4e6518193def1118d4073ca848635ee4ea2e96",
+          "targets": [
+            "linux-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "558bafb9093a8e790175d9ecff9688382981d744877dad86fd6770db0f4dc918",
+          "wheel_requires_dist": [
+            "pycparser; implementation_name != \"PyPy\""
+          ],
+          "wheel_license_expression": "MIT-0",
+          "wheel_license_files": [
+            "LICENSE"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "cffi-2.1.1.dist-info/licenses/LICENSE",
+              "size": 1123,
+              "sha256": "5ba24ddc57067f9249add644c3afc41a5d6dc37e23433ef759d95df370b0af63"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        },
+        {
+          "filename": "cffi-2.1.1-cp314-cp314-win_amd64.whl",
+          "url": "https://files.pythonhosted.org/packages/a7/06/1c3e01e3ba14c39f6d10bfbac52753b7e22259e38088e5cfe1d704918690/cffi-2.1.1-cp314-cp314-win_amd64.whl",
+          "size": 187949,
+          "requires_python": ">=3.10",
+          "upload_time_iso_8601": "2026-08-03T21:20:45.623108Z",
+          "sha256": "3222ba5d678f80a030e6afbcc33dc1ae5cb45facabb61cee2c7016b8432fde48",
+          "targets": [
+            "windows-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "67b6a7595df7ede2195016a05d285faa7d362a8f57c238984edb8bb674b5770d",
+          "wheel_requires_dist": [
+            "pycparser; implementation_name != \"PyPy\""
+          ],
+          "wheel_license_expression": "MIT-0",
+          "wheel_license_files": [
+            "LICENSE"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "cffi-2.1.1.dist-info/licenses/LICENSE",
+              "size": 1123,
+              "sha256": "5ba24ddc57067f9249add644c3afc41a5d6dc37e23433ef759d95df370b0af63"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        }
+      ]
+    },
+    {
+      "name": "colorama",
+      "version": "0.4.6",
+      "marker": "sys_platform == \"win32\"",
+      "metadata_url": "https://pypi.org/pypi/colorama/0.4.6/json",
+      "metadata_sha256": "43fb351344384a44c2b7d7fff1c63496b89ac830aea714301525c1f3718addd1",
+      "requires_python": "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7",
+      "requires_dist": [],
+      "license_expression": null,
+      "license": "",
+      "files": [
+        {
+          "filename": "colorama-0.4.6-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl",
+          "size": 25335,
+          "requires_python": "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7",
+          "upload_time_iso_8601": "2022-10-25T02:36:20.889702Z",
+          "sha256": "4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6",
+          "targets": [
+            "linux-x64",
+            "windows-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "7baed29eb50c3b29bdb33ff84e3177bf1bc05784f7685ecdcaa4471c7dd810cc",
+          "wheel_requires_dist": [],
+          "wheel_license_expression": null,
+          "wheel_license_files": [
+            "LICENSE.txt"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "colorama-0.4.6.dist-info/licenses/LICENSE.txt",
+              "size": 1491,
+              "sha256": "cac35c02686e5d04a5a7140bfb3b36e73aed496656e891102e428886d7930318"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        }
+      ]
+    },
+    {
+      "name": "cryptography",
+      "version": "50.0.2",
+      "marker": null,
+      "metadata_url": "https://pypi.org/pypi/cryptography/50.0.2/json",
+      "metadata_sha256": "7423990cc0948676ef47a71ea62a476ece4c76245e6bebd1c3a71f03c4ffc0f4",
+      "requires_python": "!=3.9.0,!=3.9.1,>=3.9",
+      "requires_dist": [
+        "cffi>=2.0.0; platform_python_implementation != \"PyPy\"",
+        "typing-extensions>=4.13.2; python_full_version < \"3.11\"",
+        "bcrypt>=3.1.5; extra == \"ssh\""
+      ],
+      "license_expression": "Apache-2.0 OR BSD-3-Clause",
+      "license": null,
+      "files": [
+        {
+          "filename": "cryptography-50.0.2-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+          "url": "https://files.pythonhosted.org/packages/21/69/64cef1f702bf6657e0cc186ed1a2891d50d29fb41586b254e1c07adea261/cryptography-50.0.2-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+          "size": 4719841,
+          "requires_python": "!=3.9.0,!=3.9.1,>=3.9",
+          "upload_time_iso_8601": "2026-09-30T14:43:49.010540Z",
+          "sha256": "630ebfea3bf689d075f82316324ff7433dc447fe6bc1bfc76524b74b4a9567d2",
+          "targets": [
+            "linux-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "047cfc71226409de4318b360aef15c63a2adf609731e3dcf7fe932f14ea042ee",
+          "wheel_requires_dist": [
+            "cffi>=2.0.0 ; platform_python_implementation != 'PyPy'",
+            "typing-extensions>=4.13.2 ; python_full_version < '3.11'",
+            "bcrypt>=3.1.5 ; extra == 'ssh'"
+          ],
+          "wheel_license_expression": "Apache-2.0 OR BSD-3-Clause",
+          "wheel_license_files": [
+            "LICENSE",
+            "LICENSE.APACHE",
+            "LICENSE.BSD"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "cryptography-50.0.2.dist-info/licenses/LICENSE",
+              "size": 197,
+              "sha256": "3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb"
+            },
+            {
+              "path_in_wheel": "cryptography-50.0.2.dist-info/licenses/LICENSE.APACHE",
+              "size": 11360,
+              "sha256": "aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe"
+            },
+            {
+              "path_in_wheel": "cryptography-50.0.2.dist-info/licenses/LICENSE.BSD",
+              "size": 1532,
+              "sha256": "602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        },
+        {
+          "filename": "cryptography-50.0.2-cp311-abi3-manylinux_2_28_x86_64.whl",
+          "url": "https://files.pythonhosted.org/packages/1a/f1/b474e930c4d910328780e3940da76f5aa5cbc48ce1fc14e44d239d9ea9db/cryptography-50.0.2-cp311-abi3-manylinux_2_28_x86_64.whl",
+          "size": 4753050,
+          "requires_python": "!=3.9.0,!=3.9.1,>=3.9",
+          "upload_time_iso_8601": "2026-09-30T14:43:55.272150Z",
+          "sha256": "4061c0079120205fb760c58acab6443e217307dcf05e3702cf970e0689972856",
+          "targets": [
+            "linux-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "047cfc71226409de4318b360aef15c63a2adf609731e3dcf7fe932f14ea042ee",
+          "wheel_requires_dist": [
+            "cffi>=2.0.0 ; platform_python_implementation != 'PyPy'",
+            "typing-extensions>=4.13.2 ; python_full_version < '3.11'",
+            "bcrypt>=3.1.5 ; extra == 'ssh'"
+          ],
+          "wheel_license_expression": "Apache-2.0 OR BSD-3-Clause",
+          "wheel_license_files": [
+            "LICENSE",
+            "LICENSE.APACHE",
+            "LICENSE.BSD"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "cryptography-50.0.2.dist-info/licenses/LICENSE",
+              "size": 197,
+              "sha256": "3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb"
+            },
+            {
+              "path_in_wheel": "cryptography-50.0.2.dist-info/licenses/LICENSE.APACHE",
+              "size": 11360,
+              "sha256": "aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe"
+            },
+            {
+              "path_in_wheel": "cryptography-50.0.2.dist-info/licenses/LICENSE.BSD",
+              "size": 1532,
+              "sha256": "602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        },
+        {
+          "filename": "cryptography-50.0.2-cp311-abi3-manylinux_2_34_x86_64.whl",
+          "url": "https://files.pythonhosted.org/packages/d3/69/2c833a049475e0a3444e94c7d0aca0aa51d166374a449b09e92ac98138de/cryptography-50.0.2-cp311-abi3-manylinux_2_34_x86_64.whl",
+          "size": 4752576,
+          "requires_python": "!=3.9.0,!=3.9.1,>=3.9",
+          "upload_time_iso_8601": "2026-09-30T14:44:04.545137Z",
+          "sha256": "9dab55f57c74c3cad24c323bacbbd04be4705ba6eb0d92e920b1fc4837ed5079",
+          "targets": [
+            "linux-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "047cfc71226409de4318b360aef15c63a2adf609731e3dcf7fe932f14ea042ee",
+          "wheel_requires_dist": [
+            "cffi>=2.0.0 ; platform_python_implementation != 'PyPy'",
+            "typing-extensions>=4.13.2 ; python_full_version < '3.11'",
+            "bcrypt>=3.1.5 ; extra == 'ssh'"
+          ],
+          "wheel_license_expression": "Apache-2.0 OR BSD-3-Clause",
+          "wheel_license_files": [
+            "LICENSE",
+            "LICENSE.APACHE",
+            "LICENSE.BSD"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "cryptography-50.0.2.dist-info/licenses/LICENSE",
+              "size": 197,
+              "sha256": "3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb"
+            },
+            {
+              "path_in_wheel": "cryptography-50.0.2.dist-info/licenses/LICENSE.APACHE",
+              "size": 11360,
+              "sha256": "aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe"
+            },
+            {
+              "path_in_wheel": "cryptography-50.0.2.dist-info/licenses/LICENSE.BSD",
+              "size": 1532,
+              "sha256": "602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        },
+        {
+          "filename": "cryptography-50.0.2-cp311-abi3-win_amd64.whl",
+          "url": "https://files.pythonhosted.org/packages/9a/4f/adfc442765721292fff86d314ce385d3249d22db42295c0dd057727b60f3/cryptography-50.0.2-cp311-abi3-win_amd64.whl",
+          "size": 3824692,
+          "requires_python": "!=3.9.0,!=3.9.1,>=3.9",
+          "upload_time_iso_8601": "2026-09-30T14:44:11.671809Z",
+          "sha256": "7afa5a6602a9f29af1f3a2965f831bae7c9d5d597b7cbb716d41ab3b7d89879c",
+          "targets": [
+            "windows-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "047cfc71226409de4318b360aef15c63a2adf609731e3dcf7fe932f14ea042ee",
+          "wheel_requires_dist": [
+            "cffi>=2.0.0 ; platform_python_implementation != 'PyPy'",
+            "typing-extensions>=4.13.2 ; python_full_version < '3.11'",
+            "bcrypt>=3.1.5 ; extra == 'ssh'"
+          ],
+          "wheel_license_expression": "Apache-2.0 OR BSD-3-Clause",
+          "wheel_license_files": [
+            "LICENSE",
+            "LICENSE.APACHE",
+            "LICENSE.BSD"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "cryptography-50.0.2.dist-info/licenses/LICENSE",
+              "size": 197,
+              "sha256": "3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb"
+            },
+            {
+              "path_in_wheel": "cryptography-50.0.2.dist-info/licenses/LICENSE.APACHE",
+              "size": 11360,
+              "sha256": "aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe"
+            },
+            {
+              "path_in_wheel": "cryptography-50.0.2.dist-info/licenses/LICENSE.BSD",
+              "size": 1532,
+              "sha256": "602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        }
+      ]
+    },
+    {
+      "name": "iniconfig",
+      "version": "2.3.1",
+      "marker": null,
+      "metadata_url": "https://pypi.org/pypi/iniconfig/2.3.1/json",
+      "metadata_sha256": "ab4d5df71d2a4f01a0eb418d7809bb22dca3293991a369309f068c07c1471557",
+      "requires_python": ">=3.10",
+      "requires_dist": [],
+      "license_expression": "MIT",
+      "license": null,
+      "files": [
+        {
+          "filename": "iniconfig-2.3.1-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/56/43/4ca9e49d27a1fcf6bece6f6aec0ea46bb9112489b93d4b688fb415457bdb/iniconfig-2.3.1-py3-none-any.whl",
+          "size": 7552,
+          "requires_python": ">=3.10",
+          "upload_time_iso_8601": "2026-10-06T22:48:36.959685Z",
+          "sha256": "9121e2c1fdb355232495be3194c8dfe87ccc2d5dee45947b78e68f499790d7a7",
+          "targets": [
+            "linux-x64",
+            "windows-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "47c2c35d936f5c649d8074c6464719a42966a67b5cebad01e3e5784cf090cfb6",
+          "wheel_requires_dist": [],
+          "wheel_license_expression": "MIT",
+          "wheel_license_files": [
+            "LICENSE"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "iniconfig-2.3.1.dist-info/licenses/LICENSE",
+              "size": 1098,
+              "sha256": "3409fa91f7ace557894632676656e32264fe5ef7581535725dc9a23774551bd4"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        }
+      ]
+    },
+    {
+      "name": "packaging",
+      "version": "26.3",
+      "marker": null,
+      "metadata_url": "https://pypi.org/pypi/packaging/26.3/json",
+      "metadata_sha256": "4f190d2f0b312b3086058cee64ab4333bf3ce67fb78b4c2bdb43899049b29f4d",
+      "requires_python": ">=3.9",
+      "requires_dist": [],
+      "license_expression": "Apache-2.0 OR BSD-2-Clause",
+      "license": null,
+      "files": [
+        {
+          "filename": "packaging-26.3-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl",
+          "size": 129956,
+          "requires_python": ">=3.9",
+          "upload_time_iso_8601": "2026-08-04T18:15:27.159957Z",
+          "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c",
+          "targets": [
+            "linux-x64",
+            "windows-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "70fdb89fc4d4a9a043bf7372b8972bcc883fddff34ab55e9cf80d73875384763",
+          "wheel_requires_dist": [],
+          "wheel_license_expression": "Apache-2.0 OR BSD-2-Clause",
+          "wheel_license_files": [
+            "LICENSE",
+            "LICENSE.APACHE",
+            "LICENSE.BSD"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "packaging-26.3.dist-info/licenses/LICENSE",
+              "size": 197,
+              "sha256": "cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48"
+            },
+            {
+              "path_in_wheel": "packaging-26.3.dist-info/licenses/LICENSE.APACHE",
+              "size": 10174,
+              "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+            },
+            {
+              "path_in_wheel": "packaging-26.3.dist-info/licenses/LICENSE.BSD",
+              "size": 1344,
+              "sha256": "b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        }
+      ]
+    },
+    {
+      "name": "pefile",
+      "version": "2024.8.26",
+      "marker": "sys_platform == \"win32\"",
+      "metadata_url": "https://pypi.org/pypi/pefile/2024.8.26/json",
+      "metadata_sha256": "1429d48b5cf73f88a3933b012c990c0ca15606228ccec3f7ff112e79407f240c",
+      "requires_python": ">=3.6.0",
+      "requires_dist": [],
+      "license_expression": null,
+      "license": "MIT",
+      "files": [
+        {
+          "filename": "pefile-2024.8.26-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/54/16/12b82f791c7f50ddec566873d5bdd245baa1491bac11d15ffb98aecc8f8b/pefile-2024.8.26-py3-none-any.whl",
+          "size": 74766,
+          "requires_python": ">=3.6.0",
+          "upload_time_iso_8601": "2024-08-26T21:01:02.632515Z",
+          "sha256": "76f8b485dcd3b1bb8166f1128d395fa3d87af26360c2358fb75b80019b957c6f",
+          "targets": [
+            "linux-x64",
+            "windows-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "8ad83a5f8659e8da6eeaabf2dafa0eebb8c05832a3def16a5db4dd0d52e72474",
+          "wheel_requires_dist": [],
+          "wheel_license_expression": null,
+          "wheel_license_files": [
+            "LICENSE"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "pefile-2024.8.26.dist-info/LICENSE",
+              "size": 1083,
+              "sha256": "b44409c067c6da52bfb54bb6624fb11a7b52157c3a13ae1400232f8196e86ad3"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        }
+      ]
+    },
+    {
+      "name": "pluggy",
+      "version": "1.7.0",
+      "marker": null,
+      "metadata_url": "https://pypi.org/pypi/pluggy/1.7.0/json",
+      "metadata_sha256": "9e8f441bba8382eabf6febf386a5b9610cfe0c16b60b96e7b4b1831bd6d96361",
+      "requires_python": ">=3.10",
+      "requires_dist": [],
+      "license_expression": null,
+      "license": "MIT",
+      "files": [
+        {
+          "filename": "pluggy-1.7.0-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/40/9e/2b38731e0fc536806f16490e1a12d7f0dc2a1235aa8cc07bcc75416a7daa/pluggy-1.7.0-py3-none-any.whl",
+          "size": 27082,
+          "requires_python": ">=3.10",
+          "upload_time_iso_8601": "2026-10-15T09:50:56.808462Z",
+          "sha256": "7dd7b0d8832ba3cb632c306926ded123429211b83641b35dc5c41ad2d34f9bec",
+          "targets": [
+            "linux-x64",
+            "windows-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "20ac8237e37f1d6e7e75500cd663015177ba80c1a1a595ff6bae18a539ff8a2c",
+          "wheel_requires_dist": [],
+          "wheel_license_expression": null,
+          "wheel_license_files": [
+            "LICENSE"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "pluggy-1.7.0.dist-info/licenses/LICENSE",
+              "size": 1110,
+              "sha256": "d6b65e6c213a5d0b577911d34d6e5949b9f59d76c238c5071a2f3fc16cfb2606"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        }
+      ]
+    },
+    {
+      "name": "pycparser",
+      "version": "3.12",
+      "marker": null,
+      "metadata_url": "https://pypi.org/pypi/pycparser/3.12/json",
+      "metadata_sha256": "e919b291615d54a2328a0da6128cd9d95601ad04d27cec48eeb75e0d57c3b6ad",
+      "requires_python": ">=3.11",
+      "requires_dist": [],
+      "license_expression": "BSD-3-Clause",
+      "license": null,
+      "files": [
+        {
+          "filename": "pycparser-3.12-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/b6/ae/315bbeee126a769cbde43cf4908acb4b40408d8bf8bbf334dd7368d8dadf/pycparser-3.12-py3-none-any.whl",
+          "size": 62600,
+          "requires_python": ">=3.11",
+          "upload_time_iso_8601": "2026-10-22T13:40:02.021539Z",
+          "sha256": "a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e",
+          "targets": [
+            "linux-x64",
+            "windows-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "ad8db5fe2b0e0a3b0e8419fe5041b80be92470a40b06bd9c1462a0a8bb637c92",
+          "wheel_requires_dist": [],
+          "wheel_license_expression": "BSD-3-Clause",
+          "wheel_license_files": [
+            "LICENSE"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "pycparser-3.12.dist-info/licenses/LICENSE",
+              "size": 1543,
+              "sha256": "0a9e78156ae8b96caf1b4f11ac2df424b83de29736f9e757630548a6272fdf90"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        }
+      ]
+    },
+    {
+      "name": "pygments",
+      "version": "2.21.0",
+      "marker": null,
+      "metadata_url": "https://pypi.org/pypi/pygments/2.21.0/json",
+      "metadata_sha256": "330104a10adc8a587e3f98f4e207557125ca0c1d489e129334da5acb2b813a03",
+      "requires_python": ">=3.9",
+      "requires_dist": [
+        "colorama>=0.4.6; extra == \"windows-terminal\""
+      ],
+      "license_expression": "BSD-2-Clause",
+      "license": null,
+      "files": [
+        {
+          "filename": "pygments-2.21.0-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/71/46/17f022dd3e953bf20a04a028a21ec746d942f8d2af30fa0f124fa0e6a684/pygments-2.21.0-py3-none-any.whl",
+          "size": 1250147,
+          "requires_python": ">=3.9",
+          "upload_time_iso_8601": "2026-08-17T08:02:44.912148Z",
+          "sha256": "2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9",
+          "targets": [
+            "linux-x64",
+            "windows-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "1dde075570136774c706bf0009183a793fe0ee262e4a5590cc6eff8453eedd43",
+          "wheel_requires_dist": [
+            "colorama>=0.4.6; extra == 'windows-terminal'"
+          ],
+          "wheel_license_expression": "BSD-2-Clause",
+          "wheel_license_files": [
+            "AUTHORS",
+            "LICENSE"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "pygments-2.21.0.dist-info/licenses/LICENSE",
+              "size": 1331,
+              "sha256": "a9d66f1d526df02e29dce73436d34e56e8632f46c275bbdffc70569e882f9f17"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        }
+      ]
+    },
+    {
+      "name": "pyinstaller",
+      "version": "6.22.3",
+      "marker": null,
+      "metadata_url": "https://pypi.org/pypi/pyinstaller/6.22.3/json",
+      "metadata_sha256": "f31cd317e95e6fd2490694eed5e34437968260789dc704745cd16cdde60de4a7",
+      "requires_python": "<3.16,>=3.8",
+      "requires_dist": [
+        "altgraph",
+        "importlib-metadata>=4.6; python_version < \"3.10\"",
+        "macholib>=1.8; sys_platform == \"darwin\"",
+        "packaging>=22.0",
+        "pefile>=2022.5.30; sys_platform == \"win32\"",
+        "pyinstaller-hooks-contrib>=2026.7",
+        "pywin32-ctypes>=0.2.1; sys_platform == \"win32\"",
+        "setuptools>=42.0.0",
+        "argcomplete; extra == \"completion\"",
+        "execnet>=1.5.0; extra == \"hook-testing\"",
+        "psutil; extra == \"hook-testing\"",
+        "pytest>=2.7.3; extra == \"hook-testing\""
+      ],
+      "license_expression": null,
+      "license": "GPLv2-or-later with a special exception which allows to use PyInstaller to build and distribute non-free programs (including commercial ones)",
+      "files": [
+        {
+          "filename": "pyinstaller-6.22.3-py3-none-manylinux2014_x86_64.whl",
+          "url": "https://files.pythonhosted.org/packages/7b/b6/dd21d61fc5e25377be24eabf13e99e4e46548a5abe2bf7b15d8b3d9cc74a/pyinstaller-6.22.3-py3-none-manylinux2014_x86_64.whl",
+          "size": 764974,
+          "requires_python": "<3.16,>=3.8",
+          "upload_time_iso_8601": "2026-09-12T21:53:23.176721Z",
+          "sha256": "451a4ae14b719365bf1a2f0a99dae7b3463060061c3a394c70d5264cfb439528",
+          "targets": [
+            "linux-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "2991d3dcd53fe9966b8c16586322a7f9bbc564dd4752c190bd4fe8d6747f7046",
+          "wheel_requires_dist": [
+            "altgraph",
+            "importlib-metadata>=4.6; python_version < '3.10'",
+            "macholib>=1.8; sys_platform == 'darwin'",
+            "packaging>=22.0",
+            "pefile>=2022.5.30; sys_platform == 'win32'",
+            "pyinstaller-hooks-contrib>=2026.7",
+            "pywin32-ctypes>=0.2.1; sys_platform == 'win32'",
+            "setuptools>=42.0.0",
+            "argcomplete; extra == 'completion'",
+            "execnet>=1.5.0; extra == 'hook-testing'",
+            "psutil; extra == 'hook-testing'",
+            "pytest>=2.7.3; extra == 'hook-testing'"
+          ],
+          "wheel_license_expression": null,
+          "wheel_license_files": [
+            "COPYING.txt"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "pyinstaller-6.22.3.dist-info/licenses/COPYING.txt",
+              "size": 32604,
+              "sha256": "0598064c7d2718e38d7914a7d08343b2fa008e3bea9ebba2aa7a6ffa5900dd64"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        },
+        {
+          "filename": "pyinstaller-6.22.3-py3-none-win_amd64.whl",
+          "url": "https://files.pythonhosted.org/packages/24/83/c5422204772a27aef643280fdc887b7ef55679989096b21dceb1b9625fc4/pyinstaller-6.22.3-py3-none-win_amd64.whl",
+          "size": 1454907,
+          "requires_python": "<3.16,>=3.8",
+          "upload_time_iso_8601": "2026-09-12T21:53:44.812628Z",
+          "sha256": "500bd58c7bf7e584a8435adccbd763a0b918d5c12b08d74ff50fd79b2915458b",
+          "targets": [
+            "windows-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "2991d3dcd53fe9966b8c16586322a7f9bbc564dd4752c190bd4fe8d6747f7046",
+          "wheel_requires_dist": [
+            "altgraph",
+            "importlib-metadata>=4.6; python_version < '3.10'",
+            "macholib>=1.8; sys_platform == 'darwin'",
+            "packaging>=22.0",
+            "pefile>=2022.5.30; sys_platform == 'win32'",
+            "pyinstaller-hooks-contrib>=2026.7",
+            "pywin32-ctypes>=0.2.1; sys_platform == 'win32'",
+            "setuptools>=42.0.0",
+            "argcomplete; extra == 'completion'",
+            "execnet>=1.5.0; extra == 'hook-testing'",
+            "psutil; extra == 'hook-testing'",
+            "pytest>=2.7.3; extra == 'hook-testing'"
+          ],
+          "wheel_license_expression": null,
+          "wheel_license_files": [
+            "COPYING.txt"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "pyinstaller-6.22.3.dist-info/licenses/COPYING.txt",
+              "size": 32604,
+              "sha256": "0598064c7d2718e38d7914a7d08343b2fa008e3bea9ebba2aa7a6ffa5900dd64"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        }
+      ]
+    },
+    {
+      "name": "pyinstaller-hooks-contrib",
+      "version": "2026.9",
+      "marker": null,
+      "metadata_url": "https://pypi.org/pypi/pyinstaller-hooks-contrib/2026.9/json",
+      "metadata_sha256": "418995b0a9adf050cb4790ac5f5ea56b6c35aab3c01e0c5311077c471223a349",
+      "requires_python": ">=3.8",
+      "requires_dist": [
+        "importlib_metadata>=4.6; python_version < \"3.10\"",
+        "packaging>=22.0"
+      ],
+      "license_expression": null,
+      "license": null,
+      "files": [
+        {
+          "filename": "pyinstaller_hooks_contrib-2026.9-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/93/fe/ded0e20de0580257d97dbabb4db7ab4d96ad8ade7d41149e66308057cf52/pyinstaller_hooks_contrib-2026.9-py3-none-any.whl",
+          "size": 462931,
+          "requires_python": ">=3.8",
+          "upload_time_iso_8601": "2026-10-20T15:43:52.632882Z",
+          "sha256": "fb3e67dd64122561724c48ad0366ac9e8c16e638b63bf7d85de03bf3fdbf06c3",
+          "targets": [
+            "linux-x64",
+            "windows-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "1820f1a8a554ce1b6ae528c7fe502f4676c844eb1151f7f040adc8010052b0ba",
+          "wheel_requires_dist": [
+            "importlib_metadata>=4.6; python_version < \"3.10\"",
+            "packaging>=22.0"
+          ],
+          "wheel_license_expression": null,
+          "wheel_license_files": [
+            "LICENSE"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "pyinstaller_hooks_contrib-2026.9.dist-info/licenses/LICENSE",
+              "size": 27666,
+              "sha256": "91d0baaff00773038e72c0a1fc9d5d2d38706b7a2b9c04f34296608f931b9cd0"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        }
+      ]
+    },
+    {
+      "name": "pyproject-hooks",
+      "version": "1.3.3",
+      "marker": null,
+      "metadata_url": "https://pypi.org/pypi/pyproject-hooks/1.3.3/json",
+      "metadata_sha256": "ef47170935f8a098c070a3cd65d637d5bbf646158d9559eebac9c465b83d0401",
+      "requires_python": ">=3.8",
+      "requires_dist": [],
+      "license_expression": "MIT",
+      "license": null,
+      "files": [
+        {
+          "filename": "pyproject_hooks-1.3.3-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/85/11/044d1ae1b4ec0d7af88ee5bc91e081be1022533032b906a7bdabdbb60977/pyproject_hooks-1.3.3-py3-none-any.whl",
+          "size": 10724,
+          "requires_python": ">=3.8",
+          "upload_time_iso_8601": "2026-09-16T08:58:02.960279Z",
+          "sha256": "5fc53fdac9f7bd63fbcdc868fb5f90b4784d78a53a3d3388cd738b807441a20b",
+          "targets": [
+            "linux-x64",
+            "windows-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "844e375bb28dcbe42a0502fbd9428d9ba4669db25028ee7a7afaa8dd7ada2e00",
+          "wheel_requires_dist": [],
+          "wheel_license_expression": "MIT",
+          "wheel_license_files": [
+            "LICENSE"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "pyproject_hooks-1.3.3.dist-info/licenses/LICENSE",
+              "size": 1081,
+              "sha256": "1b22b049b5267d6dfc23a67bf4a84d8ec04b9fdfb1a51d360e42b4342c8b4154"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        }
+      ]
+    },
+    {
+      "name": "pytest",
+      "version": "9.1.1",
+      "marker": null,
+      "metadata_url": "https://pypi.org/pypi/pytest/9.1.1/json",
+      "metadata_sha256": "8ed48304ba7fd0ae974a041f117487b499d553b40e5ce55a9ece677e946f68dd",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "colorama>=0.4; sys_platform == \"win32\"",
+        "exceptiongroup>=1; python_version < \"3.11\"",
+        "iniconfig>=1.0.1",
+        "packaging>=22",
+        "pluggy<2,>=1.5",
+        "pygments>=2.7.2",
+        "tomli>=1; python_version < \"3.11\"",
+        "argcomplete; extra == \"dev\"",
+        "attrs>=19.2; extra == \"dev\"",
+        "hypothesis>=3.56; extra == \"dev\"",
+        "mock; extra == \"dev\"",
+        "requests; extra == \"dev\"",
+        "setuptools; extra == \"dev\"",
+        "xmlschema; extra == \"dev\""
+      ],
+      "license_expression": "MIT",
+      "license": null,
+      "files": [
+        {
+          "filename": "pytest-9.1.1-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/24/25/1de2678b631f5a49215c6c96fff41ba892b0a34df68d6d80292b1b48aa7f/pytest-9.1.1-py3-none-any.whl",
+          "size": 386536,
+          "requires_python": ">=3.10",
+          "upload_time_iso_8601": "2026-06-19T10:58:31.347074Z",
+          "sha256": "37a86b45efb9a47a61a36449063e8e18d0cab3161329fc099eb21783169c4f0c",
+          "targets": [
+            "linux-x64",
+            "windows-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "c5d032518012789cabc870d46589aca3aeda36cf9fa4399ee88bda3d10438451",
+          "wheel_requires_dist": [
+            "colorama>=0.4; sys_platform == \"win32\"",
+            "exceptiongroup>=1; python_version < \"3.11\"",
+            "iniconfig>=1.0.1",
+            "packaging>=22",
+            "pluggy<2,>=1.5",
+            "pygments>=2.7.2",
+            "tomli>=1; python_version < \"3.11\"",
+            "argcomplete; extra == \"dev\"",
+            "attrs>=19.2; extra == \"dev\"",
+            "hypothesis>=3.56; extra == \"dev\"",
+            "mock; extra == \"dev\"",
+            "requests; extra == \"dev\"",
+            "setuptools; extra == \"dev\"",
+            "xmlschema; extra == \"dev\""
+          ],
+          "wheel_license_expression": "MIT",
+          "wheel_license_files": [
+            "LICENSE"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "pytest-9.1.1.dist-info/licenses/LICENSE",
+              "size": 1091,
+              "sha256": "ca836a5f9ecca3b2f350230faa20a48fb8b145653b5568d784862df864706b9b"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        }
+      ]
+    },
+    {
+      "name": "pywin32-ctypes",
+      "version": "0.2.3",
+      "marker": "sys_platform == \"win32\"",
+      "metadata_url": "https://pypi.org/pypi/pywin32-ctypes/0.2.3/json",
+      "metadata_sha256": "31b3fd15200f74e96940467fd34bb11cab92fbcc8a7f9e0fb0f90599e56e1604",
+      "requires_python": ">=3.6",
+      "requires_dist": [],
+      "license_expression": null,
+      "license": "BSD-3-Clause",
+      "files": [
+        {
+          "filename": "pywin32_ctypes-0.2.3-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/de/3d/8161f7711c017e01ac9f008dfddd9410dff3674334c233bde66e7ba65bbf/pywin32_ctypes-0.2.3-py3-none-any.whl",
+          "size": 30756,
+          "requires_python": ">=3.6",
+          "upload_time_iso_8601": "2024-08-14T10:15:33.187242Z",
+          "sha256": "8a1513379d709975552d202d942d9837758905c8d01eb82b8bcc30918929e7b8",
+          "targets": [
+            "linux-x64",
+            "windows-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "1e3767d3faff4d5b9c347160883831098d1f25acf4306b02c9acdcc6bfb5883b",
+          "wheel_requires_dist": [],
+          "wheel_license_expression": null,
+          "wheel_license_files": [],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "pywin32_ctypes-0.2.3.dist-info/LICENSE.txt",
+              "size": 1644,
+              "sha256": "dfa83b3e2709adfcdb838d9ad55823ca674abb780e60563d9dd9544ccbf785e9"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        }
+      ]
+    },
+    {
+      "name": "setuptools",
+      "version": "84.2.1",
+      "marker": null,
+      "metadata_url": "https://pypi.org/pypi/setuptools/84.2.1/json",
+      "metadata_sha256": "d75de8ba0d3304a3d74484fb9f340edb87ef02712da4fa02a2ed92e71b0572dd",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "pytest!=8.1.*,>=6; extra == \"test\"",
+        "virtualenv>=13.0.0; extra == \"test\"",
+        "wheel>=0.44.0; extra == \"test\"",
+        "pip>=19.1; extra == \"test\"",
+        "packaging>=26.3; extra == \"test\"",
+        "jaraco.envs>=2.2; extra == \"test\"",
+        "pytest-xdist>=3; extra == \"test\"",
+        "jaraco.path>=3.7.2; extra == \"test\"",
+        "build[virtualenv]>=1.0.3; extra == \"test\"",
+        "filelock>=3.4.0; extra == \"test\"",
+        "ini2toml[lite]>=0.14; extra == \"test\"",
+        "tomli-w>=1.0.0; extra == \"test\"",
+        "pytest-timeout; extra == \"test\"",
+        "pytest-perf; sys_platform != \"cygwin\" and extra == \"test\"",
+        "jaraco.develop>=7.21; (python_version >= \"3.9\" and sys_platform != \"cygwin\") and extra == \"test\"",
+        "pytest-home>=0.5; extra == \"test\"",
+        "pytest-subprocess; extra == \"test\"",
+        "pyproject-hooks!=1.1; extra == \"test\"",
+        "jaraco.test>=5.5; extra == \"test\"",
+        "sphinx>=3.5; extra == \"doc\"",
+        "jaraco.packaging>=9.3; extra == \"doc\"",
+        "rst.linker>=1.9; extra == \"doc\"",
+        "furo; extra == \"doc\"",
+        "sphinx-lint; extra == \"doc\"",
+        "jaraco.tidelift>=1.4; extra == \"doc\"",
+        "pygments-github-lexers==0.0.5; extra == \"doc\"",
+        "sphinx-favicon; extra == \"doc\"",
+        "sphinx-inline-tabs; extra == \"doc\"",
+        "sphinx-reredirects; extra == \"doc\"",
+        "sphinxcontrib-towncrier; extra == \"doc\"",
+        "sphinx-notfound-page<2,>=1; extra == \"doc\"",
+        "pyproject-hooks!=1.1; extra == \"doc\"",
+        "towncrier<24.7; extra == \"doc\"",
+        "packaging>=26.3; extra == \"core\"",
+        "more_itertools>=8.8; extra == \"core\"",
+        "jaraco.text>=3.7; extra == \"core\"",
+        "importlib_metadata>=6; python_version < \"3.10\" and extra == \"core\"",
+        "tomli>=2.0.1; python_version < \"3.11\" and extra == \"core\"",
+        "wheel>=0.43.0; extra == \"core\"",
+        "jaraco.functools>=4; extra == \"core\"",
+        "more_itertools; extra == \"core\"",
+        "pytest-checkdocs>=2.14; extra == \"check\"",
+        "pytest-ruff>=0.2.1; sys_platform != \"cygwin\" and extra == \"check\"",
+        "ruff>=0.13.0; sys_platform != \"cygwin\" and extra == \"check\"",
+        "pytest-cov; extra == \"cover\"",
+        "pytest-enabler>=3.4; extra == \"enabler\"",
+        "pytest-mypy>=1.0.1; platform_python_implementation != \"PyPy\" and extra == \"type\"",
+        "mypy==1.18.*; extra == \"type\"",
+        "importlib_metadata>=7.0.2; python_version < \"3.10\" and extra == \"type\"",
+        "jaraco.develop>=7.21; sys_platform != \"cygwin\" and extra == \"type\""
+      ],
+      "license_expression": "MIT",
+      "license": null,
+      "files": [
+        {
+          "filename": "setuptools-84.2.1-py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/ef/55/6dc6d6bb953bdfc52519a0059592c52b6e3b8ad51cf8256dffceb55b0610/setuptools-84.2.1-py3-none-any.whl",
+          "size": 876263,
+          "requires_python": ">=3.10",
+          "upload_time_iso_8601": "2026-10-20T19:01:35.678013Z",
+          "sha256": "ca140b45d5325a9478f880e351484f62fef15f336462e449ca0c03c873d589c2",
+          "targets": [
+            "linux-x64",
+            "windows-x64"
+          ],
+          "yanked": false,
+          "wheel_metadata_sha256": "24939b84ead30ff4581918c8d5a95aafd377f6a8afc61f30ea18358a8786bfa4",
+          "wheel_requires_dist": [
+            "pytest!=8.1.*,>=6; extra == \"test\"",
+            "virtualenv>=13.0.0; extra == \"test\"",
+            "wheel>=0.44.0; extra == \"test\"",
+            "pip>=19.1; extra == \"test\"",
+            "packaging>=26.3; extra == \"test\"",
+            "jaraco.envs>=2.2; extra == \"test\"",
+            "pytest-xdist>=3; extra == \"test\"",
+            "jaraco.path>=3.7.2; extra == \"test\"",
+            "build[virtualenv]>=1.0.3; extra == \"test\"",
+            "filelock>=3.4.0; extra == \"test\"",
+            "ini2toml[lite]>=0.14; extra == \"test\"",
+            "tomli-w>=1.0.0; extra == \"test\"",
+            "pytest-timeout; extra == \"test\"",
+            "pytest-perf; sys_platform != \"cygwin\" and extra == \"test\"",
+            "jaraco.develop>=7.21; (python_version >= \"3.9\" and sys_platform != \"cygwin\") and extra == \"test\"",
+            "pytest-home>=0.5; extra == \"test\"",
+            "pytest-subprocess; extra == \"test\"",
+            "pyproject-hooks!=1.1; extra == \"test\"",
+            "jaraco.test>=5.5; extra == \"test\"",
+            "sphinx>=3.5; extra == \"doc\"",
+            "jaraco.packaging>=9.3; extra == \"doc\"",
+            "rst.linker>=1.9; extra == \"doc\"",
+            "furo; extra == \"doc\"",
+            "sphinx-lint; extra == \"doc\"",
+            "jaraco.tidelift>=1.4; extra == \"doc\"",
+            "pygments-github-lexers==0.0.5; extra == \"doc\"",
+            "sphinx-favicon; extra == \"doc\"",
+            "sphinx-inline-tabs; extra == \"doc\"",
+            "sphinx-reredirects; extra == \"doc\"",
+            "sphinxcontrib-towncrier; extra == \"doc\"",
+            "sphinx-notfound-page<2,>=1; extra == \"doc\"",
+            "pyproject-hooks!=1.1; extra == \"doc\"",
+            "towncrier<24.7; extra == \"doc\"",
+            "packaging>=26.3; extra == \"core\"",
+            "more_itertools>=8.8; extra == \"core\"",
+            "jaraco.text>=3.7; extra == \"core\"",
+            "importlib_metadata>=6; python_version < \"3.10\" and extra == \"core\"",
+            "tomli>=2.0.1; python_version < \"3.11\" and extra == \"core\"",
+            "wheel>=0.43.0; extra == \"core\"",
+            "jaraco.functools>=4; extra == \"core\"",
+            "more_itertools; extra == \"core\"",
+            "pytest-checkdocs>=2.14; extra == \"check\"",
+            "pytest-ruff>=0.2.1; sys_platform != \"cygwin\" and extra == \"check\"",
+            "ruff>=0.13.0; sys_platform != \"cygwin\" and extra == \"check\"",
+            "pytest-cov; extra == \"cover\"",
+            "pytest-enabler>=3.4; extra == \"enabler\"",
+            "pytest-mypy>=1.0.1; platform_python_implementation != \"PyPy\" and extra == \"type\"",
+            "mypy==1.18.*; extra == \"type\"",
+            "importlib_metadata>=7.0.2; python_version < \"3.10\" and extra == \"type\"",
+            "jaraco.develop>=7.21; sys_platform != \"cygwin\" and extra == \"type\""
+          ],
+          "wheel_license_expression": "MIT",
+          "wheel_license_files": [
+            "LICENSE"
+          ],
+          "download_verified_now": true,
+          "notice_file_receipts": [
+            {
+              "path_in_wheel": "setuptools-84.2.1.dist-info/licenses/LICENSE",
+              "size": 1023,
+              "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741"
+            }
+          ],
+          "license_review_status": "PENDING_REVIEW"
+        }
+      ]
+    }
+  ],
+  "observed_at": "2026-10-25T06:27:22Z",
+  "roots": [
+    "build",
+    "cryptography",
+    "pyinstaller",
+    "pytest",
+    "setuptools"
+  ],
+  "python_full_versions_checked": [
+    "3.14.3",
+    "3.14.9"
+  ],
+  "targets": {
+    "linux-x64": {
+      "sys_platform": "linux",
+      "os_name": "posix",
+      "platform_system": "Linux",
+      "platform_machine": "x86_64",
+      "libc": "glibc>=2.17"
+    },
+    "windows-x64": {
+      "sys_platform": "win32",
+      "os_name": "nt",
+      "platform_system": "Windows",
+      "platform_machine": "AMD64"
+    }
+  },
+  "verification": {
+    "metadata": "Official PyPI JSON over HTTPS; raw response SHA-256 retained in each package record.",
+    "files": "All 22 selected wheels downloaded from files.pythonhosted.org, exact size and SHA-256 compared with official PyPI metadata, top-level wheel METADATA parsed without installing or importing wheels.",
+    "scope": "Pinned build/test dependencies only. Native libraries, CPython runtime bytes, pip bootstrap and hosted runner image are separate inputs.",
+    "license_review": "License metadata is evidence, never automatic legal approval. See THIRD_PARTY_AUDIT.md and license-policy.json.",
+    "attestation": "No PyPI attestation or publisher identity verification performed. HTTPS plus pinned hashes is not a signed provenance guarantee."
+  }
+}

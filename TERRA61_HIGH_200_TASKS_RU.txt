@@ -1,0 +1,332 @@
+ЗАДАНИЕ ДЛЯ GPT-6.1 TERRA / HIGH — СЛЕДУЮЩИЕ 200 ЗАДАЧ
+Проект: E:\homensai\homensai-install-modull
+Автор продукта: Serhii Khomenko. Язык общения, документов и коммитов — русский.
+Подготовлено 28.10.2026. Родительские задачи: HIM-009/015/023/050/054/056/063.
+Подготовка плана: HIM-009 / CP-20261028T151359Z-9d2c68e980eb.
+Проверка документа: последовательность ровно 1–200, без пропусков и повторов;
+runtime не изменялся, новые runtime проверки при подготовке не запускались.
+
+НАЗНАЧЕНИЕ
+Это очередь работы для отдельного запуска Terra 6.1 High, один агент без
+делегации. Чтение/сохранение этого файла не запускает реализацию.
+План детализирует канонический TODO, не заменяет его 106 HIM и критерии G0–G5.
+200 пунктов — инженерные подзадачи, а не обещание 200 функций или полной готовности.
+Двухчасовое окно предыдущего задания закрыто; его часы не возобновлять.
+Новую длительность задаёт владелец при запуске. При назначенном лимите записать
+UTC start/deadline, последние 25% окна оставить на проверки и сохранение.
+Не считать неприменимость задачи выполнением и не придумывать работу ради счётчика.
+
+ПРОВЕРЕНО ПРИ СОСТАВЛЕНИИ
+- Локальный HEAD и GitHub feature ref: 5cd601b7555df787c9d992b3f15359306fc6692c.
+  Рабочая папка чистая до создания этого файла; tracking ref origin устарел.
+- С прошлого baseline 61d6ec3 изменены installed harness и документы/receipts.
+  Diff runtime, shared, reference, tests и workflow пуст: runtime не улучшался
+  и не менялся этим пакетом. Счётчик 97/100 включает чтение/аудит/сохранение.
+- update-lost-ack: реальный signed apply, затем тестовая потеря ответа;
+  UNKNOWN, повтор submit без второго effect, original operation resume PASS.
+- update-tampered-backup: изменение backup:0 после receipt; ожидаемый отказ
+  до v2 effect, schema1/данные/pointer/forward journal сохранены.
+- Оба результата — installed Linux/native/user DEV с borrowed runtime.
+  Это не clean-host, аппаратный power-loss или полный lifecycle.
+- 83 source PASS/0 skip: 40 update + 18 receipt + 25 adapter contract.
+- Финальный GitHub CI run40709901833 на 5cd601b: Windows portable PASS,
+  Linux source 3 FAIL/2386 PASS/1 skip/10 subtests; Linux integration skipped.
+  Повторились те же случаи, что run40708599284 на 75ed388:
+  test_real_fixed_runner_is_reached_only_after_signed_pins_and_consent;
+  test_real_exact_argv_has_no_shell_or_parent_secrets;
+  test_timeout_returns_unknown_without_claiming_or_killing_system_installer.
+  У двух причина отказа prerequisite_executable_not_private_regular; точное
+  свойство файла runner (mode/nlink/type/size) пока не установлено.
+- В RESUME/handoff сохранились старые WIP/NOT RUN/RUNNING строки рядом с
+  поздними PASS. Нужна ясная текущая сводка с отделённой историей, без потери receipts.
+- missing ledger, устойчивый UNKNOWN, foreign receipt, live drift и candidate
+  health/cleanup installed acceptance остаются незакрытыми.
+- production_ready=false; G0–G5 открыты; Docker Git remote отсутствует.
+Эти сведения — наблюдение на указанном SHA. Перед исполнением проверить изменения.
+
+ОБЯЗАТЕЛЬНО ПИСАТЬ ВСЕ СУЩЕСТВЕННЫЕ НАХОДКИ
+После каждой выполненной задачи отдельное сообщение:
+«Сделано 1/200 — задача 001: результат. Найдено: ...; доказательство: ...».
+Если новых фактов нет: «Новых находок нет». Не выдавать это за отсутствие дефектов.
+Если задача заблокирована: «Задача 043 — BLOCKED: причина; следующий шаг»;
+счётчик выполненных не увеличивать. Указывать номер задачи и счётчик отдельно,
+если порядок изменился. Выполнять зависимые задачи только после prerequisites.
+
+При обнаружении ошибки сообщать сразу, не ждать конца пакета:
+«Найдено F-001: ...; подтверждено/гипотеза; влияние; файл/строка;
+SHA/artifact; команда/receipt; безопасное следующее действие».
+Записывать наблюдения, противоречия, ограничения и неудачные попытки, а не только PASS.
+Использовать docs/TERRA61_200_FINDINGS_RU.md для читаемой сводки и
+docs/TERRA61_200_PROGRESS_RU.md для пунктов/счётчика/следующего действия.
+Не создавать отдельный каталог из сотен пустых отчётов; дополнять общий журнал.
+Находка получает стабильный F-ID; последующее исправление дописывается к ней,
+исходный FAIL не стирается. Severity: данные/безопасность, функциональность,
+проверки/среда, документация. Отдельно факт, предполагаемая причина, подтверждение.
+Все содержательные находки сохранять; сырые логи и большие artifacts — в
+.local-state с хешем/указателем, в Git только очищенные доказательства.
+Не выводить секреты, credentials, личные БД, environment dump или чужие данные.
+Если обнаружен секрет, записать тип и безопасное местоположение без значения.
+
+GITHUB ПОСЛЕ КАЖДЫХ ПЯТИ ВЫПОЛНЕННЫХ ЗАДАЧ
+На счётчике 5, 10, 15 ... 200 до следующей задачи:
+обновить progress/findings и затронутые HIM/ACC/handoff; проверить diff;
+выполнить необходимые проверки; tools/checkpoint.py с явным allowlist;
+обычный push в feature-ветку; независимая сверка remote ref/tree;
+внешняя receipt в .git/hinstall-checkpoints, без рекурсивных self-SHA commits.
+Писать: «GitHub: сохранено 5/200 — commit <SHA>; ref/tree подтверждены».
+Пятёрка только из чтения тоже сохраняет содержательные выводы в журнал.
+Checkpoint-процедура — повторяемое правило, не дополнительные пункты счётчика.
+Последнюю неполную пятёрку сохранить при остановке/дедлайне.
+Частые push могут отменять предыдущий CI по workflow concurrency: cancellation
+не означает FAIL теста. Для приёмки кода дождаться стабильного нужного run;
+не отключать CI или проверки ради темпа счётчика.
+Не использовать git add -A, force push, main, reset --hard или clean.
+При отказе push/сверки записать SYNC_BLOCKED/CONFLICT, сохранить локально,
+устранить причину безопасно; не объявлять remote синхронизированным заранее.
+Не накапливать новые изменения реализации поверх неподтверждённого checkpoint.
+
+ГРАНИЦЫ СЛОЖНОСТИ И ЗАЩИТА ПРОЕКТА
+Работать небольшими пакетами: сначала CI и доказательства, затем по одному fault
+профилю через имеющийся harness. Не переписывать lifecycle architecture.
+Разрешены тесты/harness, точечные подтверждённые test-fixture/CI diagnostic fixes,
+документы и receipts. Runtime, trust policy и public capabilities не менять.
+Если обнаружен runtime defect — воспроизводимый RED, finding и отдельный план fix;
+зависимые профили BLOCKED, независимые проверки продолжать.
+Не делать synthetic authorizer и не подменять operation_status ответом «applied»
+ради PASS. Инъекция сбоя допускается только как явно описанная test instrumentation.
+Проверять public factory/prepare/plan/submit/resume; внутренние чтения для oracle
+не заменяют public execution и не делают внутренний API контрактом продукта.
+Не менять режимы/права системного Python runner ради теста. Собственная копия
+fixture допустима только с закреплением байтов/прав и доказанным диагнозом.
+Не исправлять CI ослаблением nlink/ownership/signature/receipt проверки или skip.
+Не создавать новые зависимости; при реальной необходимости сначала policy точной версии.
+Не менять чужие процессы, данные, volumes и порты 8810/8811/8812; shutdown запрещён.
+Новый artifact требует собственных SHA/receipt; старый PASS не переносить автоматически.
+NOT RUN/BLOCKED/FAIL/неприменимо не равны DONE; production_ready не повышать.
+
+ЗАДАЧИ 001–020. ВОССТАНОВЛЕНИЕ И ДОСТОВЕРНЫЙ СТАТУС
+1. Прочитать AI_START_HERE.md и определить порядок входа для этого запуска.
+2. Прочитать AGENTS.md и CLAUDE.md; записать применимые ограничения.
+3. Прочитать полный канонический PROMPT; выделить ограничения текущего пакета.
+4. Прочитать полный канонический TODO; связать очередь с существующими HIM.
+5. Прочитать RESUME, work-state и NEXT_AI_HANDOFF; составить актуальную сводку.
+6. Прочитать verification backlog/status и отделить source от installed acceptance.
+7. Прочитать INSTALLER_API и PRODUCT_ADAPTER_EXECUTION; закрепить инварианты.
+8. Прочитать BUILDING, CHECKPOINTS, THIRD_PARTY_POLICY и help checkpoint CLI.
+9. Сверить branch/HEAD, index, dirty/untracked и принадлежность каждого изменения.
+10. Сверить origin и GitHub ref; записать baseline, не выполнять безусловный pull.
+11. Проверить существующие worktree/stash read-only; сохранить сведения о черновиках.
+12. Проверить новое рабочее окно; архивировать закрытое, записать время/лимит владельца.
+13. Создать progress и findings журналы с правилами счётчика и F-ID.
+14. Проверить наличие прежних wheel/log/JUnit и hashes, не запускать старые binaries вслепую.
+15. Сопоставить прежние installed receipts с source SHA и файлами harness.
+16. Сопоставить 83 PASS с JUnit и списком случаев; записать границы результата.
+17. Найти все старые WIP/NOT RUN/RUNNING записи, противоречащие текущей сводке.
+18. Уточнить текущую сводку RESUME/handoff; прежние состояния оставить историей.
+19. Уточнить смысл верхнего checkpoint_id в state и связь source/harness/evidence revisions.
+20. Записать реальный остаток и приоритет CI; не закрывать product gates документацией.
+
+ЗАДАЧИ 021–040. ДИАГНОСТИКА LINUX CI БЕЗ ОСЛАБЛЕНИЯ ЗАЩИТЫ
+21. Получить актуальный CI run для baseline HEAD и сохранить реальные job conclusions.
+22. Сверить финальный run40709901833 с run40708599284 и прежним успешным run40353896055.
+23. Сохранить очищенные названия трёх FAIL, assertions, counts и skipped steps.
+24. Проверить diff workflow, runtime и test fixtures между success и failure SHA.
+25. Проследить verify_regular_file и перечислить условия отказа по отдельности.
+26. Проследить python_executable fixture и её предположения о sys.executable.
+27. Проследить registry fixture prerequisites_execution и происхождение executable pin.
+28. Отделить подтверждённые факты CI от гипотез mode/nlink/type/size.
+29. Подготовить минимальный read-only probe Python executable с mode, nlink, type, size и SHA.
+30. Проверить, что probe не выводит environment, credentials или содержимое файлов.
+31. Выполнить probe в существующем DEV Docker и сохранить эталонное наблюдение.
+32. Проверить доступный CI способ получить тот же probe на проблемном runner.
+33. Если нужен workflow diagnostic, добавить только узкий read-only шаг без новых permissions.
+34. Выполнить diagnostic на feature-ветке; сохранить run/job/точные наблюдения.
+35. Установить конкретное условие verify_regular_file либо честно оставить диагноз BLOCKED.
+36. Воспроизвести установленное условие на собственном временном файле.
+37. Проверить, что небезопасный временный файл отвергается штатной защитой.
+38. Проверить, что корректный собственный executable с теми же bytes проходит.
+39. Решить по фактам, нужен ли fixture fix, environment fix или отдельный runtime RED.
+40. Записать решение с альтернативами и границами; runtime fix в этой очереди не выполнять.
+
+ЗАДАЧИ 041–060. ТОЧЕЧНЫЙ FIX FIXTURE И ПРОВЕРЯЕМЫЙ CI
+41. При подтверждённой fixture-причине подготовить минимальный patch тестовой подготовки.
+42. Исключить chmod/chown системного toolcache и изменение shared runner binaries.
+43. Закрепить hash и допустимые права собственной fixture-копии до её исполнения.
+44. Сохранить проверки отказа для изменённого executable pin.
+45. Сохранить проверки отказа для hardlink/symlink и небезопасных permissions.
+46. Сохранить тест отсутствия shell expansion и наследования parent secrets.
+47. Сохранить семантику timeout UNKNOWN без завершения чужого installer.
+48. Проверить, что fixture fix не меняет production policy или runtime code.
+49. Выполнить три исходно падающих случая на воспроизведённой среде.
+50. Сохранить исходный RED и новый результат отдельно; при FAIL не идти к объявлению fix.
+51. Выполнить связанные prerequisites runner и execution regressions.
+52. Проверить переносимость fixture на используемых Python/OS профилях без новых обещаний.
+53. Опубликовать fixture checkpoint и получить реальный Linux source CI result.
+54. Получить Windows portable job result того же SHA и записать его scope.
+55. Убедиться, что Linux integration действительно стартовал после source, либо записать NOT RUN.
+56. Разобрать новые CI failures поштучно, не менять expectations без основания.
+57. Удалить лишь ненужный временный diagnostic output из рабочего patch; доказательства сохранить.
+58. Проверить соответствие итогового workflow исходным permissions и pinned actions.
+59. Записать итоговый CI receipt с SHA, jobs, counts и ограничениями.
+60. Зафиксировать CI finding как исправленный только после подтверждения; иначе оставить OPEN.
+
+ЗАДАЧИ 061–080. ОСНОВА НЕЗАВИСИМОГО INSTALLED FAULT HARNESS
+61. Проверить Docker image ID, Python/build lock и offline wheelhouse.
+62. Сверить текущие SDK/reference bytes с выбранным immutable input SHA.
+63. Записать выбор SDK revision; новый runtime input требует новой приёмки.
+64. Проверить, что client запускается с -I вне checkout и из чистого venv.
+65. Проверить происхождение импортов SDK, shared и crypto dependency modules.
+66. Проверить полную исходную/итоговую сверку SDK/reference/dependency files.
+67. Найти дублирующийся fault setup; выделять helper только при сокращении реального риска ошибок.
+68. Сохранить штатный authorizer, signature и identity checks при любых test wrappers.
+69. Проверить восстановление изменённых test methods через finally при ошибке assert.
+70. Сделать явными profile и expected_failure в каждом report, исключив ложный happy-path PASS.
+71. Определить ledger/business journal/native journal как разные наблюдаемые источники.
+72. Записать baseline notes/schema/effect rows и хеши synthetic user files/settings.
+73. Добавить проверку остановки owned listener и отсутствия оставшихся fixture writers.
+74. Проверить сохранение receipt и ошибки cleanup при любом исходе клиента.
+75. Проверить запрет перезаписи прежнего receipt/work-dir при повторном запуске.
+76. Проверить отсутствие сырого секрета в отчётах, argv и control logs.
+77. Проверить возможность воспроизведения из command + SHA без истории чата.
+78. Повторить существующий lost-ACK профиль лишь если изменились затронутые inputs.
+79. Повторить existing tampered-backup профиль при изменении общего harness.
+80. Зафиксировать проверенный harness baseline и перечень ещё не принятых профилей.
+
+ЗАДАЧИ 081–100. INSTALLED UPDATE С ПОТЕРЯННЫМ LEDGER
+81. Описать missing-ledger сценарий после реального v2 effect и до подтверждения.
+82. Указать точную границу инъекции и отличие от реального process-kill.
+83. Подготовить новую fixture через public fresh install и пользовательские данные.
+84. Подготовить public reviewed update v1→v2 с настоящими backup receipts.
+85. Выполнить реальный apply и смоделировать потерю подтверждения существующим способом.
+86. Наблюдать schema2 и ровно два бизнес-эффекта до потери ledger.
+87. Сохранить digest и безопасную копию диагностических сведений собственного ledger.
+88. Удалить только точный ledger одноразовой fixture, не control journal или пользовательскую БД.
+89. Проверить отсутствие ledger перед SDK reconstruction и resume.
+90. Пересоздать public SDK и убедиться, что constructor не повторяет product effect.
+91. Проверить status исходной operation без автоматического исполнения.
+92. Повторить submit с исходным ключом; проверить ту же operation ID.
+93. Выполнить явный resume исходной операции и проверить безопасный отказ.
+94. Проверить, что отсутствующий authoritative ledger не создан заново как пустой.
+95. Проверить неизменность product_adapter_effects после каждого запроса.
+96. Проверить сохранность schema2, пользовательских записей, файлов и settings.
+97. Проверить forward journal и отсутствие automatic restore старого snapshot.
+98. Выполнить сценарий в offline installed runner на закреплённом wheel.
+99. При нарушении сохранить воспроизводимый RED и finding, runtime не исправлять.
+100. Сохранить missing-ledger receipt с точными наблюдениями и пределами PASS/FAIL.
+
+ЗАДАЧИ 101–120. INSTALLED UPDATE С УСТОЙЧИВЫМ UNKNOWN
+101. Определить настоящий способ получить неизвестный product outcome в reference fixture.
+102. Проверить, что способ не подменяет authorizer и не возвращает выдуманный applied.
+103. Если реального механизма нет, подготовить явно ограниченную test instrumentation и описать scope.
+104. Подготовить новую installation и reviewed update с отдельной operation ID.
+105. Внести сбой в выбранной границе, сохранив реальные журналы и данные.
+106. Подтвердить UNKNOWN в authoritative adapter ledger или записать иной фактический исход.
+107. Проверить согласованность public RECOVERY_REQUIRED с native journal.
+108. Сохранить количество product effects и фактически наблюдаемую schema version.
+109. Проверить duplicate submit на исходном idempotency key.
+110. Проверить, что новый SDK constructor/status не снимает UNKNOWN.
+111. Выполнить первый explicit resume исходной операции.
+112. При outcome unknown проверить отсутствие автоматического второго migration_apply.
+113. Выполнить второй explicit resume и снова проверить effect count.
+114. Проверить, что другая operation ID не обходит recovery interlock этой установки.
+115. Проверить отсутствие неподтверждённого переключения active release.
+116. Проверить пользовательские данные, ключевые файлы и settings по baseline.
+117. Проверить сохранение primary error и отсутствие ложного SUCCEEDED.
+118. Выполнить isolated installed профиль; сохранить stdout/receipt безопасно.
+119. Связать каждый отказ/неопределённость с отдельной находкой, не назначать причину без фактов.
+120. Сохранить UNKNOWN receipt и точный безопасный путь следующей reconciliation.
+
+ЗАДАЧИ 121–140. ЧУЖОЙ РЕАЛЬНЫЙ BACKUP RECEIPT
+121. Выбрать один foreign-binding случай: другая операция либо другой reviewed plan.
+122. Разделить криптографически корректный чужой архив и просто повреждённый JSON.
+123. Подготовить новую installation и настоящий encrypted backup штатным механизмом.
+124. Получить независимый чужой receipt штатным issue с корректными bytes и иной binding.
+125. Проверить возможность расшифровки архива отдельным oracle до подстановки.
+126. Проверить различие receipt ID и конкретного foreign binding поля.
+127. Подготовить исходный reviewed public update без ослабления trust.
+128. Определить минимальную test-only точку подстановки чужой ссылки.
+129. Сохранить исходные поля/bindings в очищенной доказательной записи.
+130. Выполнить update через public SDK с указанной fault instrumentation.
+131. Проверить явный отказ до migration effect.
+132. Проверить, что одна только успешная расшифровка не авторизует чужой receipt.
+133. Проверить неизменность business effect count и source schema.
+134. Проверить user files, notes, settings и source active pointer.
+135. Проверить сохранение правильных и чужих receipts для диагностики.
+136. Проверить отсутствие automatic restore и ошибочного статуса update success.
+137. Проверить, что fault wrapper снят после ошибки и не затрагивает следующий профиль.
+138. Выполнить isolated installed runner и сверить неизменность package bytes.
+139. Записать точный охват: какое binding поле проверено, какие foreign случаи не запускались.
+140. Сохранить foreign-receipt receipt; второй вариант не считать проверенным автоматически.
+
+ЗАДАЧИ 141–160. LIVE DATA DRIFT ПОСЛЕ BACKUP
+141. Выбрать один persistent root и контролируемое изменение synthetic user file.
+142. Записать, какие пять roots сравниваются и какое journal-исключение разрешено контрактом.
+143. Подготовить fixture с данными, отличимыми от fresh/default содержимого.
+144. Подготовить public update и сохранить pre-update data/settings hashes.
+145. Получить реальный backup:0 и проверить его receipt перед инъекцией.
+146. После backup изменить только выбранный synthetic persistent file.
+147. Записать before/after hashes и точную фазу инъекции.
+148. Продолжить исходную public operation до проверенного отказа или фактического результата.
+149. Проверить отказ до migration effect при несовпадении live data и backup.
+150. Проверить, что новое пользовательское изменение не затирается старым snapshot.
+151. Проверить baseline notes/schema/effects, не смешивая изменение файла с миграцией.
+152. Проверить остальные persistent roots на неожиданные изменения.
+153. Проверить source pointer и forward journal после отказа.
+154. Проверить отсутствие автоматического разрешения старого review при drift.
+155. Убедиться, что сам drift file не добавлен в общий ignore ради PASS.
+156. Проверить, что test wrapper не меняет функцию сравнения live snapshot.
+157. Выполнить isolated installed profile и сохранить фактический error code.
+158. Если миграция всё же прошла, сохранить RED с данными до/после и остановить зависимые acceptance claims.
+159. Отметить NOT RUN для schema drift/других roots, если их не испытывали отдельно.
+160. Сохранить live-drift receipt и сценарий безопасного повторного review.
+
+ЗАДАЧИ 161–180. CANDIDATE HEALTH И CLEANUP FAILURE
+161. Изучить имеющиеся reference health failure controls и допустимый signed fixture профиль.
+162. Выбрать один candidate-health отказ после действительной успешной v2 migration.
+163. Подготовить новую fixture и reviewed update, не менять рабочее приложение владельца.
+164. Выполнить update через public SDK до фактической миграции и candidate readiness.
+165. Внести управляемый health fault и сохранить observed failure.
+166. Проверить schema2 и два эффекта: fresh плюс единственный update.
+167. Проверить сохранность новых пользовательских данных после миграции и отказа readiness.
+168. Проверить отсутствие automatic legacy restore и сохранность forward journal.
+169. Проверить остановку только owned candidate process и его listener.
+170. Сохранить health-failure receipt с primary code и реальным состоянием процессов.
+171. На отдельной новой fixture добавить cleanup fault к тому же health-failure сценарию.
+172. Явно описать способ test instrumentation, не подменяя успешный cleanup фиктивным ответом.
+173. Выполнить health+cleanup fault через исходную public operation.
+174. Проверить, что primary health error не заменён последней cleanup ошибкой.
+175. Проверить раздельные primary_error_code и cleanup_error_code в native/public evidence.
+176. Проверить, что cleanup UNKNOWN удерживает fence и не разрешает restart вслепую.
+177. Проверить, что explicit resume не повторил migration_apply.
+178. Проверить сохранность данных и effect count после cleanup failure и resume.
+179. Безопасно завершить собственные fixture процессы с доказанным владением; записать неуспешную очистку.
+180. Сохранить cleanup-failure receipt и раздельно отметить непринятые варианты отказов.
+
+ЗАДАЧИ 181–200. ПРИЁМКА ПАКЕТА, НАХОДКИ И ПЕРЕДАЧА
+181. Сопоставить все новые installed результаты с source regressions и незакрытыми HIM/ACC.
+182. Составить read-only gap-анализ before-restore/before-rollback без реализации runtime.
+183. Описать обязательные identity/digest/данные будущего before-restore receipt.
+184. Описать защиту новых данных перед rollback и необходимые независимые tests.
+185. Записать отдельный следующий инженерный пакет restore/rollback; capabilities оставить прежними.
+186. Проверить итоговый diff и принадлежность всех файлов; исключить случайные правки и секреты.
+187. Зафиксировать финальные source, harness, dependency и wheel hashes для каждого результата.
+188. Выполнить затронутые source/contract regressions на стабильных inputs.
+189. Повторить только те installed профили, чьи inputs изменились после их проверки.
+190. Получить фактический CI status итогового code checkpoint; не переносить старый success.
+191. Проверить все findings F-ID: факт/гипотеза, severity, evidence, статус и следующий шаг.
+192. Убедиться, что исходные FAIL/RED сохранены и не заменены последующими PASS.
+193. Обновить канонические HIM/ACC только для доказанного scope, без закрытия полных gates.
+194. Обновить verification backlog/status и устранить противоречия текущей сводки с историей.
+195. Обновить RESUME/WORK_LOG/work-state с точным остатком, artifacts и активными процессами.
+196. Проверить отсутствие своих оставшихся fixture writers и честно записать внешний CI в работе.
+197. Сохранить финальный checkpoint явным allowlist и отправить в feature-ветку GitHub.
+198. Независимо сверить remote ref/tree и сохранить внешнюю sync receipt.
+199. Закрыть рабочее окно с фактическими start/end, выполненным счётчиком и всеми blockers.
+200. Дать владельцу итог: X/200, что найдено и исправлено, PASS/FAIL/BLOCKED/NOT RUN, SHA, файлы и следующий шаг.
+
+КРИТЕРИЙ ФИНАЛА
+Проверяемое улучшение CI/fixtures и installed fault evidence без изменения runtime
+и снижения защит. Реальные находки важнее счётчика. Если задача перестала быть
+нужной или заблокирована — записать почему, перейти к доступной независимой;
+не изображать 200/200 и не завершать разрешённое окно только из-за одного blocker.
+Запуск выполнения — отдельная команда владельца с этим именем файла.

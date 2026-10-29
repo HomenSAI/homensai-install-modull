@@ -1,0 +1,104 @@
+{
+  "commit": "bf1d3801ca7b3fd754ac201a0bd93532d3c3ecd9",
+  "parent": "617aa402b13bbc07717e42aa664d7fffa432b099",
+  "tree": "241b4931662841f83a8792fc575742fd10ec8db7",
+  "author": "Serhii Khomenko | HomenS.AI <info@homensai.com>",
+  "clean_worktree": true,
+  "changed_files": [
+    "INSTALLER_API.md",
+    "api/discovery.json",
+    "api/openapi.yaml",
+    "docs/PREREQUISITES_PROGRESS.md",
+    "homensai_install/api/resources/INSTALLER_API.md",
+    "homensai_install/api/resources/discovery.json",
+    "homensai_install/api/resources/openapi.yaml",
+    "homensai_install/api/v1.py",
+    "homensai_install/gui.py",
+    "integration_tests/prerequisites_progress_contract.py",
+    "integration_tests/test_prerequisites_http.py",
+    "tests/test_prerequisites_progress_contract.py",
+    "tests/test_wizard_prerequisites.py"
+  ],
+  "final_commit_matches_tested_bytes": true,
+  "runtime_and_harness_unchanged": true,
+  "checks": {
+    "progress-contract-first": {
+      "returncode": 1,
+      "duration_seconds": 1.1720951910028816,
+      "inputs_unchanged": true,
+      "junit": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "1",
+        "skipped": "0",
+        "tests": "4",
+        "time": "0.934",
+        "timestamp": "2026-10-25T20:24:02.239332+01:00",
+        "hostname": "063b995bf262"
+      }
+    },
+    "progress-contract-second": {
+      "returncode": 0,
+      "duration_seconds": 3.8261774179991335,
+      "inputs_unchanged": true,
+      "junit": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "6",
+        "time": "3.545",
+        "timestamp": "2026-10-25T20:25:32.868011+01:00",
+        "hostname": "063b995bf262"
+      }
+    },
+    "progress-contract-final": {
+      "returncode": 1,
+      "duration_seconds": 33.056793966999976,
+      "inputs_unchanged": true,
+      "junit": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "1",
+        "skipped": "0",
+        "tests": "233",
+        "time": "32.734",
+        "timestamp": "2026-10-25T20:25:55.471046+01:00",
+        "hostname": "063b995bf262"
+      }
+    }
+  },
+  "preserved_failures": [
+    {
+      "receipt": "progress-contract-first.json",
+      "cause": "New loopback case was inside tests/, whose conftest intentionally forbids every socket. Moved actual HTTP case to integration_tests and shared schema assertions without changing the guard.",
+      "corrected_by": "progress-contract-second.json: 6 PASS"
+    },
+    {
+      "receipt": "progress-contract-final.json",
+      "cause": "Original prerequisite_state._check_files exists-to-lstat race: SQLite -journal removed concurrently; public status UNEXPECTED_ERROR. 232 PASS / 1 FAIL. Parent authorized a separate runtime fix after this contract commit.",
+      "corrected_in_this_commit": false
+    }
+  ],
+  "scope": "Real SDK, signed synthetic plans and SQLite; authenticated owned loopback HTTP, synthetic downloads/installers. Four new contract cases plus two existing HTTP cases passed in the 6-test run. Expanded 233-test run remains FAIL until the separate journal race fix.",
+  "not_run": [
+    "Full project suite on this commit",
+    "Installed wheel with combined lease/UI/API progress",
+    "Real browser",
+    "Windows ACL/UAC",
+    "Real OS installers",
+    "Power-loss acceptance"
+  ],
+  "production_ready": false,
+  "receipts_sha256": {
+    "progress-contract-first.json": "6a7fc26aeed4a39bb626e6c5bd81ee09f6d6977869af3058f93679569d737974",
+    "progress-contract-first.log": "90f39f2b6ef934a4b64c78232f7acd42e93db16996d833e9b65fbc2900ca9d07",
+    "progress-contract-first.xml": "97d271cb066add1809c8f32abbd057876adda346ae431d345f108994dcf8d614",
+    "progress-contract-second.json": "4dbb86416a1d85adf7add6322e3915e69d3ad2d997760c64d109c66f1d9a187e",
+    "progress-contract-second.log": "80e79020843280e1dfdcc8206b6e9ca4015304a7a0acedfa88cae2e0da7b06ec",
+    "progress-contract-second.xml": "9ed36bb72e7d8d9ae09a169724696bb7c13c4b1ab3c058e9d8f8a762138ec1bf",
+    "progress-contract-final.json": "38264ee3c0e46a86ca406800d71cb8bffd69eb740e88b588e3e7762c2df28f89",
+    "progress-contract-final.log": "62260dd62620c07790aefed0cb2f0c96aef8332e4d3762d1ea5bcdd0874343a9",
+    "progress-contract-final.xml": "28e7a6bc4105e266c445b95aa25686137cfcf8fcbf21fe8c097383cc14de14a4"
+  }
+}

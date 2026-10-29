@@ -1,0 +1,592 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Манифест продукта HomenS.AI, версии 1 и 2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "product_name",
+    "product_id",
+    "archive_before_replace"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "enum": [
+        1,
+        2
+      ]
+    },
+    "product_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[^\\u0000-\\u0020\\u007f](?:[^\\u0000-\\u001f\\u007f]*[^\\u0000-\\u0020\\u007f])?(?![\\s\\S])"
+    },
+    "product_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 63,
+      "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "data_home_env": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Z][A-Z0-9_]*(?![\\s\\S])"
+    },
+    "migration_command": {
+      "$ref": "#/$defs/command"
+    },
+    "healthcheck_url": {
+      "type": "string",
+      "maxLength": 2048,
+      "pattern": "^http://127\\.0\\.0\\.1:[1-9][0-9]{3,4}/[A-Za-z0-9/_.~-]*(?![\\s\\S])"
+    },
+    "archive_before_replace": {
+      "type": "boolean",
+      "const": true
+    },
+    "docker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_image",
+        "start_command"
+      ],
+      "properties": {
+        "base_image": {
+          "type": "string",
+          "maxLength": 512,
+          "pattern": "^(?:[a-z0-9]+(?:[.-][a-z0-9]+)*(?::[1-9][0-9]*)?/)?[a-z0-9]+(?:[._-][a-z0-9]+)*(?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)*(?::[A-Za-z0-9_][A-Za-z0-9_.-]*)?@sha256:[a-f0-9]{64}(?![\\s\\S])"
+        },
+        "start_command": {
+          "$ref": "#/$defs/command"
+        }
+      }
+    },
+    "winsw": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "sha256"],
+      "properties": {
+        "version": {"type": "string", "const": "2.12.0"},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}(?![\\s\\S])"}
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "python",
+        "lock_files",
+        "vendor_wheels",
+        "offline"
+      ],
+      "properties": {
+        "python": {
+          "type": "string",
+          "const": "3.14"
+        },
+        "lock_files": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "windows",
+            "linux"
+          ],
+          "properties": {
+            "windows": {
+              "$ref": "#/$defs/artifact"
+            },
+            "linux": {
+              "$ref": "#/$defs/artifact"
+            }
+          }
+        },
+        "vendor_wheels": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/artifact"
+          }
+        },
+        "offline": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "app",
+        "releases",
+        "data",
+        "backup",
+        "services",
+        "config",
+        "runtime"
+      ],
+      "properties": {
+        "app": {
+          "$ref": "#/$defs/path"
+        },
+        "releases": {
+          "$ref": "#/$defs/path"
+        },
+        "data": {
+          "$ref": "#/$defs/path"
+        },
+        "backup": {
+          "$ref": "#/$defs/path"
+        },
+        "services": {
+          "$ref": "#/$defs/path"
+        },
+        "config": {
+          "$ref": "#/$defs/path"
+        },
+        "runtime": {
+          "$ref": "#/$defs/path"
+        }
+      }
+    },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/component"
+      }
+    },
+    "web": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host",
+        "port",
+        "healthz"
+      ],
+      "properties": {
+        "host": {
+          "type": "string",
+          "const": "127.0.0.1"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535
+        },
+        "healthz": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "pattern": "^/[A-Za-z0-9/_.~-]*(?![\\s\\S])"
+        }
+      }
+    },
+    "secrets": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/secret"
+      }
+    },
+    "modes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "components"
+        ],
+        "properties": {
+          "name": {
+            "$ref": "#/$defs/name"
+          },
+          "components": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/$defs/name"
+            },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "mutual_exclusion": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 64,
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 64,
+        "items": {
+          "$ref": "#/$defs/name"
+        },
+        "uniqueItems": true
+      },
+      "uniqueItems": true
+    },
+    "migrations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cmd",
+        "backup_before_each",
+        "new_db_no_backup"
+      ],
+      "properties": {
+        "cmd": {
+          "$ref": "#/$defs/command"
+        },
+        "backup_before_each": {
+          "type": "boolean",
+          "const": true
+        },
+        "new_db_no_backup": {
+          "type": "boolean"
+        }
+      }
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cmd",
+        "encrypted"
+      ],
+      "properties": {
+        "cmd": {
+          "$ref": "#/$defs/command"
+        },
+        "encrypted": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "restore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cmd"
+      ],
+      "properties": {
+        "cmd": {
+          "$ref": "#/$defs/command"
+        }
+      }
+    },
+    "update": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "staged_releases",
+        "pointer_file",
+        "state_file",
+        "health_wait",
+        "backup_before_rollback",
+        "retain_previous_release",
+        "retain_runtime"
+      ],
+      "properties": {
+        "staged_releases": {
+          "type": "boolean",
+          "const": true
+        },
+        "pointer_file": {
+          "$ref": "#/$defs/relative_file"
+        },
+        "state_file": {
+          "$ref": "#/$defs/relative_file"
+        },
+        "health_wait": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600
+        },
+        "backup_before_rollback": {
+          "type": "boolean",
+          "const": true
+        },
+        "retain_previous_release": {
+          "type": "boolean",
+          "const": true
+        },
+        "retain_runtime": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pre_start",
+        "health_checks",
+        "post_update"
+      ],
+      "properties": {
+        "pre_start": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/command"
+          }
+        },
+        "health_checks": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/command"
+          }
+        },
+        "post_update": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/command"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "command": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096,
+        "pattern": "^[^\\u0000-\\u001f\\u007f]+(?![\\s\\S])"
+      }
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 63,
+      "pattern": "^[a-z][a-z0-9_-]*(?![\\s\\S])"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^[^\\u0000-\\u001f\\u007f]+(?![\\s\\S])"
+    },
+    "relative_file": {
+      "$ref": "#/$defs/path"
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "sha256"
+      ],
+      "properties": {
+        "file": {
+          "$ref": "#/$defs/relative_file"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+        }
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "cmd",
+        "after",
+        "heartbeat",
+        "restart"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "cmd": {
+          "$ref": "#/$defs/command"
+        },
+        "after": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/name"
+          },
+          "uniqueItems": true
+        },
+        "heartbeat": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "file",
+            "interval",
+            "timeout"
+          ],
+          "properties": {
+            "file": {
+              "$ref": "#/$defs/relative_file"
+            },
+            "interval": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            },
+            "timeout": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        },
+        "restart": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "delay",
+            "max",
+            "window"
+          ],
+          "properties": {
+            "delay": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 86400
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "window": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "secret": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "required",
+        "contexts",
+        "same_value"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Z][A-Z0-9_]*(?![\\s\\S])"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "contexts": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "type": "string",
+            "enum": [
+              "service",
+              "admin"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "same_value": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": 1
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "port",
+          "data_home_env",
+          "migration_command",
+          "healthcheck_url",
+          "docker"
+        ],
+        "properties": {
+          "winsw": false,
+          "runtime": false,
+          "paths": false,
+          "components": false,
+          "web": false,
+          "secrets": false,
+          "modes": false,
+          "mutual_exclusion": false,
+          "migrations": false,
+          "backup": false,
+          "restore": false,
+          "update": false,
+          "hooks": false
+        }
+      },
+      "else": {
+        "required": [
+          "runtime",
+          "paths",
+          "components",
+          "web",
+          "secrets",
+          "modes",
+          "mutual_exclusion",
+          "migrations",
+          "backup",
+          "restore",
+          "update",
+          "hooks"
+        ],
+        "properties": {
+          "port": false,
+          "data_home_env": false,
+          "migration_command": false,
+          "healthcheck_url": false,
+          "docker": false
+        }
+      }
+    }
+  ]
+}

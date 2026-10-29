@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "homensai-install-module"
+version = "0.1.0"
+description = "Общий локальный API установки и обслуживания приложений HomenS.AI"
+readme = "INSTALLER_API.md"
+requires-python = ">=3.12"
+authors = [{name = "Serhii Khomenko"}]
+dependencies = []
+
+[project.optional-dependencies]
+security = ["cryptography>=46.0.3,<51"]
+test = ["pytest>=8,<10"]
+
+[project.scripts]
+hinstall = "homensai_install.cli:main"
+hinstall-gui = "homensai_install.gui:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["homensai_install", "homensai_install.*", "shared"]
+namespaces = true
+
+[tool.setuptools.package-data]
+shared = ["manifest.schema.json"]
+homensai_install = ["api/schemas/*.json", "api/resources/*.json", "api/resources/*.yaml", "api/resources/*.md", "locales/*.json", "catalog/*.json", "legal/*", "wizard/*.html", "wizard/*.css", "wizard/*.js", "wizard/*.json", "wizard/locales/*.json"]

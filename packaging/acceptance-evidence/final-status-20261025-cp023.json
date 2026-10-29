@@ -1,0 +1,16 @@
+{
+  "checkpoint": "CP-20261025-023",
+  "task_id": "HIM-009",
+  "status": "SAVED_BEFORE_SHUTDOWN",
+  "source_code_checkpoint": "CP-20261025-021",
+  "package_files_unchanged": 68,
+  "ci": "CP022 push/PR success; receipt github-ci-20261025-cp022-final.json",
+  "project_processes_running": 0,
+  "project_containers_running": 0,
+  "project_tcp_listeners": 0,
+  "neighbor_stopped_confirmed_by_user": true,
+  "shutdown_state": "ONE_COMMAND_PENDING_AFTER_SYNC",
+  "new_runtime_tests": "NOT RUN: documentation/status only, package bytes unchanged",
+  "production_ready": false,
+  "note": "CP-20261025-023 — окончательный статус по просьбе владельца, без новых задач. Все68 package files неизменны относительно проверенного CP021. Локальные результаты:2363PASS/3skip/15subtests; installed SDK/CLI и prerequisites PASS; Chromium24PASS ru/en/de; Windows492+57PASS/4POSIXskip. Последний код CP021 и документация CP022 подтверждены на GitHub. CP022 GitHub Actions push/PR завершились success: Linux2261source+102integration PASS,3skip,15subtests; Windows549PASS/4skip. Собственных процессов, активных контейнеров и слушающих TCP портов проекта не обнаружено; рабочая папка была чистой. Соседняя сессия остановлена по подтверждению владельца. После успешного сохранения и независимой проверки remote отправить ровно одну команду shutdown.exe /s /f /t30; результат хранить локальной квитанцией .git/hinstall-checkpoints/shutdown-20261025.json, не повторять автоматически. Этот doc-only checkpoint использует [skip ci] по указанию не запускать новые задачи. Production_ready=false, всеG0–G5OPEN; Docker Git BLOCKED до URL и авторизации. Следующая разработка: migration/backup-receipt/fresh-empty contract и independent installed reference lifecycle; возобновлять только по новому указанию владельца."
+}

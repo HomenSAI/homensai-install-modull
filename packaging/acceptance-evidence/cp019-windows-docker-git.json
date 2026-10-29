@@ -1,0 +1,14 @@
+{
+  "checked_at_utc": "2026-10-25T20:08:56.152318Z",
+  "status": "BLOCKED",
+  "container": "ai-gitea",
+  "published_http": "http://127.0.0.1:3010",
+  "historical_address": "http://127.0.0.1:8796",
+  "observed": "8796 connection refused; 3010 /api/v1/version and /api/v1/repos/search?q=homensai-install-modull return HTTP403",
+  "configured_remotes": [
+    "origin=https://github.com/HomenSAI/homensai-install-modull.git"
+  ],
+  "sync_performed": false,
+  "action_required": "Уточнить доступный URL и права отдельного Docker Git, затем настроить и проверить отдельный remote. Секреты и чужие базы не читались.",
+  "response_body": "Only signed in user is allowed to call APIs."
+}

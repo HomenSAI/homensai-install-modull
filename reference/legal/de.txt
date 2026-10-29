@@ -1,0 +1,49 @@
+HomenSAI Reference — Bedingungen für die Erprobung, Fassung 0.1
+Sprache: Deutsch. Status: juristischer Entwurf, keine EULA für einen Produktivbetrieb.
+
+1. Herausgeber und Zweck
+Entwickler: Serhii Khomenko / HomenS.AI. Dieses Demonstrationsprodukt dient der
+Prüfung von Installation und Wartung. Die ladungsfähige Anschrift und das auf eine
+kommerzielle Veröffentlichung anwendbare Recht sind vor dem Vertrieb festzulegen.
+
+2. Erlaubte Nutzung
+Diese Testdistribution darf zur Bewertung, Entwicklung und Erprobung in
+kommerziellen und nichtkommerziellen Organisationen ausgeführt werden. Dadurch
+werden weder Urheberrechte noch Markenrechte oder Rechte am Verkauf fremden Codes
+übertragen. Die Lizenz des tatsächlich eingebundenen Produkts wird gesondert
+festgelegt und vor dessen Installation angezeigt.
+
+3. Komponenten Dritter
+Für Komponenten Dritter gelten deren eigene Lizenzen. Diese Bedingungen schränken
+die darin gewährten Rechte nicht ein und heben deren Pflichten nicht auf.
+Hinweise und Lizenzen müssen der vertriebenen Distribution beiliegen. Eine
+Komponente ohne bestätigte Erlaubnis für Nutzung und Vertrieb wird ausgeschlossen.
+
+4. Installation und Daten
+Vor Änderungen wird ein Plan angezeigt. Vorgänge mit erhöhten Rechten und die
+Installation zusätzlicher Produkte erfordern eine gesonderte ausdrückliche
+Zustimmung. Die Deinstallation erhält Benutzerdaten und Archive standardmäßig.
+Datenändernde Wiederherstellung und unwiderrufliches Löschen erfordern eine
+gesonderte Bestätigung. Bewahren Sie Sicherungen und das Archivpasswort auf;
+der Entwickler kann einen unbekannten Verschlüsselungsschlüssel nicht wiederherstellen.
+
+5. Diagnose und Datenschutz
+Protokolle und Statistiken bleiben lokal. Passwörter und Schlüssel dürfen nicht in
+Protokolle gelangen. Ein vorbereiteter Bericht kann vor dem Export geprüft werden;
+eine automatische Übermittlung an den Entwickler erfolgt nicht. Downloads von
+Komponenten werden im Plan ausdrücklich aufgeführt.
+
+6. Gewährleistung und Haftung
+Die Testdistribution wird in ihrem vorhandenen Zustand ohne vertragliche Zusage
+der Eignung für den Produktivbetrieb bereitgestellt, soweit gesetzlich zulässig.
+Haftungsbeschränkungen gelten nur innerhalb der gesetzlichen Grenzen. Zwingende
+Verbraucherrechte sowie die Haftung bei Vorsatz, grober Fahrlässigkeit, Verletzung
+von Leben, Körper oder Gesundheit und sonstigen nicht ausschließbaren Fällen
+bleiben unberührt. Signaturen und Prüfsummen garantieren keine vollständige
+Freiheit von Sicherheitslücken.
+
+7. Zustimmung
+Mit der Zustimmungsschaltfläche wird diese Fassung in der gewählten Sprache
+angenommen. Das Journal speichert Version/Hash des Textes und die ausdrückliche
+Zustimmung; Scrollen ersetzt die Zustimmung nicht. Bei Ablehnung wird das Produkt
+nicht installiert.

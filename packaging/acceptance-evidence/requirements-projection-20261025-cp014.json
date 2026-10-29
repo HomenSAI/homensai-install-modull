@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "checked_at_utc": "2026-10-25T16:19:43.889088+00:00",
+  "author": "Serhii Khomenko",
+  "scope": "Signed requirements projection: source/API/HTTP compatibility",
+  "status": "PASS",
+  "production_ready": false,
+  "gate_closed": false,
+  "source_base_sha": "85237cc70174b2e03956ddef9de74fcbaa70e453",
+  "source_sha": "2c6d3c948802c1d344cef8868f474a7288c31fb7",
+  "source_tree": "7f67b0f586f6d1ab3c52fbc349bc8793fe2109a8",
+  "branch": "work/cp014-projection",
+  "runtime": {
+    "python": "3.14.3",
+    "executable": "/workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python",
+    "requirements_build_lock_sha256": "f1ca895ac9579efcd1eb43a3f19c5439ae07dff7b7f8db51f8ac1a131e3a49ed"
+  },
+  "command": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -p no:cacheprovider tests/test_prerequisites_projection.py tests/test_prerequisites_api.py tests/test_wizard_prerequisites.py -q --basetemp=/tmp/hinstall-cp014-projection-verified-20261025 --junitxml=/tmp/hinstall-cp014-projection-verified-20261025.xml",
+  "results": [
+    {
+      "status": "FAIL",
+      "junit_path": "/tmp/hinstall-cp014-projection-20261025.xml",
+      "junit_sha256": "f0aecd0aaed68ed2ddab3e2bc0f1499012791e4650f34b39e0cbbe0f691aeef6",
+      "tests": 12,
+      "failures": 3,
+      "errors": 0,
+      "skipped": 0,
+      "duration_seconds": 1.649,
+      "note": "Первый test harness ошибочно ожидал отсутствие store после trusted constructor: 3 FAIL/9 PASS. Проверка исправлена на неизменность байтов уже созданного store; production code не менялся.",
+      "persisted_junit": {
+        "path": "requirements-projection-20261025-cp014-initial-fail.json",
+        "format": "JSON wrapper; decode xml string as UTF-8",
+        "decoded_sha256": "f0aecd0aaed68ed2ddab3e2bc0f1499012791e4650f34b39e0cbbe0f691aeef6"
+      }
+    },
+    {
+      "status": "PASS",
+      "junit_path": "/tmp/hinstall-cp014-projection-verified-20261025.xml",
+      "junit_sha256": "c1988c5884c1d042b62a3504b63d87179c4d8bfb68508b9a5ad955f9558ecea2",
+      "tests": 55,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "duration_seconds": 5.933,
+      "note": "Новые 12 cases и существующие API/HTTP transport contracts: 55 PASS.",
+      "persisted_junit": {
+        "path": "requirements-projection-20261025-cp014.xml",
+        "format": "JUnit XML"
+      }
+    }
+  ],
+  "files_sha256": {
+    "INSTALLER_API.md": "2787956d7165ba854e6228cab8d24ce4995e25a4859872855957c449136667a6",
+    "api/openapi.yaml": "0947757cba6fa75c40609024c6c0c8d7ffe87c676411f1d17478a7fc52c2d793",
+    "docs/PREREQUISITES_HTTP.md": "5de564e3d1111b1f2f503d5d51c969af40abb25b324b08d5a68e999d2f20ddd5",
+    "homensai_install/api/resources/INSTALLER_API.md": "2787956d7165ba854e6228cab8d24ce4995e25a4859872855957c449136667a6",
+    "homensai_install/api/resources/openapi.yaml": "0947757cba6fa75c40609024c6c0c8d7ffe87c676411f1d17478a7fc52c2d793",
+    "homensai_install/prerequisite_execution.py": "e66f16290b2952292b0e8725150fc2931687508c561354fdbe99af424a0918fb",
+    "tests/test_prerequisites_projection.py": "6d46c2b1bdeb8b280cc40a2a4f46e7299c614e36e1e40b694c2b7b2b7b53fd60"
+  },
+  "observations": [
+    "Проекция ровно шести signed requirement полей, без discovery или effects",
+    "Повторная подпись/целостность перед capabilities; tamper и изменённый catalog отклоняются",
+    "Мутация ответа не изменяет каталог, bytes store, plan или consent refs",
+    "Pending plan v1 после пересоздания SDK проходит fresh comparison и explicit resume",
+    "Root/packaged OpenAPI и API docs побайтно совпадают"
+  ],
+  "not_run": [
+    "Полный source suite в этом worktree",
+    "Installed wheel lifecycle",
+    "Browser rendering/acceptance",
+    "Настоящий process-kill",
+    "Live OS installers/Windows/Docker/reboot/relogin",
+    "Production acceptance"
+  ],
+  "github_write_performed": false,
+  "root_integration": {
+    "previous_github_sha": "8fd2424441afaeb2d6f7644182b923f937152864",
+    "all_seven_files_equal_tested_commit": true,
+    "file_hashes_reverified": true
+  }
+}

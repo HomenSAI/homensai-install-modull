@@ -1,0 +1,1 @@
+{"status":"PASS","cases":19,"scope":"actual wizard JavaScript with injected DOM/HTTP; not browser acceptance","assets_sha256":{"app.js":"f59aeb752e2fe007c778c452566b5a8c4a70d5932d311b1626266d52bd1bcd34","index.html":"848612d89132bab42a123ecb9624d10fad0aa233e685d52cc55b10892e32652b","locales.json":"57d39dbbf298d63ce7164c00fb6b1d24de369fa095bef768a20a80106a132784"}}

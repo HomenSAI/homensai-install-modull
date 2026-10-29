@@ -1,0 +1,56 @@
+{
+  "checkpoint": "CP-20261026-001",
+  "task": "HIM-009",
+  "checked_at_utc": "2026-10-26T08:12:22.945346+00:00",
+  "baseline_sha": "c6aff96b9f4359097ba8cb17d44fe429d8e2dfec",
+  "scope": "documentation/configuration handoff and existing Docker DEV SDK smoke",
+  "runtime_changed": false,
+  "checks": [
+    {
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--network",
+        "none",
+        "--mount",
+        "type=bind,source=E:/homensai/homensai-install-modull,target=/workspace,readonly",
+        "hinstall-dev:verification",
+        "python",
+        "tools/check_build_lock.py",
+        "--installed"
+      ],
+      "exit_code": 0,
+      "status": "PASS",
+      "output_sha256": "57e5d30c8229117cbaa96fca507b36fbfe28c94455f8b269bce6c5124a048d8d"
+    },
+    {
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "--network",
+        "none",
+        "--mount",
+        "type=bind,source=E:/homensai/homensai-install-modull,target=/workspace,readonly",
+        "hinstall-dev:verification",
+        "python",
+        "-m",
+        "homensai_install",
+        "api",
+        "describe",
+        "--json"
+      ],
+      "exit_code": 0,
+      "status": "PASS",
+      "output_sha256": "90920bd1ac82f215afe81b8c207bfe834ededbdee48952271bfeca3f1e5e350f"
+    },
+    {
+      "check": "TOML model/high/two children; local links; inactive historical shutdown; JSON state",
+      "status": "PASS"
+    }
+  ],
+  "full_source_integration_suite": "NOT RUN: runtime unchanged",
+  "fresh_machine_docker_build": "NOT RUN: existing local verification image used",
+  "production_ready": false
+}

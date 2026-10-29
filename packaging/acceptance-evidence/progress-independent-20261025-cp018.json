@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "author": "Serhii Khomenko",
+  "created_at": "2026-10-25T19:34:31.456221+00:00",
+  "checkpoint": "CP-20261025-018",
+  "reviewed_source_commit": "bf1d3801ca7b3fd754ac201a0bd93532d3c3ecd9",
+  "reviewed_source_inputs_sha256": {
+    "homensai_install/prerequisite_progress.py": "a6f04e2260d6ad9c42198b712bcfffd1e1b0cc86d0125b6f12664904d7922b85",
+    "homensai_install/prerequisite_state.py": "1db1d3dbf31c59389036390584eda55d640b6e6b4c649072438fc5aec426d253",
+    "homensai_install/prerequisite_execution.py": "0716de7d36821db7d52a4ddf3593e943173c3ddf11f47898756d0433ee4f2125",
+    "homensai_install/downloads.py": "a2775a7e9fd8c3d1c23ed167d7104310f068095901843fe1c0567d3da1936bba",
+    "homensai_install/api/v1.py": "863e319ad08aadfb99a3de0aa73af3b1e73abaf98a18ef6fc34c9a9a29d772dd",
+    "homensai_install/gui.py": "a45c65f5d2a50e6895ee808206e766e873399eb750c4ff85fc6112816d508832",
+    "api/openapi.yaml": "84ee1488f02c0f1f94f83fa5305d14574a6add01a64311a100663898aea1788d",
+    "api/discovery.json": "58fe0b3f88d4880858db3eabfdb085a329fad3e47de8a65c71f714e98957e5dd",
+    "INSTALLER_API.md": "a23ebc2d2cbe991784efac728b4f50c31644ceb81ba086634e44200d45087e51",
+    "docs/PREREQUISITES_PROGRESS.md": "1e606f72f5ee72cdee197ef313afbe66d22f8a00b4983b100991fff4c0d0c511"
+  },
+  "review_status": "READ_ONLY_REVIEW_COMPLETE; production contract code was not tested by this reviewer",
+  "findings": [
+    {
+      "id": "progress-fields",
+      "status": "REVIEWED",
+      "observation": "Runtime whitelist contains 15 fields; store adds sequence and updated_at in the same transaction as event. Exact 17-key set equals published properties and required set."
+    },
+    {
+      "id": "staged-verification",
+      "status": "REVIEWED",
+      "observation": "Only download.staged_verified publishes verified=true/percent=100; coordinator emits it after staged file SHA-256 verification. completed==total, cache hit, download verified and local verified alone remain verifying/null."
+    },
+    {
+      "id": "transport-contract",
+      "status": "REVIEWED",
+      "observation": "SDK status/events return the same stored projection; HTTP response schemas reference it; configured SDK/HTTP capabilities and describe/discovery advertise durable_byte_progress; absent field remains compatible. Source and packaged OpenAPI, discovery and INSTALLER_API bytes match."
+    },
+    {
+      "id": "private-values",
+      "status": "REVIEWED",
+      "observation": "Projection constructs a whitelist from checked binding/counters and signed artifact pins. It copies no URL, query string, path, ETag, command or raw transport exception. This is source review, not a newly executed HTTP redaction test."
+    },
+    {
+      "id": "ui-unknown-source",
+      "status": "FIXED_WITH_FAIL_BEFORE_PASS_AFTER",
+      "observation": "UI accepted verified/100 with source=unknown contrary to the published schema. New deterministic malformed snapshot failed on old predicate; narrow source exclusion passes the same contract suite."
+    }
+  ],
+  "ui_fix": {
+    "commit": "3670cdb5a5b505758a4001b8e7cf4bd6af8e54dd",
+    "parent": "484f8eae9cb0868f50662786d8e3e600e895cb20",
+    "tree": "3858164d94e287a1d5e94ea7c0ab84a9db43e3e9",
+    "changed_files": [
+      "homensai_install/wizard/app.js",
+      "tests/js/wizard_prerequisites.cjs"
+    ],
+    "commit_inputs_match_after_receipt": true,
+    "worktree_clean": true,
+    "before": {
+      "observed": "FAIL",
+      "exit_code": 1,
+      "expected_failure_seen": true
+    },
+    "after": {
+      "node_groups": 29,
+      "node_exit_code": 0,
+      "pytest_wrappers_passed": 1,
+      "pytest_exit_code": 0,
+      "counts_overlap": true,
+      "inputs_unchanged": true,
+      "inputs_sha256": {
+        "homensai_install/wizard/app.js": "b9ceb39968a71c9d3477c4a35b622c033c3b5c27d7c58bb4081d600f59211219",
+        "homensai_install/wizard/index.html": "d74c895868de6428c6d431a16b8f7a05d932884f59934492d0bee18bce87bf2d",
+        "homensai_install/wizard/locales.json": "dd402eef08b15a80c1bb9f3fbc0ea8040702965f366d2ea4903c851e2ce4398d",
+        "tests/js/wizard_prerequisites.cjs": "de67bedef558eb0ec44eb0673c3fbf5721671d6c06e84497d11004d895e05d4c",
+        "tests/test_wizard_prerequisite_ui.py": "89fb9b0205bc45abd9bb88967b420d6399c62e73c6e07e4f8e476b62ad54d976"
+      }
+    }
+  },
+  "limits": [
+    "Full pytest NOT RUN by this reviewer.",
+    "Actual HTTP/installed SDK/CLI NOT RUN by this reviewer.",
+    "Actual browser/layout/keyboard and real OS installer acceptance NOT RUN.",
+    "Known journal exists/lstat race is handled separately by progress_impl and is not certified here.",
+    "UI remains a presentation predicate, not a full validator of all 17 schema fields; unused timestamp validation was outside the explicitly authorized narrow fix.",
+    "Cross-field arithmetic and event metadata relationships are enforced by runtime and separate binding assertions; published JSON Schema describes these semantic relationships in prose."
+  ],
+  "github": "Not written by this child; parent owns integration/checkpoint/push.",
+  "evidence": [
+    {
+      "path": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-ui-unknown-source-before.json",
+      "sha256": "2a376e24e67c406045b5229508a9f2519a5e42a0569c12ee1493377c116286dc"
+    },
+    {
+      "path": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-ui-unknown-source-before.log",
+      "sha256": "71de5c32a1cf5071e80f70258eee739af7b8d0efe52a03475f93a84b26f2ea61"
+    },
+    {
+      "path": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-ui-unknown-source-before.patch",
+      "sha256": "21ead52dd0882355c49ec4ea185baeef40284d1000fc49b99ed3b1695cc24e92"
+    },
+    {
+      "path": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-ui-unknown-source-after.json",
+      "sha256": "8e971a30313704bf7b322c9c3c9db6c964071cab5a4aa467560d171a6389e8a4"
+    },
+    {
+      "path": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-ui-unknown-source-after-node.log",
+      "sha256": "1888c97452a75a5aebebf279cf13eeaf6922a7177303164c27f14d6b5581db54"
+    },
+    {
+      "path": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-ui-unknown-source-after-pytest.log",
+      "sha256": "ee59493ce4383e949be600349d9cc4bd9485ed04b842f01b67869aa470d4faa1"
+    },
+    {
+      "path": "/workspace/scratch/04f3380d60c8/recovery-evidence/cp018-ui-unknown-source-after.xml",
+      "sha256": "2a7eec9d90ed9b52ed45f67b0583af435b7f4c162db41a76b28902e38ef2af08"
+    }
+  ]
+}

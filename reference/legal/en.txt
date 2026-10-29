@@ -1,0 +1,44 @@
+HomenSAI Reference — evaluation terms, revision 0.1
+Language: English. Status: legal draft, not a production EULA.
+
+1. Publisher and purpose
+Developer: Serhii Khomenko / HomenS.AI. This demonstration product tests installation
+and maintenance. The legal address and governing law for a commercial release
+must be determined separately before distribution.
+
+2. Permitted use
+You may run this test distribution for evaluation, development and testing in
+commercial and non-commercial organisations. This does not transfer copyright,
+trademark rights or the right to sell third-party code. The licence of the actual
+integrated product is defined separately and displayed before its installation.
+
+3. Third-party components
+Rights and obligations for third-party components are governed by their own
+licences. These terms do not override permissions or obligations under those
+licences. Notices and licences must accompany a distributed package. A component
+without confirmed permission for the intended use and distribution is excluded.
+
+4. Installation and data
+A plan is displayed before changes. Actions requiring elevation and installation
+of additional products require separate explicit consent. Uninstall preserves
+user data and archives by default. Data-changing recovery and irreversible
+deletion require separate confirmation. Keep backups and the archive password;
+the developer cannot recover an unknown encryption key.
+
+5. Diagnostics and privacy
+Logs and statistics remain local. Passwords and keys must not enter logs.
+A prepared report can be reviewed before export; it is not automatically sent
+to the developer. Component downloads are explicitly listed in the plan.
+
+6. Warranties and liability
+The test distribution is provided in its existing condition without a contractual
+warranty of fitness for production use, to the extent permitted by law. Any
+limitation of liability applies only within legal limits. Mandatory consumer
+rights, liability for intent, gross negligence, injury to life or health and
+other cases where exclusion is prohibited remain unaffected. A signature or
+checksum does not guarantee the absence of all vulnerabilities.
+
+7. Acceptance
+The acceptance button records agreement to this revision in the selected language.
+The journal stores the text version/hash and explicit consent; scrolling does not
+replace acceptance. If you decline, product installation does not proceed.

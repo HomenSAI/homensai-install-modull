@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261026T145400Z-corepolicy02",
+  "task_ids": [
+    "HIM-054",
+    "HIM-056"
+  ],
+  "source_sha": "231342498cebdd0a2c075288eb43960c447c71e3",
+  "dirty": true,
+  "scope": "UpdatePlan failure policy prerequisite, source only",
+  "initial_red": {
+    "exit_code": 1,
+    "observed": "TypeError: UpdatePlan.__init__() got an unexpected keyword argument 'failure_policy'",
+    "counts": "1 failed, 117 deselected in 0.73s",
+    "command": "docker run --rm --network none --name hinstall-core02-policy-red --mount type=bind,source=E:/homensai/homensai-install-modull/.local-state/agents/core02,target=/workspace,readonly hinstall-dev:verification python -m pytest -q -x -p no:cacheprovider tests/test_update_plan.py -k preserve_forward_failure"
+  },
+  "final": {
+    "exit_code": 0,
+    "passed": 139,
+    "elapsed_seconds": 14.01,
+    "command": "docker run --rm --network none --name hinstall-core02-policy-green --mount type=bind,source=E:/homensai/homensai-install-modull/.local-state/agents/core02,target=/workspace,readonly hinstall-dev:verification python -m pytest -q -p no:cacheprovider tests/test_update_plan.py",
+    "output": "........................................................................ [ 51%]\n...................................................................      [100%]\n139 passed in 14.01s\n"
+  },
+  "implementation": "Opt-in preserve_forward_journal_no_automatic_restore включён в digest и persisted state.plan; default automatic_restore сохраняет legacy digest. При ordinary error opt-in оставляет forward journal и исходный phase index; rollback effects не запускаются. Смена policy отвергается до следующего effect.",
+  "status": "PASS",
+  "production_ready": false,
+  "update_capability": false,
+  "full_adapter_update_acceptance": "NOT RUN"
+}

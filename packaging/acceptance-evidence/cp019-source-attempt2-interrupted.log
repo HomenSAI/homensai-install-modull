@@ -1,0 +1,1810 @@
+........................................................................ [  3%]
+........................................................................ [  6%]
+........................................................................ [  9%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+................................s.......................EEEEEEEEEEEEEEEE [ 22%]
+EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE.......... [ 26%]
+............................................
+==================================== ERRORS ====================================
+__ ERROR at setup of test_constructor_does_not_run_process_or_probe_endpoint ___
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_real_synthetic_process_has_explicit_flags_and_arguments _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+____ ERROR at setup of test_controller_command_grammar_is_supported[args0] _____
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+____ ERROR at setup of test_controller_command_grammar_is_supported[args1] _____
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+____ ERROR at setup of test_controller_command_grammar_is_supported[args2] _____
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+____ ERROR at setup of test_controller_command_grammar_is_supported[args3] _____
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+____ ERROR at setup of test_controller_command_grammar_is_supported[args4] _____
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+____ ERROR at setup of test_controller_command_grammar_is_supported[args5] _____
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+____ ERROR at setup of test_controller_command_grammar_is_supported[args6] _____
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+____ ERROR at setup of test_controller_command_grammar_is_supported[args7] _____
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+____ ERROR at setup of test_controller_command_grammar_is_supported[args8] _____
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+____ ERROR at setup of test_controller_command_grammar_is_supported[args9] _____
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+____ ERROR at setup of test_controller_command_grammar_is_supported[args10] ____
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+____ ERROR at setup of test_controller_command_grammar_is_supported[args11] ____
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[info] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args1] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args2] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args3] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args4] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args5] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args6] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args7] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args8] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args9] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args10] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args11] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args12] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args13] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args14] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args15] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args16] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args17] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args18] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args19] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args20] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_unsafe_or_unknown_command_is_rejected_before_spawn[args21] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_no_inherited_docker_loader_proxy_or_secret_environment _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+__ ERROR at setup of test_stderr_not_public_and_nonzero_returncode_preserved ___
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_combined_output_limit_terminates_only_own_cli[stdout_overflow] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_combined_output_limit_terminates_only_own_cli[stderr_overflow] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_combined_output_limit_terminates_only_own_cli[combined_overflow] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+____________ ERROR at setup of test_output_exact_limit_is_accepted _____________
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+__ ERROR at setup of test_timeout_reaps_only_own_cli_and_does_not_echo_errors __
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+______________ ERROR at setup of test_invalid_timeout_rejected[0] ______________
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_____________ ERROR at setup of test_invalid_timeout_rejected[-1] ______________
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_____________ ERROR at setup of test_invalid_timeout_rejected[301] _____________
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_invalid_timeout_rejected[10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_____________ ERROR at setup of test_invalid_timeout_rejected[nan] _____________
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_____________ ERROR at setup of test_invalid_timeout_rejected[inf] _____________
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+____________ ERROR at setup of test_invalid_timeout_rejected[True] _____________
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_____________ ERROR at setup of test_invalid_timeout_rejected[30] ______________
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+__ ERROR at setup of test_rehash_before_every_run_detects_modified_executable __
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_descriptor_pin_executes_verified_inode_when_path_is_replaced _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_______________ ERROR at setup of test_spawn_error_is_sanitized ________________
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_nonlocal_or_ambiguous_endpoint_rejected[tcp://127.0.0.1:2375] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+__ ERROR at setup of test_nonlocal_or_ambiguous_endpoint_rejected[ssh://host] __
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_nonlocal_or_ambiguous_endpoint_rejected[unix://relative.sock] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_nonlocal_or_ambiguous_endpoint_rejected[unix:///tmp/../other.sock] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_nonlocal_or_ambiguous_endpoint_rejected[unix:///tmp/x?token=SECRET] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_nonlocal_or_ambiguous_endpoint_rejected[unix:///tmp/x%2fsock] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_nonlocal_or_ambiguous_endpoint_rejected[unix:////tmp/socket] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_nonlocal_or_ambiguous_endpoint_rejected[unix:///tmp/x#fragment] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_nonlocal_or_ambiguous_endpoint_rejected[npipe:////./pipe/other] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+___ ERROR at setup of test_named_pipe_recognized_but_never_executed_on_linux ___
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_private_empty_json_config_is_allowed_but_helpers_are_not _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_config_must_remain_private_and_without_context_plugins[public_dir] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_config_must_remain_private_and_without_context_plugins[context_dir] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_config_must_remain_private_and_without_context_plugins[config_symlink] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_ ERROR at setup of test_config_must_remain_private_and_without_context_plugins[public_config] _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+______ ERROR at setup of test_untrusted_executable_form_rejected[symlink] ______
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_____ ERROR at setup of test_untrusted_executable_form_rejected[hardlink] ______
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_____ ERROR at setup of test_untrusted_executable_form_rejected[writable] ______
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+______ ERROR at setup of test_untrusted_executable_form_rejected[setuid] _______
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+__ ERROR at setup of test_untrusted_executable_form_rejected[non_executable] ___
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+______ ERROR at setup of test_untrusted_executable_form_rejected[script] _______
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_____ ERROR at setup of test_untrusted_executable_form_rejected[relative] ______
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+_______ ERROR at setup of test_untrusted_executable_form_rejected[fifo] ________
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+___________ ERROR at setup of test_missing_or_wrong_pin_is_rejected ____________
+
+tmp_path_factory = TempPathFactory(_given_basetemp=PosixPath('/tmp/hinstall-test'), _trace=<pluggy._tracing.TagTracerSub object at 0x711a55072ea0>, _basetemp=PosixPath('/tmp/hinstall-test'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def compiled_cli(tmp_path_factory):
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Linux descriptor execution backend")
+        compiler = shutil.which("cc")
+        if compiler is None:
+            pytest.skip("Synthetic ELF test needs local C compiler; Docker is never used")
+        directory = tmp_path_factory.mktemp("synthetic-docker-cli")
+        source = directory / "synthetic_cli.c"
+        source.write_text(FAKE_SOURCE)
+        executable = directory / "synthetic_cli"
+        built = subprocess.run([compiler, "-O2", "-o", str(executable), str(source)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+>       assert built.returncode == 0, "Synthetic ELF compiler failed"
+E       AssertionError: Synthetic ELF compiler failed
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/cc', '-O2', '-o', '/tmp/hinstall-test/synthetic-docker-cli0/synthetic_cli', '/tmp/hin...stdio.h: No such file or directory\n    2 | #include <stdio.h>\n      |          ^~~~~~~~~\ncompilation terminated.\n').returncode
+
+tests/test_docker_cli.py:73: AssertionError
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_datahome.py:105: Проверка пути POSIX на Windows
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! KeyboardInterrupt !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+/usr/local/lib/python3.14/pathlib/__init__.py:391: KeyboardInterrupt
+(to show a full traceback on KeyboardInterrupt use --full-trace)
+541 passed, 1 skipped, 78 errors in 129.25s (0:02:09)

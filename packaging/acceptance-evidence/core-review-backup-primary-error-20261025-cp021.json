@@ -1,0 +1,53 @@
+{
+  "checkpoint": "CP-20261025-021",
+  "review_case": "backup-primary-error",
+  "task_ids": [
+    "HIM-065",
+    "HIM-068"
+  ],
+  "scenario_ids": [
+    "ACC-17"
+  ],
+  "status": "FAIL",
+  "implementation_followup": "PENDING: inherited NativeEngine primary/recovery diagnostic gap",
+  "source_head": "4d6282dc4d983822e952c3b2c9cfb75eacbc7eae",
+  "source_diff": "Текущий isolated CP021 worktree diff, frozen bytes по SHA256 ниже; не результат HEAD",
+  "input_sha256": {
+    "homensai_install/engine.py": "01a5602c42892cf71efba0d83386e164b9338591ac377c6ed273bb425ebeabd8",
+    "homensai_install/adapters.py": "9332301eb731cef5e95915cd3cbf844ead381f569726e2037a2f0302d36d4eaf",
+    "integration_tests/test_native_product_adapter.py": "9304be341596fb08e72b986fa2b48109699ea1f08a20c3011ef95756f7a3c1c6"
+  },
+  "inputs_unchanged": true,
+  "started_at_utc": "2026-10-25T20:50:11.644536+00:00",
+  "duration_seconds": 5.421999999999571,
+  "command": [
+    "docker",
+    "run",
+    "--rm",
+    "--network",
+    "none",
+    "--mount",
+    "type=bind,source=E:\\homensai\\homensai-install-modull-core-cp021,target=/workspace,readonly",
+    "--mount",
+    "type=bind,source=E:\\homensai\\homensai-install-modull\\build\\cp020,target=/review,readonly",
+    "hinstall-dev:verification",
+    "python",
+    "-c",
+    "import runpy; runpy.run_path(\"/review/review_cp021_primary_backup_error.py\")"
+  ],
+  "command_exit_code": 0,
+  "expected": "Первичный STATE_STORAGE_UNAVAILABLE сохраняется в публичной/durable ошибке; последующий HEALTH_CHECK_FAILED при восстановлении фиксируется отдельно.",
+  "observed": {
+    "primary_injected": "STATE_STORAGE_UNAVAILABLE",
+    "raised": "HEALTH_CHECK_FAILED",
+    "python_context_code": "STATE_STORAGE_UNAVAILABLE",
+    "native_journal_error_code": [
+      "HEALTH_CHECK_FAILED"
+    ],
+    "native_journal_primary_present": [
+      false
+    ]
+  },
+  "scope": "Реальная synthetic NativeLifecycle fixture, signed payload, собственные Linux processes/loopback в Docker. Непредвиденное прерывание и archivefailure моделируются injection; не installed artifact/platform/reboot acceptance. Счётчики не суммируются с source suite.",
+  "production_ready": false
+}

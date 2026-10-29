@@ -1,0 +1,59 @@
+{
+  "checkpoint": "CP-20261025-020",
+  "task_ids": [
+    "HIM-033",
+    "HIM-029",
+    "HIM-035",
+    "HIM-102"
+  ],
+  "source_head": "4d6282dc4d983822e952c3b2c9cfb75eacbc7eae",
+  "started_at_utc": "2026-10-25T20:17:35.871363+00:00",
+  "duration_seconds": 68.79699999999957,
+  "command": [
+    "docker",
+    "run",
+    "--rm",
+    "--network",
+    "none",
+    "--mount",
+    "type=bind,source=E:\\homensai\\homensai-install-modull,target=/workspace,readonly",
+    "--mount",
+    "type=bind,source=E:\\homensai\\homensai-install-modull\\build\\cp020,target=/evidence",
+    "hinstall-dev:cp019",
+    "python",
+    "-B",
+    "-m",
+    "pytest",
+    "-q",
+    "--basetemp=/tmp/hinstall-ui",
+    "--junitxml=/evidence/ui-wrapper.xml",
+    "tests/test_wizard_prerequisite_ui.py",
+    "tests/test_wizard.py::test_wizard_translation_coverage",
+    "tests/test_wizard_capabilities.py"
+  ],
+  "exit_code": 0,
+  "status": "PASS",
+  "input_sha256": {
+    "homensai_install/wizard/app.js": "c9fca5cf005c92d8b968cb4b102e101c50bc7ba84fc2bd3c7cc7e6d4ea50d9f7",
+    "homensai_install/wizard/index.html": "d74c895868de6428c6d431a16b8f7a05d932884f59934492d0bee18bce87bf2d",
+    "homensai_install/wizard/locales.json": "3de7506e6c5481f8ac021f699b6ff421b668fa5feec17834dbc4d3153bbbbb92",
+    "homensai_install/wizard/style.css": "dec992ced7a2976b04e4a7e491ee1fb151423faca2b1841480c3ce3f138c5386",
+    "tests/js/wizard_prerequisites.cjs": "f3229e51929d2f57ee1d633ac99460502121247b9293b2d3c7038ad48cb7ae84",
+    "tests/test_wizard_prerequisite_ui.py": "3cceb85c91b3046c09016728829dc748601e55ecb999a1add6ff9cb35391c1d3",
+    "tests/test_wizard.py": "d1b2daabc855724eb953718d3b154e85e571c47a99ad6ea33b64999dca87074a",
+    "tests/test_wizard_capabilities.py": "fa5486019bc4a417c74e9a2c0696e46b48558536480c8fccd8812ad93651d0b2"
+  },
+  "inputs_unchanged": true,
+  "observed": "...                                                                      [100%]\n3 passed in 62.17s (0:01:02)\n",
+  "log": "build/cp020/ui-wrapper.log",
+  "junit": "build/cp020/ui-wrapper.xml",
+  "scope": "Pytest wrapper39Nodegroups + source wizard translation coverage + legacy capability Nodegroups. Счётчики пересекаются с полным pytest и не суммируются. Not actual browser or installed OS acceptance.",
+  "production_ready": false,
+  "orchestrator_report": {
+    "status": "FAIL",
+    "exit_code": 1,
+    "phase": "Печать уже сохранённой квитанции после завершения subprocess",
+    "error_type": "UnicodeEncodeError",
+    "reason": "Windows stdout cp1252 не кодирует русский текст summary; pytest exit0, input hashes unchanged, JSON receipt и log записаны до ошибки. Содержимое результата отдельно перечитано PowerShell ConvertFrom-Json."
+  }
+}

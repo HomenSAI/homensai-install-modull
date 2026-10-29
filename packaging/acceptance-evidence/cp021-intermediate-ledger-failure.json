@@ -1,0 +1,13 @@
+{
+  "checkpoint": "CP-20261025-021",
+  "status": "FAIL",
+  "passed": 49,
+  "failed": 1,
+  "duration_seconds": 28.31,
+  "case": "test_quiesce_and_real_encrypted_backup_preserve_data_and_restart",
+  "observed": "KeyError: product_adapter_unknown in _adapter_quiesce_completed: new complete-marker path called pop without default on an initial successful quiesce",
+  "fix": "Use state.pop(product_adapter_unknown, None); keep original backup regression.",
+  "evidence_limit": "Raw output was returned by tool, not redirected to file. This is a structured excerpt; initial changed source hashes were not inventoried.",
+  "scope": "Intermediate ledger recovery fix on unpublished CP021 bytes; not CP018 baseline",
+  "production_ready": false
+}

@@ -1,0 +1,42 @@
+{
+  "scope": "offline source+Linux user process integration in Docker DEV Debian; not product platform acceptance",
+  "source_sha": "cd319a03f47fe9b7e4888afffe88f311329a3ce9",
+  "command": [
+    "python",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "no:cacheprovider",
+    "tests",
+    "integration_tests",
+    "--junitxml=/run-io/baseline.xml"
+  ],
+  "exit_code": 0,
+  "status": "PASS",
+  "inputs_unchanged": true,
+  "input_count": 157,
+  "input_digest": "9bad5dae6ca91ea113f287b61ac476967584f6fd10342ef46bf4303e617f62d1",
+  "elapsed_seconds": 525.3711074419998,
+  "checked_at_utc": "2026-10-26T08:37:32.693530+00:00",
+  "production_ready": false,
+  "checkpoint": "CP-20261026-003",
+  "task": "HIM-009",
+  "counts": {
+    "passed": 2363,
+    "skipped": 3,
+    "subtests_passed": 15
+  },
+  "docker_image": "sha256:1b3529768706aaacabb525d6fd3168680cc2b0ffa1aee6994a3d2e5cdb8fd4c1",
+  "runtime": "CPython 3.14.3",
+  "logs": [
+    "baseline-20261026-cp003.log",
+    "baseline-20261026-cp003.xml"
+  ],
+  "junit_publication": {
+    "test_parameters_redacted": 5,
+    "raw_junit_sha256": "40b72f82c20f765295a9e00f141ca5d76bf23fafcf71bea9dc8a88cb2fcda638",
+    "raw_log_location": ".local-state/run01/baseline.xml",
+    "reason": "Synthetic hostile credential-bearing URLs in parameterized test names matched repository secret scanner; public XML removes matched values."
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "checkpoint": "CP-20261025-017",
+  "observed_at": "2026-10-25T19:03:15.080Z",
+  "status": "BLOCKED",
+  "scope": "GitHub CI for previous published CP016; tests did not start",
+  "cause": "Exact cause not established; no billing inference",
+  "runs": [
+    {
+      "run_id": 40213809512,
+      "head_sha": "4814ae6238c2dbec569a5a462dccb39c7a3b456b",
+      "run_url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40213809512",
+      "status": "completed",
+      "conclusion": "failure",
+      "jobs": [
+        {
+          "id": 121230506496,
+          "name": "Windows portable source subset (no service installation)",
+          "status": "completed",
+          "conclusion": "failure",
+          "runner_id": 0,
+          "steps": [],
+          "html_url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40213809512/job/121230506496"
+        },
+        {
+          "id": 121230506748,
+          "name": "Linux source and user-process integration (no installer acceptance)",
+          "status": "completed",
+          "conclusion": "failure",
+          "runner_id": 0,
+          "steps": [],
+          "html_url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40213809512/job/121230506748"
+        }
+      ]
+    },
+    {
+      "run_id": 40213805860,
+      "head_sha": "4814ae6238c2dbec569a5a462dccb39c7a3b456b",
+      "run_url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40213805860",
+      "status": "completed",
+      "conclusion": "failure",
+      "jobs": [
+        {
+          "id": 121230496477,
+          "name": "Windows portable source subset (no service installation)",
+          "status": "completed",
+          "conclusion": "failure",
+          "runner_id": 0,
+          "steps": [],
+          "html_url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40213805860/job/121230496477"
+        },
+        {
+          "id": 121230496671,
+          "name": "Linux source and user-process integration (no installer acceptance)",
+          "status": "completed",
+          "conclusion": "failure",
+          "runner_id": 0,
+          "steps": [],
+          "html_url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/40213805860/job/121230496671"
+        }
+      ]
+    }
+  ]
+}

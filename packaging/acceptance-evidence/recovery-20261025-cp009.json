@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-009",
+  "observed_at": "2026-10-25T11:54:55+00:00",
+  "baseline_commit": "960827cb32b65c9748c9a3f4eaee8406dfe27606",
+  "baseline_tree": "b1a63e337779e8f800547be7daa9b87f9028c1c0",
+  "recovery": "New independent clean clone; branch/ref/tree matched GitHub. Node contract already present in CP-008.",
+  "source_check": {
+    "command": "PYTHONPATH=<accepted-test-deps> python -m pytest -q tests/test_checkpoint.py tests/test_wizard_capabilities.py",
+    "python": "3.12.14",
+    "passed": 38,
+    "duration_seconds": 3.46,
+    "scope": "37 real isolated Git tests + 1 Node DOM contract; not installed acceptance"
+  },
+  "attempts": [
+    {
+      "command": "python -m pytest ...",
+      "result": "NOT RUN",
+      "reason": "pytest absent from default runtime; reused existing project test dependencies, then actual suite passed"
+    }
+  ],
+  "ci": {
+    "runs": [
+      40188356899,
+      40188360805
+    ],
+    "jobs": 4,
+    "runner_id": 0,
+    "steps": [],
+    "test_result": "NOT RUN",
+    "status": "BLOCKED",
+    "reason": "No runner allocation; exact cause not available"
+  },
+  "docker_git": "SYNC_BLOCKED",
+  "production_ready": false
+}

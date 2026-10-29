@@ -1,0 +1,39 @@
+{
+  "checkpoint": "CP-20261026-006",
+  "status": "PASS_SCOPED",
+  "first_attempt": {
+    "command": "docker run --rm --network none --mount main:/workspace,readonly hinstall-dev:verification python -m pytest -q -p no:cacheprovider tests/test_backends.py tests/test_migration_preparation_api.py",
+    "exit_code": 1,
+    "passed": 35,
+    "failed": 1,
+    "observation": "Test expected capability key enabled; actual established field is registered. KeyError enabled, constructor behavior was not the defect."
+  },
+  "correction": "Test checks registered; no production code change needed for this harness mistake.",
+  "second_attempt": {
+    "exit_code": 0,
+    "passed": 36,
+    "elapsed_seconds": 2.56
+  },
+  "scope": "Public trusted SDK factory registration and rejection without verifier; no installed fresh acceptance",
+  "production_ready": false,
+  "recorded_at_utc": "2026-10-26T09:33:51.801572+00:00",
+  "agent_remote_refs": {
+    "core_lifecycle": {
+      "branch": "codex/core-lifecycle-20261026-run01",
+      "commit": "ddbe10717ce8215ccea8925816488a69606b4f03",
+      "sync": "SYNC_CONFIRMED",
+      "status": "SOURCE_PASS_PENDING_ROOT_INTEGRATION",
+      "source_passed": 171,
+      "subtests_passed": 5,
+      "installed_fresh": "NOT RUN"
+    },
+    "platform_acceptance": {
+      "branch": "codex/platform-acceptance-20261026-run01",
+      "commit": "bbbbd8f82f5aada2022085cc904c99b6b39d2f21",
+      "sync": "SYNC_CONFIRMED",
+      "status": "INTEGRATED_AS_7779b5e",
+      "installed_preparation_cases_passed": 5,
+      "sdk_revision": "2024434b59c477773ad2b44d00ae77ec508ff8b8"
+    }
+  }
+}

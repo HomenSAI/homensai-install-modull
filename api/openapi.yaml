@@ -1,0 +1,3535 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "HomenSAI local installation API",
+    "version": "1.0",
+    "description": "Development contract. Loopback only. SDK/CLI use the same InstallerAPI facade. No build/sign/arbitrary elevated command in HTTP. Wizard session binds product manifest and trust at startup; HTTP accepts only mode/path/action/consents, not arbitrary manifests or trust roots. Generic SDK request schema is separate. Prerequisite HTTP accepts only server-owned plan IDs and explicit consent; registered owner/product/manifest/target/catalog/payload binding is pinned. CLI prerequisites use synchronous trusted SDK injection. GUI prerequisite flow is available for an explicitly registered coordinator; browser/platform acceptance remains separate. Binary local uploads are signed-plan-bound and do not execute installers."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:{port}",
+      "variables": {
+        "port": {
+          "default": "8760",
+          "description": "Фактически выбранный локальным controller порт; не фиксированная служба"
+        }
+      }
+    }
+  ],
+  "security": [
+    {
+      "InstallerSession": []
+    }
+  ],
+  "paths": {
+    "/api/v1/info": {
+      "get": {
+        "operationId": "describe",
+        "description": "Офлайн-описание публичного контракта",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/capabilities": {
+      "get": {
+        "operationId": "capabilities",
+        "description": "Фактические возможности engine. Непроверенные targets не ready.",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "native",
+                "docker"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/validate": {
+      "post": {
+        "operationId": "validate",
+        "description": "Проверить manifest без effects",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discover": {
+      "post": {
+        "operationId": "discover",
+        "description": "Ограниченный read-only preflight",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscoverRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plans": {
+      "post": {
+        "operationId": "plan",
+        "description": "Сохранить immutable plan; не устанавливать ПО",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operations": {
+      "post": {
+        "operationId": "submit",
+        "description": "Запустить план после explicit review/EULA consent; idempotency обязателен",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitRequest"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "operations_list",
+        "description": "Найти сохранённые операции после перезапуска bootstrap/потери UI-сессии. Product ID фиксируется сервером из startup manifest. Отсутствие journal даёт пустой список без создания state. Dead owner переводится в RECOVERY_REQUIRED; действия не запускаются.",
+        "parameters": [
+          {
+            "name": "unfinished_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true
+            },
+            "description": "Включает незавершённые статусы и result.resume_required=true; false включает завершённые операции."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ограниченный список метаданных сохранённых операций текущего продукта; без автоматического resume.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "properties": {
+                        "result": {
+                          "$ref": "#/components/schemas/OperationListResult"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operations/{operation_id}": {
+      "get": {
+        "operationId": "status",
+        "description": "Состояние операции; прерванный owner приводит к RECOVERY_REQUIRED",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^op_[a-f0-9]{32}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/operations/{operation_id}/events": {
+      "get": {
+        "operationId": "events",
+        "description": "Упорядоченная страница событий и snapshot; poll/cursor без повторного submit",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^op_[a-f0-9]{32}$"
+            }
+          },
+          {
+            "name": "after_sequence",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/operations/{operation_id}/cancel": {
+      "post": {
+        "operationId": "cancel",
+        "description": "Запрос остановки на безопасной границе; не произвольный kill",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^op_[a-f0-9]{32}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/operations/{operation_id}/resume": {
+      "post": {
+        "operationId": "resume",
+        "description": "Явное продолжение engine recovery с проверкой фактического checkpoint",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^op_[a-f0-9]{32}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/errors/{code}": {
+      "get": {
+        "operationId": "errorsDescribe",
+        "description": "Офлайн-статья ошибки",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "ru",
+                "en",
+                "de"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/errors": {
+      "get": {
+        "operationId": "errorsSearch",
+        "description": "Поиск по офлайн-каталогу",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "ru",
+                "en",
+                "de"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/diagnostics/{operation_id}": {
+      "get": {
+        "operationId": "diagnosticsGet",
+        "description": "Очищенные локальные сведения, не authoritative recovery journal",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^op_[a-f0-9]{32}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/statistics": {
+      "get": {
+        "operationId": "statisticsQuery",
+        "description": "Локальные агрегаты уникальных операций/попыток",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/session": {
+      "get": {
+        "operationId": "session",
+        "description": "Фиксированные сведения product/session и язык. Не раскрывает session token.",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/locales/{locale}": {
+      "get": {
+        "operationId": "localeResources",
+        "description": "Ресурсы языка UI",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "ru",
+                "en",
+                "de"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/terms/{locale}": {
+      "get": {
+        "operationId": "terms",
+        "description": "Локальный текст условий и digest из подписанного payload выбранного режима; native и Docker имеют отдельные artifact bindings.",
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "ru",
+                "en",
+                "de"
+              ]
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "native",
+                "docker"
+              ],
+              "default": "native"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/secrets": {
+      "post": {
+        "operationId": "setSessionArchiveSecret",
+        "description": "Архивный пароль только в защищённой памяти startup-сессии. Значение не передаётся в SDK options/journal/logs и не возвращается. После restart пользователь вводит его заново. Публичный ответ содержит лишь reference=wizard_archive и stored=session_memory.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchiveSecretRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/preferences": {
+      "post": {
+        "operationId": "setWizardPreferences",
+        "description": "Сохранить выбранный язык мастера в приватном состоянии владельца; ранее принятый digest/язык соглашения не меняется задним числом.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WizardPreferencesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON envelope: result или структурированная error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/diagnostics/export/preview": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "JSON result envelope"
+          },
+          "400": {
+            "description": "Structured error envelope"
+          }
+        },
+        "security": [
+          {
+            "InstallerSession": []
+          }
+        ],
+        "summary": "Preview redacted local support report; no upload",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "operation_id": {
+                    "type": "string",
+                    "description": "Operation belonging to the startup product; required by wizard"
+                  },
+                  "locale": {
+                    "enum": [
+                      "ru",
+                      "en",
+                      "de"
+                    ]
+                  }
+                },
+                "required": [
+                  "operation_id"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/diagnostics/export": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "JSON result envelope"
+          },
+          "400": {
+            "description": "Structured error envelope"
+          }
+        },
+        "security": [
+          {
+            "InstallerSession": []
+          }
+        ],
+        "summary": "Confirmed export of the exact preview into private state and browser download; never uploads",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "confirmed",
+                  "expected_digest",
+                  "operation_id"
+                ],
+                "properties": {
+                  "operation_id": {
+                    "type": "string",
+                    "description": "Operation belonging to the startup product; required by wizard"
+                  },
+                  "locale": {
+                    "enum": [
+                      "ru",
+                      "en",
+                      "de"
+                    ]
+                  },
+                  "confirmed": {
+                    "const": true
+                  },
+                  "expected_digest": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prerequisites/capabilities": {
+      "get": {
+        "operationId": "prerequisitesCapabilities",
+        "description": "Возможности явно зарегистрированного target; условный GUI-flow доступен только с доверенным coordinator. Production registry не создаётся, browser/OS acceptance этим флагом не подтверждается.",
+        "responses": {
+          "200": {
+            "description": "Проверенные возможности и проекция требований; без discover, запуска или записи операции.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/PrerequisiteCapabilitiesResult"
+                    }
+                  },
+                  "required": [
+                    "api_version",
+                    "result"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "native",
+                "docker"
+              ],
+              "default": "native"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/licenses/{component_id}": {
+      "get": {
+        "operationId": "prerequisitesLicense",
+        "description": "Текст условий из signed catalog; path/URL не принимаются.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/plans": {
+      "post": {
+        "operationId": "prerequisitesPlan",
+        "description": "Сохранить до 16 server-owned review plans; вернуть plan_id и operation_id. Нет effects; полный plan не принимается от браузера.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisitePlanRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prerequisites/operations": {
+      "post": {
+        "operationId": "prerequisitesStart",
+        "description": "Durable background start по серверному плану и явным согласиям; повтор того же plan ID не запускает resume.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisiteReviewRequest"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "prerequisitesOperations",
+        "description": "Bounded recovery list exact owner/product/target/catalog; без скрытого resume.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "unfinished_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 100
+            }
+          },
+          {
+            "name": "after_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/operations/{operation_id}": {
+      "get": {
+        "operationId": "prerequisitesStatus",
+        "description": "Исторический snapshot. queued/running/unknown требуют polling; READY не вызывает product submit.",
+        "responses": {
+          "200": {
+            "description": "Исторический snapshot; download_progress необязателен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/PrerequisiteSnapshot"
+                    }
+                  },
+                  "required": [
+                    "api_version",
+                    "result"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/operations/{operation_id}/events": {
+      "get": {
+        "operationId": "prerequisitesEvents",
+        "description": "Durable phase/state и prerequisite_download events с snapshot. download_progress содержит измеренные байты signed artifact; 100 только после SHA-256 staged файла, не READY. after_sequence = sequence последнего полученного event, не snapshot.revision; страницы дочитываются и после завершения controller.",
+        "responses": {
+          "200": {
+            "description": "Страница durable событий и текущий snapshot.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/PrerequisiteEventsResult"
+                    }
+                  },
+                  "required": [
+                    "api_version",
+                    "result"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          },
+          {
+            "name": "after_sequence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/operations/{operation_id}/attempts/{component_id}": {
+      "get": {
+        "operationId": "prerequisitesAttempts",
+        "description": "История подтверждённых попыток с pins/receipts.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          },
+          {
+            "name": "component_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/operations/{operation_id}/cancel": {
+      "post": {
+        "operationId": "prerequisitesCancel",
+        "description": "Сохранить cancel без ожидания installer или долгого session lock; не kill.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisiteEmptyRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/operations/{operation_id}/resume": {
+      "post": {
+        "operationId": "prerequisitesResume",
+        "description": "Явный background resume с сохранёнными либо новыми consent refs; product review сбрасывается.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisiteResumeRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/operations/{operation_id}/recheck": {
+      "post": {
+        "operationId": "prerequisitesRecheck",
+        "description": "Синхронные read-only probes/journal; без download/install, status/cancel доступны параллельно.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisiteEmptyRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/operations/{operation_id}/boundary": {
+      "post": {
+        "operationId": "prerequisitesBoundary",
+        "description": "Записать now/later для reboot/relogin; host_action.performed=false, OS action не выполняется.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisiteBoundaryRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/operations/{operation_id}/replace-plan": {
+      "post": {
+        "operationId": "prerequisitesReplacePlan",
+        "description": "Заменить план по server plan ID и новым согласиям. Не запускает installer и не снимает неизвестный effect.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PrerequisiteHTTP200"
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisiteReviewRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/uploads": {
+      "post": {
+        "operationId": "prerequisitesUploadCreate",
+        "description": "Выделить bounded staging по существующему server plan и signed pins; не принимает filename/path/commands.",
+        "responses": {
+          "200": {
+            "description": "Состояние upload без local paths/имени файла/URL. verified относится только к staging bytes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/PrerequisiteUploadResult"
+                    }
+                  },
+                  "required": [
+                    "api_version",
+                    "result"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisiteUploadRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prerequisites/uploads/{upload_id}": {
+      "get": {
+        "operationId": "prerequisitesUploadStatus",
+        "description": "Состояние upload текущей HTTP-сессии, без исполнения.",
+        "responses": {
+          "200": {
+            "description": "Состояние upload без local paths/имени файла/URL. verified относится только к staging bytes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/PrerequisiteUploadResult"
+                    }
+                  },
+                  "required": [
+                    "api_version",
+                    "result"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^upload_[0-9a-f]{32}$(?![\\s\\S])"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/prerequisites/uploads/{upload_id}/content": {
+      "post": {
+        "operationId": "prerequisitesUploadContent",
+        "description": "Принять ровно signed size с ограниченной памятью, fsync и повторной SHA-256 проверкой staged файла. Не запускает installer.",
+        "responses": {
+          "200": {
+            "description": "Состояние upload без local paths/имени файла/URL. verified относится только к staging bytes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/PrerequisiteUploadResult"
+                    }
+                  },
+                  "required": [
+                    "api_version",
+                    "result"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^upload_[0-9a-f]{32}$(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "Content-Length",
+            "in": "header",
+            "required": true,
+            "description": "Ровно подписанный size allocation. Только один заголовок, без Transfer-Encoding.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4294967296
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prerequisites/uploads/{upload_id}/cancel": {
+      "post": {
+        "operationId": "prerequisitesUploadCancel",
+        "description": "Отменить/удалить только ещё не retained upload; bound SDK plan запрещает удаление.",
+        "responses": {
+          "200": {
+            "description": "Состояние upload без local paths/имени файла/URL. verified относится только к staging bytes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "result": {
+                      "$ref": "#/components/schemas/PrerequisiteUploadResult"
+                    }
+                  },
+                  "required": [
+                    "api_version",
+                    "result"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/PrerequisiteHTTP400"
+          },
+          "403": {
+            "$ref": "#/components/responses/PrerequisiteHTTP403"
+          },
+          "500": {
+            "$ref": "#/components/responses/PrerequisiteHTTP500"
+          }
+        },
+        "parameters": [
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^upload_[0-9a-f]{32}$(?![\\s\\S])"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrerequisiteEmptyRequest"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "InstallerSession": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-HInstall-Token",
+        "description": "Непредсказуемый token только startup-сессии, не query. Требуются также exact Host и same-origin проверки."
+      }
+    },
+    "schemas": {
+      "ValidateRequest": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "enum": [
+              "ru",
+              "en",
+              "de"
+            ]
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "DiscoverRequest": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "enum": [
+              "native",
+              "docker"
+            ]
+          },
+          "install_root": {
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "ru",
+              "en",
+              "de"
+            ]
+          },
+          "archive_path": {
+            "type": "string",
+            "description": "Explicit local archive path for backup or restore; no overwrite of foreign files."
+          },
+          "acknowledge_data_loss": {
+            "type": "boolean",
+            "description": "Required true for restore and rollback in wizard."
+          },
+          "product_modes": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            },
+            "description": "Product modes from the startup manifest; engine enforces dependencies and exclusions."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "PlanRequest": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "enum": [
+              "native",
+              "docker"
+            ]
+          },
+          "install_root": {
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "ru",
+              "en",
+              "de"
+            ]
+          },
+          "action": {
+            "enum": [
+              "install",
+              "update",
+              "repair",
+              "uninstall",
+              "backup",
+              "restore",
+              "rollback",
+              "start",
+              "stop",
+              "modify_components"
+            ]
+          },
+          "archive_path": {
+            "type": "string",
+            "description": "Explicit local archive path for backup or restore; no overwrite of foreign files."
+          },
+          "acknowledge_data_loss": {
+            "type": "boolean",
+            "description": "Required true for restore and rollback in wizard."
+          },
+          "product_modes": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            },
+            "description": "Product modes from the startup manifest; engine enforces dependencies and exclusions."
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      },
+      "SubmitRequest": {
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "consent_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 64
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "accepted_terms": {
+            "const": true
+          },
+          "accepted_plan": {
+            "const": true
+          },
+          "terms_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "locale": {
+            "enum": [
+              "ru",
+              "en",
+              "de"
+            ]
+          }
+        },
+        "required": [
+          "plan_id",
+          "plan_digest",
+          "consent_refs",
+          "idempotency_key",
+          "accepted_terms",
+          "accepted_plan",
+          "terms_digest"
+        ],
+        "additionalProperties": false
+      },
+      "ResumeRequest": {
+        "type": "object",
+        "properties": {
+          "decisions": {
+            "type": "object"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "Envelope": {
+        "type": "object",
+        "required": [
+          "api_version",
+          "request_id"
+        ],
+        "properties": {
+          "api_version": {
+            "const": "1.0"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "result": {},
+          "error": {
+            "type": "object"
+          }
+        }
+      },
+      "Operation": {
+        "$ref": "schemas/operation.schema.json"
+      },
+      "Plan": {
+        "$ref": "schemas/plan.schema.json"
+      },
+      "Event": {
+        "$ref": "schemas/event.schema.json"
+      },
+      "ArchiveSecretRequest": {
+        "type": "object",
+        "properties": {
+          "archive_password": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 4096,
+            "writeOnly": true
+          },
+          "product_secrets": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "description": "Only secret names declared in the bound signed product manifest. Memory only."
+          }
+        },
+        "additionalProperties": false,
+        "minProperties": 1
+      },
+      "WizardPreferencesRequest": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "enum": [
+              "ru",
+              "en",
+              "de"
+            ]
+          }
+        },
+        "required": [
+          "locale"
+        ],
+        "additionalProperties": false
+      },
+      "OperationSummary": {
+        "type": "object",
+        "required": [
+          "operation_id",
+          "plan_id",
+          "action",
+          "status",
+          "product_id",
+          "updated_at"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "operation_id": {
+            "type": "string"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "action": {
+            "enum": [
+              "build",
+              "install",
+              "update",
+              "modify_components",
+              "repair",
+              "reinstall",
+              "uninstall",
+              "backup",
+              "restore",
+              "rollback",
+              "start",
+              "stop"
+            ]
+          },
+          "status": {
+            "enum": [
+              "QUEUED",
+              "RUNNING",
+              "SUCCEEDED",
+              "FAILED",
+              "FAILED_ROLLED_BACK",
+              "CANCELED",
+              "RECOVERY_REQUIRED",
+              "AWAITING_USER",
+              "REBOOT_REQUIRED",
+              "RELOGIN_REQUIRED"
+            ]
+          },
+          "product_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "OperationListResult": {
+        "type": "object",
+        "required": [
+          "operations",
+          "has_more",
+          "limit"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "operations": {
+            "type": "array",
+            "maxItems": 200,
+            "items": {
+              "$ref": "#/components/schemas/OperationSummary"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        }
+      },
+      "PrerequisiteEmptyRequest": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "PrerequisitePlanRequest": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "enum": [
+              "native",
+              "docker"
+            ],
+            "default": "native"
+          },
+          "locale": {
+            "enum": [
+              "ru",
+              "en",
+              "de"
+            ]
+          },
+          "choices": {
+            "type": "object",
+            "maxProperties": 128,
+            "additionalProperties": {
+              "enum": [
+                "auto",
+                "manual",
+                "use",
+                "skip"
+              ]
+            }
+          },
+          "offline": {
+            "type": "boolean",
+            "default": false
+          },
+          "local_uploads": {
+            "type": "object",
+            "maxProperties": 16,
+            "description": "Только verified opaque handles текущей сессии. Сервер хранит SDK paths; HTTP plan.local_artifacts возвращает opaque handles. plan_digest относится к внутреннему неизменяемому SDK plan.",
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^upload_[0-9a-f]{32}$(?![\\s\\S])"
+            }
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "PrerequisiteReviewRequest": {
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "consent_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1024
+          },
+          "accepted_plan": {
+            "const": true
+          },
+          "accepted_terms": {
+            "const": true
+          },
+          "terms_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "plan_id",
+          "plan_digest",
+          "consent_refs",
+          "accepted_plan",
+          "accepted_terms",
+          "terms_digest"
+        ],
+        "additionalProperties": false
+      },
+      "PrerequisiteResumeRequest": {
+        "type": "object",
+        "properties": {
+          "consent_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1024
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "PrerequisiteBoundaryRequest": {
+        "type": "object",
+        "properties": {
+          "when": {
+            "enum": [
+              "now",
+              "later"
+            ]
+          }
+        },
+        "required": [
+          "when"
+        ],
+        "additionalProperties": false
+      },
+      "PrerequisitePayloadBinding": {
+        "type": "object",
+        "properties": {
+          "manifest_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "target": {
+            "type": "object"
+          },
+          "release": {
+            "type": "string"
+          },
+          "runtime_executable": {
+            "type": "string"
+          },
+          "files_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "manifest_digest",
+          "target",
+          "release",
+          "runtime_executable",
+          "files_digest"
+        ],
+        "additionalProperties": false
+      },
+      "PrerequisiteExecution": {
+        "type": "object",
+        "required": [
+          "mode",
+          "state",
+          "active"
+        ],
+        "properties": {
+          "mode": {
+            "enum": [
+              "background",
+              "synchronous"
+            ]
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "finished",
+              "failed",
+              "superseded",
+              "idle",
+              "recovery_required",
+              "unknown"
+            ]
+          },
+          "active": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      },
+      "PrerequisiteSnapshot": {
+        "type": "object",
+        "required": [
+          "operation_id",
+          "product_id",
+          "owner_id",
+          "target",
+          "catalog_digest",
+          "plan_digest",
+          "status",
+          "ready",
+          "revision",
+          "execution"
+        ],
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+          },
+          "product_id": {
+            "type": "string"
+          },
+          "owner_id": {
+            "type": "string"
+          },
+          "target": {
+            "type": "object"
+          },
+          "catalog_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "status": {
+            "type": "string"
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "execution": {
+            "$ref": "#/components/schemas/PrerequisiteExecution"
+          },
+          "download_progress": {
+            "$ref": "#/components/schemas/PrerequisiteDownloadProgress"
+          }
+        }
+      },
+      "PrerequisiteDownloadProgress": {
+        "type": "object",
+        "description": "Последнее сохранённое измерение одного artifact. plan_digest, component_id, artifact_id, artifact_sha256 и total привязаны к принятому signed plan. completed <= total; для transferring completed < total, percent = floor(completed * 100 / total). verified требует completed == total и SHA-256 staged файла; это не dependency READY. После обрыва completed не является durable offset файла. sequence связан с событием той же транзакции и не превышает revision содержащего snapshot.",
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1
+          },
+          "plan_digest": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+          },
+          "component_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          },
+          "artifact_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          },
+          "artifact_sha256": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+          },
+          "transfer_id": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 32,
+            "pattern": "^[0-9a-f]{32}$(?![\\s\\S])",
+            "description": "Идентификатор одного transfer; не token авторизации или execution lease."
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 7
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "preparing",
+              "transferring",
+              "verifying",
+              "retrying",
+              "verified",
+              "failed",
+              "canceled"
+            ]
+          },
+          "completed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 68719476736
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 68719476736
+          },
+          "unit": {
+            "type": "string",
+            "const": "bytes"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "network",
+              "cache",
+              "partial",
+              "local"
+            ]
+          },
+          "resumed": {
+            "type": "boolean"
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "percent": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "minLength": 20,
+            "maxLength": 32,
+            "pattern": "Z$(?![\\s\\S])"
+          }
+        },
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "state": {
+                  "const": "verified"
+                }
+              },
+              "required": [
+                "state"
+              ]
+            },
+            "then": {
+              "properties": {
+                "verified": {
+                  "const": true
+                },
+                "percent": {
+                  "const": 100
+                },
+                "source": {
+                  "enum": [
+                    "network",
+                    "cache",
+                    "partial",
+                    "local"
+                  ]
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "verified": {
+                  "const": false
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "state": {
+                  "const": "transferring"
+                }
+              },
+              "required": [
+                "state"
+              ]
+            },
+            "then": {
+              "properties": {
+                "percent": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 99
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "state": {
+                  "enum": [
+                    "preparing",
+                    "verifying",
+                    "retrying",
+                    "failed",
+                    "canceled"
+                  ]
+                }
+              },
+              "required": [
+                "state"
+              ]
+            },
+            "then": {
+              "properties": {
+                "percent": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ],
+        "required": [
+          "schema_version",
+          "plan_digest",
+          "component_id",
+          "artifact_id",
+          "artifact_sha256",
+          "transfer_id",
+          "attempt",
+          "state",
+          "completed",
+          "total",
+          "unit",
+          "source",
+          "resumed",
+          "verified",
+          "percent",
+          "sequence",
+          "updated_at"
+        ]
+      },
+      "PrerequisiteEventsResult": {
+        "type": "object",
+        "description": "Упорядоченная страница общего журнала и текущий snapshot. after_sequence продвигается только по последнему полученному событию; snapshot.revision может быть новее страницы. Для prerequisite_download sequence/component_id/timestamp совпадают с download_progress.sequence/component_id/updated_at. Snapshot и progress event коммитятся атомарно; status и события сами не возобновляют effects.",
+        "properties": {
+          "events": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "type": "object",
+              "properties": {
+                "download_progress": {
+                  "$ref": "#/components/schemas/PrerequisiteDownloadProgress"
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "prerequisite_download"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ]
+                  },
+                  "then": {
+                    "required": [
+                      "download_progress"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/PrerequisiteSnapshot"
+          }
+        },
+        "required": [
+          "events",
+          "snapshot"
+        ],
+        "additionalProperties": false
+      },
+      "PrerequisitePlanResult": {
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+          },
+          "operation_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "plan": {
+            "type": "object"
+          },
+          "terms_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "locale": {
+            "enum": [
+              "ru",
+              "en",
+              "de"
+            ]
+          },
+          "production_ready": {
+            "const": false
+          }
+        },
+        "required": [
+          "plan_id",
+          "operation_id",
+          "plan_digest",
+          "plan",
+          "terms_digest",
+          "locale",
+          "production_ready"
+        ],
+        "additionalProperties": false
+      },
+      "PrerequisiteHTTPEnvelope": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "api_version": {
+                "const": "1"
+              },
+              "result": {}
+            },
+            "required": [
+              "api_version",
+              "result"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "api_version": {
+                "const": "1"
+              },
+              "error": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "error"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "PrerequisiteRequirement": {
+        "type": "object",
+        "description": "Проверенная проекция signed requirement; только данные для просмотра, без путей/URL/команд. Границы включительные; null снимает соответствующее ограничение. Числовое сравнение MAJOR.MINOR.PATCH: пропущенный PATCH равен 0, v и +build игнорируются. Prerelease/PEP 440 не поддерживаются.",
+        "properties": {
+          "component_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          },
+          "kind": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "minimum_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^v?[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:\\+[A-Za-z0-9_.-]+)?$(?![\\s\\S])"
+          },
+          "maximum_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^v?[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:\\+[A-Za-z0-9_.-]+)?$(?![\\s\\S])"
+          },
+          "scope": {
+            "enum": [
+              "host",
+              "controller",
+              "product"
+            ]
+          }
+        },
+        "required": [
+          "component_id",
+          "kind",
+          "required",
+          "minimum_version",
+          "maximum_version",
+          "scope"
+        ],
+        "additionalProperties": false
+      },
+      "PrerequisiteCapabilitiesResult": {
+        "type": "object",
+        "description": "Возможности явной регистрации. requirements добавлены независимо от raw plan v1; его digest/consent refs и сохранённые queued операции не меняются. Для соединения requirements с plan по component_id нужны совпадающие product_id/owner_id/target/catalog_digest. Отсутствие requirements у старого сервера означает недоступные сведения, а не неограниченную версию.",
+        "properties": {
+          "api_version": {
+            "const": "1.0"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "product_id": {
+            "type": "string"
+          },
+          "owner_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          },
+          "target": {
+            "type": "object"
+          },
+          "catalog_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "requirements": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 128,
+            "items": {
+              "$ref": "#/components/schemas/PrerequisiteRequirement"
+            }
+          },
+          "automatic_component_ids": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+            }
+          },
+          "production_ready": {
+            "const": false
+          },
+          "durable_byte_progress": {
+            "type": "boolean",
+            "description": "Поддержка сохранённых byte observations; поле необязательно для старых серверов. true не гарантирует наличие download_progress до первой загрузки и не объявляет operation READY."
+          },
+          "local_artifact_upload": {
+            "type": "boolean",
+            "description": "Явный binary staging локального prerequisite; не является разрешением установки."
+          },
+          "local_upload_max_bytes": {
+            "type": "integer",
+            "const": 4294967296
+          }
+        },
+        "required": [
+          "configured",
+          "automatic_component_ids",
+          "production_ready"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "configured": {
+                  "const": true
+                }
+              },
+              "required": [
+                "configured"
+              ]
+            },
+            "then": {
+              "required": [
+                "product_id",
+                "owner_id",
+                "target",
+                "catalog_digest",
+                "requirements"
+              ]
+            }
+          }
+        ],
+        "additionalProperties": true
+      },
+      "PrerequisiteUploadRequest": {
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,79}$(?![\\s\\S])"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+          },
+          "component_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          },
+          "artifact_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          }
+        },
+        "required": [
+          "plan_id",
+          "plan_digest",
+          "component_id",
+          "artifact_id"
+        ],
+        "additionalProperties": false
+      },
+      "PrerequisiteUploadResult": {
+        "type": "object",
+        "properties": {
+          "upload_id": {
+            "type": "string",
+            "pattern": "^upload_[0-9a-f]{32}$(?![\\s\\S])"
+          },
+          "component_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          },
+          "artifact_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,127}$(?![\\s\\S])"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967296
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$(?![\\s\\S])"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "transferring",
+              "verified",
+              "failed",
+              "canceled"
+            ]
+          },
+          "verified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "upload_id",
+          "component_id",
+          "artifact_id",
+          "size",
+          "sha256",
+          "state",
+          "verified"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "responses": {
+      "PrerequisiteHTTP200": {
+        "description": "Запрос выполнен или durable очередь принята; не product SUCCESS",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PrerequisiteHTTPEnvelope"
+            }
+          }
+        }
+      },
+      "PrerequisiteHTTP400": {
+        "description": "Структурированный отказ входа, binding, consent или состояния",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PrerequisiteHTTPEnvelope"
+            }
+          }
+        }
+      },
+      "PrerequisiteHTTP403": {
+        "description": "Host/Origin/token проверка не пройдена",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PrerequisiteHTTPEnvelope"
+            }
+          }
+        }
+      },
+      "PrerequisiteHTTP500": {
+        "description": "Безопасный внутренний отказ",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PrerequisiteHTTPEnvelope"
+            }
+          }
+        }
+      }
+    }
+  }
+}

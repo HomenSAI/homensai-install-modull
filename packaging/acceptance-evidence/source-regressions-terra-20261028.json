@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261028T144733Z-8f7f018b7b73",
+  "task_ids": ["HIM-054", "HIM-050", "HIM-063"],
+  "status": "PASS",
+  "started_at_utc": "2026-10-28T14:40:45Z",
+  "source_commit_at_start": "4f6f3cacb1b7f84330bc9feadc6e004c8065a67b",
+  "runtime_sdk_source": "6edcbb83a018e72d235cc3eb192864e238a82755",
+  "image_id": "sha256:1b3529768706aaacabb525d6fd3168680cc2b0ffa1aee6994a3d2e5cdb8fd4c1",
+  "environment": "Linux DEV Docker, UID 1000, network none, read-only source bind",
+  "command": "docker run --rm --name hinstall-terra-20261028-regressions --network none --user 1000:1000 --mount type=bind,source=E:/homensai/homensai-install-modull,target=/workspace,readonly --mount type=bind,source=E:/homensai/homensai-install-modull/.local-state/terra-20261028-evidence,target=/evidence --workdir /workspace hinstall-dev:verification python -m pytest -q -p no:cacheprovider --junitxml=/evidence/regressions.xml integration_tests/test_native_adapter_update.py tests/test_migration_receipts.py tests/test_native_product_adapter_contract.py",
+  "exit_code": 0,
+  "counts": {"passed": 83, "failed": 0, "skipped": 0, "update": 40, "receipt": 18, "adapter_contract": 25},
+  "elapsed_seconds": 380.37,
+  "junit": "packaging/acceptance-evidence/source-regressions-terra-20261028.xml",
+  "junit_sha256": "707334946bb95a3e4ba9578919fc3a5bcd609a4e5d7c0ae467107d0d430a8f40",
+  "limits": "Source regression only; not clean-host, full source suite, installed platform acceptance or power loss. Docs changed during run; runtime and test files did not."
+}

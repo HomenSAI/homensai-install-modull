@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-013",
+  "recorded_at_utc": "2026-10-25T16:16:23.594130+00:00",
+  "production_ready": false,
+  "github_recovered_checkpoint": {
+    "checkpoint_id": "CP-20261025-012",
+    "original_local_sha": "b8bdb37066aaf8715be566e0ca1e9c1f73f04fa3",
+    "github_sha": "c778466a3a477bc273bda2061518aa57bfe6956e",
+    "tree": "ec55e8beb9842c074e545b31eb903ccc46069556",
+    "ref_tree_parent_verified": true,
+    "github": "SYNC_CONFIRMED",
+    "docker_git": "SYNC_BLOCKED"
+  },
+  "tested_source_commit": "85237cc70174b2e03956ddef9de74fcbaa70e453",
+  "tested_source_scope": "Exact source/tests/shared bytes match integrated root; documentation and this receipt added afterwards. Original implementation commit preserved in local recovery refs.",
+  "environment": {
+    "python": "3.14.3",
+    "os": "Linux x64 glibc2.39",
+    "dependency_lock": "requirements-build.lock",
+    "os_installers": "synthetic only"
+  },
+  "checks": [
+    {
+      "id": "full-current-source",
+      "status": "PASS_WITH_EXPLICIT_SKIPS",
+      "command": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -q -rs -p no:cacheprovider --basetemp=/tmp/hinstall-resume-cp013-04f338 tests",
+      "cwd": "installer-cancel-fix at 85237cc70174b2e03956ddef9de74fcbaa70e453",
+      "passed": 1961,
+      "skipped": 3,
+      "subtests_passed": 10,
+      "duration_seconds": 78.82,
+      "log": "source-20261025-cp013.log"
+    },
+    {
+      "id": "process-and-real-http",
+      "status": "PASS",
+      "command": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -q -rs -p no:cacheprovider --basetemp=/tmp/hinstall-resume-cp013-process-report-04f338 --junitxml=/workspace/scratch/04f3380d60c8/recovery-evidence/cp013-process-http.xml tests/test_service_systemd.py::test_kernel_process_identity_is_verified_against_real_child tests/test_service_systemd.py::test_real_busctl_property_and_method_have_distinct_json_shapes integration_tests/test_prerequisites_http.py integration_tests/test_wizard_http.py",
+      "passed": 5,
+      "duration_seconds": 2.61,
+      "junit": "process-http-20261025-cp013.xml",
+      "scope": "Two own-child/private-D-Bus source cases plus three actual 127.0.0.1 HTTP scenarios, synthetic installer; matching PID/proc, no host service changes."
+    },
+    {
+      "id": "deterministic-regressions",
+      "status": "PASS",
+      "baseline_failed": 5,
+      "current_passed": 5,
+      "duration_seconds": 1.04,
+      "command": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -q -p no:cacheprovider --tb=short tests/test_prerequisites_async.py -k \"finished_dispatch_is_not_idle or settled_reads_current_journal\"",
+      "scope": "Four final-observer projections and one gated stale snapshot; outside-process observation modeled by absent local reservation while real file lock remains held."
+    },
+    {
+      "id": "focused-overlapping",
+      "status": "PASS",
+      "passed": 141,
+      "duration_seconds": 20.88,
+      "command": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -q -p no:cacheprovider --tb=short tests/test_prerequisites_async.py tests/test_prerequisites_recheck_cancel.py tests/test_wizard_prerequisites.py tests/test_prerequisites_execution.py tests/test_prerequisites_api.py tests/test_prerequisites_cli.py"
+    }
+  ],
+  "attempt_history": [
+    {
+      "status": "FAIL",
+      "source": "b8bdb37066aaf8715be566e0ca1e9c1f73f04fa3",
+      "passed": 1955,
+      "failed": 1,
+      "skipped": 3,
+      "subtests_passed": 10,
+      "duration_seconds": 80.66,
+      "command": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -q -rs -p no:cacheprovider --basetemp=/tmp/hinstall-resume-cp012-04f338 tests",
+      "log": "recovery-20261025-cp013-baseline.log",
+      "failed_case": "test_cancel_at_dispatch_boundaries_is_consumed_without_another_resume[prerequisite_background_finished]",
+      "observed": "Returned AWAITING_USER; preserved SQLite event6 AWAITING_USER, event7 CANCELED, revision7, cancel_requested=true, required_action=null, claim empty. No durable cancellation loss.",
+      "resolution": "Fresh post-quiescence snapshot and corrected public execution activity projection; five new deterministic cases."
+    },
+    {
+      "status": "NOT CONFIRMED",
+      "scope": "Initial five process/HTTP cases outside sandbox",
+      "observed": "Tool reported exit0 but redirected log contained only four dots and no test summary; not counted as PASS. Repeated with JUnit and explicit completed5 PASS report."
+    }
+  ],
+  "browser": {
+    "status": "BLOCKED",
+    "tests": "NOT RUN",
+    "binary_sha256": "71309c8f443dda54f917d78396bf8da1ba51c6f2a3ac7f04db1ae99ae273b356",
+    "probe": "Previously verified official chrome-headless-shell --version outside sandbox",
+    "exit_code": 139,
+    "stdout": "",
+    "cause": "NOT ESTABLISHED"
+  },
+  "not_run": [
+    "Windows-only source case tests/test_datahome.py::test_foreign_posix_path_on_windows",
+    "New installed registered prerequisite lifecycle",
+    "New frozen/browser/clean-host OS x mode x locale acceptance",
+    "Live Docker/systemd manager/Windows installers/elevation/reboot/power loss",
+    "Atomic product/prerequisite cross-executor race acceptance",
+    "Production licences/signing/security approval"
+  ],
+  "counts_note": "Full source includes the focused/regression cases; two source skips rerun within separate5 PASS. Do not sum overlapping counts as distinct tests.",
+  "file_hashes": {
+    "homensai_install/prerequisite_async.py": "e513caabbfff466af050dd7d75a4e6f89dcbee4c740a031b1ed163d4f30d9dbf",
+    "tests/test_prerequisites_async.py": "222bae83a48b37d00aa9ce617d8ae1910a2b84442bd5374fe6ad7b15d469f70d"
+  },
+  "log_normalization": {
+    "file": "recovery-20261025-cp013-baseline.log",
+    "change": "Only trailing whitespace removed from preserved baseline transcript; all messages/counts retained.",
+    "original_raw_sha256": "d889c2d2bd7a7f08146f9e25391bcadefcb599b7355749fa92f8dca4556be227"
+  }
+}

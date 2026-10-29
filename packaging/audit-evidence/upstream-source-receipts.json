@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-25T03:22:22Z",
+  "sources": [
+    {
+      "repository": "astral-sh/python-build-standalone",
+      "ref": "20260325",
+      "path": "LICENSE.libedit.txt",
+      "sha": "52c8707dc590da3ef3b8a487475e4fe0b191f976",
+      "display_url": "https://github.com/astral-sh/python-build-standalone/blob/20260325/LICENSE.libedit.txt",
+      "content_sha256": "29cea33c32bbc9785142386377915612a2fa786482c46843383384aded2e09b1",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "astral-sh/python-build-standalone",
+      "ref": "20260325",
+      "path": "LICENSE.ncurses.txt",
+      "sha": "3a229753681327c4089d8fdaf9293658c7befe4a",
+      "display_url": "https://github.com/astral-sh/python-build-standalone/blob/20260325/LICENSE.ncurses.txt",
+      "content_sha256": "87a4c4442337b8968ef956031c406b74f9cb7149b7ba87311bdaba534816201c",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "astral-sh/python-build-standalone",
+      "ref": "20260325",
+      "path": "LICENSE.liblzma.txt",
+      "sha": "2d7885199716b722b52832f73fa75285459b08ae",
+      "display_url": "https://github.com/astral-sh/python-build-standalone/blob/20260325/LICENSE.liblzma.txt",
+      "content_sha256": "9a4062de0a2c388a98cf35a35d348b62fa97c838a71c3c28ee1a2d7d0a565b02",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "astral-sh/python-build-standalone",
+      "ref": "20260325",
+      "path": "LICENSE.tcl.txt",
+      "sha": "d8049cd9e7ca055f7e584a76f88861a294b30c9c",
+      "display_url": "https://github.com/astral-sh/python-build-standalone/blob/20260325/LICENSE.tcl.txt",
+      "content_sha256": "c0a69a2bfd757361ec7e6143973b103c90409316b49e9c88db26ad6388e79f16",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "astral-sh/python-build-standalone",
+      "ref": "20260325",
+      "path": "LICENSE.libffi.txt",
+      "sha": "acb2f7a07d7c5093f258ce7f6e8711fa63e68747",
+      "display_url": "https://github.com/astral-sh/python-build-standalone/blob/20260325/LICENSE.libffi.txt",
+      "content_sha256": "deaf3a42effb551a5b140fa9afefed183a27f1341c6d1bf430d106a5e6931fc0",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "astral-sh/python-build-standalone",
+      "ref": "20260325",
+      "path": "LICENSE.bzip2.txt",
+      "sha": "a5c4cdbc3f5e894f765d903f3c5939d7aa009615",
+      "display_url": "https://github.com/astral-sh/python-build-standalone/blob/20260325/LICENSE.bzip2.txt",
+      "content_sha256": "1f38bbc7caacafd65169276d759c0d88c991b753b643ce35d0e45ea1971dd441",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "astral-sh/python-build-standalone",
+      "ref": "20260325",
+      "path": "LICENSE.expat.txt",
+      "sha": "ce9e5939291e45f9633f540efc6ae58a26c041ef",
+      "display_url": "https://github.com/astral-sh/python-build-standalone/blob/20260325/LICENSE.expat.txt",
+      "content_sha256": "122f2c27000472a201d337b9b31f7eb2b52d091b02857061a8880371612d9534",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "astral-sh/python-build-standalone",
+      "ref": "20260325",
+      "path": "LICENSE.mpdecimal.txt",
+      "sha": "c7688a928cd5292e5c2a729431fab7b30fd44a05",
+      "display_url": "https://github.com/astral-sh/python-build-standalone/blob/20260325/LICENSE.mpdecimal.txt",
+      "content_sha256": "669512af7219f58be03a398766d7c9da11a3b3df9d3f05cb74c5ceca25c8da3b",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "astral-sh/python-build-standalone",
+      "ref": "20260325",
+      "path": "LICENSE.openssl-3.txt",
+      "sha": "49cc83d2ee29d13453188217f0e4edd70c7f842f",
+      "display_url": "https://github.com/astral-sh/python-build-standalone/blob/20260325/LICENSE.openssl-3.txt",
+      "content_sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "astral-sh/python-build-standalone",
+      "ref": "20260325",
+      "path": "LICENSE.sqlite.txt",
+      "sha": "68b36ebd1990e92998ca64a30af0a726357ebdea",
+      "display_url": "https://github.com/astral-sh/python-build-standalone/blob/20260325/LICENSE.sqlite.txt",
+      "content_sha256": "38bef3d28b24f145ea293bd3b6eb4b20396982abc8303128fb493986ea5bc719",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "astral-sh/python-build-standalone",
+      "ref": "20260325",
+      "path": "LICENSE.zlib.txt",
+      "sha": "5eb28a147858fcb57ed306ed6fbd9c03f22f9452",
+      "display_url": "https://github.com/astral-sh/python-build-standalone/blob/20260325/LICENSE.zlib.txt",
+      "content_sha256": "818922b2620f12801a12bf78e399644a30990e66824abd8ca8ec24d451d6f92c",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "astral-sh/python-build-standalone",
+      "ref": "20260325",
+      "path": "LICENSE.libuuid.txt",
+      "sha": "ec87a77f17f3f9415bd05ae1fb21c6009765f8b1",
+      "display_url": "https://github.com/astral-sh/python-build-standalone/blob/20260325/LICENSE.libuuid.txt",
+      "content_sha256": "122ee1f7e258f2c3c0e538a75c037684f420454bf3850ddc74ce750bbf5fe86b",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "astral-sh/python-build-standalone",
+      "ref": "20260325",
+      "path": "LICENSE.libX11.txt",
+      "sha": "b065516e4437c493f9cbf32cc7d15db60f68bc74",
+      "display_url": "https://github.com/astral-sh/python-build-standalone/blob/20260325/LICENSE.libX11.txt",
+      "content_sha256": "2daec087a88e7c9b8082557cdeebad5bbb8155a4137472f0b22e269cd99d0c1e",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "astral-sh/python-build-standalone",
+      "ref": "20260325",
+      "path": "LICENSE.libXau.txt",
+      "sha": "64492ad8091f917787b14f12ba236e56de7addd2",
+      "display_url": "https://github.com/astral-sh/python-build-standalone/blob/20260325/LICENSE.libXau.txt",
+      "content_sha256": "56abe29bb1d9806a9e04fa9f80fed2c0f18027594df3f098148d814aef6bddfa",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "astral-sh/python-build-standalone",
+      "ref": "20260325",
+      "path": "LICENSE.libxcb.txt",
+      "sha": "54bfbe5b02074d0c276959c9140072ccba0dc670",
+      "display_url": "https://github.com/astral-sh/python-build-standalone/blob/20260325/LICENSE.libxcb.txt",
+      "content_sha256": "c5ffbfeaa501071ceeb97b7de2c0d703fdaa35de01c0fb6cbac1c28453a3e9fd",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "astral-sh/python-build-standalone",
+      "ref": "20260325",
+      "path": "pythonbuild/downloads.py",
+      "sha": "8defcc4c58243b958a7f728c9cadfa2be909f4fb",
+      "display_url": "https://github.com/astral-sh/python-build-standalone/blob/20260325/pythonbuild/downloads.py",
+      "content_sha256": "6d9937150fb01c303c47587bdb67aece8ef8bff03895bfc39488f304659ab1dd",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "pyca/cryptography",
+      "ref": "50.0.2",
+      "path": "LICENSE",
+      "sha": "b11f379efe1504d235b4d2d42685ba5dc6af6e9f",
+      "display_url": "https://github.com/pyca/cryptography/blob/50.0.2/LICENSE",
+      "content_sha256": "3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "python/cpython",
+      "ref": "v3.14.3",
+      "path": "Misc/sbom.spdx.json",
+      "sha": "d64857ce233b5ce718c0cd95009d5ffb367dcd5d",
+      "display_url": "https://github.com/python/cpython/blob/v3.14.3/Misc/sbom.spdx.json",
+      "content_sha256": "d539d8b99e28b190bc21aa932c69e8a554124bbe6ab196e705f31fc23aa6bd68",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "facebook/zstd",
+      "ref": "v1.5.7",
+      "path": "LICENSE",
+      "sha": "75800288cc243f164b9d130f125e2ffae28f8e39",
+      "display_url": "https://github.com/facebook/zstd/blob/v1.5.7/LICENSE",
+      "content_sha256": "7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "gcc-mirror/gcc",
+      "ref": "releases/gcc-14.2.0",
+      "path": "COPYING.RUNTIME",
+      "sha": "e1b3c69c179dfaff5744ea4bf853e6b0d90c9ef9",
+      "display_url": "https://github.com/gcc-mirror/gcc/blob/releases/gcc-14.2.0/COPYING.RUNTIME",
+      "content_sha256": "9d6b43ce4d8de0c878bf16b54d8e7a10d9bd42b75178153e3af6a815bdc90f74",
+      "evidence": "primary repository file retrieved read-only on 2026-10-25"
+    },
+    {
+      "repository": "astral-sh/python-build-standalone",
+      "ref": "20260325",
+      "path": "LICENSE.bdb.txt",
+      "sha": "0601b45e01c6bda505d9d6697c77a28edf378722",
+      "display_url": "https://github.com/astral-sh/python-build-standalone/blob/20260325/LICENSE.bdb.txt",
+      "evidence": "Primary text read through GitHub connector; Sleepycat source-availability clause verified; content SHA-256 not retained."
+    }
+  ]
+}

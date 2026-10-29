@@ -1,0 +1,62 @@
+{
+  "checkpoint": "CP-20261026-005",
+  "source_sha": "5219f081891a269cc43106b384f3215f32c93143",
+  "dirty": true,
+  "scope": "merged focused source/real process+SQLite preparation and reference protocol; not installed final artifact acceptance",
+  "command": [
+    "docker",
+    "run",
+    "--rm",
+    "--network",
+    "none",
+    "--mount",
+    "type=bind,source=E:/homensai/homensai-install-modull,target=/workspace,readonly",
+    "hinstall-dev:verification",
+    "python",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "no:cacheprovider",
+    "integration_tests/test_native_migration_api.py",
+    "integration_tests/test_native_migration.py",
+    "integration_tests/test_reference_migration_plan.py",
+    "integration_tests/test_reference_migration_apply.py",
+    "integration_tests/test_reference_product_adapter.py",
+    "tests/test_migration_preparation_api.py",
+    "tests/test_reference_product.py",
+    "tests/test_migration_receipts.py",
+    "tests/test_adapters_protocol.py",
+    "tests/test_native_product_adapter_contract.py",
+    "tests/test_scaffold.py"
+  ],
+  "exit_code": 0,
+  "inputs_unchanged": true,
+  "input_sha256": {
+    "homensai_install/engine.py": "862c84cf6efedeac60e5891ae899dd10fe9d6f6a638fb4e2b43d079bdde406dd",
+    "homensai_install/migration_receipts.py": "4974ca411b018593c779d4f2d82b1a148cfc1ffc9233ea4bbcac0c457c063446",
+    "homensai_install/adapters.py": "b67db7780dc6a88cc6cd0e223abcc82dc8a9cb692628e17a91f095efec3e668d",
+    "homensai_install/api/v1.py": "c347fb1d506df281edc667862856ab2c2fe91b419405fe1a0534135da69a29a8",
+    "homensai_install/backends.py": "7c048c282c0abae649e67adb1d8897fadb4db343f4ac7cc067dd81e11f3432c5",
+    "integration_tests/test_native_migration_api.py": "98409cab8b21a0547d73dd0e64787ea882f4878e70c3e72585894b4091c1d93b",
+    "integration_tests/test_native_migration.py": "b8230cba3535ffbdbda736bea5bb70a79549d03b171d95e58f7ba8a952dff79a",
+    "integration_tests/test_reference_migration_plan.py": "b0eafeb377dfdb526232dd4f4db8b8768ec118f1b542fbb8e3acb57aaeff271e",
+    "integration_tests/test_reference_migration_apply.py": "4387a263eb4ed267869b0815905bc9f90b2f133bc7cb23dc6b159b1bc04230fe",
+    "reference/src/homensai_reference/adapter.py": "3f33111d475212c08e88a1bb9433145b72d28f3554b46df16413d4d104675250",
+    "reference/src/homensai_reference/migrate.py": "ee0195cd17d8e81715d1df289a6067f2f2508fb1fe990160da01c62f07d077e2"
+  },
+  "status": "PASS",
+  "elapsed_seconds": 49.75,
+  "checked_at_utc": "2026-10-26T09:15:08.364775+00:00",
+  "full_source_suite": "NOT RUN for CP005; CP004 full run remains historical scoped evidence",
+  "production_ready": false,
+  "counts": {
+    "passed": 201,
+    "skipped": 0
+  },
+  "independent_review_regression": {
+    "initial": "4 FAIL: FAILED/QUEUED/UNKNOWN/null journals accepted preparation",
+    "fixed": "Only SUCCEEDED/FAILED_ROLLED_BACK native journals permit a new review; unresolved marker still fences",
+    "raw_red": "migration-preparation-journal-red-20261026-cp005.log"
+  }
+}

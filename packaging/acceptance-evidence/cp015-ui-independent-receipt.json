@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "receipt_id": "independent-gui-contract-20261025-cp015",
+  "recorded_at_utc": "2026-10-25T16:35:31.840412+00:00",
+  "executor": "/root/recover_http",
+  "scope": "Настоящие поставляемые app.js/index.html/locales.json выполняются в Node VM с моделируемыми DOM/HTTP и управляемыми задержками. Это проверка поведения ответов, не реальный браузер и не установка продукта.",
+  "test_commits": [
+    "9a6840be96f58e6fce1cb61749decaab825fac29",
+    "6187419d1743a163fc400152f57140e6d4d56d30"
+  ],
+  "test_paths": [
+    "tests/js/wizard_prerequisites.cjs",
+    "tests/test_wizard_prerequisite_ui.py",
+    "tests/js/wizard_capabilities.cjs"
+  ],
+  "gui_commit": "52aeba3a54bffff6b08257318a560710dcc34725",
+  "gui_worktree_clean": true,
+  "node_version": "v24.22.1",
+  "assets_sha256": {
+    "app.js": "f59aeb752e2fe007c778c452566b5a8c4a70d5932d311b1626266d52bd1bcd34",
+    "index.html": "848612d89132bab42a123ecb9624d10fad0aa233e685d52cc55b10892e32652b",
+    "locales.json": "57d39dbbf298d63ce7164c00fb6b1d24de369fa095bef768a20a80106a132784"
+  },
+  "runs": [
+    {
+      "command": "node tests/js/wizard_prerequisites.cjs /workspace/scratch/04f3380d60c8/installer-gui/homensai_install/wizard",
+      "cwd": "/workspace/scratch/04f3380d60c8/installer-ui-tests",
+      "exit_code": 0,
+      "wall_time_seconds": 1.041329792,
+      "result": {
+        "status": "PASS",
+        "cases": 19,
+        "scope": "actual wizard JavaScript with injected DOM/HTTP; not browser acceptance",
+        "assets_sha256": {
+          "app.js": "f59aeb752e2fe007c778c452566b5a8c4a70d5932d311b1626266d52bd1bcd34",
+          "index.html": "848612d89132bab42a123ecb9624d10fad0aa233e685d52cc55b10892e32652b",
+          "locales.json": "57d39dbbf298d63ce7164c00fb6b1d24de369fa095bef768a20a80106a132784"
+        }
+      },
+      "log": "cp015-ui-contract-final.log"
+    },
+    {
+      "command": "node tests/js/wizard_capabilities.cjs /workspace/scratch/04f3380d60c8/installer-gui/homensai_install/wizard",
+      "cwd": "/workspace/scratch/04f3380d60c8/installer-ui-tests",
+      "exit_code": 0,
+      "result": {
+        "status": "PASS",
+        "cases": 6,
+        "scope": "wizard JavaScript with injected DOM/HTTP"
+      },
+      "log": "cp015-ui-capabilities-final.log",
+      "note": "Все прежние шесть поведенческих случаев сохранены; добавлен только необязательный путь к assets."
+    },
+    {
+      "command": "git diff --check; Python -B ast.parse(tests/test_wizard_prerequisite_ui.py)",
+      "result": "PASS",
+      "note": "Это синтаксические проверки. Default Python launcher и полный source выполняет root после интеграции assets."
+    }
+  ],
+  "observed_failures": [
+    {
+      "id": "poll-recovery-ownership",
+      "gui_commit": "5b1ea539225dac1af05d73d130db12c33fb67578",
+      "app_sha256": "0bb2d84342b70718595855ee62a16c0dcb45eac9926e11431a8c73a35e7b2bb9",
+      "status_before": "FAIL",
+      "exit_code_before": 1,
+      "log": "cp015-ui-poll-race-before.log",
+      "assertion": "Successful refresh must not lose its poll to an older error handler",
+      "reproduction": "Первый /events завершается ошибкой; /errors задержан. Refresh успешно читает RUNNING с active=true. Старое polling=true блокировало новый опрос, затем старый finally оставлял polling=false без таймера.",
+      "fixed_by": "52aeba3a54bffff6b08257318a560710dcc34725",
+      "status_after": "PASS"
+    }
+  ],
+  "earlier_review_findings": [
+    {
+      "id": "locale-response-order",
+      "evidence_kind": "Проверка исходника и последующая регрессия",
+      "finding": "Ответ старого запроса языка мог заменить messages после выбора нового языка.",
+      "current_case": "out-of-order language responses preserve latest user language",
+      "current_result": "PASS",
+      "pre_fix_execution_receipt": "NOT CAPTURED; исторический test FAIL не заявляется"
+    },
+    {
+      "id": "coded-start-lost-ack",
+      "evidence_kind": "Проверка исходника и последующая регрессия",
+      "finding": "Coded ошибка после durable принятия могла очищать ID; RECOVERY_REQUIRED нужно согласовывать через GET так же, как потерянный сетевой ACK.",
+      "current_case": "lost ACK and reloaded UI never resume or start implicitly",
+      "current_result": "PASS",
+      "pre_fix_execution_receipt": "NOT CAPTURED; исторический test FAIL не заявляется"
+    }
+  ],
+  "fixture_corrections": [
+    {
+      "observation": "Первый вариант security case падал на textContent.includes(injected manual steps).",
+      "cause": "В fixture manual отсутствовал locale; реальный manual_instructions всегда содержит locale, поэтому UI правильно выводил локализованные fallback steps.",
+      "correction": "Добавлены locale и contains_executable_commands по настоящему API; malformed detected_version отделён от обычного manual text. Проверяются inert text, отсутствие img/svg и javascript URL.",
+      "classification": "Ошибка fixture, не дефект UI",
+      "raw_pre_correction_log": "NOT CAPTURED; наблюдение сохранено в сообщениях агента"
+    }
+  ],
+  "version_check_clarification": {
+    "asserted_contract": "detected_version '1.2\\n' и '[REDACTED]' отображаются как unknown в review и recovery",
+    "current_result": "PASS",
+    "original_regex_direct_observation": {
+      "node": "v24.22.1",
+      "pattern": "^v?[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:\\+[A-Za-z0-9_.-]+)?$",
+      "observations": [
+        {
+          "text": "1.2",
+          "matches": true
+        },
+        {
+          "text": "1.2\n",
+          "matches": false
+        },
+        {
+          "text": "1.2\r",
+          "matches": false
+        },
+        {
+          "text": "1.2 ",
+          "matches": false
+        }
+      ]
+    },
+    "conclusion": "Предположение, что JS $ без m принимает конечный newline, НЕ подтверждено. Прежний regex отклоняет LF/CR/U+2028 в данном Node. Strict-end lookahead является явным защитным уточнением; observed defect/FAIL для newline не заявляется.",
+    "replay_metadata": "cp015-ui-version-replay.json",
+    "replay_log": "cp015-ui-version-replay.log",
+    "replay_result": "Malformed-version group PASS при возврате прежнего regex; общий replay FAIL позже на независимой polling-race. Это временная копия assets с одной заменой, не исторический полный checkout."
+  },
+  "independent_read_review": {
+    "areas": [
+      "Отдельные product/license/condition/auto/elevation/plan consents и неизвестные обязательные refs",
+      "Точная binding версии по product/owner/target/catalog",
+      "active=true/null, конкурирующая отмена, revisions и delayed GET",
+      "READY сбрасывает product review, отдельный proceed и отсутствие implicit start/resume",
+      "Хранение preallocated ID при потере ACK, replace-plan сохраняет ID",
+      "Безопасный текст, URLs и отсутствие ложного завершения"
+    ],
+    "result": "Единственный дополнительно воспроизведённый late defect — polling ownership; исправлен и подтверждён. Других конкретных дефектов в проверенной области не воспроизведено.",
+    "limitations": [
+      "Без реального браузера нельзя принимать rendering, focus, keyboard, zoom или platform acceptance.",
+      "Node DOM/HTTP harness не выполняет настоящие installers, reboot/relogin или host effects.",
+      "Общий атомарный product/prerequisite lease и durable measured byte progress остаются отдельными core gaps.",
+      "19 — число групп в одном Node runner, 6 — группы прежнего runner; их нельзя прибавлять к pytest source pass count."
+    ]
+  },
+  "evidence_sha256": {
+    "cp015-ui-contract-final.log": "8f56a3bc9dad48e99632c27c123378b4fb45b529b43093d3c452a0afde00ee31",
+    "cp015-ui-capabilities-final.log": "dd925a117e76d8d0ca87f75278e035880d6f24e79f21087c3fadd74b56bcd490",
+    "cp015-ui-poll-race-before.log": "a2d19c3f71b4fbc6f3813e37fb3984f06973705e8b0c0ebf22a1e5dffd6a4c71",
+    "cp015-ui-version-replay.log": "a2d19c3f71b4fbc6f3813e37fb3984f06973705e8b0c0ebf22a1e5dffd6a4c71",
+    "cp015-ui-version-observation.json": "9f3ce7793d2d03bc4d26a07199232fb93aa19c59c643de6c2c7c9125b7376845",
+    "cp015-ui-version-replay.json": "0a174e577ede69246e017e8d9aef4f322d97b8bac32b7a3c503c2a4f1a04c754"
+  }
+}

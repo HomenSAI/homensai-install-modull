@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261026T144211Z-52485b4f719a",
+  "task_ids": [
+    "HIM-015",
+    "HIM-023",
+    "HIM-050",
+    "HIM-054",
+    "HIM-056",
+    "HIM-063"
+  ],
+  "source_sha": "f90a20acbe824bede0174acd8ed241896b47581a",
+  "dirty": true,
+  "agent": "core_lifecycle",
+  "branch": "codex/core-lifecycle-20261026-run02",
+  "scope": "Source prerequisite: private update review schema2/from_adapter_binding и read-only plan source binding. Полное выполнение update НЕ ПРИНЯТО.",
+  "checked_at_utc": "2026-10-26T14:45:30Z",
+  "environment": {
+    "image": "hinstall-dev:verification",
+    "image_id": "sha256:1b3529768706aaacabb525d6fd3168680cc2b0ffa1aee6994a3d2e5cdb8fd4c1",
+    "os": "Debian12 Linux x64 DEV",
+    "python": "3.14.3",
+    "network": "none",
+    "source_mount": "readonly",
+    "build_lock_installed": "PASS"
+  },
+  "initial_red": {
+    "status": "FAIL",
+    "exit_code": 1,
+    "baseline_engine_sha": "f90a20acbe824bede0174acd8ed241896b47581a",
+    "command": "docker run --rm --network none --name hinstall-core02-red --mount type=bind,source=E:/homensai/homensai-install-modull/.local-state/agents/core02,target=/workspace,readonly hinstall-dev:verification python -m pytest -q -p no:cacheprovider integration_tests/test_native_adapter_update.py",
+    "passed": 2,
+    "failed": 4,
+    "elapsed_seconds": 22.37,
+    "observed": [
+      "Настоящий adapter fresh release-1/schema_1 завершён; update2 plan: EngineError CAPABILITY_UNSUPPORTED (engine.py:430).",
+      "test_update_review_uses_schema2_with_distinct_installed_source_binding: assert 1 == 2.",
+      "test_schema1_update_review_is_stale_even_with_current_binding: Failed: DID NOT RAISE EngineError.",
+      "test_update_plan_pins_source_and_failure_policy_without_enabling_capability: KeyError product_adapter_source_binding."
+    ],
+    "raw_excerpt": "FAILED integration_tests/test_native_adapter_update.py::test_adapter_update_release1_to_release2_to_release3\nE homensai_install.engine.EngineError: CAPABILITY_UNSUPPORTED\nFAILED integration_tests/test_native_adapter_update.py::test_update_review_uses_schema2_with_distinct_installed_source_binding\nE assert 1 == 2\nFAILED integration_tests/test_native_adapter_update.py::test_schema1_update_review_is_stale_even_with_current_binding\nE Failed: DID NOT RAISE EngineError\nFAILED integration_tests/test_native_adapter_update.py::test_update_plan_pins_source_and_failure_policy_without_enabling_capability\nE KeyError: 'product_adapter_source_binding'\n4 failed, 2 passed in 22.37s",
+    "raw_excerpt_note": "Сохранены дословные ключевые строки tool output; полный первоначальный stdout отдельно не экспортирован."
+  },
+  "implementation": [
+    "Update reviews schema_version2 с binding.from_adapter_binding из independently verified installed release metadata/runtime/inventory/descriptor/capabilities.",
+    "Schema1 update reviews отвергаются PLAN_STALE; fresh schema1 и public migration_binding из семи полей сохранены.",
+    "Read-only update engine_plan закрепляет product_adapter_source_binding, target binding, single-step product plan, update_failure_policy preserve_forward_journal_no_automatic_restore.",
+    "_release_product_adapter выделен из maintenance lookup без изменения maintenance binding semantics.",
+    "Capability update остаётся false; plan branch проверен только test-local capability override, execute не вызывается."
+  ],
+  "verification": [
+    {
+      "passed": 112,
+      "xfailed": 1,
+      "duration_seconds": 126.61,
+      "exit_code": 0,
+      "output": "x....................................................................... [ 63%]\n.........................................                                [100%]\n=========================== short test summary info ============================\nXFAIL integration_tests/test_native_adapter_update.py::test_adapter_update_release1_to_release2_to_release3 - Update выключен: real receipts/forward journal/fault acceptance ещё не реализованы\n112 passed, 1 xfailed in 126.61s (0:02:06)\n",
+      "command": "docker run --rm --network none --name hinstall-core02-prerequisite --mount type=bind,source=E:/homensai/homensai-install-modull/.local-state/agents/core02,target=/workspace,readonly hinstall-dev:verification python -m pytest -q -rx -p no:cacheprovider integration_tests/test_native_adapter_update.py integration_tests/test_native_migration.py tests/test_migration_receipts.py tests/test_adapters_protocol.py tests/test_native_product_adapter_contract.py",
+      "status": "PASS_PREREQUISITE_ONLY",
+      "xfailed_meaning": "Реальный lifecycle1→2→3 остаётся XFAIL CAPABILITY_UNSUPPORTED после успешного fresh; не acceptance PASS."
+    },
+    {
+      "status": "PASS",
+      "command": "docker run --rm --network none --name hinstall-core02-maintenance --mount type=bind,source=E:/homensai/homensai-install-modull/.local-state/agents/core02,target=/workspace,readonly hinstall-dev:verification python -m pytest -q -p no:cacheprovider integration_tests/test_native_product_adapter.py integration_tests/test_native_migration_api.py tests/test_migration_preparation_api.py",
+      "exit_code": 0,
+      "passed": 64,
+      "elapsed_seconds": 100.83,
+      "output": "................................................................         [100%]\n64 passed in 100.83s (0:01:40)\n"
+    }
+  ],
+  "harness_attempt": {
+    "status": "ERROR",
+    "exit_code": 1,
+    "observed": "Первый prerequisite command ошибочно указал отсутствующие tests/test_adapter_receipts.py и tests/test_adapters.py: no tests ran. Исправлены только пути command; код не менялся."
+  },
+  "input_sha256": {
+    "homensai_install/engine.py": "401260842a4d523009fe46d5ac620888a004569fc6838a53fbd0806c917d0aeb",
+    "homensai_install/adapters.py": "497888b13cd8afaa8e34de8bd0e2df1916fbc6ed6162a317674d620efbbf9f40",
+    "homensai_install/migration_receipts.py": "90921a6ace796edc85a53d5968c205b4c202a4516a6590d2f9cdc77a8163793f",
+    "shared/update_plan.py": "57b76249ae4d2dd172c01b967e12c0f03946e353d501f3cd85ed603eb26a37d3",
+    "integration_tests/test_native_adapter_update.py": "6e93724b866356d59f784a266081e9b088aab8b44e7a21107d0c8d4a7dedce4c",
+    "integration_tests/test_native_migration.py": "e386d134f035f0ac5a425b32b6cd4660f31e44747210b66d1e29e160e7c907f2",
+    "integration_tests/test_native_engine.py": "1886045cc4292f200759d749067c8507de4feec10d396fb9b74c0d3b288b6406",
+    "integration_tests/test_native_product_adapter.py": "69a8d29418453612a01be9a542dd2c25f1edfe969c0694b60d7a6d331379cdb3",
+    "integration_tests/test_native_migration_api.py": "f46139989fb1085845f53b8f6d69d9ab18778fedd42951d456d8dac2940a2765",
+    "tests/test_migration_preparation_api.py": "b2afd58e326d548b20aa82a9a86a0a935c8f0ed24de8880bf59d05a118a1f79a",
+    "tests/test_migration_receipts.py": "b691c5aed6bb334d60365af6d38bb591101e61e950e45959b54d7de0390b3762",
+    "tests/test_adapters_protocol.py": "bdeef83261528f17f9c16eec7c946fa9aa640c50922f9aebb5fa56868e5453b9",
+    "tests/test_native_product_adapter_contract.py": "8a4c5a639639bbe2c1a993f02d2299afc1b18848d26420cf0cc3c25692ef7448"
+  },
+  "source_edits_during_verification": false,
+  "status": "PARTIAL_PASS",
+  "production_ready": false,
+  "update_capability": false,
+  "full_source_suite": "NOT RUN for this prerequisite",
+  "installed_artifact_acceptance": "NOT RUN",
+  "next_step": "После root integration/checkpoint: explicit UpdatePlan failure policy pinned in digest; phase scoped source/target quiesce; nested product_plan.from_version; actual BackupReceiptStore per phase; live/restored roots comparison before effect; original journal resume/UNKNOWN/fault tests. Capability update включать лишь после полного проверенного execution slice."
+}

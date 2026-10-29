@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-011",
+  "source_baseline": "a2a4f37703c47b06b96369081f7a8268d1e7bbdd",
+  "implementation_commit": "a038204cb1ef497d2d9e5e20999b03f744e64164",
+  "production_ready": false,
+  "status": "PASS",
+  "environment": {
+    "python": "3.14.3",
+    "os": "Linux x64",
+    "build_dependencies": "exact requirements-build.lock",
+    "scope": "source concurrency/recovery; signed synthetic installers"
+  },
+  "checks": [
+    {
+      "name": "final focused suite",
+      "command": "/workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -q -p no:cacheprovider tests/test_prerequisites.py tests/test_prerequisites_execution.py tests/test_prerequisites_api.py tests/test_prerequisites_async.py tests/test_prerequisites_runner.py tests/test_downloads.py tests/test_trust.py tests/test_public_api.py tests/test_public_bootstrap.py tests/test_scaffold.py",
+      "passed": 185,
+      "duration_seconds": 11.84
+    },
+    {
+      "name": "new async source",
+      "command": "/workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -q -p no:cacheprovider tests/test_prerequisites_async.py",
+      "passed": 17,
+      "duration_seconds": 3.75
+    },
+    {
+      "name": "root integrated source",
+      "command": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -q -rs -p no:cacheprovider tests/test_prerequisites_async.py tests/test_prerequisites_api.py tests/test_public_bootstrap.py",
+      "passed": 26,
+      "duration_seconds": 3.71
+    }
+  ],
+  "root_files_equal_implementation_commit": 10,
+  "paired_resources_match": true,
+  "installed_receipt": "sdk-public-contract-20261025-cp011.json",
+  "review_receipt": "review-20261025-cp011.json",
+  "baseline_receipt": "source-baseline-cp010-python314.json",
+  "scope_notes": [
+    "Real threads, SQLite and child-process exits before thread launch and after synthetic effect/intent",
+    "No actual OS dependency installation",
+    "Unknown effect requires explicit reconciliation; duplicate start never resumes",
+    "Counts are different overlapping scopes and must not be added"
+  ],
+  "not_run": [
+    "Full source suite after CP011 changes (CP010 baseline separately recorded)",
+    "Actual Windows process locks/ACL",
+    "Real OS installer with child processes",
+    "Power loss/filesystem/SQLite corruption",
+    "Production signed catalogue, actual reboot/relogin",
+    "Installed prerequisite HTTP/GUI/CLI transport",
+    "Current frozen artifact/platform/language acceptance"
+  ]
+}

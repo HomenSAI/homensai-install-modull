@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "checkpoint_id": "CP-20261025-012",
+  "source_baseline": "8e8075d895bd02e3027b7552e796f1ccf5de47e8",
+  "implementation_commits": {
+    "core": "e0dcc02a30c7bb42a741a55bfa66099345c8cde7",
+    "http": "5f711ec05029593ac29b38a044b063225ffd6623",
+    "cli": "a619b79f99a2ba57c3883dacf49fbea9ff2b0c80"
+  },
+  "status": "PASS_WITH_EXPLICIT_SKIPS",
+  "production_ready": false,
+  "environment": {
+    "python": "3.14.3",
+    "os": "Linux x64",
+    "build_dependencies": "exact requirements-build.lock"
+  },
+  "root_files_equal_implementation_commits": 18,
+  "checks": [
+    {
+      "name": "root full current source",
+      "command": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -q -rs -p no:cacheprovider tests",
+      "passed": 1956,
+      "skipped": 3,
+      "subtests_passed": 10,
+      "duration_seconds": 84.26,
+      "skips": [
+        {
+          "test": "tests/test_datahome.py::test_foreign_posix_path_on_windows",
+          "status": "NOT RUN",
+          "reason": "Windows-only path test; no Windows runner"
+        },
+        {
+          "test": "tests/test_service_systemd.py::test_kernel_process_identity_is_verified_against_real_child",
+          "status": "SKIPPED_IN_SANDBOX_THEN_PASS",
+          "reason": "Sandbox PID/proc mismatch; separate scoped execution below"
+        },
+        {
+          "test": "tests/test_service_systemd.py::test_real_busctl_property_and_method_have_distinct_json_shapes",
+          "status": "SKIPPED_IN_SANDBOX_THEN_PASS",
+          "reason": "Private bus needs matching PID namespace; separate scoped execution below"
+        }
+      ]
+    },
+    {
+      "name": "root two process-backed source tests skipped in sandbox",
+      "command": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -q -rs -p no:cacheprovider tests/test_service_systemd.py::test_kernel_process_identity_is_verified_against_real_child tests/test_service_systemd.py::test_real_busctl_property_and_method_have_distinct_json_shapes",
+      "passed": 2,
+      "duration_seconds": 0.12,
+      "scope": "Own temporary child process and private D-Bus; matching /proc/self verified; not live systemd-manager acceptance"
+    },
+    {
+      "name": "HTTP author final combined focused",
+      "command": "/workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -m pytest -q tests/test_wizard_prerequisites.py tests/test_wizard.py tests/test_public_api.py tests/test_prerequisites_api.py tests/test_prerequisites_async.py tests/test_prerequisites_execution.py",
+      "passed": 141,
+      "duration_seconds": 15.85,
+      "source_commits": [
+        "e0dcc02a30c7bb42a741a55bfa66099345c8cde7",
+        "5f711ec05029593ac29b38a044b063225ffd6623"
+      ]
+    },
+    {
+      "name": "HTTP author final real loopback",
+      "command": "/workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -m pytest -q integration_tests/test_prerequisites_http.py integration_tests/test_wizard_http.py",
+      "passed": 3,
+      "duration_seconds": 2.47,
+      "scope": "Actual 127.0.0.1 server/auth/Origin/lost-ACK/recreated SDK and server; synthetic installer; no browser or process power loss",
+      "source_commits": [
+        "e0dcc02a30c7bb42a741a55bfa66099345c8cde7",
+        "5f711ec05029593ac29b38a044b063225ffd6623"
+      ]
+    },
+    {
+      "name": "CLI author source",
+      "command": "PYTHONPATH=. /workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -m pytest -q --tb=short tests/test_prerequisites_cli.py tests/test_public_api.py tests/test_prerequisites_api.py tests/test_public_bootstrap.py",
+      "passed": 69,
+      "duration_seconds": 4.99,
+      "new_cli_cases": 31,
+      "source_commit": "a619b79f99a2ba57c3883dacf49fbea9ff2b0c80"
+    },
+    {
+      "name": "core author focused",
+      "command": "/workspace/scratch/1c36bef26117/dev-build-inputs/build-env/bin/python -B -m pytest -q -p no:cacheprovider tests/test_prerequisites_recheck_cancel.py tests/test_prerequisites_async.py tests/test_prerequisites_execution.py tests/test_prerequisites_api.py",
+      "passed": 66,
+      "duration_seconds": 12.17,
+      "note": "66 PASS12.17s before test-only queued parametrization; final new file12 PASS3.12s reported by author. No production-code changes after66. Immutable independent12 PASS2.99s and exact root full current suite provide new verification; do not treat reconstructed command text as raw transcript.",
+      "command_provenance": "Reconstructed from author work notes; original raw tool call unavailable after compaction. Exact recorded executable/flags/files shown; additional environment overrides not recorded and not verified."
+    }
+  ],
+  "attempt_history": [
+    {
+      "scope": "Initial HTTP combined source and socket run",
+      "status": "FAIL_AND_ENVIRONMENT_BLOCKED",
+      "passed": 30,
+      "failed": 3,
+      "details": [
+        {
+          "count": 1,
+          "status": "FAIL",
+          "test": "test_slow_recheck_does_not_block_status_or_cancel",
+          "reason": "AWAITING_USER after accepted cancel during recheck",
+          "resolved_by": "e0dcc02a30c7bb42a741a55bfa66099345c8cde7"
+        },
+        {
+          "count": 2,
+          "status": "NOT RUN/BLOCKED",
+          "reason": "AF_INET socket EPERM in ordinary sandbox; actual HTTP scenarios did not run",
+          "resolved_by": "Scoped approved loopback run, final3PASS"
+        }
+      ]
+    },
+    {
+      "scope": "Initial new CLI source file",
+      "status": "FAIL",
+      "passed": 30,
+      "failed": 1,
+      "duration_seconds": 3.94,
+      "reason": "Test expected recovery exit1 during duplicate synchronous start; SDK holds controller lock so execution=unknown/nonready exit3. Standalone status after unlock is recovery exit1.",
+      "resolution": "Corrected test expectation, asserted unknown and no implicit installer replay; final31new cases PASS"
+    }
+  ],
+  "counts_note": "Checks overlap; do not add author/reviewer/root counts as distinct tests.",
+  "installed_receipt": "sdk-public-contract-20261025-cp012.json",
+  "review_receipt": "review-20261025-cp012.json",
+  "environment_receipt": "environment-20261025-cp012.json",
+  "current_source_package_digest": "cd0fc41dfb62e48404058eefde8ed7e030898042cb70e290c77d7d6230a8bfed",
+  "not_run": [
+    "Windows-only current source path test",
+    "Current full native/service integration suite (unchanged paths retain historical scoped evidence; new real HTTP cases above are current)",
+    "Installed registered prerequisite coordinator lifecycle",
+    "Actual OS installers/elevation/reboot/relogin",
+    "Power loss and cross-process product/prerequisite race acceptance",
+    "Current real browser/frozen/clean-host/platform-language acceptance",
+    "Production catalogue/signing/legal/licence closure"
+  ],
+  "not_implemented": [
+    "Atomic cross-executor product/prerequisite lease",
+    "Prerequisite browser auto/manual/review/recovery flow",
+    "Durable prerequisite download-byte event stream",
+    "Browser local artifact selection"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "checkpoint_id": "CP-20261026-012",
+  "sdk_source_sha": "6edcbb83a018e72d235cc3eb192864e238a82755",
+  "sdk_package_files_unchanged": 70,
+  "post_suite_harness_only_change": "Store backup receipt bodies and review/native journal hashes in existing successful client report; runtime/assertions/control flow unchanged",
+  "harness_sha256": "06ea8156a341593fdc8b346a80479a048fd55670256b10ea41f71ebd46a01c56",
+  "harness_actual_installed_proof": "packaging/acceptance-evidence/installed-update-forward-20261026-cp011.json",
+  "installed_exit_code": 0,
+  "python_ast": "PASS",
+  "production_ready": false
+}

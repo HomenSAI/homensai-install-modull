@@ -1,0 +1,9 @@
+{
+  "package": "python.3.14.3.nupkg",
+  "url": "https://api.nuget.org/v3-flatcontainer/python/3.14.3/python.3.14.3.nupkg",
+  "sha256": "ef63a18b486268cbfd1fa59e7b6094c42521b25f0184af8b267e1718dd0cb3a5",
+  "sha512": "qXwAMc81p/tQFIi/twT9YumFv7Ml3LkU4cuD73eumudaueivBWOpTBnWamk00uhFrXqL5atBcnP2snhS/zM5YA==",
+  "expected_source": "https://api.nuget.org/v3/catalog0/data/2026.02.03.18.07.24/python.3.14.3.json",
+  "size": 14923743,
+  "verified": true
+}

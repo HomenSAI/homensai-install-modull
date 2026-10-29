@@ -1,0 +1,15 @@
+{
+  "checkpoint": "CP-20261025-022",
+  "task_id": "HIM-009",
+  "source_code_checkpoint": "CP-20261025-021",
+  "source_commit": "7a3f8fe79fe64aff315e8bd529513121316819cd",
+  "status": "PASS_DOCUMENTATION_ONLY",
+  "production_ready": false,
+  "checks": {
+    "package_files_unchanged": 68,
+    "readme_links_exist": true,
+    "new_runtime_tests": "NOT RUN: source/package bytes unchanged",
+    "own_containers": "All hinstall-* test containers observed exited; latest final source/browser exit0"
+  },
+  "note": "CP-20261025-022 — только материалы продолжения: README теперь ведёт к актуальному RESUME и явно помечает обзор CP008 как исторический. Код и все68 package files совпадают с проверенным CP021; новых runtime-тестов для этой правки документации не запускали. Последний код: CP021, source2363PASS/3skip/15subtests; installed synthetic SDK/CLI, Chromium24cases и Windows492+57PASS/4POSIXskip сохранены с точными пределами. production_ready=false, всеG0–G5OPEN. Основная рабочая папка E:/homensai/homensai-install-modull; вспомогательный worktree E:/homensai/homensai-install-modull-core-cp021 сохраняет исходный проверенный черновик, интегрированный в основную ветку вместе с последующими исправлениями. Для продолжения использовать основную папку и её канонический ToDo. Собственные тестовые процессы завершены; отдельный Docker Git BLOCKED до URL и авторизации."
+}

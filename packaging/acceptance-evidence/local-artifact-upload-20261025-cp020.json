@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "checkpoint": "CP-20261025-020",
+  "author": "Serhii Khomenko",
+  "task_ids": [
+    "HIM-033",
+    "HIM-029",
+    "HIM-035",
+    "HIM-020",
+    "HIM-063",
+    "HIM-102",
+    "HIM-086"
+  ],
+  "scenario_ids": [
+    "ACC-01",
+    "ACC-04",
+    "ACC-05",
+    "ACC-07",
+    "ACC-08",
+    "ACC-14",
+    "ACC-16",
+    "ACC-21",
+    "ACC-23"
+  ],
+  "source_parent": "4d6282dc4d983822e952c3b2c9cfb75eacbc7eae",
+  "status": "PASS_SCOPED_NOT_PRODUCTION_ACCEPTANCE",
+  "production_ready": false,
+  "source_and_integration": {
+    "observed": "2309 passed, 3 skipped, 15 subtests passed in 468.88s (0:07:48)",
+    "passed": 2309,
+    "skipped": 3,
+    "subtests_passed": 15,
+    "input_bytes_unchanged": true,
+    "scope": "Source/integration в изолированном Debian bookworm Docker, синтетические процессы и loopback. Не Ubuntu/Windows platform acceptance.",
+    "receipt": "packaging/acceptance-evidence/source-20261025-cp020.json"
+  },
+  "installed": [
+    {
+      "scope": "SDK/CLI synthetic planning: 7 CLI commands",
+      "receipt": "packaging/acceptance-evidence/sdk-installed-20261025-cp020.json",
+      "wheel": {
+        "name": "homensai_install_module-0.1.0-py3-none-any.whl",
+        "sha256": "5b90a633aa7fb6531d714c506612daa8ccf9c662cab8e09ddbdce4dec87bbd44",
+        "exact_files_checked": 67
+      }
+    },
+    {
+      "scope": "Prerequisites synthetic SDK/CLI: 10 clients, 11 CLI commands",
+      "receipt": "packaging/acceptance-evidence/installed-prerequisites-20261025-cp020.json",
+      "wheel": {
+        "name": "homensai_install_module-0.1.0-py3-none-any.whl",
+        "sha256": "8d660ed2fc41db5e3c1b9f5d81b8525e1d1a8f9c3470274e064c215f70e94d56",
+        "exact_files_checked": 67
+      }
+    },
+    {
+      "scope": "Actual Chromium installed wheel: 24 cases, ru/en/de, synthetic prerequisite, no installer effects",
+      "receipt": "packaging/acceptance-evidence/local-upload-browser-20261025-cp020-attempt2.json",
+      "wheel": {
+        "name": "homensai_install_module-0.1.0-py3-none-any.whl",
+        "sha256": "7c4ba760b715408a415ad3c1cb80e6cb502416c5b2c45a277ddce71cdf5d4658",
+        "exact_files_checked": 67
+      }
+    }
+  ],
+  "package_bytes": {
+    "files": 67,
+    "digest": "a52da7a27620fbf310956ef5f52bc43a75dc6da9c141a38394ce212eac300c5f",
+    "all_three_built_wheels_same_package_files": true,
+    "wheel_archives_identical": false,
+    "note": "Каждая квитанция относится к собственному реально установленному wheel. Совпадение 67 package files доказано отдельно; побитовая воспроизводимость wheel archive не заявляется."
+  },
+  "windows": {
+    "observed": "492 passed; отдельно 57 passed, 4 POSIX skipped. Два собственных процесса с exit0/259 проверены Win32 handles без os.kill.",
+    "scope": "Windows10Home10.0.19045, CPython3.14.3; НЕ Windows11/UAC/ACL/Setup acceptance",
+    "receipt": "packaging/acceptance-evidence/windows-final-20261025-cp020.json"
+  },
+  "node": {
+    "groups": 39,
+    "localization_keys": {
+      "ru": 245,
+      "en": 245,
+      "de": 245
+    },
+    "overlaps_source_pytest": true
+  },
+  "fixed_defects": [
+    "Неосвобождаемая временная reservation при неудачном replan теперь откатывается транзакционно",
+    "Quota сохраняется при cleanup failure, открытом canceled writer и неизвестном inode",
+    "Доказанная настоящим concurrent SQLite commit гонка secure zero-link sidecar: только sidecars, bounded re-observation, основные БД/locks/owner/mode/link protections сохранены",
+    "Windows liveness больше не отправляет нулевой сигнал; Win32 handles, неизвестность не доказывает смерть",
+    "Fixture ожидала terminal status до закрытия live lease: теперь ждёт собственный worker и отдельно доказывает запрет resume в финализаторе",
+    "Прежний20s Node watchdog воспроизведён на baseline: 120s watchdog/150s wrapper сохраняют все assertions"
+  ],
+  "preserved_attempts": [
+    "cp019-source-attempt1: 2FAIL,2073PASS,118skip,15subtests; missing test tools + fixture race + Node watchdog",
+    "cp019-source-attempt2-interrupted: compiler without libc headers, 78 fixture errors; own pytest interrupted after diagnosis",
+    "cp019-source-attempt3: 1FAIL,2191PASS,1skip,15subtests; SQLite zero-link race",
+    "cp020-source-before-fixes: 1FAIL,2251PASS,1skip,15subtests; old lease fixture",
+    "Windows full diagnostic: 5FAIL/132ERROR/partial, Linux-specific fixtures and missing symlink privilege; child exit unknown after KeyboardInterrupt",
+    "Intermediate quota/sidecar/Node/launcher failures preserved in separate receipts"
+  ],
+  "not_run_or_pending": [
+    "Полные ACC01–23 и 12 reference GUI target×locale сочетаний",
+    "Windows11/native Setup/UAC/ACL/другой администратор/реальные reboot и relogin",
+    "Ubuntu24 clean native installer, live Docker product lifecycle/systemd acceptance",
+    "Реальные prerequisite OS installers и контролируемые live TLS/proxy/offline failures",
+    "Полный независимый installed reference artifact, JobPilot/Rent lifecycle",
+    "Межсессионная безопасная очистка retained uploads и перенос control journals на новую identity",
+    "Production signing/legal/licence approvals и полная воспроизводимость выпускных artifacts"
+  ],
+  "sync": {
+    "local": "CHECKPOINT_PENDING",
+    "github": "CHECKPOINT_PENDING; CP019 independently confirmed",
+    "docker_git": "BLOCKED: отдельный remote не настроен, Gitea3010 API требуетавторизацию,8796недоступен"
+  },
+  "next_step": "CP021: узкое trusted ProductAdapter maintenance подключение с signed review binding, свежей identity и строгим UNKNOWN reconciliation; сначала закрыть reviewer regression missing invocation. Затем реальная платформенная/reference приёмка."
+}

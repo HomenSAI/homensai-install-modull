@@ -1,0 +1,22 @@
+{
+  "checkpoint": "CP-20261025-021",
+  "production_ready": false,
+  "scope": "DEV wheels and evidence, not a release",
+  "receipts": [
+    {
+      "path": "packaging\\acceptance-evidence\\sdk-installed-20261025-cp021.json",
+      "sha256": "8c2d9d42e9cd6db6ab911d3ba608c360919b980a00bcccd6daf0ca80b8809154"
+    },
+    {
+      "path": "packaging\\acceptance-evidence\\installed-prerequisites-20261025-cp021.json",
+      "sha256": "b311180944d9e8dc73f7e48e12453eca2682f9b2edc1602ef06f9a9851844f5f"
+    },
+    {
+      "path": "packaging\\acceptance-evidence\\local-upload-browser-20261025-cp021-attempt3.json",
+      "sha256": "c56eef697e5756687bcaa49a81edbd136559f04fd230767a6fffd87dadc8082c"
+    }
+  ],
+  "browser_wheel_directory": "build/cp021/browser-attempt3-wheels",
+  "browser_screenshots_directory": "build/cp021/browser-attempt3-reports/browser",
+  "source_log": "packaging/acceptance-evidence/cp021-source-final.log"
+}

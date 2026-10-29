@@ -1,0 +1,105 @@
+........................................................................ [  3%]
+........................................................................ [  6%]
+........................................................................ [  9%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+................................s....................................... [ 22%]
+........................................................................ [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 32%]
+........................................................................ [ 36%]
+........................................................................ [ 39%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 49%]
+........................................................................ [ 52%]
+........................................................................ [ 55%]
+........................................................................ [ 59%]
+........................................................................ [ 62%]
+.............................................................. [ 65%]
+................F....................................................... [ 68%]
+........................................................................ [ 71%]
+........................................................................ [ 75%]
+........................................................................ [ 78%]
+........................................................................ [ 81%]
+........................................................................ [ 84%]
+........................................................................ [ 88%]
+........................................................................ [ 91%]
+........................................................................ [ 94%]
+........................................................................ [ 98%]
+...........................................                         [100%]
+=================================== FAILURES ===================================
+__ test_thread_start_failure_is_durable_and_does_not_leak_reservation[error1] __
+
+bundle = {'payload': PosixPath('/tmp/hinstall-test/test_thread_start_failure_is_d1/payload'), 'manifest': {'schema_version': 2,...ser'}, 'private': <cryptography.hazmat.bindings._rust.openssl.ed25519.Ed25519PrivateKey object at 0x7e23d99e64d0>, ...}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e23da750210>
+error = ControllerDied('private-start-secret')
+
+    @pytest.mark.parametrize("error", [RuntimeError("private-start-secret"), ControllerDied("private-start-secret")])
+    def test_thread_start_failure_is_durable_and_does_not_leak_reservation(bundle, monkeypatch, error):
+        api = api_for(bundle)
+        plan = auto_plan(api)
+    
+        def fail_start(self):
+            raise error
+    
+        with monkeypatch.context() as patch:
+            patch.setattr(threading.Thread, "start", fail_start)
+            if isinstance(error, Exception):
+                api.prerequisites_start("async_one", plan, plan["required_consents"], background=True)
+            else:
+                with pytest.raises(ControllerDied):
+                    api.prerequisites_start("async_one", plan, plan["required_consents"], background=True)
+        failed = settled(api)
+        assert failed["execution"]["state"] == "failed"
+        assert failed["error"]["reason"] == "prerequisite_background_start_failed"
+        assert failed["required_action"] == "resume"
+        assert "private-start-secret" not in json.dumps(failed)
+        api.prerequisites_start("async_one", plan, plan["required_consents"], background=True)
+        assert bundle["calls"] == [], "Duplicate start must never turn failure into implicit resume"
+        api.prerequisites_resume("async_one", background=True)
+>       assert settled(api)["ready"] and bundle["calls"] == ["base", "client"]
+               ^^^^^^^^^^^^
+
+tests/test_prerequisites_async.py:288: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_prerequisites_async.py:33: in settled
+    state = api.prerequisites_status(operation_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+homensai_install/api/v1.py:294: in prerequisites_status
+    return self._prerequisite_call("status", checked_id(operation_id))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+homensai_install/api/v1.py:239: in _prerequisite_call
+    return bounded_json(function(*args, **kwargs))
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+homensai_install/prerequisite_execution.py:298: in status
+    return self._public(self._get(operation_id))
+                        ^^^^^^^^^^^^^^^^^^^^^^^
+homensai_install/prerequisite_execution.py:271: in _get
+    value = self.store.get(operation_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+homensai_install/prerequisite_state.py:179: in get
+    with self.connection() as db:
+         ^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.14/contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+homensai_install/prerequisite_state.py:156: in connection
+    self._check_files()
+homensai_install/prerequisite_state.py:62: in _check_files
+    fail("STATE_STORAGE_UNAVAILABLE", "prerequisite_journal_not_private")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+code = 'STATE_STORAGE_UNAVAILABLE', reason = 'prerequisite_journal_not_private'
+component_id = None
+
+    def fail(code, reason, component_id=None):
+>       raise InstallerError(code, phase="prerequisites", component_id=component_id,
+                             details={"reason": reason})
+E       homensai_install.errors.InstallerError: STATE_STORAGE_UNAVAILABLE
+
+homensai_install/prerequisite_catalog.py:27: InstallerError
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_datahome.py:105: Проверка пути POSIX на Windows
+1 failed, 2191 passed, 1 skipped, 15 subtests passed in 496.38s (0:08:16)

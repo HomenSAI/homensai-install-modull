@@ -181,7 +181,9 @@ def test_ci_runs_exactly_the_accepted_profiles_with_unique_receipts():
     import sys
     import tempfile
     text = (ROOT / ".github/workflows/source-tests.yml").read_text()
-    block = text.split("      - name: Verify all sixteen installed reference profiles sequentially\n", 1)[1]
+    marker = "      - name: Verify installed reference profiles sequentially\n"
+    assert text.count(marker) == 1, "Installed reference step must be unique"
+    block = text.split(marker, 1)[1]
     block = block.split("      - name:", 1)[0].split("        run: |\n", 1)[1]
     script = "\n".join(line[10:] for line in block.splitlines())
     with tempfile.TemporaryDirectory(prefix="hinstall-ci-matrix-") as directory:

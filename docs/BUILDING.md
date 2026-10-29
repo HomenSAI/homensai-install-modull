@@ -367,12 +367,12 @@ Job `linux-installed` создаёт build venv, wheelhouse и все клиен
 в `$RUNNER_TEMP`, вне checkout. После загрузки закреплённых wheel build и
 установка используют `--no-index`. Клиенты запускаются вне исходников и
 проверяют происхождение установленных модулей и неизменность package bytes.
-Выполняются SDK/CLI, prerequisites и 15 reference profiles: последовательные
+Выполняются SDK/CLI, prerequisites и 16 reference profiles: последовательные
 updates, семь update fault scenarios, четыре recovery scenarios и
-`uninstall-restore`, `repair` и `reinstall`.
+`uninstall-restore`, `recovery-root-resume`, `repair` и `reinstall`.
 
 `tools/summarize_installed_checks.py --include-fault-profiles` требует все
-17 успешных квитанций с точным `GITHUB_SHA`, ожидаемым profile и одинаковым
+18 успешных квитанций с точным `GITHUB_SHA`, ожидаемым profile и одинаковым
 SHA-256 SDK wheel. Missing/stale/FAIL, неправильный профиль или иной wheel
 завершают job ошибкой. Отказ одного reference profile не пропускает остальные;
 каждый использует собственный work directory и имя receipt. Общая сводка
@@ -384,6 +384,15 @@ SHA-256 SDK wheel. Missing/stale/FAIL, неправильный профиль �
 проверяются отказ при повреждённом retained receipt, настоящий полный
 `before_restore` и сохранность данных, настроек, credentials и схемы.
 Это Linux DEV acceptance, без закрытия release gates.
+
+`recovery-root-resume` повторяет установленный lifecycle с реальным `SIGKILL`
+после замены целого data root и до записи подтверждения. Новый public factory
+продолжает исходную операцию. Проверяются отсутствие повторного копирования
+data, единственный source quiesce, отсутствие source hooks на смешанной БД,
+единственные target restore/post_restore и неизменность safety ciphertext.
+Независимый decrypt/restore этого архива сравнивает все пять roots с полным
+before-image, включая пустые каталоги. Этот профиль проверяет одну точку
+прерывания целого root; он не доказывает mid-file или power-loss recovery.
 
 `repair` и `reinstall` проверяют замену управляемого кода той же подписанной
 версии и сохранение текущей схемы, пользовательских данных, настроек, ключей

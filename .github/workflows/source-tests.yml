@@ -22,7 +22,7 @@ jobs:
   linux-source:
     name: Linux source and user-process integration (no installer acceptance)
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - name: Checkout reviewed source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1; official tag verified 2026-10-25
@@ -164,12 +164,12 @@ jobs:
           --work-dir "$RUNNER_TEMP/hinstall-prerequisites-check"
           --receipt "$RUNNER_TEMP/hinstall-receipts/prerequisites.json"
           --wheelhouse "$RUNNER_TEMP/hinstall-wheelhouse"
-      - name: Verify all fifteen installed reference profiles sequentially
+      - name: Verify all sixteen installed reference profiles sequentially
         if: ${{ !cancelled() }}
         shell: bash
         run: |
           failed=0
-          for profile in update update-lost-ack update-missing-ledger update-tampered-backup update-foreign-backup update-live-data-drift update-candidate-health update-candidate-cleanup recovery-restore recovery-rollback recovery-lost-ack recovery-missing-ledger uninstall-restore repair reinstall; do
+          for profile in update update-lost-ack update-missing-ledger update-tampered-backup update-foreign-backup update-live-data-drift update-candidate-health update-candidate-cleanup recovery-restore recovery-rollback recovery-lost-ack recovery-missing-ledger uninstall-restore repair reinstall recovery-root-resume; do
             receipt_name="$profile"
             if [ "$profile" = update ]; then
               receipt_name=reference-update

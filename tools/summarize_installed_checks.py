@@ -17,7 +17,7 @@ FAULT_PROFILES = (
     "update-lost-ack", "update-missing-ledger", "update-tampered-backup", "update-foreign-backup",
     "update-live-data-drift", "update-candidate-health", "update-candidate-cleanup",
     "recovery-restore", "recovery-rollback", "recovery-lost-ack", "recovery-missing-ledger",
-    "uninstall-restore", "repair", "reinstall",
+    "uninstall-restore", "repair", "reinstall", "recovery-root-resume",
 )
 MAX_RECEIPT_BYTES = 2 * 1024 * 1024
 REVISION = re.compile(r"[0-9a-f]{40}\Z")
@@ -74,7 +74,7 @@ def main(argv=None):
     parser.add_argument("--summary", type=Path)
     parser.add_argument("--source-revision", required=True)
     parser.add_argument("--include-fault-profiles", action="store_true",
-                        help="Требовать также 14 fault/recovery/maintenance receipts и единый SHA-256 SDK wheel")
+                        help="Требовать также 15 fault/recovery/maintenance receipts и единый SHA-256 SDK wheel")
     args = parser.parse_args(argv)
     valid_revision = REVISION.fullmatch(args.source_revision) is not None
     rows, failed, sdk_digest = [], False, None

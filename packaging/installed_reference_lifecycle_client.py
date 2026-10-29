@@ -3,10 +3,12 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import signal
 import socket
 import sqlite3
 import stat
 import sys
+import time
 from urllib.request import ProxyHandler, build_opener
 
 
@@ -549,8 +551,41 @@ def main():
                 original_execute = ExecutableProductAdapter._execute
                 injected = []
                 retained_source_calls = []
+                root_resume = config.get("recovery_root_resume", False)
+                resuming_roots = [False]
+                root_data_inodes = {}
+                root_trace = work / "recovery-root-hook-trace.jsonl"
+                root_before_image = work / "recovery-root-before-image.json"
+                if root_resume:
+                    assert fault is None and config.get("uninstall_before_restore")
+                    assert os.name == "posix" and hasattr(os, "fork")
+                    assert not root_trace.is_relative_to(root) and not root_before_image.is_relative_to(root)
+                    assert not root_trace.exists() and not root_before_image.exists()
+
+                def data_inodes():
+                    return {p.relative_to(root / "data").as_posix(): [p.stat().st_dev, p.stat().st_ino]
+                            for p in (root / "data").rglob("*") if p.is_file()}
+
+                def root_image():
+                    return {name: {"files": tree(root / name), "directories": sorted(
+                        p.relative_to(root / name).as_posix() for p in (root / name).rglob("*") if p.is_dir())}
+                            for name in ("data", "backup", "services", "config", "runtime")}
 
                 def lose_recovery_ack(adapter, hook, request, request_digest):
+                    if root_resume:
+                        release = adapter.options["release"]
+                        if resuming_roots[0] and release == "reference-v2":
+                            raise AssertionError("Source hook attempted against partially restored DataHome")
+                        if resuming_roots[0] and release == "reference-v1" and hook == "restore":
+                            assert data_inodes() == root_data_inodes, "Completed first root was recopied"
+                        entry = {"hook": hook, "release": release, "request_digest": request_digest,
+                            "idempotency_key": request["idempotency_key"],
+                            "payload_dir": str(adapter.options["payload_dir"]),
+                            "phase": "resume" if resuming_roots[0] else "initial"}
+                        descriptor = os.open(root_trace, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+                        with os.fdopen(descriptor, "a") as stream:
+                            stream.write(json.dumps(entry, ensure_ascii=False) + "\n")
+                            stream.flush(); os.fsync(stream.fileno())
                     if config.get("uninstall_before_restore") and adapter.options["release"] == "reference-v2":
                         closure = Path(bundles["2"]["work_dir"]) / (native_token + "-retained-adapter-source")
                         assert Path(adapter.options["payload_dir"]) == closure / "payload"
@@ -570,8 +605,88 @@ def main():
                 if fault or config.get("uninstall_before_restore"):
                     ExecutableProductAdapter._execute = lose_recovery_ack
                 try:
-                    recovered = current.submit(recovery_plan["plan_id"], recovery_plan["plan_digest"],
-                        consent, idempotency_key="installed-recovery", background=False)
+                    if root_resume:
+                        from shared.adapters_fs import FilesystemPorts
+                        actual_reconcile = FilesystemPorts._reconcile
+                        child = os.fork()
+                        if child == 0:
+                            try:
+                                def after_real_first_root(source, destination, preserved):
+                                    selected = Path(destination) == root / "data" and Path(source).parent.name == "roots"
+                                    if selected:
+                                        with root_before_image.open("x") as stream:
+                                            os.chmod(root_before_image, 0o600)
+                                            json.dump(root_image(), stream, ensure_ascii=False, sort_keys=True)
+                                            stream.flush(); os.fsync(stream.fileno())
+                                    actual_reconcile(source, destination, preserved)
+                                    if selected:
+                                        os.kill(os.getpid(), signal.SIGKILL)
+                                FilesystemPorts._reconcile = staticmethod(after_real_first_root)
+                                current.submit(recovery_plan["plan_id"], recovery_plan["plan_digest"],
+                                    consent, idempotency_key="installed-recovery", background=False)
+                            except BaseException:
+                                os._exit(86)
+                            os._exit(87)
+                        deadline = time.monotonic() + 120
+                        while True:
+                            waited, child_status = os.waitpid(child, os.WNOHANG)
+                            if waited:
+                                break
+                            if time.monotonic() > deadline:
+                                os.kill(child, signal.SIGKILL); os.waitpid(child, 0)
+                                raise AssertionError("Owned child did not reach the first root effect")
+                            time.sleep(0.02)
+                        assert os.waitstatus_to_exitcode(child_status) == -signal.SIGKILL
+                        interrupted_native = json.loads(native_path.read_text())
+                        assert interrupted_native["recovery_replace_started"] is True
+                        assert interrupted_native["recovery_root_progress"]["data"] == {"started": True, "complete": False}
+                        assert not interrupted_native.get("recovery_roots_complete")
+                        marker = json.loads((root / ".hinstall/installation.json").read_text())["pending_recovery"]
+                        assert marker == {"operation_id": "op_" + native_token,
+                            "receipt_id": interrupted_native["recovery_root_receipt_id"]}
+                        before_resume_safety = interrupted_native["step_results"]["before_" + action]
+                        before_resume_cipher = Path(before_resume_safety["archive"]["path"])
+                        before_resume_cipher_sha = sha(before_resume_cipher.read_bytes())
+                        assert before_resume_cipher_sha == before_resume_safety["receipt"]["archive_sha256"]
+                        assert notes(database) == data_before and sha(credential.read_bytes()) == retained["credential"]
+                        root_data_inodes.update(data_inodes())
+                        source_ledger_at_cut = [source_ledger.stat().st_dev, source_ledger.stat().st_ino]
+                        assert source_ledger_at_cut == list(source_ledger_identity)
+                        initial_trace = [json.loads(line) for line in root_trace.read_text().splitlines()]
+                        assert sum(v["release"] == "reference-v2" and v["hook"] == "quiesce" for v in initial_trace) == 1
+                        assert not any(v["hook"] in {"restore", "post_restore"} for v in initial_trace)
+                        current = api("fresh-sdk-state")
+                        matches = [v for v in current.operations_list(unfinished_only=False)["operations"]
+                                   if v["plan_id"] == recovery_plan["plan_id"]]
+                        assert len(matches) == 1
+                        interrupted_id = matches[0]["operation_id"]
+                        reopened = current.status(interrupted_id)
+                        assert reopened["status"] == "RECOVERY_REQUIRED"
+                        resuming_roots[0] = True
+                        recovered = current.resume(interrupted_id, {}, background=False)
+                        assert recovered["operation_id"] == interrupted_id and recovered["status"] == "SUCCEEDED", recovered
+                        resumed_native = json.loads(native_path.read_text())
+                        assert resumed_native["step_results"]["before_" + action] == before_resume_safety
+                        assert sha(before_resume_cipher.read_bytes()) == before_resume_cipher_sha
+                        assert not json.loads((root / ".hinstall/installation.json").read_text()).get("pending_recovery")
+                        final_trace = [json.loads(line) for line in root_trace.read_text().splitlines()]
+                        assert not any(v["phase"] == "resume" and v["release"] == "reference-v2" for v in final_trace)
+                        assert sum(v["release"] == "reference-v2" and v["hook"] == "quiesce" for v in final_trace) == 1
+                        for hook in ("restore", "post_restore"):
+                            assert sum(v["release"] == "reference-v1" and v["hook"] == hook for v in final_trace) == 1
+                        retained_source_calls[:] = [{"hook": v["hook"], "request_digest": v["request_digest"]}
+                            for v in final_trace if v["release"] == "reference-v2"]
+                        active_update.update(real_sigkill=True, child_kernel_exit_code=-signal.SIGKILL,
+                            child_wait_status=child_status, owned_child_pid=child,
+                            original_operation_id=interrupted_id, resumed_with_new_public_factory=True,
+                            first_root_files_not_recopied=True, source_quiesce_once=True,
+                            no_source_hooks_or_status_on_mixed_data=True, target_restore_and_post_restore_once=True,
+                            same_safety_cipher_sha256=before_resume_cipher_sha,
+                            durable_hook_trace_sha256=sha(root_trace.read_bytes()),
+                            full_before_image_sha256=sha(root_before_image.read_bytes()))
+                    else:
+                        recovered = current.submit(recovery_plan["plan_id"], recovery_plan["plan_digest"],
+                            consent, idempotency_key="installed-recovery", background=False)
                 finally:
                     ExecutableProductAdapter._execute = original_execute
                 operation_id = recovered["operation_id"]
@@ -658,6 +773,14 @@ def main():
                 safety_manifest = archive_crypto.restore_archive(safety_archive, safety_oracle,
                     password_provider=lambda: config["archive_password"], expected_product_id=manifest["product_id"])
                 assert sha(canonical(safety_manifest)) == proof["archive_manifest_sha256"]
+                if root_resume:
+                    assert {p.name for p in (safety_oracle / "roots").iterdir()} == {"data", "backup", "services", "config", "runtime"}
+                    expected_roots = json.loads(root_before_image.read_text())
+                    for name, expected in expected_roots.items():
+                        restored_root = safety_oracle / "roots" / name
+                        assert tree(restored_root) == expected["files"]
+                        assert sorted(p.relative_to(restored_root).as_posix() for p in restored_root.rglob("*") if p.is_dir()) == expected["directories"]
+                    active_update["all_five_safety_roots_match_exact_pre_replace_image"] = True
                 assert notes(safety_oracle / "roots/data/reference.sqlite") == latest_data
                 for filename, name in (("data/user-files/Личные документы.txt", "document"),
                                        ("data/synthetic-secret.txt", "credential"), ("config/settings.json", "settings")):

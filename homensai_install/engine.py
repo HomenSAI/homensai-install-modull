@@ -439,6 +439,10 @@ class NativeEngine:
         if action not in self.ACTIONS or not self.capabilities(target)["actions"][action]["supported"]:
             raise EngineError("CAPABILITY_UNSUPPORTED")
         self._check_uninstall_fence(ctx, action)
+        from .recovery_replacement import plan_fence
+        pending_stop = plan_fence(self, ctx, action)
+        if pending_stop is not None:
+            return pending_stop
         from .code_maintenance import fence
         fence(ctx, action)
         effective_active = None
@@ -2123,6 +2127,16 @@ class NativeEngine:
         if action not in self.ACTIONS or not self.capabilities(plan["target"])["actions"][action]["supported"]:
             raise EngineError("CAPABILITY_UNSUPPORTED")
         ctx["adapter_resume"] = _adapter_resume
+        from .recovery_replacement import pending, owned_stop, journal_fence, RootReplacement
+        pending_root = pending(self, ctx)
+        original_token = _digest([plan.get("plan_id", "direct"), plan.get("plan_digest", _digest(plan))])[:32]
+        if pending_root is not None:
+            if action == 'stop':
+                lock = ctx['root'].parent / ('.hinstall-' + _digest(str(ctx['root']))[:24] + '.lock')
+                with operation_lock(lock):
+                    return owned_stop(self, ctx)
+            if pending_root['operation_id'] != 'op_' + original_token or not _adapter_resume:
+                raise EngineError('RECOVERY_REQUIRED', 'Нужна исходная recovery операция')
         inventory = None
         code_maintenance = self.product_adapter_descriptor is not None and action in {'repair', 'reinstall'}
         if action in {"install", "update", "repair", "reinstall"} and not code_maintenance:
@@ -2173,7 +2187,18 @@ class NativeEngine:
         journal = ctx["control"] / "operations" / (token + ".json")
         with operation_lock(lock):
             previous = _read(journal) if journal.exists() else None
+            journal_fence(self, ctx, token, previous)
             ctx['resume_operation_state'] = previous
+            if pending_root is not None or previous and previous.get('recovery_root_receipt_id'):
+                if previous is None or (pending_root is None and previous.get('status') != 'SUCCEEDED'):
+                    raise EngineError('RECOVERY_REQUIRED', 'Original recovery journal/marker утрачен')
+                ctx['operation_state'] = previous
+                root_protocol = RootReplacement(self, ctx, previous)
+                if previous.get('status') == 'SUCCEEDED':
+                    root_protocol.retire_terminal()
+                else:
+                    root_protocol.early_validate()
+                ctx['pending_root_protocol'] = root_protocol
             if isinstance(plan.get('engine_plan'), dict):
                 ctx['reviewed_retained_source'] = plan['engine_plan'].get('retained_source')
             if previous and previous.get("status") in {"SUCCEEDED", "FAILED_ROLLED_BACK"}:
@@ -2265,7 +2290,8 @@ class NativeEngine:
                                    for value in other.get("product_adapter_quiesce_scopes", {}).values()))
                             and other.get("status") not in {"SUCCEEDED", "FAILED_ROLLED_BACK"}):
                         raise EngineError("RECOVERY_REQUIRED", "Нужен reconciliation исходной ProductAdapter операции")
-            self._prepare(ctx)
+            if ctx.get('pending_root_protocol') is None:
+                self._prepare(ctx)
             self._owner(ctx, required=True)
             adapter_backup_resume = (self.product_adapter_descriptor is not None and action == "backup"
                                      and _adapter_resume and previous is not None
@@ -2370,7 +2396,11 @@ class NativeEngine:
             if ctx.get("maintenance_binding"):
                 result["effective_active"] = ctx["maintenance_binding"]
             state.update(status=result.get("status", "SUCCEEDED"), result=result)
+            if state.get('recovery_root_receipt_id'):
+                RootReplacement(self, ctx).issue_terminal(result)
             _write(journal, state)
+            if state.get('recovery_root_receipt_id'):
+                RootReplacement(self, ctx).retire_terminal()
             return result
 
     def _execute_locked(self, ctx, action, token, inventory, password, step, emit):
@@ -2628,13 +2658,36 @@ class NativeEngine:
                 if _tree(candidate) != (expected_directories, expected_files):
                     raise EngineError("INTEGRITY_FAILED", "Read-only recovery probe изменил snapshot")
                 ctx["operation_state"]["recovery_candidate_schema"] = observed_schema
-            if "restore" not in ctx["operation_state"]["completed"]:
+            if ("restore" not in ctx["operation_state"]["completed"]
+                    and not ctx['operation_state'].get('recovery_root_receipt_id')):
                 step("stop", lambda: self._stop(ctx))
             safety = step("before_" + action, lambda: self._before_recovery_backup(ctx, extracted["archive_sha256"], password))
             def restore():
                 if (_file_digest(source) != extracted["archive_sha256"]
                         or _tree(candidate) != (expected_directories, expected_files)):
                     raise EngineError("INTEGRITY_FAILED", "Recovery source изменился перед replacement")
+                if target_adapter is not None:
+                    from .recovery_replacement import RootReplacement
+                    protocol = RootReplacement(self, ctx)
+                    if ctx['operation_state'].get('recovery_root_receipt_id'):
+                        protocol.mixture()
+                        self._recovery_backup_store(ctx, password, compare_live=False).verify(safety['receipt']['receipt_id'],
+                            expected_binding=safety['binding'], consistency_scope='owned_components_stopped_and_adapter_quiesced')
+                    else:
+                        self._authorize_recovery_replace(ctx, extracted['archive_sha256'], password, safety)
+                        protocol.prepare(safety, extracted['archive_sha256'])
+                        self._authorize_recovery_replace(ctx, extracted['archive_sha256'], password, safety)
+                    if not ctx['operation_state'].get('recovery_roots_complete'):
+                        protocol.apply()
+                    if not ctx['operation_state'].get('recovery_target_stage_complete'):
+                        protocol.stage_begin()
+                        self._ports(recover_ctx, trusted, password, emit).stage_release(token + '/stage', release)
+                        protocol.stage_complete()
+                    else:
+                        _, installed = self._release_product_adapter(recover_ctx, release)
+                        if installed != ctx['recovery_target_binding']:
+                            raise EngineError('INTEGRITY_FAILED', 'Recovery target stage изменён')
+                    return
                 self._authorize_recovery_replace(ctx, extracted["archive_sha256"], password, safety)
                 ctx["operation_state"]["recovery_replace_started"] = True
                 if target_adapter is not None:
@@ -2662,7 +2715,8 @@ class NativeEngine:
                     extracted["archive_sha256"], password))
             def activate():
                 self._ports(recover_ctx, trusted, password, emit).switch_pointer(token + "/switch", release)
-                _write(ctx["control"] / "installation.json", {**{key: value for key, value in owner.items()
+                current_owner = self._owner(ctx, required=True)
+                _write(ctx["control"] / "installation.json", {**{key: value for key, value in current_owner.items()
                     if key != 'retained_uninstall'}, "installed": True})
             step("activate", activate)
             cleanup_ctx = {**recover_ctx, "recovery_cleanup": True}

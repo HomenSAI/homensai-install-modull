@@ -114,6 +114,15 @@ Publisher после review создаёт окончательные `payload.i
 
 `homensai_install.adapters.ExecutableProductAdapter` реализует существующий `api.model.ProductAdapter`. Доверенный SDK/bootstrap явно регистрирует его через `InstallerAPI.from_bootstrap(..., product_adapter_descriptor="installer/adapter.json")` либо прямой trusted `NativeEngine` для Linux native/user single-step `install`/`update` и `start`, `stop`, `backup`, `restore`, `rollback`, `uninstall`, а также same-release/same-schema `repair` и `reinstall`. Без opt-in используется прежний manifest lifecycle. Браузер и HTTP options не включают регистрацию; автоматической регистрации нет. `InstallerAPI.validate`, `discover` и `plan` не запускают hooks: план читает только подписанный статический descriptor. Для update требуется explicit migration review; для restore/rollback — verified before-recovery snapshot и target hooks. Uninstall сохраняет данные и проверенный source adapter; последующий restore требует исходную квитанцию и ledger, свежий quiesce и полный before_restore. Repair/reinstall используют заново проверенный candidate, свежий quiesce с прежним ledger, полный before-maintenance archive и durable intents замены кода; пользовательские данные и схема не мигрируют. Повреждённый installed adapter не исполняется. Reinstall после completed uninstall сохраняет прежнюю identity и данные. Точные preconditions и границы отказа описаны в `PRODUCT_ADAPTER_EXECUTION.md`.
 
+При прерывании restore/rollback храните исходный public operation ID и вызывайте
+явный `resume`. Новый протокол допускает продолжение на границе целого
+persistent root: уже заменённые данные повторно не копируются. Исходные журнал,
+root receipt, candidate, safety archive и прежний ledger обязательны; source
+hooks на частично восстановленной БД не запускаются. Смешанное состояние внутри
+root и незавершённый target stage требуют отдельного восстановления. Новая
+операция или отмена API claim не снимает native fence. Полный контракт и порядок
+отдельного owned-process stop описаны в `INSTALLER_API.md`.
+
 В текущей версии реальный execution backend адаптера поддерживает Linux native/user. Target Docker или service scope возвращает `CAPABILITY_UNSUPPORTED` до запуска; автоматического fallback на host execution нет. Windows execution также возвращает `CAPABILITY_UNSUPPORTED`: нужен отдельно принятый Job Object backend и Windows tests. Это не скрытая попытка выполнить `.cmd` через shell и не обещание уже пройденной Windows-приёмки.
 
 ### Подписанный descriptor

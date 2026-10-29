@@ -284,7 +284,7 @@ def test_actual_controller_sigkill_keeps_original_recovery_proofs_and_fences_unc
     result = subprocess.run([sys.executable, '-c', RECOVERY_KILL_CONTROLLER, str(source)],
         cwd=Path(__file__).parents[1], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=35)
     assert result.returncode == -9, result.stderr.decode(errors='replace')
-    if phase in {'before_ledger', 'partial_replace'}:
+    if phase == 'before_ledger':
         before = document.read_bytes()
         with pytest.raises(EngineError) as caught: fixture.engine.resume(plan, {})
         assert caught.value.code == 'RECOVERY_REQUIRED'

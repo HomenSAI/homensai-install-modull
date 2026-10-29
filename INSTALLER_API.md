@@ -855,10 +855,51 @@ recovery hooks без trusted `recovery_authorizer`; фабрика ядра в�
 Потеря ledger не разрешает его создание заново или повтор effect. Ошибки
 readiness и cleanup сохраняются раздельно в публичных error details.
 
-Прерывание в середине замены roots сохраняет safety snapshot и блокирует
-автоматический повтор разрушительного шага. Это fail-closed recovery boundary;
-полная автоматическая приёмка power-loss, Windows/Docker и clean-host остаётся
-отдельной задачей.
+### Продолжение замены persistent roots
+
+Для новых зарегистрированных Linux/native/user операций перед первой заменой
+сохраняются private immutable root receipt и `pending_recovery` в installation
+owner. Они связывают исходную операцию, installation identity, оба выпуска,
+source ciphertext, проверенный safety archive, candidate, прежний quiesce witness
+и состояния всех пяти persistent roots. Порядок замены фиксирован; корневые
+каталоги сохраняют свои inode.
+
+После прерывания вызовите `status(operation_id)`, затем явный
+`resume(operation_id, decisions)` той же public operation. До записи и hooks
+ядро сверяет все пять roots: завершённый root должен совпадать с target,
+не начатый — с исходным состоянием. Для текущего root допустимо только целиком
+исходное или целиком целевое состояние. Целиком заменённый root принимается
+без повторного копирования даже при потере подтверждения последнего шага.
+Нужны прежние journal, root receipt, извлечённый candidate, source archive и
+существующий ledger. Safety ciphertext проверяется повторным decrypt/restore;
+новая копия смешанных live data не выдаётся за исходный before-image.
+
+В фазе замены исходный quiesce подтверждается сохранённым witness и прежним
+ledger: source hooks и `operation_status` на частично восстановленной БД не
+запускаются. После durable завершения всех roots и публикации target кода
+применяется обычный reconciliation target hooks. Подтверждённые эффекты и roots
+не повторяются. Терминальное завершение также требует matching root и terminal
+receipts; одного изменённого флага `SUCCEEDED` недостаточно.
+
+Смешанные файлы внутри root, новые посторонние entries, изменение root identity
+или permissions, потеря обязательного журнала/квитанции/candidate/ledger и
+незавершённая публикация target кода возвращают `RECOVERY_REQUIRED` до следующей
+замены. Новая операция и legacy factory не снимают durable fence. Старые
+прерванные операции без root receipt не получают полномочия задним числом.
+
+Если требуется только остановить собственные процессы, неактивный public
+operation может ещё удерживать API resource claim. После `status` явно
+вызовите `cancel` для этой операции, затем создайте и подтвердите план `stop`.
+Cancel освобождает API claim, сохраняет `resume_required=true` и
+`effects_undone=false`; native journal, root receipt, данные и safety archive
+остаются на месте. При verified `pending_recovery` stop останавливает только
+процессы с подтверждённой принадлежностью и временем запуска, без product hooks.
+Отмена не восстанавливает потерянные полномочия и не обходит отдельную uncertain
+lease общего `execution_domain`.
+
+Это продолжение на границах целых roots. Прерывание внутри копирования файла,
+незавершённый target stage, аппаратное отключение питания, Windows/Docker и
+clean-host требуют отдельных протоколов и приёмки; G3 остаётся открытым.
 
 ### ProductAdapter repair и reinstall
 

@@ -226,9 +226,37 @@ Target hooks получают ровно `installation_id`, `release`, `recovery
 Для каждого эффекта сохраняются durable intent, binding и результат. UNKNOWN
 требует reconciliation исходной операции. Diagnostic probe и resume не создают
 отсутствующий authoritative ledger. После подтверждённого hook resume не
-заменяет данные повторно. Прерывание внутри replacement сохраняет durable fence
-и safety archive: автоматический повтор этой фазы запрещён, требуется отдельное
-восстановление из сохранённых данных.
+заменяет данные повторно.
+
+Замена roots использует отдельный протокол исходной операции. До первого
+изменения private root receipt закрепляет все пять before/target projections,
+root identities, candidate, source/target bindings, ciphertext hashes и исходный
+quiesce witness. `pending_recovery` в installation owner и оставшиеся receipts
+ограждают установку даже при потере mutable journal. Отсутствующие полномочия
+не реконструируются новой операцией или legacy factory.
+
+Явный resume допускает целиком исходный или целиком заменённый текущий root;
+все завершённые и ещё не начатые roots проверяются до следующей записи. Уже
+заменённый root не копируется снова. Корневые inode сохраняются, а missing root
+или drift permissions не маскируются `mkdir`/`chmod`. Services сохраняют только
+заранее закреплённые pointer, подтверждённый released `operation.lock` и
+completed owned update journals; новый файл не принимается по одному имени.
+Перед продолжением повторно проверяется тот же полный safety archive.
+
+Source quiesce при таком resume подтверждается прежним witness/ledger вне
+заменяемых roots: source hook и `operation_status` на смешанной БД запрещены.
+После durable all-roots handoff и завершённого target stage разрешены target
+hooks с обычным reconciliation, без нового replacement. Matching terminal
+receipt связывает result и завершённые фазы; native `SUCCEEDED` без него
+не разрешает ранний успешный ответ или снятие pending marker.
+
+Смешанное состояние внутри root, утрата candidate/receipt/ledger, изменение
+root identity и незавершённый target stage сохраняют `RECOVERY_REQUIRED`.
+Старые операции без root receipt автоматически не продолжаются. Это протокол
+границ целых roots для Linux/native/user; G3, mid-file recovery, power-loss и
+другие платформы остаются открытыми. Public API contract также описывает явный
+`cancel` неактивного API claim перед отдельным owned-process `stop` без hooks;
+отмена сохраняет native authority и уже выполненные изменения.
 
 Reference adapter проверяет schema, SQLite integrity, обязательный файл и settings.
 Он транзакционно записывает recovery effect и `external_actions_on_hold=1`.

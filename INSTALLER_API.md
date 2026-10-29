@@ -588,6 +588,194 @@ api.diagnostics_export("/private/report.json", operation_id=operation_id,
 У diagnostic storage собственная политика fallback/retention. Его сбой не
 превращает сбой установки в успех. Счётчики разделяют операции и попытки.
 
+### Локальное подписанное обновление справочника
+
+Обновления справочника подключаются отдельно от доверия к payload продукта.
+По умолчанию `InstallerAPI` использует встроенный каталог и не создаёт для него
+каталоги состояния. В доверенном bootstrap передайте отдельный
+`error_catalog_policy_config`; обычные manifest, options и HTTP body не могут
+задавать эту политику, ключи или расположение хранилища.
+
+```python
+from homensai_install.api.v1 import InstallerAPI
+
+api = InstallerAPI.from_bootstrap(
+    private_state_directory,
+    error_catalog_policy_config=publisher_policy_file,
+    # Только для отдельной DEV-политики и DEV-подписанных артефактов:
+    allow_development=True,
+)
+before = api.errors_catalog_status()
+review = api.errors_catalog_preview(signed_catalog_file)
+# Покажите человеку версию, sequence и digest проверенного обновления.
+result = api.errors_catalog_apply(
+    signed_catalog_file,
+    expected_review_digest=review["review_digest"],
+    confirmed=True,
+)
+article = api.errors_describe("DISK_SPACE_LOW", locale="de")
+matches = api.errors_search("backup", locale="en", limit=20)
+```
+
+Доверенный Python host также может передать готовый `CatalogUpdatePolicy` через
+`InstallerAPI(..., error_catalog_policy=policy)`. Класс и загрузчик находятся в
+`homensai_install.error_catalog_updates`. Произвольный dict или callback вместо
+политики не принимается. Объект политики неизменяемый; изменение локальных pins,
+отзывов или срока действия требует нового настроенного экземпляра API.
+Каждый запуск CLI загружает политику заново. Автоматического обновления ключей нет.
+
+Этот контракт меняет только тексты 43 встроенных error codes на ru/en/de и
+отображаемую `catalog_version`. Набор codes, `severity`, `retryable`,
+`permitted_actions` и `alias_of` должны точно совпадать со встроенным каталогом
+этой версии SDK. Новые product codes и изменение поведения сюда не входят.
+Текст справки не выполняет commands, hooks, загрузки или исправление продукта.
+GUI получает статьи через тот же API и выводит строки через `textContent`.
+
+`errors_describe` и `errors_search` принимают необязательный keyword `locale`;
+он действует только на этот вызов. В результате статьи находится версия
+выбранного каталога. `describe()["error_catalog_version"]` показывает текущую
+эффективную версию, `builtin_error_catalog_version` — встроенную. Packaged
+discovery описывает вариант без настроенной политики. `InstallerError.to_dict`,
+сохранённые события и существующий diagnostics export сохраняют встроенный
+контракт и его версию; обновление справки не переписывает историю ошибки.
+
+#### Политика доверия
+
+JSON политики имеет ровно следующие поля. Приватные ключи в него не входят.
+
+| Поле | Содержание |
+| --- | --- |
+| `schema_version` | Целое `1`, не boolean |
+| `policy_id`, `policy_epoch` | Идентификатор и положительная целая эпоха политики |
+| `module_id`, `catalog_id` | По умолчанию `homensai-install` и `homensai-installer-errors`; artifact обязан совпасть с pins |
+| `baseline_semantics_sha256` | SHA-256 канонического встроенного каталога без верхнего `catalog_version` и без `translations` в каждой записи |
+| `min_sequence` | Минимальная допустимая signed sequence, включительно |
+| `valid_from`, `valid_until` | Интервал доверия к политике в каноническом UTC `YYYY-MM-DDTHH:MM:SSZ` |
+| `max_lifetime_seconds` | Максимальный срок действия артефакта; default Python-конструктора — `7776000` |
+| `keys` | Отдельный role keyring: `key_id` → base64 сырых 32 байт Ed25519 public key |
+| `revoked_key_ids` | Список отозванных key IDs |
+| `revoked_artifact_sha256` | Список отозванных SHA-256 полных файлов артефактов |
+
+Назначение роли фиксировано: `installer-error-catalog`. Ключи из обычного
+product `trust_config` автоматически в этот keyring не переходят. Поля
+`clock` и `allow_development` в JSON запрещены; development opt-in задаёт только
+доверенный host/CLI. Политика ограничена 64 KiB. Локальные входные файлы должны
+быть обычными single-link файлами текущего владельца без shared-write прав;
+symlink и подмена inode во время чтения отвергаются.
+
+Для проверки сохранённой истории сохраняйте необходимые публичные ключи в
+keyring, отмечая отзыв через `revoked_key_ids`. Удаление такого ключа не разрешает
+сбросить local high-water. Автоматическая миграция между несовместимыми trust
+policies, доставка revocations и production key rotation не входят в этот срез.
+
+#### Подписанный файл
+
+Артефакт — один JSON не больше 2 MiB с ровно тремя полями:
+`metadata`, `catalog`, `signature`. ZIP, исполняемые файлы и mapping произвольных
+путей не принимаются. Duplicate keys, NaN, лишние поля, неподдержанные схемы,
+превышение ограничений вложенности или строк отклоняются.
+
+`catalog` содержит полный каталог той же схемы. У каждой локализованной статьи
+точные поля `title`, `description`, `impact`, `possible_causes`, `checks`,
+`remediation`. Название ограничено 256 символами; остальные строки — 8192,
+каждый список — 32 элементами. Сохраняются все три локали и полный набор codes.
+
+`metadata` содержит ровно:
+
+```text
+schema_version, kind, purpose, module_id, catalog_id,
+catalog_schema_version, api_major, baseline_semantics_sha256,
+catalog_version, sequence, issued_at, expires_at, development,
+catalog_sha256, catalog_bytes
+```
+
+Значения `schema_version`, `catalog_schema_version`, `api_major` — целое `1`;
+`kind="error_catalog_update"`, `purpose="installer-error-catalog"`.
+`sequence` — положительное целое не больше `2**63-1`. Временные поля используют
+канонический UTC; требуется `issued_at <= now < expires_at`, допустимая длина
+интервала и действующая политика. `development` — boolean. Display version
+ограничена 64 ASCII символами из набора букв, цифр, точки, дефиса и подчёркивания;
+для сравнения выпусков используется sequence, а не эта строка.
+
+Каноническое представление — UTF-8 JSON с `sort_keys=True`,
+`separators=(",", ":")`, `ensure_ascii=False`, `allow_nan=False`.
+`catalog_sha256` и `catalog_bytes` закрепляют именно канонические bytes `catalog`.
+`signature` имеет точные поля `algorithm="ed25519"`, `key_id`, `signature`;
+последнее — base64 подписи канонических bytes `metadata`. Таким образом подпись
+закрепляет содержимое, роль, область применения, sequence и срок действия.
+Отдельный `artifact_sha256` в preview/result относится ко всему исходному файлу.
+
+#### Просмотр, применение и отказ
+
+`errors_catalog_preview(path)` полностью проверяет файл и текущее состояние,
+возвращая `review_digest`, artifact digest, версию, sequence, previous sequence
+и policy digest. Он не создаёт state, lock или SQLite. `apply` требует
+`confirmed=True` и точный review; изменённый подписанный файл или другой принятый
+выпуск делает review устаревшим. Проверка выполняется до создания состояния
+и повторно под writer lock. Неподтверждённое применение и stale review не дают
+права записать новый каталог.
+
+Полные проверенные signed bytes, текущая sequence, high-water и accepted review
+сохраняются одной SQLite transaction. Новый выпуск должен иметь sequence выше
+сохранённой. Та же sequence с другим digest и более низкая sequence отклоняются.
+Тот же уже принятый файл с исходным accepted review после потерянного ответа
+возвращает `status="UNCHANGED", changed=False` без записи, если digest политики
+не изменился, а текущая политика и время всё ещё разрешают файл. После смены
+политики нужен новый preview; прежний review отклоняется как `PLAN_STALE`.
+Новый допустимый review того же файла также возвращает `UNCHANGED`.
+Произвольный digest это правило не обходит.
+
+Хранилище фиксировано в `state_dir/error-catalog`. Host выбирает `state_dir`
+вне release, payload и DataHome продукта. Создаются только отсутствующие
+каталоги с приватными правами; существующие каталоги не chmod'ятся.
+Существующие marker, lock и база проверяются, утраченная часть authority не
+восстанавливается молча. Приватное локальное состояние не защищает от полного
+отката или удаления всей истории тем же владельцем либо от отката всего диска.
+
+`errors_catalog_status()` возвращает `configured`, `status`,
+`effective_source`, `effective_catalog_version`, `stored_sequence`,
+`stored_artifact_sha256`, `high_water_sequence`, `policy_digest` и `reason`.
+Возможные статусы: `builtin`, `active`, `expired`, `revoked`, `unavailable`,
+`policy_invalid`. При неизвестном состоянии high-water равен `null`, а не
+фиктивному нулю. Истёкший или отозванный каталог, истёкшая политика уже созданного
+API и повреждённое состояние дают встроенную справку без сброса сохранённой
+истории. Ошибка чтения или проверки policy-config при bootstrap отклоняет
+создание API с `INTEGRITY_FAILED`; она не превращается в успешную загрузку
+непроверенной политики. Автоматического выбора более старого внешнего каталога нет.
+
+При hot SQLite journal или иной неоднозначности чтение не выполняет скрытый
+repair: встроенная справка доступна, обновление блокируется. Автоматическое
+восстановление такого хранилища пока не реализовано. Запись этого профиля
+поддерживается в Linux; наличие portable source tests не означает Windows ACL
+acceptance. Подписанная сетевая доставка, browser upload и HTTP import здесь
+не предоставляются. Существующие GET `/errors` и `/errors/{code}` читают
+выбранный каталог; POST не может установить каталог или передать ключи.
+
+Основные коды отказа: `INTEGRITY_FAILED` для подписи, схемы, expiry/revocation
+и rollback; `PLAN_STALE` для изменившегося review; `CONSENT_REQUIRED` без
+подтверждения; `STATE_STORAGE_UNAVAILABLE` при непригодном состоянии;
+`DISK_SPACE_LOW` для типизированной нехватки места; `OPERATION_CONFLICT` при
+занятом writer lock. Без отдельной регистрации policy изменение справки
+возвращает `CAPABILITY_UNSUPPORTED`. Ошибки не публикуют raw paths или текст ОС.
+
+CLI использует тот же API:
+
+```sh
+hinstall errors-catalog status --state-dir /private/installer-state \
+  --error-catalog-policy-config /private/catalog-policy.json
+hinstall errors-catalog preview --artifact /private/catalog-update.json \
+  --state-dir /private/installer-state \
+  --error-catalog-policy-config /private/catalog-policy.json
+hinstall errors-catalog apply --artifact /private/catalog-update.json \
+  --expected-review-digest REVIEW_DIGEST_FROM_PREVIEW --confirm \
+  --state-dir /private/installer-state \
+  --error-catalog-policy-config /private/catalog-policy.json
+```
+
+Для DEV артефактов во всех соответствующих вызовах добавляется явный
+`--allow-development`. У мастера есть отдельный trusted startup argument
+`--error-catalog-policy-config`; браузер не задаёт этот путь.
+
 ## CLI
 
 ```sh

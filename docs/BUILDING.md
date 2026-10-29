@@ -367,16 +367,30 @@ Job `linux-installed` создаёт build venv, wheelhouse и все клиен
 в `$RUNNER_TEMP`, вне checkout. После загрузки закреплённых wheel build и
 установка используют `--no-index`. Клиенты запускаются вне исходников и
 проверяют происхождение установленных модулей и неизменность package bytes.
-Выполняются SDK/CLI, prerequisites и 17 reference profiles: последовательные
+Выполняются SDK/CLI, prerequisites, обновление подписанного справочника ошибок
+и 17 reference profiles: последовательные
 updates, семь update fault scenarios, четыре recovery scenarios и
 `uninstall-restore`, `recovery-root-resume`, `recovery-stage-resume`, `repair` и `reinstall`.
 
 `tools/summarize_installed_checks.py --include-fault-profiles` требует все
-19 успешных квитанций с точным `GITHUB_SHA`, ожидаемым profile и одинаковым
+20 успешных квитанций с точным `GITHUB_SHA`, ожидаемым profile и одинаковым
 SHA-256 SDK wheel. Missing/stale/FAIL, неправильный профиль или иной wheel
 завершают job ошибкой. Отказ одного reference profile не пропускает остальные;
 каждый использует собственный work directory и имя receipt. Общая сводка
 выполняется также после отказа предыдущего шага.
+
+Отдельный `packaging/check_installed_error_catalog.py` собирает SDK wheel из
+проверяемой ревизии и устанавливает его вместе с тремя точными security wheels
+из уже проверенного wheelhouse. Этот профиль не требует runtime продукта.
+Клиенты используют установленный пакет вне checkout; сеть, запуск сторонних
+процессов и product hooks внутри клиента запрещены. Проверяются настоящая
+Ed25519-подпись, preview/apply/status через SDK и CLI, повторное открытие состояния
+новым процессом, три локали, отказ по чужой роли и устаревшему review, повтор
+подтверждённого apply без новой записи и возврат к builtin при истечении срока
+или отзыве. Квитанция `catalog-updates.json` должна иметь профиль
+`catalog-updates`, текущий `source_baseline` и тот же SHA-256 SDK wheel, что
+остальные проверки этого job. Успех только базового SDK/CLI не заменяет этот
+профиль. Ни сетевое распространение каталогов, ни Windows ACL этим не проверяются.
 
 `uninstall-restore` проверяет registered fresh v1→update v2→uninstall с
 сохранением данных→restore snapshot v1. Source v2 исполняется из проверенной
@@ -411,6 +425,6 @@ ciphertext и фактическая проверка полного before-imag
 данными и заново переданным проверенным candidate. Успех этих профилей
 не означает приёмку Windows, Docker, служб или аппаратного отключения питания.
 
-Четыре installed harness используют `SOURCE_DATE_EPOCH` из проверяемого commit
+Installed harness используют `SOURCE_DATE_EPOCH` из проверяемого commit
 для ZIP timestamps. Совпадение отдельных wheel подтверждается их receipts;
 герметичность всей сборки native installer этим не заявляется.

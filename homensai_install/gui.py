@@ -19,7 +19,7 @@ import webbrowser
 from .api.v1 import InstallerAPI
 from .api.model import bounded_json, checked_id, digest
 from .backends import configured_backends
-from .errors import ErrorCatalog, InstallerError
+from .errors import InstallerError
 from .i18n import normalize_locale
 from .local_artifacts import LocalArtifactUploads, MAX_UPLOAD_BYTES
 from .trust import load_trust_config
@@ -636,9 +636,9 @@ class WizardSession:
                 self._operations.add(op)
                 return result
         if method == "GET" and path == "/errors":
-            return {"errors": ErrorCatalog().search(query.get("query", [""])[0][:512], locale)}
+            return {"errors": api.errors_search(query.get("query", [""])[0][:512], locale=locale)}
         if method == "GET" and path.startswith("/errors/"):
-            return ErrorCatalog().describe(path.removeprefix("/errors/"), locale)
+            return api.errors_describe(path.removeprefix("/errors/"), locale=locale)
         if method == "GET" and path.startswith("/diagnostics/"):
             operation = path.removeprefix("/diagnostics/")
             self.bound_operation(operation)
@@ -781,6 +781,7 @@ def main(argv=None):
     parser.add_argument("--allow-development", action="store_true")
     parser.add_argument("--development-runtime")
     parser.add_argument("--docker-cli-config")
+    parser.add_argument("--error-catalog-policy-config")
     parser.add_argument("--docker-payload-options",
                         help="Доверенный JSON с отдельными подписанными Docker payload bindings")
     parser.add_argument("--no-browser", action="store_true")
@@ -798,7 +799,13 @@ def main(argv=None):
     engine = configured_backends(verifier=verifier, secret_provider=secret_provider,
                                  development_runtime=args.development_runtime,
                                  docker_cli_config=args.docker_cli_config)
-    api = InstallerAPI(args.state_dir, engine=engine, locale=normalize_locale(args.locale))
+    catalog_policy = None
+    if args.error_catalog_policy_config is not None:
+        from .error_catalog_updates import load_catalog_update_policy
+        catalog_policy = load_catalog_update_policy(
+            args.error_catalog_policy_config, allow_development=args.allow_development)
+    api = InstallerAPI(args.state_dir, engine=engine, locale=normalize_locale(args.locale),
+                       error_catalog_policy=catalog_policy)
     options = {key: getattr(args, key) for key in ("payload_dir", "inventory_file", "signature_file",
                                                   "release", "runtime_executable", "install_root")}
     if args.mode:

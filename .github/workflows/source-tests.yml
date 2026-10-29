@@ -164,6 +164,12 @@ jobs:
           --work-dir "$RUNNER_TEMP/hinstall-prerequisites-check"
           --receipt "$RUNNER_TEMP/hinstall-receipts/prerequisites.json"
           --wheelhouse "$RUNNER_TEMP/hinstall-wheelhouse"
+      - name: Verify installed signed error catalog updates
+        run: >-
+          python -B packaging/check_installed_error_catalog.py
+          --work-dir "$RUNNER_TEMP/hinstall-catalog-check"
+          --receipt "$RUNNER_TEMP/hinstall-receipts/catalog-updates.json"
+          --wheelhouse "$RUNNER_TEMP/hinstall-wheelhouse"
       - name: Verify installed reference profiles sequentially
         if: ${{ !cancelled() }}
         shell: bash

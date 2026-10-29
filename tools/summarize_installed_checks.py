@@ -11,8 +11,10 @@ import sys
 CHECKS = (
     ("sdk.json", "SDK / CLI", "source_baseline"),
     ("prerequisites.json", "Prerequisites", "source_head"),
+    ("catalog-updates.json", "Подписанный справочник", "source_baseline"),
     ("reference-update.json", "Reference fresh → v2 → v3", "sdk_source_revision"),
 )
+BASE_PROFILES = {"catalog-updates.json": "catalog-updates", "reference-update.json": "update"}
 FAULT_PROFILES = (
     "update-lost-ack", "update-missing-ledger", "update-tampered-backup", "update-foreign-backup",
     "update-live-data-drift", "update-candidate-health", "update-candidate-cleanup",
@@ -78,7 +80,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     valid_revision = REVISION.fullmatch(args.source_revision) is not None
     rows, failed, sdk_digest = [], False, None
-    checks = [(filename, label, field, "update" if filename == "reference-update.json" else None)
+    checks = [(filename, label, field, BASE_PROFILES.get(filename))
               for filename, label, field in CHECKS]
     if args.include_fault_profiles:
         checks.extend((profile + ".json", profile, "sdk_source_revision", profile) for profile in FAULT_PROFILES)

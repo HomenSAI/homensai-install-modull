@@ -3,6 +3,25 @@
   "module_version": "0.1.0",
   "adapter_protocol_version": "1.0",
   "error_catalog_version": "1.0.0",
+  "builtin_error_catalog_version": "1.0.0",
+  "error_catalog_updates": {
+    "registration": "trusted_sdk_bootstrap_policy",
+    "requires_explicit_policy": true,
+    "delivery": "local_signed_file_preview_apply",
+    "apply_platforms": [
+      "linux"
+    ],
+    "methods": [
+      "errors_catalog_status",
+      "errors_catalog_preview",
+      "errors_catalog_apply"
+    ],
+    "content_scope": "translations_of_builtin_codes",
+    "behavior_updates": false,
+    "http_import": false,
+    "network_delivery": false,
+    "historical_error_envelopes": "builtin_catalog"
+  },
   "manifest_schemas": [
     1,
     2

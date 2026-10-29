@@ -22,6 +22,8 @@ def receipts(tmp_path):
                  "wheel": {"sha256": str(index + 1) * 64}}
         if filename == "reference-update.json":
             value["profile"] = "update"
+        elif filename == "catalog-updates.json":
+            value["profile"] = "catalog-updates"
         (tmp_path / filename).write_text(json.dumps(value), encoding="utf-8")
     return tmp_path
 
@@ -37,15 +39,15 @@ def change(receipts, filename, patch):
     path.write_text(json.dumps(value), encoding="utf-8")
 
 
-def test_three_current_producer_shapes_pass_and_append_summary(receipts, capsys):
+def test_four_current_producer_shapes_pass_and_append_summary(receipts, capsys):
     destination = receipts / "step-summary.md"
     destination.write_text("Earlier step\n", encoding="utf-8")
-    # Extra artifacts are ignored; exactly the three known receipts are read.
+    # Лишние артефакты не заменяют четыре обязательные квитанции.
     (receipts / "other.json").write_text("not valid json", encoding="utf-8")
     assert run(receipts, "--summary", str(destination)) == 0
     output = capsys.readouterr()
-    assert not output.err and output.out.count("| PASS |") == 3
-    assert REVISION in output.out and all(str(i) * 64 in output.out for i in (1, 2, 3))
+    assert not output.err and output.out.count("| PASS |") == 4
+    assert REVISION in output.out and all(str(i) * 64 in output.out for i in (1, 2, 3, 4))
     assert destination.read_text() == "Earlier step\n\n" + output.out
     assert "production" in output.out
 
@@ -55,7 +57,22 @@ def test_missing_receipt_fails_even_when_other_profiles_pass(receipts, capsys, f
     (receipts / filename).unlink()
     assert run(receipts) == 1
     output = capsys.readouterr().out
-    assert "Квитанция отсутствует." in output and output.count("| PASS |") == 2
+    assert "Квитанция отсутствует." in output and output.count("| PASS |") == 3
+
+
+def test_catalog_receipt_is_mandatory_when_all_previous_producers_pass(receipts, capsys):
+    (receipts / "catalog-updates.json").unlink(missing_ok=True)
+    assert run(receipts) == 1
+    output = capsys.readouterr().out
+    assert "| Подписанный справочник | FAIL: Квитанция отсутствует." in output
+    assert output.count("| PASS |") == 3
+
+
+@pytest.mark.parametrize("profile", [None, "sdk", "update"])
+def test_generic_receipt_cannot_substitute_for_catalog_acceptance(receipts, capsys, profile):
+    change(receipts, "catalog-updates.json", {"profile": profile})
+    assert run(receipts) == 1
+    assert "Профиль квитанции не совпадает." in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("status", ["FAIL", "BLOCKED", "NOT RUN", None, "PASS\n| injected |"])
@@ -101,7 +118,7 @@ def test_preparation_receipt_cannot_substitute_for_update_acceptance(receipts, c
 def test_invalid_expected_revision_is_not_printed(receipts, capsys):
     assert summary.main(["--receipts", str(receipts), "--source-revision", "<script>RAW_REVISION</script>"]) == 1
     output = capsys.readouterr().out
-    assert "RAW_REVISION" not in output and output.count("FAIL:") == 3
+    assert "RAW_REVISION" not in output and output.count("FAIL:") == 4
 
 
 def test_summary_write_failure_has_fixed_error(receipts, capsys):
@@ -112,7 +129,7 @@ def test_summary_write_failure_has_fixed_error(receipts, capsys):
 def test_receipt_size_is_bounded(receipts, capsys, monkeypatch):
     monkeypatch.setattr(summary, "MAX_RECEIPT_BYTES", 4)
     assert run(receipts) == 1
-    assert capsys.readouterr().out.count("Превышен размер квитанции.") == 3
+    assert capsys.readouterr().out.count("Превышен размер квитанции.") == 4
 
 
 @pytest.fixture
@@ -130,7 +147,7 @@ def all_profiles(receipts):
 def test_optional_matrix_requires_all_sixteen_profiles_and_one_exact_wheel(all_profiles, capsys):
     assert run(all_profiles, "--include-fault-profiles") == 0
     output = capsys.readouterr().out
-    assert output.count("| PASS |") == 19
+    assert output.count("| PASS |") == 20
     for profile in summary.FAULT_PROFILES:
         assert "| " + profile + " | PASS |" in output
 
@@ -140,7 +157,7 @@ def test_missing_optional_profile_cannot_be_hidden_by_other_successes(all_profil
     (all_profiles / (profile + ".json")).unlink()
     assert run(all_profiles, "--include-fault-profiles") == 1
     output = capsys.readouterr().out
-    assert output.count("| PASS |") == 18
+    assert output.count("| PASS |") == 19
     assert "| " + profile + " | FAIL: Квитанция отсутствует." in output
 
 
@@ -159,16 +176,16 @@ def test_optional_profile_checks_exact_identity_and_status(all_profiles, capsys,
     assert reason in output and "RAW_PROFILE" not in output
 
 
-@pytest.mark.parametrize("filename", ["prerequisites.json", "reference-update.json"])
+@pytest.mark.parametrize("filename", ["prerequisites.json", "reference-update.json", "catalog-updates.json"])
 def test_optional_matrix_rejects_different_baseline_wheel(all_profiles, capsys, filename):
     change(all_profiles, filename, {"wheel": {"sha256": "2" * 64}})
     assert run(all_profiles, "--include-fault-profiles") == 1
     assert "SHA-256 SDK wheel отличается от базовой проверки." in capsys.readouterr().out
 
 
-def test_default_three_receipts_do_not_require_optional_matrix(receipts, capsys):
+def test_default_four_receipts_do_not_require_optional_matrix(receipts, capsys):
     assert run(receipts) == 0
-    assert capsys.readouterr().out.count("| PASS |") == 3
+    assert capsys.readouterr().out.count("| PASS |") == 4
 
 
 @pytest.mark.skipif(os.name != "posix" or shutil.which("bash") is None,

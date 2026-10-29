@@ -37,6 +37,8 @@ def _common(parser, *, root=False):
     parser.add_argument("--locale", choices=("ru", "en", "de"), default=None if root else argparse.SUPPRESS)
     parser.add_argument("--json", action="store_true", default=False if root else argparse.SUPPRESS)
     parser.add_argument("--trust-config", default=default)
+    parser.add_argument("--error-catalog-policy-config", default=default,
+                        help="Отдельная доверенная политика подписанных обновлений справочника")
     parser.add_argument("--allow-development", action="store_true", default=False if root else argparse.SUPPRESS)
     parser.add_argument("--development-runtime", default=default)
     parser.add_argument("--docker-cli-config", default=default,
@@ -143,6 +145,17 @@ def parser() -> Parser:
     _common(errors)
     errors.add_argument("--code")
     errors.add_argument("--query", default="")
+    catalog = commands.add_parser("errors-catalog", help="Локальное подписанное обновление справочника")
+    _common(catalog)
+    catalog_commands = catalog.add_subparsers(dest="catalog_command", required=True)
+    for name in ("status", "preview", "apply"):
+        sub = catalog_commands.add_parser(name)
+        _common(sub)
+        if name in {"preview", "apply"}:
+            sub.add_argument("--artifact", required=True)
+        if name == "apply":
+            sub.add_argument("--expected-review-digest", required=True)
+            sub.add_argument("--confirm", action="store_true")
     statistics = commands.add_parser("statistics")
     _common(statistics)
     statistics.add_argument("--product-id")
@@ -192,6 +205,7 @@ def _sdk(args) -> InstallerAPI:
         args.state_dir or default_state_dir(), trust_config=args.trust_config,
         allow_development=args.allow_development, secret_provider=secret_provider,
         development_runtime=args.development_runtime, docker_cli_config=args.docker_cli_config,
+        error_catalog_policy_config=args.error_catalog_policy_config,
         locale=args.locale or "ru")
 
 
@@ -255,7 +269,8 @@ def _execute(args, *, api: InstallerAPI | None = None):
         if (not isinstance(api, InstallerAPI) or args.command == "init-adapter"
                 or args.allow_development
                 or any(getattr(args, name) is not None for name in
-                       ("state_dir", "trust_config", "development_runtime", "docker_cli_config"))):
+                       ("state_dir", "trust_config", "development_runtime", "docker_cli_config",
+                        "error_catalog_policy_config"))):
             raise InstallerError("INVALID_REQUEST", details={"reason": "injected_api_bootstrap_override"})
     if args.command == "init-adapter":
         from .scaffold import scaffold_product
@@ -296,6 +311,13 @@ def _execute(args, *, api: InstallerAPI | None = None):
         return api.resume(args.operation_id, _json_file(args.decisions), background=False)
     if args.command == "errors":
         return api.errors_describe(args.code) if args.code else {"matches": api.errors_search(args.query)}
+    if args.command == "errors-catalog":
+        if args.catalog_command == "status":
+            return api.errors_catalog_status()
+        if args.catalog_command == "preview":
+            return api.errors_catalog_preview(args.artifact)
+        return api.errors_catalog_apply(args.artifact,
+            expected_review_digest=args.expected_review_digest, confirmed=args.confirm)
     if args.command == "statistics":
         return api.statistics_query(**{key: getattr(args, key) for key in ("product_id", "product_version", "action", "status", "target", "since", "until")
                                        if getattr(args, key) is not None})

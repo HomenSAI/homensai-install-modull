@@ -229,12 +229,21 @@ class InstallerAPI:
     """
 
     def __init__(self, state_dir: str | Path, *, engine=None, locale: str = "ru", diagnostics=None,
-                 prerequisites=None, execution_domain=None):
+                 prerequisites=None, execution_domain=None, error_catalog_policy=None):
         self.state_dir = Path(state_dir).absolute()
         self._engine_instance = engine
         self.locale = locale
         self._diagnostic_instance = diagnostics
         self._diagnostic_unavailable = False
+        self._error_catalog_store = None
+        if error_catalog_policy is not None:
+            from homensai_install.error_catalog_updates import CatalogUpdatePolicy, CatalogUpdateStore
+            if not isinstance(error_catalog_policy, CatalogUpdatePolicy):
+                fail("INVALID_REQUEST", details={"reason": "trusted_error_catalog_policy_required"})
+            # Host-owned API state stays outside product releases and DataHome.
+            # A catalog artifact cannot select its output location or trust keys.
+            self._error_catalog_store = CatalogUpdateStore(
+                self.state_dir / "error-catalog", policy=error_catalog_policy)
         if prerequisites is not None:
             # Lazy: coordinator itself imports the model/journal package.
             from homensai_install.prerequisite_execution import PrerequisiteCoordinator
@@ -259,7 +268,8 @@ class InstallerAPI:
                        allow_development: bool = False, development_runtime: str | Path | None = None,
                        docker_cli_config: str | Path | None = None, secret_provider=None,
                        locale: str = "ru", prerequisites=None, execution_domain=None,
-                       product_adapter_descriptor: str | None = None) -> "InstallerAPI":
+                       product_adapter_descriptor: str | None = None,
+                       error_catalog_policy_config: str | Path | None = None) -> "InstallerAPI":
         """Создать общий router из доверенных локальных настроек bootstrap.
 
         Эти настройки задаёт приложение-хост, не manifest/options/HTTP body.
@@ -278,6 +288,11 @@ class InstallerAPI:
             fail("CONSENT_REQUIRED")
         verifier = (load_trust_config(trust_config, allow_development=allow_development)
                     if trust_config is not None else None)
+        catalog_policy = None
+        if error_catalog_policy_config is not None:
+            from homensai_install.error_catalog_updates import load_catalog_update_policy
+            catalog_policy = load_catalog_update_policy(
+                error_catalog_policy_config, allow_development=allow_development)
         try:
             engine = configured_backends(verifier=verifier, secret_provider=secret_provider,
                                          development_runtime=development_runtime,
@@ -286,7 +301,7 @@ class InstallerAPI:
         except EngineError as error:
             raise InstallerError(error.code, details=error.details) from None
         return cls(state_dir, engine=engine, locale=locale, prerequisites=prerequisites,
-                   execution_domain=execution_domain)
+                   execution_domain=execution_domain, error_catalog_policy=catalog_policy)
 
     def _engine(self):
         if self._engine_instance is None:
@@ -353,9 +368,19 @@ class InstallerAPI:
                  "reason": "state_directory_overlaps_managed_files"})
 
     def describe(self) -> dict:
+        from homensai_install.errors import ErrorCatalog
         return {
             "api_version": API_VERSION, "module_version": __version__, "adapter_protocol_version": "1.0",
-            "error_catalog_version": "1.0.0", "manifest_schemas": [1, 2], "normalized_model_version": 1,
+            "error_catalog_version": self.errors_catalog_status()["effective_catalog_version"],
+            "builtin_error_catalog_version": ErrorCatalog().version,
+            "error_catalog_updates": {
+                "registration": "trusted_sdk_bootstrap_policy", "requires_explicit_policy": True,
+                "delivery": "local_signed_file_preview_apply", "apply_platforms": ["linux"],
+                "methods": ["errors_catalog_status", "errors_catalog_preview", "errors_catalog_apply"],
+                "content_scope": "translations_of_builtin_codes", "behavior_updates": False,
+                "http_import": False, "network_delivery": False,
+                "historical_error_envelopes": "builtin_catalog"},
+            "manifest_schemas": [1, 2], "normalized_model_version": 1,
             "sdk": "homensai_install.api.v1.InstallerAPI", "cli": "hinstall",
             "product_adapter": {"sdk": "homensai_install.adapters.ExecutableProductAdapter",
                                 "protocol_version": "1.0", "registration": "explicit_sdk",
@@ -974,13 +999,43 @@ class InstallerAPI:
             raise
         return self.status(operation_id)
 
-    def errors_describe(self, code: str) -> dict:
+    def _error_catalog(self):
         from homensai_install.errors import ErrorCatalog
-        return ErrorCatalog().describe(code, locale=self.locale)
+        return (self._error_catalog_store.resolve_catalog()
+                if self._error_catalog_store is not None else ErrorCatalog())
 
-    def errors_search(self, query: str, *, limit: int = 20) -> list:
+    def errors_catalog_status(self) -> dict:
+        """Текущая справка и состояние её доверия; без создания состояния."""
+        if self._error_catalog_store is not None:
+            return self._error_catalog_store.status()
         from homensai_install.errors import ErrorCatalog
-        return ErrorCatalog().search(query, locale=self.locale, limit=limit)
+        return {"schema_version": 1, "configured": False, "status": "builtin",
+                "effective_source": "builtin", "effective_catalog_version": ErrorCatalog().version,
+                "stored_sequence": None, "stored_artifact_sha256": None,
+                "high_water_sequence": 0, "policy_digest": None, "reason": None}
+
+    def _configured_error_catalog(self):
+        if self._error_catalog_store is None:
+            from homensai_install.errors import InstallerError
+            raise InstallerError("CAPABILITY_UNSUPPORTED", phase="error_catalog",
+                                 details={"reason": "error_catalog_updates_not_configured"})
+        return self._error_catalog_store
+
+    def errors_catalog_preview(self, artifact_path: str | Path) -> dict:
+        """Проверить подписанную справку и подготовить review без записи."""
+        return self._configured_error_catalog().preview(artifact_path)
+
+    def errors_catalog_apply(self, artifact_path: str | Path, *,
+                             expected_review_digest: str, confirmed: bool = False) -> dict:
+        """Явно применить проверенное обновление только к справке этого API."""
+        return self._configured_error_catalog().apply(
+            artifact_path, expected_review_digest=expected_review_digest, confirmed=confirmed)
+
+    def errors_describe(self, code: str, *, locale: str | None = None) -> dict:
+        return self._error_catalog().describe(code, locale=self.locale if locale is None else locale)
+
+    def errors_search(self, query: str, *, limit: int = 20, locale: str | None = None) -> list:
+        return self._error_catalog().search(query, locale=self.locale if locale is None else locale, limit=limit)
 
     def diagnostics_get(self, operation_id: str) -> dict:
         self.status(operation_id)

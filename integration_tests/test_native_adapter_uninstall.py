@@ -157,8 +157,8 @@ def test_registered_public_uninstall_then_restore_uses_retained_source_and_fresh
     archive_crypto.restore_archive(safety, oracle, password_provider=lambda: 'synthetic-archive-passphrase',
                                    expected_product_id=first['manifest']['product_id'])
     assert (oracle / 'roots/data/document.txt').read_text() == 'post-uninstall latest data'
-    assert api.capabilities(fixture.target)['actions']['repair']['supported'] is False
-    assert api.capabilities(fixture.target)['actions']['reinstall']['supported'] is False
+    assert api.capabilities(fixture.target)['actions']['repair']['supported'] is True
+    assert api.capabilities(fixture.target)['actions']['reinstall']['supported'] is True
 
 
 def fresh_quiesce_request(fixture, adapter):

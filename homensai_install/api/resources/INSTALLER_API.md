@@ -44,7 +44,22 @@ checked = api.validate("my-product.manifest.json")
 print(checked["normalized_manifest"])
 ```
 
-`state_dir` — отдельный приватный каталог владельца установки, вне payload.
+`state_dir` — отдельный приватный каталог владельца установки, вне payload,
+`app`, `releases` и всех постоянных roots продукта: `data`, `backup`, `services`,
+`config`, `runtime`. Журнал API должен переживать замену этих каталогов при
+восстановлении и не становиться собственным писателем внутри product snapshot.
+Для обычного bootstrap выбирайте каталог состояния за пределами `install_root`.
+При известных v2 paths и явно переданном payload API проверяет это размещение
+перед сохранением плана, `submit` и `resume`, включая старые сохранённые планы.
+Недопустимое размещение возвращает `INVALID_REQUEST` с
+`details.field_path="state_dir"` и
+`details.reason="state_directory_overlaps_managed_files"`; исходный путь не
+раскрывается. При `resume` проверка предшествует даже записи interruption status.
+Проверка не переносит существующий журнал и не придумывает отсутствующие v1 paths.
+Для транспортных backend абсолютные пути другой ОС остаются в собственном
+пространстве имён без обращения к чужому диску. Локальные payload и абсолютные
+manifest roots проверяются независимо от формата `install_root`; native backend
+по-прежнему сам проверяет совместимость целевой ОС и схему DataHome.
 На POSIX нужны права `0700`, база журнала — `0600`; symlink/reparse paths
 отклоняются. API не создаёт каталог при `describe`, `schema` или `validate`.
 

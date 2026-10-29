@@ -312,6 +312,46 @@ class InstallerAPI:
         except FileNotFoundError:
             fail("OPERATION_NOT_FOUND")
 
+    def _check_state_location(self, manifest: dict, options: dict) -> None:
+        """Журнал API не должен попадать в заменяемое дерево продукта."""
+        from shared.datahome import DataHomeError, _windows_reserved, checked_path, contains
+
+        def managed_path(value):
+            # A transport backend may describe another OS. Such absolute paths
+            # have a distinct namespace and must never be resolved on this host.
+            # Native backends still validate their own target and DataHome.
+            if (type(value) is not str or not value or _windows_reserved(value)
+                    or any(ord(c) < 32 or ord(c) == 127 for c in value)
+                    or value.startswith(("//", "\\\\"))
+                    or ".." in value.replace("\\", "/").split("/")):
+                raise DataHomeError("Недопустимый путь")
+            windows = bool(PureWindowsPath(value).drive)
+            path = (PureWindowsPath if windows else PurePosixPath)(value)
+            if not path.is_absolute():
+                raise DataHomeError("Требуется абсолютный путь")
+            return checked_path(value) if windows == (os.name == "nt") else path
+
+        try:
+            state = checked_path(self.state_dir)
+        except (DataHomeError, OSError):
+            fail("STATE_STORAGE_UNAVAILABLE")
+        protected = []
+        try:
+            if manifest.get("schema_version") == 2 and options.get("install_root") is not None:
+                base = managed_path(options["install_root"])
+                for value in manifest["paths"].values():
+                    relative = value.replace("\\", "/")
+                    path = (PureWindowsPath(relative) if PureWindowsPath(relative).drive
+                            else PurePosixPath(relative))
+                    protected.append(managed_path(str(path if path.is_absolute() else base / relative)))
+            if options.get("payload_dir") is not None:
+                protected.append(managed_path(options["payload_dir"]))
+        except (DataHomeError, OSError, TypeError, ValueError):
+            fail("INVALID_REQUEST", details={"reason": "unsafe_managed_path"})
+        if any(contains(root, state) for root in protected):
+            fail("INVALID_REQUEST", details={"field_path": "state_dir",
+                 "reason": "state_directory_overlaps_managed_files"})
+
     def describe(self) -> dict:
         return {
             "api_version": API_VERSION, "module_version": __version__, "adapter_protocol_version": "1.0",
@@ -573,6 +613,7 @@ class InstallerAPI:
         engine_plan = bounded_json(self._engine_call("plan", action, source, target, current, options))
         if type(engine_plan) is not dict:
             fail("UNEXPECTED_ERROR")
+        self._check_state_location(source, options)
         required = engine_plan.get("required_consents", [])
         if (type(required) is not list or len(required) > 32
                 or any(type(item) is not str or not item or len(item) > 512 for item in required)):
@@ -618,6 +659,7 @@ class InstallerAPI:
         required = set(plan["required_consents"]) | {plan["review_consent_ref"]}
         if not required.issubset(consents):
             fail("CONSENT_REQUIRED", details={"required_consents": sorted(required)})
+        self._check_state_location(plan["source_manifest"], plan["options"])
         request_digest = digest({"plan_id": plan_id, "plan_digest": plan_digest, "consent_refs": consents})
         journal = self._journal()
         old = journal.by_key(idempotency_key)
@@ -883,8 +925,13 @@ class InstallerAPI:
         decisions = bounded_json(decisions or {})
         if type(decisions) is not dict:
             fail("INVALID_REQUEST")
-        operation = self.status(operation_id)
         journal = self._journal()
+        # Даже status может записать interruption в API journal. Проверяем
+        # старые планы до этой записи и до восстановления execution lease.
+        original = journal.operation(operation_id)
+        plan = self.get_plan(original["plan_id"])
+        self._check_state_location(plan["source_manifest"], plan["options"])
+        operation = self.status(operation_id)
         binding = journal.operation_lease_binding(operation_id) if self.execution_domain is not None else None
         result = operation.get("result") or {}
         terminal_status = (result.get("status") if operation.get("execution_lease_recovery_required")
@@ -906,7 +953,6 @@ class InstallerAPI:
             return self.status(operation_id)
         if operation["status"] not in RESUMABLE or not callable(getattr(self._engine(), "resume", None)):
             fail("RECOVERY_REQUIRED")
-        plan = self.get_plan(operation["plan_id"])
         lease = (self.execution_domain.reserve("product", operation_id, binding, resume=True,
                                                participant=self.state_dir)
                  if self.execution_domain is not None else None)

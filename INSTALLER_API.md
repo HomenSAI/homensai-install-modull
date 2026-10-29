@@ -813,6 +813,19 @@ review = api.plan("install", manifest, target,
 
 После явного prepare_migration("update", ...) и review передавайте migration_review_id в обычный plan. План закрепляет source и target adapters отдельно и объявляет update_failure_policy="preserve_forward_journal_no_automatic_restore". Исполнение останавливает owned writers, создаёт проверенные encrypted backup receipts и перед apply повторно сравнивает все persistent roots со восстановленным snapshot. Пути и contents архивов не передаются product hook: apply data содержит только plan_digest, backup_receipt_id и public migration_binding. UNKNOWN допускает только reconciliation исходной операции; потеря ledger не разрешает повтор effect. Ошибка candidate readiness сохраняет новые данные и forward journal, отдельно фиксируя primary/cleanup codes. Автоматическое восстановление старого snapshot при update не выполняется. Явные restore/rollback описаны ниже. Installed/clean-host scope проверяйте по актуальным receipts, не по наличию API.
 
+При выдаче или повторной проверке `BackupReceiptStore` известная нехватка
+места возвращает `code=DISK_SPACE_LOW`, `phase=product_adapter`,
+`details.reason=backup_receipt_insufficient_space`. Основание — типизированный
+отказ проверки свободного места либо системный `ENOSPC`; текст исключения
+и внутренние пути не публикуются. Неудачная выдача не создаёт разрешение на
+миграцию, а существующая квитанция после неудачной проверки не позволяет
+запустить `migration_apply`. После освобождения места требуется явный
+`resume` исходной операции и повторная полная проверка её архива.
+Если повторная проверка отклонена внутри migration authorizer, публичный
+`error.code` остаётся `DISK_SPACE_LOW`, но текущий engine не переносит
+в эту ошибку операции `phase` и `details` внутреннего отказа.
+Интерфейс должен выбирать объяснение по `error.code`.
+
 
 ## Явные restore и rollback ProductAdapter
 

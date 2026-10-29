@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from copy import deepcopy
+import errno
 import hashlib
 import os
 from pathlib import Path
@@ -17,6 +18,7 @@ import stat
 import tempfile
 
 from shared import archive_crypto
+from shared import archive as plain_archive
 from shared.datahome import checked_path, DataHomeError
 from shared.update_plan import _atomic_write
 
@@ -35,6 +37,15 @@ _VERIFIED = "encrypted_archive_and_recovery_payload_restored"
 
 def _fail(reason):
     raise InstallerError("RECOVERY_REQUIRED", phase="product_adapter", details={"reason": reason})
+
+
+def _verification_failure(error, reason):
+    """Only a typed budget failure or OS ENOSPC proves insufficient space."""
+    if (isinstance(error, plain_archive.InsufficientSpaceError)
+            or isinstance(error, OSError) and error.errno == errno.ENOSPC):
+        raise InstallerError("DISK_SPACE_LOW", phase="product_adapter",
+            details={"reason": "backup_receipt_insufficient_space"}) from None
+    _fail(reason)
 
 
 def _binding(value):
@@ -170,8 +181,8 @@ class BackupReceiptStore:
             return {"receipt_id": receipt_id, **deepcopy(body)}
         except InstallerError:
             raise
-        except Exception:
-            _fail("backup_receipt_issuance_failed")
+        except Exception as error:
+            _verification_failure(error, "backup_receipt_issuance_failed")
 
     def _read(self, receipt_id):
         if type(receipt_id) is not str or not _HASH.fullmatch(receipt_id):
@@ -213,8 +224,8 @@ class BackupReceiptStore:
             return {"receipt_id": receipt_id, **deepcopy(body)}
         except InstallerError:
             raise
-        except Exception:
-            _fail("backup_receipt_verification_failed")
+        except Exception as error:
+            _verification_failure(error, "backup_receipt_verification_failed")
 
 
 class MigrationReviewStore:

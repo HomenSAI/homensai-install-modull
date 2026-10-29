@@ -186,6 +186,20 @@ schema 1 отвергается с `PLAN_STALE`; fresh review schema 1 сохр�
 содержимое собственного `services/update-<native-token>.json`; его type,
 ownership и безопасность всё равно проверяются.
 
+Типизированная нехватка места при выдаче или повторной проверке
+`BackupReceiptStore` сохраняется как `DISK_SPACE_LOW` с
+`phase=product_adapter` и `details.reason=backup_receipt_insufficient_space`.
+Проверяются конкретный тип ошибки archive space guard и системный `ENOSPC`,
+без анализа текста сообщения. Остальные ошибки сохраняют прежнюю
+классификацию. Отказ блокирует `migration_apply`; прежняя квитанция и ciphertext
+не заменяют успешную повторную проверку. После освобождения места нужен явный
+resume исходной операции с полным decrypt/restore того же архива.
+Migration authorizer сохраняет конкретный `error.code`, но заменяет подробность
+своим фиксированным `details.reason=migration_receipt_verification_failed`.
+Следующий engine wrapper передаёт публичной операции только этот код:
+`phase=null`, `details={}`. Контракт базового store и итоговую ошибку операции
+нужно различать; интерфейс использует `error.code`.
+
 Quiesce intent связан с native token, фазой UpdatePlan и release. Source stop
 и каждая candidate cleanup имеют отдельные started/complete/result записи.
 Неопределённый исход одной фазы не снимается успехом другой. Migration hook

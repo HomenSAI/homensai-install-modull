@@ -228,9 +228,9 @@ def run(config, phase):
     elif phase == "unsupported":
         capabilities = api.capabilities(config["target"])["actions"]
         for name in ("repair", "reinstall", "install", "update"):
-            assert capabilities[name]["supported"] is (name in {"install", "update"})
-            # Generic fresh/update capability does not replace the signed
-            # migration hooks missing from this maintenance-only descriptor.
+            assert capabilities[name]["supported"] is True
+            # Generic capability does not replace this descriptor's missing
+            # signed migration/schema-observation hooks or a reviewed authority.
             try:
                 api.plan(name, manifest, config["target"], options=options)
             except InstallerError as error:

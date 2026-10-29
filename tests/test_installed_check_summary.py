@@ -127,10 +127,10 @@ def all_profiles(receipts):
     return receipts
 
 
-def test_optional_matrix_requires_all_twelve_profiles_and_one_exact_wheel(all_profiles, capsys):
+def test_optional_matrix_requires_all_fourteen_profiles_and_one_exact_wheel(all_profiles, capsys):
     assert run(all_profiles, "--include-fault-profiles") == 0
     output = capsys.readouterr().out
-    assert output.count("| PASS |") == 15
+    assert output.count("| PASS |") == 17
     for profile in summary.FAULT_PROFILES:
         assert "| " + profile + " | PASS |" in output
 
@@ -140,7 +140,7 @@ def test_missing_optional_profile_cannot_be_hidden_by_other_successes(all_profil
     (all_profiles / (profile + ".json")).unlink()
     assert run(all_profiles, "--include-fault-profiles") == 1
     output = capsys.readouterr().out
-    assert output.count("| PASS |") == 14
+    assert output.count("| PASS |") == 16
     assert "| " + profile + " | FAIL: Квитанция отсутствует." in output
 
 
@@ -175,13 +175,13 @@ def test_default_three_receipts_do_not_require_optional_matrix(receipts, capsys)
                     reason="CI shell-loop regression requires POSIX and bash; Windows execution is separate")
 def test_ci_runs_exactly_the_accepted_profiles_with_unique_receipts():
     # Exercise the actual checked-in shell program with a bounded fake producer.
-    # One failed profile must not prevent the twelve other profiles or overwrite
+    # One failed profile must not prevent the fourteen other profiles or overwrite
     # their receipt names; no product/install success is inferred from this test.
     import subprocess
     import sys
     import tempfile
     text = (ROOT / ".github/workflows/source-tests.yml").read_text()
-    block = text.split("      - name: Verify all thirteen installed reference profiles sequentially\n", 1)[1]
+    block = text.split("      - name: Verify all fifteen installed reference profiles sequentially\n", 1)[1]
     block = block.split("      - name:", 1)[0].split("        run: |\n", 1)[1]
     script = "\n".join(line[10:] for line in block.splitlines())
     with tempfile.TemporaryDirectory(prefix="hinstall-ci-matrix-") as directory:
@@ -203,5 +203,5 @@ def test_ci_runs_exactly_the_accepted_profiles_with_unique_receipts():
         observed = {path.stem: json.loads(path.read_text()) for path in (base / "hinstall-receipts").glob("*.json")}
         assert set(observed) == {"reference-update", *summary.FAULT_PROFILES}
         assert {value["profile"] for value in observed.values()} == {"update", *summary.FAULT_PROFILES}
-        assert len({value["work"] for value in observed.values()}) == 13
+        assert len({value["work"] for value in observed.values()}) == 15
     assert "if: always()" in text and "--include-fault-profiles" in text

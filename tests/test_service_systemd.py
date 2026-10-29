@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import shutil
+import selectors
 
 import pytest
 
@@ -90,13 +91,18 @@ def test_typed_property_batch_preserves_argument_boundaries():
 def test_kernel_process_identity_is_verified_against_real_child(tmp_path):
     runner = isolated_runner()
     executable = str(Path(sys.executable).resolve())
-    command = [executable, "-c", "import sys; sys.stdin.read()"]
+    command = [executable, "-c", "import sys; print('ready', flush=True); sys.stdin.read()"]
     expected = {"executable": executable, "working_directory": str(tmp_path), "start_argv": command,
                 "environment": {"PYTHONDONTWRITEBYTECODE": "1", "HOMENSAI_INSTALLATION_ID": "a" * 32}}
-    process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+    process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                stderr=subprocess.DEVNULL, cwd=tmp_path, env=expected["environment"])
     try:
-        # Popen returns only after successful exec; proc identity is available.
+        # Sample the real child after its own ready acknowledgement. An immediate
+        # proc observation can race startup even after Popen has returned.
+        with selectors.DefaultSelector() as selector:
+            selector.register(process.stdout, selectors.EVENT_READ)
+            assert selector.select(timeout=5), "Synthetic child did not become ready"
+            assert process.stdout.readline() == b"ready\n"
         group = next(line[3:] for line in Path("/proc", str(process.pid), "cgroup").read_text().splitlines() if line.startswith("0::"))
         snapshot = {"MainPID": process.pid, "ControlGroup": group}
         runner.verify_process(snapshot, expected)
@@ -106,6 +112,7 @@ def test_kernel_process_identity_is_verified_against_real_child(tmp_path):
     finally:
         process.stdin.close()
         process.wait(timeout=5)
+        process.stdout.close()
 
 
 def test_environment_filter_never_accepts_extra_secrets_or_shell_hooks():

@@ -367,12 +367,12 @@ Job `linux-installed` создаёт build venv, wheelhouse и все клиен
 в `$RUNNER_TEMP`, вне checkout. После загрузки закреплённых wheel build и
 установка используют `--no-index`. Клиенты запускаются вне исходников и
 проверяют происхождение установленных модулей и неизменность package bytes.
-Выполняются SDK/CLI, prerequisites и 13 reference profiles: последовательные
+Выполняются SDK/CLI, prerequisites и 15 reference profiles: последовательные
 updates, семь update fault scenarios, четыре recovery scenarios и
-`uninstall-restore`.
+`uninstall-restore`, `repair` и `reinstall`.
 
 `tools/summarize_installed_checks.py --include-fault-profiles` требует все
-15 успешных квитанций с точным `GITHUB_SHA`, ожидаемым profile и одинаковым
+17 успешных квитанций с точным `GITHUB_SHA`, ожидаемым profile и одинаковым
 SHA-256 SDK wheel. Missing/stale/FAIL, неправильный профиль или иной wheel
 завершают job ошибкой. Отказ одного reference profile не пропускает остальные;
 каждый использует собственный work directory и имя receipt. Общая сводка
@@ -384,6 +384,14 @@ SHA-256 SDK wheel. Missing/stale/FAIL, неправильный профиль �
 проверяются отказ при повреждённом retained receipt, настоящий полный
 `before_restore` и сохранность данных, настроек, credentials и схемы.
 Это Linux DEV acceptance, без закрытия release gates.
+
+`repair` и `reinstall` проверяют замену управляемого кода той же подписанной
+версии и сохранение текущей схемы, пользовательских данных, настроек, ключей
+и installation identity. Повреждённый исходный код не должен исполняться;
+полный `before_maintenance` archive проверяется фактическим восстановлением.
+`reinstall` включает возвращение после завершённого удаления с сохранёнными
+данными и заново переданным проверенным candidate. Успех этих профилей
+не означает приёмку Windows, Docker, служб или аппаратного отключения питания.
 
 Четыре installed harness используют `SOURCE_DATE_EPOCH` из проверяемого commit
 для ZIP timestamps. Совпадение отдельных wheel подтверждается их receipts;

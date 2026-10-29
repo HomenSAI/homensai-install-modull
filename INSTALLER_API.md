@@ -657,8 +657,8 @@ Job Object backend и приёмки. Версия/entrypoint доступны �
 product_adapter_descriptor="installer/adapter.json")`. Эта регистрация доступна
 только для Linux/native/user: single-step fresh `install`, single-step `update`,
 `start`, `stop`, `backup`, `uninstall` с сохранением данных, а также явные
-`restore` и `rollback` той же установки. SDK по умолчанию её не включает.
-`repair` и `reinstall` при включённом adapter заранее отклоняются.
+`restore` и `rollback` той же установки, а также `repair` и `reinstall`
+той же подписанной версии и схемы. SDK по умолчанию её не включает.
 Без регистрации сохраняется прежний native путь manifest v2.
 
 План закрепляет descriptor и verified release; перед эффектами binding проверяется
@@ -672,8 +672,10 @@ proof и явного prepare_migration. Single-step update требует от�
 При ошибке сохраняется forward journal без автоматического legacy restore.
 Restore и rollback требуют отдельного полного архива текущего состояния,
 проверенного recovery payload и явного reconciliation исходной операции при
-неопределённом результате. Полная платформенная приёмка, а также зарегистрированные
-adapter repair/reinstall остаются открытыми.
+неопределённом результате. Repair/reinstall используют заново проверенный
+candidate, полный before-maintenance archive и собственные durable intents
+замены кода; повреждённый installed adapter не исполняется. Полная платформенная
+приёмка этих действий остаётся открытой.
 Подробный контракт: `PRODUCT_ADAPTER_EXECUTION.md` в ресурсах установленного SDK
 и [документ проекта](docs/PRODUCT_ADAPTER_EXECUTION.md). Общий lifecycle в продукт
 не копируется; полная приёмка HIM-015/023 остаётся открытой.
@@ -801,8 +803,9 @@ review = api.plan("install", manifest, target,
 
 Зарегистрированный adapter поддерживает эти действия в development scope
 Linux/native/user. Это same-installation recovery: установка, target, DataHome,
-выбранные modes и pointer locator должны совпадать. `repair` и `reinstall`
-через ProductAdapter пока не поддерживаются. Проверяйте текущий
+выбранные modes и pointer locator должны совпадать. Для замены кода той же
+версии без замены данных используйте отдельные `repair` и `reinstall`.
+Проверяйте текущий
 `capabilities(target)` и результат `plan`, а не только список действий discovery.
 
 `archive_path` указывает на полный зашифрованный snapshot вне управляемых
@@ -841,6 +844,40 @@ readiness и cleanup сохраняются раздельно в публичн
 автоматический повтор разрушительного шага. Это fail-closed recovery boundary;
 полная автоматическая приёмка power-loss, Windows/Docker и clean-host остаётся
 отдельной задачей.
+
+### ProductAdapter repair и reinstall
+
+Операции поддерживаются в Linux/native/user для той же подписанной версии и
+схемы. Передайте текущие `release`, `modes`, проверенные `payload_dir`,
+`inventory_file`, `signature_file`, `runtime_executable`, данные показанного
+EULA и доступный `backup_password_ref`. Существующие installation identity и
+secret references сохраняются; новые alias в options не заменяют сохранённые
+ключи. Reinstall после завершённого удаления требует новый валидный candidate
+и retained authority исходной установки.
+
+Обычный `plan` не запускает hooks и выдаёт `engine_plan.code_maintenance` с
+`review_sha256`, `candidate_binding_sha256`, `release`, `installation_id` и
+привязками исходного состояния. Во время исполнения повреждённый старый код
+не используется. Проверенный candidate должен подтвердить остановку записи
+реального DataHome и read-only same-schema plan с пустыми steps. Полный
+зашифрованный archive всех persistent roots с signed recovery payload
+проверяется фактическим decrypt/restore до замены управляемого кода.
+
+Успешный результат содержит `code_only=true`, `before_maintenance` и
+`before_maintenance_archive`. Последний включает рабочий `path`, `sha256`,
+`release`, `encrypted=true`, `includes_recovery_payload=true`. Typed receipt
+имеет `kind=before_code_maintenance_backup`, связывает действие, операцию,
+установку, review, candidate, схему, quiesce и архив; `migration_eligible=false`.
+Путь сохраняется в status, events snapshot и при повторном получении завершённой
+операции, а diagnostic export скрывает приватные сведения.
+
+Исходный код сохраняется в quarantine. Продолжение после прерывания допускает
+только собственные recorded rename states, прежний ledger и сохранённую
+candidate closure. Потерянные или изменённые proof/closure требуют явного
+восстановления; входной payload не подставляется вместо утраченной authority.
+Ошибки readiness и cleanup сохраняются отдельно. Автоматического возврата
+повреждённого кода, rollback БД, fresh initialization и migration_apply нет.
+Полный контракт и конкретные причины отказа — в `PRODUCT_ADAPTER_EXECUTION.md`.
 
 ### ProductAdapter uninstall и retained source
 

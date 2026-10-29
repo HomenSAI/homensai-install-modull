@@ -31,6 +31,10 @@ class ArchiveError(ValueError):
     """Операция не завершена; исключение не содержит содержимое файлов."""
 
 
+class InsufficientSpaceError(ArchiveError):
+    """Known space precondition failed; distinct from invalid archive bytes."""
+
+
 def _safe_name(name: str, *, directory: bool = False) -> str:
     if not isinstance(name, str) or not name or "\\" in name:
         raise ArchiveError("Недопустимый путь ZIP")
@@ -100,7 +104,7 @@ def _inventory(home: DataHome):
 
 def _space(parent: Path, required: int) -> None:
     if shutil.disk_usage(parent).free < required + RESERVE:
-        raise ArchiveError("Недостаточно свободного места")
+        raise InsufficientSpaceError("Недостаточно свободного места")
 
 
 def _info(name: str, directory: bool = False) -> zipfile.ZipInfo:

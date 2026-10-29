@@ -12,6 +12,7 @@ from urllib.request import ProxyHandler, build_opener
 
 PRE_APPLY_FAULTS = {"tampered_backup", "foreign_backup", "live_data_drift"}
 HEALTH_FAULTS = {"candidate_health", "candidate_cleanup"}
+MAINTENANCE_PROFILES = {"repair", "reinstall"}
 
 
 def _own_source_lines(error):
@@ -84,7 +85,7 @@ def main():
     observations, actions, legacy_root, active_update = [], [], None, None
 
     def api(state, *, registered=True):
-        if registered and config["profile"] in {"fresh", "update-readiness", "update", "recovery"}:
+        if registered and config["profile"] in {"fresh", "update-readiness", "update", "recovery", *MAINTENANCE_PROFILES}:
             return InstallerAPI.from_bootstrap(work / state, trust_config=config["trust"], allow_development=True,
                 product_adapter_descriptor="installer/adapter.json", secret_provider=secret, locale="ru")
         engine = NativeEngine(verifier, secret, **({"product_adapter_descriptor": "installer/adapter.json"} if registered else {}))
@@ -138,7 +139,7 @@ def main():
             raise AssertionError("Caller review ID passed preparation input validation")
         assert tree(root) == before
         observations.append({"case": "caller_review_id_rejected_before_hook", "status": "PASS"})
-        if config["profile"] in {"fresh", "update-readiness", "update", "recovery"}:
+        if config["profile"] in {"fresh", "update-readiness", "update", "recovery", *MAINTENANCE_PROFILES}:
             assert supported, "Этот SDK revision ещё не поддерживает adapter fresh install"
             for changed, expected_error in (({**prepared, "migration_review_id": "e" * 64}, "PLAN_STALE"),
                     ({**prepared, "fresh_receipt_id": "a" * 64}, "INVALID_REQUEST")):
@@ -254,6 +255,186 @@ def main():
                 "database_documents_settings_and_synthetic_credential_preserved": True,
                 "actual_signed_runtime_sha256": sha(executable.read_bytes()), "secrets_absent_from_argv_and_control_logs": True,
                 "owned_listener_stopped": True})
+            if config["profile"] in MAINTENANCE_PROFILES:
+                action = config["profile"]
+                active_update = {"case": "installed_adapter_" + action, "status": "RUNNING"}
+                observations.append(active_update)
+                run_action(current, "start", bundles["1"], "maintenance-source-start")
+                upgrade = current.prepare_migration("update", manifest, target, options=bundles["2"])
+                run_action(current, "update", {**bundles["2"], "migration_review_id": upgrade["migration_review_id"]},
+                           "maintenance-setup-update-v2")
+                document.write_text("Latest maintenance document после backup v1", encoding="utf-8")
+                credential.write_text(config["product_secret"] + " synthetic latest retained credential", encoding="utf-8")
+                settings_value = json.loads(settings.read_text())
+                settings_value.update(site_title="Latest maintenance settings", language="en")
+                settings.write_text(json.dumps(settings_value, ensure_ascii=False), encoding="utf-8")
+                with sqlite3.connect(database) as db:
+                    text = "Latest maintenance note after v1 snapshot"
+                    db.execute("INSERT INTO notes(id,text,normalized_text,text_length,category) VALUES(3,?,?,?,?)",
+                               (text, text.casefold(), len(text), "general"))
+                    migration_rows = db.execute("SELECT * FROM product_adapter_effects ORDER BY effect_key").fetchall()
+                    schema_rows = db.execute("SELECT version FROM schema_migrations ORDER BY version").fetchall()
+                latest_data = notes(database)
+                assert latest_data["schema"] == 2 and latest_data != data_before
+                product_ledger = root / "data/reference-adapter.sqlite3"
+                latest_files = {"document": sha(document.read_bytes()), "credential": sha(credential.read_bytes()),
+                                "settings": sha(settings.read_bytes())}
+                meta_path = root / ".hinstall/releases/reference-v2.json"
+                original_metadata = json.loads(meta_path.read_text())
+                original_owner = json.loads((root / ".hinstall/installation.json").read_text())
+                original_refs = original_metadata["secret_refs"]
+                ledger = root / ".hinstall/product-adapter/reference-v2/adapter-invocations.sqlite3"
+                ledger_info = ledger.lstat()
+                ledger_identity = [ledger_info.st_dev, ledger_info.st_ino, ledger_info.st_uid]
+                installed_candidates = [p for p in (root / "releases").iterdir() if p.name.endswith("reference-v2")]
+                assert len(installed_candidates) == 1
+                installed_payload = installed_candidates[0]
+                candidate_payload = Path(bundles["2"]["payload_dir"])
+                candidate_files = tree(candidate_payload)
+                sentinels = [root / "data/FORBIDDEN_DAMAGED_ADAPTER", root / "data/FORBIDDEN_DAMAGED_SERVER"]
+                retained_uninstall = None
+                if action == "repair":
+                    for module, sentinel in zip(("adapter.py", "server.py"), sentinels):
+                        paths = list(installed_payload.rglob("homensai_reference/" + module))
+                        assert len(paths) == 1
+                        paths[0].write_text("from pathlib import Path\nPath(" + repr(str(sentinel)) +
+                            ").write_text('synthetic corrupt installed code executed')\nraise SystemExit(89)\n", encoding="utf-8")
+                    assert tree(installed_payload) != candidate_files
+                else:
+                    _, removed = run_action(current, "uninstall", bundles["2"], "maintenance-uninstall-preserve")
+                    retained_uninstall = removed["result"]["retained_recovery"]
+                    assert removed["result"]["data_preserved"] and removed["result"]["recovery_available"]
+                    assert not any((root / "releases").iterdir())
+                    listener_stopped(config["port"])
+                assert notes(database) == latest_data
+                for path, name in ((document, "document"), (credential, "credential"), (settings, "settings")):
+                    assert sha(path.read_bytes()) == latest_files[name]
+                provider_calls = []
+                previous_secret = secret
+
+                def maintenance_secret(reference):
+                    assert reference in {"acceptance.archive", *original_refs.values()}, "Incoming credential ref was used"
+                    provider_calls.append(reference)
+                    return previous_secret(reference)
+
+                secret = maintenance_secret
+                current = api("fresh-sdk-state")
+                maintenance_options = {**bundles["2"], "secret_refs": {"REFERENCE_API_KEY": "acceptance.forbidden-incoming"}}
+                before_plan = tree(root)
+                planned = current.plan(action, manifest, target, options=maintenance_options)
+                assert tree(root) == before_plan, "Maintenance plan executed a product hook"
+                detail = planned["engine_plan"]["code_maintenance"]
+                assert detail["kind"] == "same_release_code_maintenance" and detail["action"] == action
+                assert detail["release"] == "reference-v2" and detail["installation_id"] == original_owner["installation_id"]
+                assert detail["candidate_binding_sha256"] == sha(canonical(detail["candidate_binding"]))
+                assert detail["review_sha256"] == sha(canonical({k: v for k, v in detail.items() if k != "review_sha256"}))
+                assert detail["ledger_identity"] == ledger_identity and detail["credential_policy"] == "installed_release_refs"
+                token = sha(canonical([planned["plan_id"], planned["plan_digest"]]))[:32]
+                container = root / ".hinstall/code-maintenance" / token
+                closure = container / "candidate/payload"
+                from homensai_install.adapters import ExecutableProductAdapter
+                original_execute = ExecutableProductAdapter._execute
+                executed = []
+
+                def maintenance_observer(adapter, hook, request, request_digest):
+                    payload_path = Path(adapter.options["payload_dir"])
+                    assert not any(path.exists() for path in sentinels)
+                    assert hook not in {"migration_apply", "restore", "post_restore"}, "Code-only maintenance ran a data mutation hook"
+                    if hook in {"migration_plan", "quiesce"}:
+                        assert payload_path == closure and tree(payload_path) == candidate_files
+                        assert sha((payload_path / "runtime/bin/python").read_bytes()) == config["runtime_sha256"]
+                        if hook == "quiesce":
+                            assert Path(adapter.environment["HOMENSAI_DATA_HOME"]) == root / "data"
+                            assert request["idempotency_key"] == "quiesce_" + token
+                            assert request["operation_id"] == "op_" + token
+                            assert adapter.state_dir == ledger.parent
+                            assert json.loads((root / ".hinstall/processes.json").read_text()) == {}
+                            listener_stopped(config["port"])
+                        else:
+                            assert Path(adapter.environment["HOMENSAI_DATA_HOME"]).is_relative_to(container)
+                            assert Path(adapter.environment["HOMENSAI_DATA_HOME"]) != root / "data"
+                    elif hook == "readiness":
+                        assert payload_path == installed_payload and tree(payload_path) == candidate_files
+                    executed.append({"hook": hook, "runtime_sha256": sha((payload_path / "runtime/bin/python").read_bytes())})
+                    return original_execute(adapter, hook, request, request_digest)
+
+                ExecutableProductAdapter._execute = maintenance_observer
+                try:
+                    _, maintained = run_action(current, action, maintenance_options, "installed-" + action, reviewed_plan=planned)
+                finally:
+                    ExecutableProductAdapter._execute = original_execute
+                result = maintained["result"]
+                assert result["code_only"] is True and "external_actions_on_hold" not in result
+                assert not any(path.exists() for path in sentinels)
+                assert tree(installed_payload) == candidate_files and tree(candidate_payload) == candidate_files
+                assert notes(database) == latest_data
+                for path, name in ((document, "document"), (credential, "credential"), (settings, "settings")):
+                    assert sha(path.read_bytes()) == latest_files[name]
+                with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
+                    assert db.execute("SELECT * FROM product_adapter_effects ORDER BY effect_key").fetchall() == migration_rows
+                    assert db.execute("SELECT version FROM schema_migrations ORDER BY version").fetchall() == schema_rows == [(1,), (2,)]
+                assert json.loads(meta_path.read_text())["secret_refs"] == original_refs
+                final_owner = json.loads((root / ".hinstall/installation.json").read_text())
+                assert final_owner["installation_id"] == original_owner["installation_id"]
+                assert final_owner["installed"] is True and "retained_uninstall" not in final_owner
+                info = ledger.lstat()
+                assert [info.st_dev, info.st_ino, info.st_uid] == ledger_identity
+                proof, locator = result["before_maintenance"], result["before_maintenance_archive"]
+                assert proof["kind"] == "before_code_maintenance_backup" and proof["maintenance_action"] == action
+                assert proof["receipt_id"] == sha(canonical({k: v for k, v in proof.items() if k != "receipt_id"}))
+                assert proof["review_sha256"] == detail["review_sha256"]
+                assert proof["candidate_binding_sha256"] == detail["candidate_binding_sha256"]
+                assert proof["operation_id"] == "op_" + token and proof["installation_id"] == original_owner["installation_id"]
+                assert proof["product_id"] == manifest["product_id"] and proof["from_release"] == "reference-v2"
+                assert proof["migration_eligible"] is False and proof["encrypted"] and proof["includes_recovery_payload"]
+                assert proof["verification_scope"] == "full_snapshot_and_signed_recovery_payload_restored"
+                assert proof["schema_plan"]["from_version"] == proof["schema_plan"]["to_version"] == "2"
+                assert proof["schema_plan"]["steps"] == []
+                witness = proof["quiesce_witness"]
+                assert witness["ledger_identity"] == ledger_identity and witness["result"] == {"quiesced": True, "active_writers": 0}
+                assert witness["idempotency_key"] == "quiesce_" + token and witness["operation_id"] == "op_" + token
+                with sqlite3.connect(ledger.as_uri() + "?mode=ro", uri=True) as db:
+                    row = db.execute("SELECT request_digest,operation_id,hook,state,result FROM calls WHERE call_id=?", (witness["call_id"],)).fetchone()
+                    assert row[:4] == (witness["request_digest"], "op_" + token, "quiesce", "SUCCEEDED")
+                    assert json.loads(row[4]) == witness["result"]
+                with sqlite3.connect(product_ledger.as_uri() + "?mode=ro", uri=True) as db:
+                    assert db.execute("SELECT request_digest,hook,result FROM effects WHERE effect_key=?", ("quiesce_" + token,)).fetchone()[:2] == (witness["request_digest"], "quiesce")
+                assert archive_crypto.is_encrypted(locator["path"])
+                assert sha(Path(locator["path"]).read_bytes()) == proof["archive_sha256"] == locator["sha256"]
+                oracle = work / ("before-" + action + "-oracle")
+                oracle.mkdir(mode=0o700)
+                oracle_manifest = archive_crypto.restore_archive(locator["path"], oracle,
+                    password_provider=lambda: config["archive_password"], expected_product_id=manifest["product_id"])
+                assert sha(canonical(oracle_manifest)) == proof["archive_manifest_sha256"]
+                assert set(oracle_manifest["roots"]) == {"data", "backup", "services", "config", "runtime"}
+                assert notes(oracle / "roots/data/reference.sqlite") == latest_data
+                for filename, name in (("data/user-files/Личные документы.txt", "document"),
+                                       ("data/synthetic-secret.txt", "credential"), ("config/settings.json", "settings")):
+                    assert sha((oracle / "roots" / filename).read_bytes()) == latest_files[name]
+                assert json.loads((oracle / "roots/services" / manifest["update"]["pointer_file"]).read_text()) == {"release": "reference-v2"}
+                assert sha((oracle / "roots/runtime/recovery/reference-v2/payload/runtime/bin/python").read_bytes()) == config["runtime_sha256"]
+                private_recovery_files((product_ledger, credential))
+                with build_opener(ProxyHandler({})).open("http://127.0.0.1:" + str(config["port"]) + "/healthz", timeout=3) as response:
+                    live = json.load(response)
+                assert live["ready"] and live["release"] == "reference-v2" and live["database_schema"] == 2
+                assert live["installation_id"] == original_owner["installation_id"] and live["api_key_configured"]
+                assert current.status(maintained["operation_id"])["result"] == result
+                assert any(item["hook"] == "quiesce" for item in executed) and any(item["hook"] == "readiness" for item in executed)
+                assert provider_calls and "acceptance.forbidden-incoming" not in provider_calls
+                run_action(current, "stop", bundles["2"], "maintenance-final-stop")
+                listener_stopped(config["port"])
+                assert not (root / "data/FORBIDDEN_LEGACY_MIGRATION").exists()
+                assert not (root / "data/FORBIDDEN_LEGACY_RESTORE").exists()
+                active_update.update(status="PASS", public_operation_id=maintained["operation_id"],
+                    before_maintenance_receipt=proof, all_five_root_encrypted_archive_restored_as_oracle=True,
+                    real_public_factory_and_native_authorizer=True, actual_signed_candidate_hooks=executed,
+                    corrupted_installed_adapter_and_server_never_executed=action == "repair",
+                    completed_uninstall_then_explicit_valid_candidate=action == "reinstall",
+                    latest_schema_documents_settings_credentials_unchanged=True, no_migration_or_reset=True,
+                    installed_credential_refs_and_installation_identity_preserved=True,
+                    authoritative_ledger_inode_preserved=True, private_modes_verified=os.name == "posix",
+                    retained_uninstall_receipt=retained_uninstall, owned_listener_stopped=True)
+                active_update = None
             if config["profile"] == "recovery":
                 action, fault = config["recovery_action"], config.get("recovery_fault")
                 active_update = {"case": "installed_adapter_" + action, "fault": fault, "status": "RUNNING"}
@@ -1148,7 +1329,7 @@ def main():
             active_update.update(status="FAIL", error_code=code)
         raise
     finally:
-        for cleanup_root, version in ((legacy_root, "1"), (root if config["profile"] in {"fresh", "update-readiness", "update", "recovery"} else None, "1")):
+        for cleanup_root, version in ((legacy_root, "1"), (root if config["profile"] in {"fresh", "update-readiness", "update", "recovery", *MAINTENANCE_PROFILES} else None, "1")):
             if cleanup_root is not None and (cleanup_root / ".hinstall/installation.json").exists():
                 try:
                     if (config.get("fault_profile") in {*PRE_APPLY_FAULTS, "missing_ledger"}

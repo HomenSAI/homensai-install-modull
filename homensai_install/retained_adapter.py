@@ -6,6 +6,7 @@ caller first verifies the complete signed source and selects the existing ledger
 import hashlib
 import os
 from pathlib import Path
+import re
 import sqlite3
 from contextlib import closing
 
@@ -13,13 +14,15 @@ from .api.model import digest, parse_json
 from .uninstall_receipts import directory_handle, _safe, _signature, _fail
 
 
-def quiesce_witness(adapter, *, installation_id, operation_id, data_home):
+def quiesce_witness(adapter, *, installation_id, operation_id, data_home, idempotency_key=None):
     """Read exactly the completed original call without a writable ledger API."""
     from .engine import EngineError
-    if not operation_id.startswith('op_') or len(operation_id) != 35:
+    if type(operation_id) is not str or re.fullmatch(r'op_[0-9a-f]{32}', operation_id) is None:
         _fail()
     token = operation_id[3:]
-    key = 'quiesce_' + token
+    key = 'quiesce_' + token if idempotency_key is None else idempotency_key
+    if type(key) is not str or key not in {'quiesce_' + token, 'cleanup_quiesce_' + token}:
+        _fail('RECOVERY_REQUIRED')
     request = {'operation_id': operation_id, 'idempotency_key': key, 'phase': 'execute',
                'data': {'installation_id': installation_id, 'release': adapter.options['release'],
                         'data_home': str(data_home)}}
@@ -33,11 +36,26 @@ def quiesce_witness(adapter, *, installation_id, operation_id, data_home):
                 before = os.fstat(descriptor); _safe(before)
                 if before.st_mode & 0o077:
                     _fail()
+                def readonly_mode():
+                    # SQLite mode=ro/query_only may still create WAL sidecars.
+                    # The authoritative SDK ledger uses rollback journaling;
+                    # an unverified WAL/hot-journal state is not readable proof.
+                    header = os.pread(descriptor, 20, 0)
+                    if header[:16] != b'SQLite format 3\x00' or header[18:20] != b'\x01\x01':
+                        _fail('RECOVERY_REQUIRED')
+                    for suffix in ('-wal', '-shm', '-journal'):
+                        try:
+                            os.stat(path.name + suffix, dir_fd=parent, follow_symlinks=False)
+                        except FileNotFoundError:
+                            continue
+                        _fail('RECOVERY_REQUIRED')
+                readonly_mode()
                 with closing(sqlite3.connect(path.as_uri() + '?mode=ro', uri=True, timeout=5)) as connection:
                     connection.execute('PRAGMA query_only=ON')
                     connection.execute('BEGIN')
                     row = connection.execute('SELECT request_digest,operation_id,hook,state,result FROM calls WHERE call_id=?',
                                              (call_id,)).fetchone()
+                readonly_mode()
                 if (_signature(before) != _signature(os.fstat(descriptor))
                         or _signature(before) != _signature(os.stat(path.name, dir_fd=parent, follow_symlinks=False))):
                     _fail('RECOVERY_REQUIRED')

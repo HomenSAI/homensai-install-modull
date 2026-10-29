@@ -215,7 +215,7 @@ def test_registered_uninstall_then_restore_uses_retained_source_without_incoming
     assert case.new_api().status(operation["operation_id"])["result"] == result
     capabilities = case.api.capabilities(case.fixture.target)
     for action in ("repair", "reinstall"):
-        assert capabilities["actions"][action]["supported"] is False
+        assert capabilities["actions"][action]["supported"] is True
 
 
 @pytest.mark.parametrize("fault", ["receipt", "retained_runtime", "retained_marker"])

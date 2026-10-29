@@ -37,15 +37,17 @@ Scaffold без настоящих artifacts и hashes создаёт явный
 |---|---|
 | Публичный SDK / CLI / API | Строгие manifests, plan digest, согласия, журнал операций, идемпотентность и поиск незавершённой работы |
 | Linux native, пользовательская сессия | Собственные subprocess, проверка PID и времени рождения процесса, loopback listener и readiness |
-| ProductAdapter на Linux native/user | Новая установка и обновление с одним шагом миграции; start, stop, backup, restore, rollback, uninstall с сохранением данных |
+| ProductAdapter на Linux native/user | Новая установка и обновление с одним шагом миграции; start, stop, backup, restore, rollback, uninstall с сохранением данных; repair/reinstall той же подписанной версии и схемы |
 | Браузерный мастер | ru/en/de, анализ среды, условия, review, пошаговый прогресс, обслуживание, ошибки и экспорт диагностики |
 | Зависимости продукта | Подписанный каталог, auto/manual/recheck, проверяемая загрузка, локальный выбор файла, отдельные согласия и явное продолжение |
 | Docker backend | Fresh install из уже имеющихся pinned images, start/stop, encrypted backup и uninstall с сохранением данных; полная приёмка ещё требуется |
 | Службы | Отдельный systemd user port; общий `native/service` backend и Windows SCM не завершены |
 
-Для зарегистрированного ProductAdapter `repair` и `reinstall`
-пока возвращают отказ до продуктовых эффектов. Его возможности следует отличать
-от legacy native и Docker backend. Docker update/restore/rollback/repair/reinstall,
+`repair` и `reinstall` зарегистрированного ProductAdapter заменяют управляемый
+код той же подписанной версии, сохраняя данные, настройки, ключи и identity
+установки. До замены требуется проверенный полный архив; повреждённый старый
+код не исполняется. Возможности legacy native и Docker backend проверяются
+отдельно. Docker update/restore/rollback/repair/reinstall,
 получение образов и полная поддержка Windows остаются отдельными задачами.
 
 ## Сохранность данных и восстановление

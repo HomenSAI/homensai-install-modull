@@ -23,7 +23,10 @@
       "backup",
       "update",
       "restore",
-      "rollback"
+      "rollback",
+      "uninstall",
+      "repair",
+      "reinstall"
     ],
     "migration_preparation": "explicit_sdk_backend_extension",
     "migration_execution": true,

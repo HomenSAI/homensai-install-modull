@@ -234,7 +234,7 @@ class NativeEngine:
                "rollback", "repair", "reinstall", "uninstall")
     MAINTENANCE_ACTIONS = {"start", "stop", "backup", "uninstall"}
 
-    ADAPTER_ACTIONS = {"install", "update", "start", "stop", "backup", "restore", "rollback", "uninstall"}
+    ADAPTER_ACTIONS = {"install", "update", "start", "stop", "backup", "restore", "rollback", "uninstall", "repair", "reinstall"}
 
     def __init__(self, verifier=None, secret_provider=None, *, development_runtime=None,
                  product_adapter_descriptor=None):
@@ -439,6 +439,8 @@ class NativeEngine:
         if action not in self.ACTIONS or not self.capabilities(target)["actions"][action]["supported"]:
             raise EngineError("CAPABILITY_UNSUPPORTED")
         self._check_uninstall_fence(ctx, action)
+        from .code_maintenance import fence
+        fence(ctx, action)
         effective_active = None
         if action in self.MAINTENANCE_ACTIONS:
             ctx, effective_active = self._maintenance_context(ctx)
@@ -489,6 +491,11 @@ class NativeEngine:
             from .uninstall_receipts import UninstallProtocol
             result["uninstall_removal"] = UninstallProtocol.review(self, ctx)
         if self.product_adapter_descriptor is not None:
+            if action in {'repair', 'reinstall'}:
+                from .code_maintenance import review
+                result['code_maintenance'] = review(self, ctx)
+                result['steps'] = [{'id': x, 'component_id': 'product', 'weight': 1}
+                    for x in ('verify', 'stop', 'schema', 'quiesce', 'backup', 'repair', 'start', 'health')]
             if action in {"restore", "rollback"}:
                 adapter, binding = self._release_product_adapter(ctx, self._pointer(ctx))
                 result["recovery_source_sha256"] = _file_digest(checked_path(options["archive_path"]))
@@ -505,6 +512,8 @@ class NativeEngine:
                     required.add("quiesce")
             if action == "backup":
                 required.add("readiness")
+            if action in {'repair', 'reinstall'}:
+                required.update({'migration_plan', 'readiness'})
             if not required <= set(adapter.capabilities()["hooks"]):
                 raise EngineError("CAPABILITY_UNSUPPORTED", "Нужные ProductAdapter hooks не объявлены")
             result["product_adapter_binding"] = binding
@@ -1680,9 +1689,13 @@ class NativeEngine:
             os.close(fd)
 
     def _stop(self, ctx):
-        owner = self._owner(ctx, required=True)
         if self.product_adapter_descriptor is not None:
             self._adapter_quiesce(ctx)
+        return self._stop_owned_processes(ctx)
+
+    def _stop_owned_processes(self, ctx):
+        """Stop only birth-bound owned sessions, without loading product code."""
+        owner = self._owner(ctx, required=True)
         records = self._reconcile_launches(ctx, self._records(ctx))
         order = []
         for release in dict.fromkeys(record.get("release") for record in records.values()):
@@ -2111,7 +2124,8 @@ class NativeEngine:
             raise EngineError("CAPABILITY_UNSUPPORTED")
         ctx["adapter_resume"] = _adapter_resume
         inventory = None
-        if action in {"install", "update", "repair", "reinstall"}:
+        code_maintenance = self.product_adapter_descriptor is not None and action in {'repair', 'reinstall'}
+        if action in {"install", "update", "repair", "reinstall"} and not code_maintenance:
             inventory = self._verify(ctx["manifest"], ctx["target"], ctx["options"])
             locale = ctx["options"].get("eula_locale", "en")
             if locale not in {"ru", "en", "de"} or inventory.get("legal/" + locale + ".txt") != ctx["options"].get("eula_digest"):
@@ -2134,7 +2148,12 @@ class NativeEngine:
         if action in {"install", "update", "repair", "reinstall"}:
             refs = ctx["options"].get("secret_refs", {})
             current = self._pointer(ctx) if self._owner(ctx) else None
-            if current and current == ctx["release"]:
+            if code_maintenance and current:
+                # Same-release repair/reinstall never rotate installed keys.
+                # Resolve required credentials before bind without overlaying
+                # bootstrap aliases; bind rechecks this authority under lock.
+                refs = self._secret_refs({**ctx, "release": None, "action": None, "options": {}}, current)
+            elif current and current == ctx["release"]:
                 refs = self._secret_refs(ctx, current)
             for context in ("service", "admin"):
                 self._secrets(ctx["manifest"], refs, context, cache=ctx["secret_cache"])
@@ -2160,6 +2179,10 @@ class NativeEngine:
             if previous and previous.get("status") in {"SUCCEEDED", "FAILED_ROLLED_BACK"}:
                 return previous["result"]
             self._check_uninstall_fence(ctx, action, journal)
+            from .code_maintenance import fence, CodeMaintenance
+            fence(ctx, action, journal)
+            if code_maintenance:
+                inventory = CodeMaintenance.bind(self, ctx, plan.get('engine_plan'), previous)
             if action in self.MAINTENANCE_ACTIONS:
                 source = ctx
                 ctx, binding = self._maintenance_context(source, uninstall_state=previous if action == "uninstall" else None)
@@ -2253,6 +2276,7 @@ class NativeEngine:
                      or previous.get("product_adapter_migration_authorization_refused") is True))
             adapter_recovery_resume = (self.product_adapter_descriptor is not None and action in {"restore", "rollback"}
                                        and _adapter_resume and previous is not None)
+            adapter_maintenance_resume = code_maintenance and _adapter_resume and previous is not None
             uninstall_resume = (action == "uninstall" and _adapter_resume and previous is not None
                                 and (isinstance(previous.get("uninstall_removal"), dict)
                                      and "preserve_recovery" in previous.get("completed", [])
@@ -2260,7 +2284,7 @@ class NativeEngine:
                                      and not previous.get("uninstall_directory_intents")))
             if (previous and previous.get("status") in {"FAILED", "RECOVERY_REQUIRED"}
                     and action not in {"start", "stop", "update"} and not adapter_backup_resume
-                    and not adapter_install_resume and not adapter_recovery_resume and not uninstall_resume):
+                    and not adapter_install_resume and not adapter_recovery_resume and not adapter_maintenance_resume and not uninstall_resume):
                 raise EngineError("RECOVERY_REQUIRED", "Неудавшийся шаг требует проверенного восстановления")
             # Незавершённый другой mutating plan нельзя обойти новым token.
             if action not in {"stop"}:
@@ -2332,6 +2356,9 @@ class NativeEngine:
                             "cleanup_error_code": state["recovery_cleanup_error_code"]}
                            if action in {"restore", "rollback"} and state.get("recovery_primary_error_code")
                            and state.get("recovery_cleanup_error_code") else {})
+                if code_maintenance and state.get('code_maintenance_primary_error_code'):
+                    details = {'primary_error_code': state['code_maintenance_primary_error_code'],
+                               'cleanup_error_code': state.get('code_maintenance_cleanup_error_code', 'RECOVERY_REQUIRED')}
                 raise EngineError("RECOVERY_REQUIRED", "Результат продуктового hook не подтверждён; повтор запрещён",
                                   details=details) from None
             except Exception as error:
@@ -2490,6 +2517,9 @@ class NativeEngine:
             return {"status": outcome, "release": self._pointer(ctx), "transaction": state["transaction"],
                     "failed_phase": state["failed_phase"], "production_ready": False}
         if action in {"repair", "reinstall"}:
+            if self.product_adapter_descriptor is not None:
+                from .code_maintenance import CodeMaintenance
+                return CodeMaintenance(self, ctx).run(password, step)
             if active != ctx["release"]:
                 raise EngineError("OPERATION_CONFLICT", "Repair использует ту же версию")
             step("stop", lambda: self._stop(ctx))

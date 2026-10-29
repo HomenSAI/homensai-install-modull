@@ -244,13 +244,13 @@ def test_direct_unreviewed_opt_in_execution_fails_before_hooks(installed):
 
 
 @pytest.mark.parametrize('action',['repair','reinstall'])
-def test_unimplemented_adapter_lifecycle_rejected_before_effects(installed,action):
+def test_same_release_maintenance_requires_descriptor_hooks_and_review_before_effects(installed,action):
     fixture,bundle,_=installed
-    assert fixture.engine.capabilities(fixture.target)['actions'][action]['supported'] is False
+    assert fixture.engine.capabilities(fixture.target)['actions'][action]['supported'] is True
     with pytest.raises(EngineError) as caught:fixture.reviewed_plan(action,bundle)
-    assert caught.value.code=='CAPABILITY_UNSUPPORTED'
+    assert caught.value.code=='CAPABILITY_UNSUPPORTED'  # Descriptor lacks schema observation.
     with pytest.raises(EngineError) as caught:fixture.engine.execute(fixture.operation_plan(action,bundle))
-    assert caught.value.code=='CAPABILITY_UNSUPPORTED'
+    assert caught.value.code=='PLAN_STALE'  # Direct execution lacks the reviewed maintenance authority.
     assert state(fixture)['ready']==0 and state(fixture)['quiesce']==0
 
 

@@ -131,7 +131,8 @@ def _functional_result(result: dict, plan: dict) -> dict:
             invalid()
 
     mode = plan['target'].get('mode', 'native')
-    known = ((mode == 'native' and any(k in result for k in ('archive', 'before_recovery_archive')))
+    known = ((mode == 'native' and any(k in result for k in
+                                     ('archive', 'before_recovery_archive', 'before_maintenance_archive')))
              or (mode == 'docker' and any(k in result for k in ('backup', 'recovery'))))
     if known:
         root = path(options.get('install_root'))
@@ -160,6 +161,31 @@ def _functional_result(result: dict, plan: dict) -> dict:
                         or (reviewed_source is not None and receipt['source_archive_sha256'] != reviewed_source)):
                     invalid()
                 keep('before_recovery_archive', 'path', work / (token + '-before-' + action + '.hsac'))
+            if 'before_maintenance_archive' in result:
+                archive, receipt = result['before_maintenance_archive'], result.get('before_maintenance')
+                encrypted(archive, 'sha256')
+                review = plan.get('engine_plan', {}).get('code_maintenance')
+                if (action not in {'repair', 'reinstall'} or type(receipt) is not dict
+                        or type(review) is not dict
+                        or type(receipt.get('schema_version')) is not int or receipt['schema_version'] != 1
+                        or receipt.get('kind') != 'before_code_maintenance_backup'
+                        or receipt.get('maintenance_action') != action
+                        or receipt.get('operation_id') != 'op_' + token
+                        or receipt.get('archive_sha256') != archive['sha256']
+                        or receipt.get('encrypted') is not True
+                        or receipt.get('includes_recovery_payload') is not True
+                        or archive.get('includes_recovery_payload') is not True
+                        or receipt.get('migration_eligible') is not False
+                        or type(archive.get('release')) is not str
+                        or archive['release'] != options.get('release')
+                        or receipt.get('from_release') != archive['release']
+                        or review.get('release') != archive['release']
+                        or type(review.get('installation_id')) is not str or not review['installation_id']
+                        or receipt.get('installation_id') != review['installation_id']
+                        or any(not _sha256_identifier(review.get(field)) or receipt.get(field) != review[field]
+                               for field in ('review_sha256', 'candidate_binding_sha256'))):
+                    invalid()
+                keep('before_maintenance_archive', 'path', work / (token + '-before-' + action + '.hsac'))
         else:
             if 'backup' in result:
                 if action != 'backup':
@@ -295,7 +321,8 @@ class InstallerAPI:
                                 "protocol_version": "1.0", "registration": "explicit_sdk",
                                 "lifecycle_engine_registration": True,
                                 "lifecycle_registration": "trusted_native_engine_constructor",
-                                "lifecycle_engine_actions": ["install", "start", "stop", "backup", "update", "restore", "rollback"],
+                                "lifecycle_engine_actions": ["install", "start", "stop", "backup", "update", "restore", "rollback",
+                                                             "uninstall", "repair", "reinstall"],
                                 "migration_preparation": "explicit_sdk_backend_extension",
                                 "migration_execution": True, "migration_actions": ["install", "update"],
                                 "migration_max_steps": 1, "default_registration": False,

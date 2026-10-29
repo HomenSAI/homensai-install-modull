@@ -24,6 +24,7 @@ from check_installed_product_adapter import check_reference_wheel, fixture, refe
 
 
 ROOT = Path(__file__).resolve().parents[1]
+MAINTENANCE_PROFILES = {"repair", "reinstall"}
 RECOVERY_PROFILES = {
     "recovery-restore": ("restore", None),
     "recovery-rollback": ("rollback", None),
@@ -175,7 +176,7 @@ def main(argv=None):
     parser.add_argument("--wheelhouse", type=Path, required=True)
     parser.add_argument("--sdk-revision", required=True)
     parser.add_argument("--source-git-dir", type=Path)
-    parser.add_argument("--profile", choices=("preparation", "fresh", "update-readiness", "update", *UPDATE_FAULTS, *RECOVERY_PROFILES), default="preparation")
+    parser.add_argument("--profile", choices=("preparation", "fresh", "update-readiness", "update", *UPDATE_FAULTS, *RECOVERY_PROFILES, *sorted(MAINTENANCE_PROFILES)), default="preparation")
     args = parser.parse_args(argv)
     work, output = args.work_dir.resolve(), args.receipt.absolute()
     exported = output.with_name(output.stem + "-evidence")
@@ -196,7 +197,8 @@ def main(argv=None):
             "build_versions": {name: importlib.metadata.version(name) for name in ("pip", "setuptools", "packaging", "cryptography")},
             "network_downloads": False, "venv_system_site_packages": False, "work_dir": str(work),
             "runtime_closure": "signed copied DEV ELF; borrowed runner stdlib/libpython/OS libraries"},
-        "not_run": [("Adapter repair/reinstall" if args.profile == "uninstall-restore" else
+        "not_run": [("Adapter restore/rollback and the other maintenance action" if args.profile in MAINTENANCE_PROFILES else
+                     "Adapter repair/reinstall" if args.profile == "uninstall-restore" else
                      "Adapter repair/reinstall/uninstall" if args.profile in RECOVERY_PROFILES else
                      "Adapter restore/rollback/repair/uninstall" if args.profile in {"update", *UPDATE_FAULTS} else
                      "Adapter update/restore/rollback/repair/uninstall"), "Clean Ubuntu/Windows/Docker/service/reboot",
@@ -276,16 +278,16 @@ def main(argv=None):
         descriptor = json.loads((payload / "installer/adapter.json").read_text())
         descriptor["capabilities"].update({name: {"mutating": mutating, "idempotency": "application" if mutating else "read_only"}
                                             for name, mutating in (("migration_plan", False), ("migration_apply", True))})
-        if args.profile in RECOVERY_PROFILES:
+        if args.profile in {*RECOVERY_PROFILES, *MAINTENANCE_PROFILES}:
             descriptor["capabilities"].update({name: {"mutating": True, "idempotency": "application"}
                                                for name in ("restore", "post_restore")})
         descriptor["environment_allowlist"].append("HOMENSAI_CONFIG_HOME")
         write_json(payload / "installer/adapter.json", descriptor)
         manifest = json.loads((work / "manifest.json").read_text())
-        if args.profile in {"fresh", "update-readiness", "update", *UPDATE_FAULTS, *RECOVERY_PROFILES}:
+        if args.profile in {"fresh", "update-readiness", "update", *UPDATE_FAULTS, *RECOVERY_PROFILES, *MAINTENANCE_PROFILES}:
             (payload / "forbidden_legacy_migration.py").write_text("import os\nfrom pathlib import Path\n(Path(os.environ['HOMENSAI_DATA_HOME'])/'FORBIDDEN_LEGACY_MIGRATION').write_text('unexpected legacy hook')\nraise SystemExit(87)\n", encoding="utf-8")
             manifest["migrations"]["cmd"] = ["python", "-I", "-B", "forbidden_legacy_migration.py"]
-            if args.profile in RECOVERY_PROFILES:
+            if args.profile in {*RECOVERY_PROFILES, *MAINTENANCE_PROFILES}:
                 (payload / "forbidden_legacy_restore.py").write_text("import os\nfrom pathlib import Path\n(Path(os.environ['HOMENSAI_DATA_HOME'])/'FORBIDDEN_LEGACY_RESTORE').write_text('unexpected legacy restore hook')\nraise SystemExit(88)\n", encoding="utf-8")
                 manifest["restore"]["cmd"] = ["python", "-I", "-B", "forbidden_legacy_restore.py"]
             write_json(work / "manifest.json", manifest)

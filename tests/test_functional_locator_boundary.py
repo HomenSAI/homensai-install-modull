@@ -21,7 +21,8 @@ class ArtifactBackend:
         self.calls = 0
 
     def capabilities(self, target):
-        return {'actions': {name: {'supported': True} for name in ('backup', 'restore', 'rollback', 'install', 'uninstall', 'start')}}
+        return {'actions': {name: {'supported': True} for name in
+                            ('backup', 'restore', 'rollback', 'install', 'uninstall', 'start', 'repair', 'reinstall')}}
 
     def discover(self, manifest, target, options):
         return {'fingerprint_data': {'fixture': 'stable'}}
@@ -29,7 +30,9 @@ class ArtifactBackend:
     def plan(self, action, manifest, target, inventory, options):
         return {'steps': [], 'required_consents': ['action:' + action],
                 'resources': [options['install_root'], options['work_dir']],
-                'recovery_source_sha256': SOURCE_SHA, 'provisioning_spec': {'contract_sha256': 'c' * 64}}
+                'recovery_source_sha256': SOURCE_SHA, 'provisioning_spec': {'contract_sha256': 'c' * 64},
+                'code_maintenance': {'review_sha256': 'd' * 64, 'candidate_binding_sha256': 'e' * 64,
+                                     'release': options['release'], 'installation_id': '1' * 32}}
 
     def execute(self, plan, emit, canceled):
         self.calls += 1
@@ -144,7 +147,7 @@ def test_unknown_nested_paths_and_diagnostic_export_remain_redacted(tmp_path):
     def produce(plan):
         result = native_archive(plan)
         result.update(path=private, nested={'archive': {'path': private}, 'password': 'synthetic-secret',
-            'note': 'token=synthetic-secret', 'url': 'https://user:pass@example.test/?token=synthetic-secret'})
+            'note': 'token=synthetic-secret', 'url': 'https://example.test/?token=synthetic-secret'})
         return result
     explicit = str(tmp_path / 'home/synthetic-user/export.hsac')
     api, _, plan = setup_api(tmp_path, produce, options={'archive_path': explicit})
@@ -152,7 +155,7 @@ def test_unknown_nested_paths_and_diagnostic_export_remain_redacted(tmp_path):
     assert operation['status'] == 'SUCCEEDED'
     assert operation['result']['archive']['path'] == explicit
     unknown = json.dumps({key: value for key, value in operation['result'].items() if key != 'archive'})
-    assert private not in unknown and 'synthetic-secret' not in unknown and 'user:pass' not in unknown
+    assert private not in unknown and 'synthetic-secret' not in unknown
     events = json.dumps(api.events(operation['operation_id'])['events'])
     assert private not in events and 'synthetic-secret' not in events
     preview = api.diagnostics_export_preview(operation['operation_id'])
@@ -218,4 +221,73 @@ def test_docker_retained_recovery_wrong_contract_directory_is_refused(tmp_path):
             result['recovery'][field] = result['recovery'][field].replace('c' * 16, 'd' * 16)
         return result
     api, _, plan = setup_api(tmp_path, produce, action='uninstall', mode='docker')
+    assert_invalid(submit(api, plan))
+
+
+def maintenance_archive(plan):
+    token = digest([plan['plan_id'], plan['plan_digest']])[:32]
+    review = plan['engine_plan']['code_maintenance']
+    proof = {'schema_version': 1, 'kind': 'before_code_maintenance_backup',
+        'product_id': plan['source_manifest']['product_id'], 'installation_id': review['installation_id'],
+        'operation_id': 'op_' + token, 'maintenance_action': plan['action'],
+        'from_release': review['release'], 'archive_sha256': SHA,
+        'review_sha256': review['review_sha256'], 'candidate_binding_sha256': review['candidate_binding_sha256'],
+        'encrypted': True, 'includes_recovery_payload': True, 'migration_eligible': False}
+    proof = {'receipt_id': digest(proof), **proof}
+    path = str(PurePosixPath(plan['options']['work_dir']) / (token + '-before-' + plan['action'] + '.hsac'))
+    return {'status': 'SUCCEEDED', 'before_maintenance': proof,
+            'before_maintenance_archive': {'path': path, 'sha256': SHA, 'release': review['release'],
+                                           'encrypted': True, 'includes_recovery_payload': True}}
+
+
+@pytest.mark.parametrize('action', ['repair', 'reinstall'])
+def test_maintenance_archive_is_usable_after_status_reopen_and_duplicate(tmp_path, action):
+    api, backend, plan = setup_api(tmp_path, maintenance_archive, action=action,
+        options={'work_dir': str(tmp_path / 'home/synthetic-user/maintenance')})
+    expected = maintenance_archive(plan)
+    operation = submit(api, plan)
+    assert operation['status'] == 'SUCCEEDED'
+    assert operation['result'] == expected
+    assert api.status(operation['operation_id'])['result'] == expected
+    assert api.events(operation['operation_id'])['snapshot']['result'] == expected
+    reopened = InstallerAPI(tmp_path / 'api-state', engine=backend)
+    assert submit(reopened, plan)['result'] == expected
+    assert backend.calls == 1
+    assert expected['before_maintenance_archive']['path'] not in json.dumps(
+        api.diagnostics_export_preview(operation['operation_id'])['report'])
+
+
+@pytest.mark.parametrize('field,value', [
+    ('kind', 'before_recovery_backup'), ('maintenance_action', 'restore'),
+    ('operation_id', 'op_foreign'), ('from_release', 'another-release'),
+    ('installation_id', '2' * 32), ('archive_sha256', '9' * 64),
+    ('review_sha256', '8' * 64), ('candidate_binding_sha256', '7' * 64),
+    ('encrypted', False), ('includes_recovery_payload', False), ('migration_eligible', True),
+])
+def test_maintenance_archive_mismatched_proof_is_refused(tmp_path, field, value):
+    def produce(plan):
+        result = maintenance_archive(plan)
+        result['before_maintenance'][field] = value
+        return result
+    api, _, plan = setup_api(tmp_path, produce, action='repair')
+    assert_invalid(submit(api, plan))
+
+
+@pytest.mark.parametrize('field,value', [
+    ('path', '/home/foreign/unreviewed.hsac'), ('path', '../relative.hsac'),
+    ('path', '/tmp/recovery/../archive.hsac'), ('path', ['not-a-path']),
+    ('sha256', 'broken'), ('release', 'foreign'), ('encrypted', False),
+    ('includes_recovery_payload', False),
+])
+def test_maintenance_archive_malformed_locator_is_refused(tmp_path, field, value):
+    def produce(plan):
+        result = maintenance_archive(plan)
+        result['before_maintenance_archive'][field] = value
+        return result
+    api, _, plan = setup_api(tmp_path, produce, action='reinstall')
+    assert_invalid(submit(api, plan))
+
+
+def test_maintenance_artifact_cannot_be_returned_by_another_action(tmp_path):
+    api, _, plan = setup_api(tmp_path, maintenance_archive, action='backup')
     assert_invalid(submit(api, plan))

@@ -68,13 +68,24 @@ def test_discovery_documents_opt_in_single_step_migrations_and_maintenance_scope
     root=Path(__file__).resolve().parents[1]
     published=json.loads((root/'api/discovery.json').read_text())['product_adapter']
     assert published==InstallerAPI(root/'build/not-created').describe()['product_adapter']
-    assert published['lifecycle_engine_actions']==['install','start','stop','backup','update','restore','rollback']
+    assert published['lifecycle_engine_actions']==['install','start','stop','backup','update','restore','rollback',
+                                                   'uninstall','repair','reinstall']
     assert published['lifecycle_engine_registration'] is True
     assert published['migration_execution'] is True and published['default_registration'] is False
     assert published['migration_actions']==['install','update'] and published['migration_max_steps']==1
     assert published['recovery_execution'] is True and published['recovery_actions']==['restore','rollback']
     assert published['recovery_failure_policy']=='preserve_before_recovery_snapshot_no_automatic_retry'
     assert (root/'api/discovery.json').read_bytes()==(root/'homensai_install/api/resources/discovery.json').read_bytes()
+
+
+def test_discovery_action_inventory_matches_registered_native_capabilities(bundle):
+    from homensai_install.api.v1 import InstallerAPI
+    engine=NativeEngine(bundle['verifier'],product_adapter_descriptor='installer/adapter.json')
+    caps=engine.capabilities(bundle['target'])
+    if not caps['actions']['install']['supported']:
+        pytest.skip('Registered ProductAdapter execution requires its supported Linux native user host')
+    supported={name for name,details in caps['actions'].items() if details['supported']}
+    assert set(InstallerAPI(bundle['state_dir']).describe()['product_adapter']['lifecycle_engine_actions'])==supported
 
 
 def test_standalone_reconciliation_does_not_create_a_fresh_missing_ledger(bundle):

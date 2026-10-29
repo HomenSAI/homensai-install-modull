@@ -205,7 +205,7 @@ def test_original_public_resume_accepts_whole_root_or_durable_handoff_without_re
     assert not any(item["hook"] == "operation_status" and item["release"] == "release-2" for item in calls)
 
 
-def test_published_stage_with_lost_completion_is_not_adopted_or_used_to_recopy_roots(case, monkeypatch):
+def test_published_stage_without_typed_authority_is_not_adopted_or_used_to_recopy_roots(case, monkeypatch):
     review = review_restore(case)
     actual_stage = FilesystemPorts.stage_release
 
@@ -218,6 +218,17 @@ def test_published_stage_with_lost_completion_is_not_adopted_or_used_to_recopy_r
         case.submit(review, "stage-effect-crash")
 
     killed_child(child)
+    token = digest([review["plan_id"], review["plan_digest"]])[:32]
+    stage_intent = case.fixture.root / ".hinstall/recovery-stage-receipts" / (token + ".json")
+    # The published whole-root baseline has no stage intent. The next stage
+    # protocol may produce one before this actual effect; explicitly lose that
+    # authority so the same strict legacy/missing-proof refusal remains valid.
+    if stage_intent.exists():
+        record = json.loads(stage_intent.read_text())
+        native = json.loads((case.fixture.root / ".hinstall/operations" / (token + ".json")).read_text())
+        assert record["receipt_id"] == digest(record["body"]) == native["recovery_target_stage_receipt_id"]
+        stage_intent.unlink()
+    assert not stage_intent.exists()
     api = case.new_api()
     operation = interrupted_operation(api, review)
     before = managed_state(case.fixture.root)
@@ -228,6 +239,7 @@ def test_published_stage_with_lost_completion_is_not_adopted_or_used_to_recopy_r
     refuse_original_resume(api, operation)
     assert managed_state(case.fixture.root) == before
     assert tree_state(case.fixture.root / "releases") == releases
+    assert not stage_intent.exists(), "Missing stage authority must not be reconstructed from matching live code"
     assert {str(p): sha(p) for p in case.fixture.base.rglob("*.hsac")} == archives
 
 

@@ -32,6 +32,7 @@ RECOVERY_PROFILES = {
     "recovery-missing-ledger": ("rollback", "missing_ledger"),
     "uninstall-restore": ("restore", None),
     "recovery-root-resume": ("restore", None),
+    "recovery-stage-resume": ("restore", None),
 }
 UPDATE_FAULTS = {
     "update-lost-ack": "lost_ack",
@@ -199,7 +200,7 @@ def main(argv=None):
             "network_downloads": False, "venv_system_site_packages": False, "work_dir": str(work),
             "runtime_closure": "signed copied DEV ELF; borrowed runner stdlib/libpython/OS libraries"},
         "not_run": [("Adapter restore/rollback and the other maintenance action" if args.profile in MAINTENANCE_PROFILES else
-                     "Adapter repair/reinstall" if args.profile in {"uninstall-restore", "recovery-root-resume"} else
+                     "Adapter repair/reinstall" if args.profile in {"uninstall-restore", "recovery-root-resume", "recovery-stage-resume"} else
                      "Adapter repair/reinstall/uninstall" if args.profile in RECOVERY_PROFILES else
                      "Adapter restore/rollback/repair/uninstall" if args.profile in {"update", *UPDATE_FAULTS} else
                      "Adapter update/restore/rollback/repair/uninstall"), "Clean Ubuntu/Windows/Docker/service/reboot",
@@ -333,8 +334,9 @@ def main(argv=None):
                           "update" if args.profile in UPDATE_FAULTS else args.profile),
                       recovery_action=RECOVERY_PROFILES.get(args.profile, (None, None))[0],
                       recovery_fault=RECOVERY_PROFILES.get(args.profile, (None, None))[1],
-                      uninstall_before_restore=args.profile in {"uninstall-restore", "recovery-root-resume"},
+                      uninstall_before_restore=args.profile in {"uninstall-restore", "recovery-root-resume", "recovery-stage-resume"},
                       recovery_root_resume=args.profile == "recovery-root-resume",
+                      recovery_stage_resume=args.profile == "recovery-stage-resume",
                       fault_profile=UPDATE_FAULTS.get(args.profile),
                       runtime_sha256=signed_bundles["1"]["runtime/bin/python"])
         config_path = work / "client-config.json"

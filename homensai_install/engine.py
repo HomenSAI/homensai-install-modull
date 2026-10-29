@@ -1322,13 +1322,7 @@ class NativeEngine:
             if not destination.exists():
                 _copy_file(source, destination)
         destination = self._metadata_path(ctx, release)
-        refs = opts.get("secret_refs")
-        if refs is None and destination.exists():
-            refs = _read(destination).get("secret_refs", {})
-        value = {"release": release, "manifest": ctx["manifest"], "target": ctx["target"],
-                 "modes": list(ctx["modes"]), "inventory": inventory,
-                 "runtime_executable": runtime,
-                 "secret_refs": refs or {}}
+        value = self._release_metadata_value(ctx, inventory)
         if destination.exists() and _read(destination) != value:
             raise EngineError("OPERATION_CONFLICT", "Release ID уже занят другим содержимым")
         _write(destination, value)
@@ -1341,6 +1335,18 @@ class NativeEngine:
                         raise EngineError("INVALID_MANIFEST", "Executable вне signed release")
                     path.chmod(0o700)
         self._installed(ctx, release)
+
+    def _release_metadata_value(self, ctx, inventory):
+        """The same pure expected value for publication and recovery review."""
+        release, opts = ctx['release'], ctx['options']
+        destination = self._metadata_path(ctx, release)
+        refs = opts.get("secret_refs")
+        if refs is None and destination.exists():
+            refs = _read(destination).get("secret_refs", {})
+        return {"release": release, "manifest": ctx["manifest"], "target": ctx["target"],
+                 "modes": list(ctx["modes"]), "inventory": inventory,
+                 "runtime_executable": opts['runtime_executable'],
+                 "secret_refs": refs or {}}
 
     def _records(self, ctx):
         path = ctx["control"] / "processes.json"
@@ -2654,6 +2660,8 @@ class NativeEngine:
                     raise EngineError("PLAN_STALE", "Recovery target adapter изменился")
                 ctx["operation_state"]["recovery_target_binding"] = target_binding
                 ctx["recovery_target_binding"] = recover_ctx["recovery_target_binding"] = target_binding
+                from .recovery_stage import target_spec
+                target_spec(self, recover_ctx, trusted)
                 observed_schema = self._probe_recovery_schema(recover_ctx, target_adapter, candidate)
                 if _tree(candidate) != (expected_directories, expected_files):
                     raise EngineError("INTEGRITY_FAILED", "Read-only recovery probe изменил snapshot")
@@ -2677,11 +2685,15 @@ class NativeEngine:
                         self._authorize_recovery_replace(ctx, extracted['archive_sha256'], password, safety)
                         protocol.prepare(safety, extracted['archive_sha256'])
                         self._authorize_recovery_replace(ctx, extracted['archive_sha256'], password, safety)
+                    if (not ctx['operation_state'].get('recovery_target_stage_complete')
+                            or ctx['operation_state'].get('recovery_target_stage_receipt_id') is not None):
+                        from .recovery_stage import TargetStage
+                        TargetStage(protocol).prepare(recover_ctx, trusted)
                     if not ctx['operation_state'].get('recovery_roots_complete'):
                         protocol.apply()
                     if not ctx['operation_state'].get('recovery_target_stage_complete'):
-                        protocol.stage_begin()
-                        self._ports(recover_ctx, trusted, password, emit).stage_release(token + '/stage', release)
+                        if protocol.stage_begin():
+                            self._ports(recover_ctx, trusted, password, emit).stage_release(token + '/stage', release)
                         protocol.stage_complete()
                     else:
                         _, installed = self._release_product_adapter(recover_ctx, release)

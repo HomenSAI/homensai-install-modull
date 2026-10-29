@@ -169,7 +169,7 @@ jobs:
         shell: bash
         run: |
           failed=0
-          for profile in update update-lost-ack update-missing-ledger update-tampered-backup update-foreign-backup update-live-data-drift update-candidate-health update-candidate-cleanup recovery-restore recovery-rollback recovery-lost-ack recovery-missing-ledger uninstall-restore repair reinstall recovery-root-resume; do
+          for profile in update update-lost-ack update-missing-ledger update-tampered-backup update-foreign-backup update-live-data-drift update-candidate-health update-candidate-cleanup recovery-restore recovery-rollback recovery-lost-ack recovery-missing-ledger uninstall-restore repair reinstall recovery-root-resume recovery-stage-resume; do
             receipt_name="$profile"
             if [ "$profile" = update ]; then
               receipt_name=reference-update

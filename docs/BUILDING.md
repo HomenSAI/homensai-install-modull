@@ -367,12 +367,12 @@ Job `linux-installed` создаёт build venv, wheelhouse и все клиен
 в `$RUNNER_TEMP`, вне checkout. После загрузки закреплённых wheel build и
 установка используют `--no-index`. Клиенты запускаются вне исходников и
 проверяют происхождение установленных модулей и неизменность package bytes.
-Выполняются SDK/CLI, prerequisites и 16 reference profiles: последовательные
+Выполняются SDK/CLI, prerequisites и 17 reference profiles: последовательные
 updates, семь update fault scenarios, четыре recovery scenarios и
-`uninstall-restore`, `recovery-root-resume`, `repair` и `reinstall`.
+`uninstall-restore`, `recovery-root-resume`, `recovery-stage-resume`, `repair` и `reinstall`.
 
 `tools/summarize_installed_checks.py --include-fault-profiles` требует все
-18 успешных квитанций с точным `GITHUB_SHA`, ожидаемым profile и одинаковым
+19 успешных квитанций с точным `GITHUB_SHA`, ожидаемым profile и одинаковым
 SHA-256 SDK wheel. Missing/stale/FAIL, неправильный профиль или иной wheel
 завершают job ошибкой. Отказ одного reference profile не пропускает остальные;
 каждый использует собственный work directory и имя receipt. Общая сводка
@@ -393,6 +393,15 @@ data, единственный source quiesce, отсутствие source hooks
 Независимый decrypt/restore этого архива сравнивает все пять roots с полным
 before-image, включая пустые каталоги. Этот профиль проверяет одну точку
 прерывания целого root; он не доказывает mid-file или power-loss recovery.
+
+`recovery-stage-resume` прерывает процесс после полной публикации target кода,
+metadata и Ports receipt, но до stage ACK. Новый public factory продолжает ту же
+операцию. Все пять roots и опубликованный target проверяются до target restore:
+bytes, inode и timestamps должны совпасть с состоянием в момент прерывания,
+без повторного копирования и публикации. Требуются исходные stage/root receipts,
+один source quiesce, единственные target restore/post_restore, прежний safety
+ciphertext и фактическая проверка полного before-image всех пяти roots.
+Этот профиль не разрешает принять частичный или произвольный stage.
 
 `repair` и `reinstall` проверяют замену управляемого кода той же подписанной
 версии и сохранение текущей схемы, пользовательских данных, настроек, ключей

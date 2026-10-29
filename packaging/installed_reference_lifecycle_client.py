@@ -551,9 +551,13 @@ def main():
                 original_execute = ExecutableProductAdapter._execute
                 injected = []
                 retained_source_calls = []
-                root_resume = config.get("recovery_root_resume", False)
+                stage_resume = config.get("recovery_stage_resume", False)
+                root_resume = config.get("recovery_root_resume", False) or stage_resume
                 resuming_roots = [False]
                 root_data_inodes = {}
+                stage_at_cut = {}
+                stage_intent_at_cut = None
+                stage_snapshot_path = work / "recovery-stage-at-cut.json"
                 root_trace = work / "recovery-root-hook-trace.jsonl"
                 root_before_image = work / "recovery-root-before-image.json"
                 if root_resume:
@@ -571,6 +575,32 @@ def main():
                         p.relative_to(root / name).as_posix() for p in (root / name).rglob("*") if p.is_dir())}
                             for name in ("data", "backup", "services", "config", "runtime")}
 
+                def node_image(path):
+                    info = path.lstat()
+                    assert not stat.S_ISLNK(info.st_mode)
+                    value = {"identity": [info.st_dev, info.st_ino, info.st_mode, info.st_uid, info.st_gid,
+                        info.st_nlink, info.st_size, info.st_mtime_ns, info.st_ctime_ns]}
+                    if stat.S_ISREG(info.st_mode):
+                        value["sha256"] = sha(path.read_bytes())
+                    else:
+                        assert stat.S_ISDIR(info.st_mode)
+                    return value
+
+                def stage_publication_image():
+                    target_code = root / "releases/app-reference-v1"
+                    def namespace_image(path):
+                        return {p.relative_to(path).as_posix(): node_image(p)
+                                for p in [path, *sorted(path.rglob("*"))]}
+                    ports_path = Path(stage_intent_at_cut["body"]["ports_receipt"]["path"])
+                    metadata = root / ".hinstall/releases"
+                    return {"roots": {name: namespace_image(root / name)
+                            for name in ("data", "backup", "services", "config", "runtime")},
+                        "target_code": namespace_image(target_code),
+                        "target_metadata": {suffix: node_image(metadata / ("reference-v1" + suffix))
+                            for suffix in (".json", ".inventory.json", ".signature.json")},
+                        "target_metadata_directory": node_image(metadata),
+                        "ports_receipt": node_image(ports_path)}
+
                 def lose_recovery_ack(adapter, hook, request, request_digest):
                     if root_resume:
                         release = adapter.options["release"]
@@ -578,10 +608,14 @@ def main():
                             raise AssertionError("Source hook attempted against partially restored DataHome")
                         if resuming_roots[0] and release == "reference-v1" and hook == "restore":
                             assert data_inodes() == root_data_inodes, "Completed first root was recopied"
+                            if stage_resume:
+                                assert stage_publication_image() == stage_at_cut, "Stage adoption rewrote roots, target code, metadata or Ports receipt"
                         entry = {"hook": hook, "release": release, "request_digest": request_digest,
                             "idempotency_key": request["idempotency_key"],
                             "payload_dir": str(adapter.options["payload_dir"]),
                             "phase": "resume" if resuming_roots[0] else "initial"}
+                        if stage_resume and resuming_roots[0] and hook == "restore":
+                            entry["stage_at_restore_sha256"] = sha(canonical(stage_publication_image()))
                         descriptor = os.open(root_trace, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
                         with os.fdopen(descriptor, "a") as stream:
                             stream.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -619,9 +653,19 @@ def main():
                                             json.dump(root_image(), stream, ensure_ascii=False, sort_keys=True)
                                             stream.flush(); os.fsync(stream.fileno())
                                     actual_reconcile(source, destination, preserved)
-                                    if selected:
+                                    if selected and not stage_resume:
                                         os.kill(os.getpid(), signal.SIGKILL)
                                 FilesystemPorts._reconcile = staticmethod(after_real_first_root)
+                                if stage_resume:
+                                    from homensai_install.recovery_replacement import RootReplacement
+                                    def before_real_stage_completion(protocol):
+                                        # The engine-wrapped Ports method has
+                                        # published both code and metadata.
+                                        assert protocol.state["recovery_roots_complete"] is True
+                                        assert protocol.state["recovery_target_stage_started"] is True
+                                        assert not protocol.state.get("recovery_target_stage_complete")
+                                        os.kill(os.getpid(), signal.SIGKILL)
+                                    RootReplacement.stage_complete = before_real_stage_completion
                                 current.submit(recovery_plan["plan_id"], recovery_plan["plan_digest"],
                                     consent, idempotency_key="installed-recovery", background=False)
                             except BaseException:
@@ -634,13 +678,36 @@ def main():
                                 break
                             if time.monotonic() > deadline:
                                 os.kill(child, signal.SIGKILL); os.waitpid(child, 0)
-                                raise AssertionError("Owned child did not reach the first root effect")
+                                raise AssertionError("Owned child did not reach the selected recovery boundary")
                             time.sleep(0.02)
                         assert os.waitstatus_to_exitcode(child_status) == -signal.SIGKILL
                         interrupted_native = json.loads(native_path.read_text())
                         assert interrupted_native["recovery_replace_started"] is True
-                        assert interrupted_native["recovery_root_progress"]["data"] == {"started": True, "complete": False}
-                        assert not interrupted_native.get("recovery_roots_complete")
+                        if stage_resume:
+                            assert interrupted_native["recovery_roots_complete"] is True
+                            assert set(interrupted_native["recovery_root_progress"]) == {"data", "backup", "services", "config", "runtime"}
+                            assert all(v == {"started": True, "complete": True}
+                                for v in interrupted_native["recovery_root_progress"].values())
+                            assert interrupted_native["recovery_target_stage_started"] is True
+                            assert not interrupted_native.get("recovery_target_stage_complete")
+                            assert "restore" not in interrupted_native["completed"]
+                            stage_path = root / ".hinstall/recovery-stage-receipts" / (native_token + ".json")
+                            stage_intent_at_cut = json.loads(stage_path.read_text())
+                            assert stage_intent_at_cut["receipt_id"] == sha(canonical(stage_intent_at_cut["body"]))
+                            assert stage_intent_at_cut["receipt_id"] == interrupted_native["recovery_target_stage_receipt_id"]
+                            assert stage_intent_at_cut["body"]["root_receipt_id"] == interrupted_native["recovery_root_receipt_id"]
+                            assert stage_intent_at_cut["body"]["operation_id"] == "op_" + native_token
+                            assert json.loads(Path(stage_intent_at_cut["body"]["ports_receipt"]["path"]).read_text()) == stage_intent_at_cut["body"]["ports_receipt"]["value"]
+                            stage_intent_before = stage_path.read_bytes(), node_image(stage_path)
+                            stage_at_cut.update(stage_publication_image())
+                            assert not stage_snapshot_path.exists() and not stage_snapshot_path.is_relative_to(root)
+                            with stage_snapshot_path.open("x") as stream:
+                                os.chmod(stage_snapshot_path, 0o600)
+                                json.dump(stage_at_cut, stream, ensure_ascii=False, sort_keys=True)
+                                stream.flush(); os.fsync(stream.fileno())
+                        else:
+                            assert interrupted_native["recovery_root_progress"]["data"] == {"started": True, "complete": False}
+                            assert not interrupted_native.get("recovery_roots_complete")
                         marker = json.loads((root / ".hinstall/installation.json").read_text())["pending_recovery"]
                         assert marker == {"operation_id": "op_" + native_token,
                             "receipt_id": interrupted_native["recovery_root_receipt_id"]}
@@ -655,6 +722,9 @@ def main():
                         initial_trace = [json.loads(line) for line in root_trace.read_text().splitlines()]
                         assert sum(v["release"] == "reference-v2" and v["hook"] == "quiesce" for v in initial_trace) == 1
                         assert not any(v["hook"] in {"restore", "post_restore"} for v in initial_trace)
+                        if stage_resume:
+                            assert not any(v["release"] == "reference-v1" and v["hook"] in {"restore", "post_restore", "readiness"}
+                                           for v in initial_trace)
                         current = api("fresh-sdk-state")
                         matches = [v for v in current.operations_list(unfinished_only=False)["operations"]
                                    if v["plan_id"] == recovery_plan["plan_id"]]
@@ -668,6 +738,9 @@ def main():
                         resumed_native = json.loads(native_path.read_text())
                         assert resumed_native["step_results"]["before_" + action] == before_resume_safety
                         assert sha(before_resume_cipher.read_bytes()) == before_resume_cipher_sha
+                        if stage_resume:
+                            assert resumed_native["recovery_target_stage_receipt_id"] == interrupted_native["recovery_target_stage_receipt_id"]
+                            assert (stage_path.read_bytes(), node_image(stage_path)) == stage_intent_before
                         assert not json.loads((root / ".hinstall/installation.json").read_text()).get("pending_recovery")
                         final_trace = [json.loads(line) for line in root_trace.read_text().splitlines()]
                         assert not any(v["phase"] == "resume" and v["release"] == "reference-v2" for v in final_trace)
@@ -684,6 +757,16 @@ def main():
                             same_safety_cipher_sha256=before_resume_cipher_sha,
                             durable_hook_trace_sha256=sha(root_trace.read_bytes()),
                             full_before_image_sha256=sha(root_before_image.read_bytes()))
+                        if stage_resume:
+                            target_restore = [v for v in final_trace if v["release"] == "reference-v1" and v["hook"] == "restore"]
+                            assert len(target_restore) == 1 and target_restore[0]["stage_at_restore_sha256"] == sha(canonical(stage_at_cut))
+                            active_update.update(recovery_stage_resume=True, cut="after_engine_wrapped_stage_release_before_native_stage_complete",
+                                all_five_roots_complete_at_cut=True, no_target_recovery_or_readiness_hooks_before_cut=True,
+                                readonly_candidate_schema_diagnostic_preserved=True,
+                                all_roots_code_metadata_ports_unchanged_before_target_restore=True,
+                                stage_receipt_id=stage_intent_at_cut["receipt_id"], stage_receipt_unchanged=True,
+                                stage_at_cut_snapshot_file_sha256=sha(stage_snapshot_path.read_bytes()),
+                                stage_at_restore_snapshot_sha256=target_restore[0]["stage_at_restore_sha256"])
                     else:
                         recovered = current.submit(recovery_plan["plan_id"], recovery_plan["plan_digest"],
                             consent, idempotency_key="installed-recovery", background=False)

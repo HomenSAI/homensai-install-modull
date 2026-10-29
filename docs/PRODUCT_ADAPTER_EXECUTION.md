@@ -250,10 +250,24 @@ hooks с обычным reconciliation, без нового replacement. Matchin
 receipt связывает result и завершённые фазы; native `SUCCEEDED` без него
 не разрешает ранний успешный ответ или снятие pending marker.
 
+Публикация target также получает исходный private intent до первой замены root.
+Он связывает operation/root receipts, подписанный target binding, ожидаемые
+metadata, путь и key Ports receipt, а также отсутствие target или его точный
+preimage. Существующий несовместимый target отклоняется до migration probe,
+quiesce и замены данных. Полностью опубликованный target с потерянным stage ACK
+проверяется без изменения файлов: требуются прежний Ports receipt, подписанные
+metadata и code, runtime permissions, сохранённые identities. После повторной
+проверки safety archive запись ACK завершает stage без root recopy, republish,
+metadata rewrite или source hooks. Отдельная оставшаяся stage квитанция только
+ограждает незавершённую историю; journal/root receipt не реконструируются.
+Проверка исторического terminal proof после успешного завершения не требует
+старого live target: последующее штатное update/uninstall может его удалить.
+
 Смешанное состояние внутри root, утрата candidate/receipt/ledger, изменение
-root identity и незавершённый target stage сохраняют `RECOVERY_REQUIRED`.
-Старые операции без root receipt автоматически не продолжаются. Это протокол
-границ целых roots для Linux/native/user; G3, mid-file recovery, power-loss и
+root identity и частичный target stage сохраняют `RECOVERY_REQUIRED`.
+Старые операции без root receipt или исходного stage intent автоматически не
+продолжаются. Это протокол границ целых roots и полностью проверенной target
+публикации для Linux/native/user; G3, mid-file recovery, power-loss и
 другие платформы остаются открытыми. Public API contract также описывает явный
 `cancel` неактивного API claim перед отдельным owned-process `stop` без hooks;
 отмена сохраняет native authority и уже выполненные изменения.

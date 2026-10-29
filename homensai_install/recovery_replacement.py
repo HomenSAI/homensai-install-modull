@@ -150,6 +150,26 @@ def journal_fence(engine, ctx, original_token=None, previous=None):
     from .engine import _read
     folder = ctx['control'] / 'operations'
     receipts = ctx['control'] / 'recovery-root-receipts'
+    stages = ctx['control'] / 'recovery-stage-receipts'
+    # A surviving explicit stage intent is also an unfinished-history hint.
+    # It can fence a lost journal/root receipt, never reconstruct either one.
+    for path in stages.glob('*.json') if stages.exists() else ():
+        if re.fullmatch('[0-9a-f]{32}[.]json', path.name) is None: fail()
+        stage = private_read(path)
+        if (type(stage) is not dict or set(stage) != {'receipt_id', 'body'}
+                or not _hash(stage['receipt_id']) or type(stage['body']) is not dict
+                or digest(stage['body']) != stage['receipt_id']): fail()
+        body = stage['body']; token = path.stem
+        native = private_read(folder / (token + '.json'))
+        root = private_read(receipts / (token + '.json'))
+        if (type(native) is not dict or type(root) is not dict or type(root.get('body')) is not dict
+                or body.get('kind') != 'recovery_target_stage_intent'
+                or body.get('operation_id') != 'op_' + token
+                or native.get('recovery_target_stage_receipt_id') != stage['receipt_id']
+                or not _hash(root.get('receipt_id')) or digest(root['body']) != root['receipt_id']
+                or body.get('root_receipt_id') != root['receipt_id']
+                or native.get('recovery_root_receipt_id') != root['receipt_id']
+                or root['body'].get('operation_id') != body['operation_id']): fail()
     # A remaining explicit root receipt is a fence even when both mutable
     # marker and native journal were lost. It never reconstructs authority.
     for receipt in receipts.glob('*.json') if receipts.exists() else ():
@@ -325,8 +345,14 @@ class RootReplacement:
         for name in ('recovery_replace_started', 'recovery_roots_complete',
                      'recovery_target_stage_started', 'recovery_target_stage_complete'):
             if name in self.state and type(self.state[name]) is not bool: fail()
-        if self.state.get('recovery_target_stage_started') and not self.state.get('recovery_target_stage_complete'):
-            fail()
+        started = self.state.get('recovery_target_stage_started') is True
+        if self.state.get('recovery_target_stage_receipt_id') is not None:
+            from .recovery_stage import TargetStage
+            self.mixture() if 'restore' not in self.state.get('completed', []) else self.check_inputs()
+            if started: TargetStage(self).published()
+            else: TargetStage(self).before_publish()
+        elif started and not self.state.get('recovery_target_stage_complete'):
+            fail()  # Old/unknown stage without original typed authority.
         # Only root phase is an archive projection. Later product hooks may
         # legitimately change business DB bytes and cannot authorize re-copy.
         if 'restore' not in self.state.get('completed', []):
@@ -439,11 +465,18 @@ class RootReplacement:
         self.state['recovery_roots_complete'] = True; self.save()
 
     def stage_begin(self):
-        if self.state.get('recovery_target_stage_started') and not self.state.get('recovery_target_stage_complete'):
-            fail()  # Random legacy .stage-* cannot be adopted by filename.
+        from .recovery_stage import TargetStage
+        stage = TargetStage(self)
+        if self.state.get('recovery_target_stage_started'):
+            stage.published()
+            return False  # Read-only postconditions; never republish.
+        stage.before_publish()
         self.state['recovery_target_stage_started'] = True; self.save()
+        return True
 
     def stage_complete(self):
+        from .recovery_stage import TargetStage
+        TargetStage(self).published()
         self.state['recovery_target_stage_complete'] = True; self.save()
 
     def issue_terminal(self, result):

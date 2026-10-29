@@ -841,6 +841,14 @@ persistent roots. Непосредственно перед replacement пров
 отсутствующий, повреждённый, чужой receipt или изменение live data блокируют
 замену. Этот receipt имеет `migration_eligible=false` и не разрешает migration.
 
+Если проверка места или системный `ENOSPC` прерывают выдачу либо повторную
+проверку recovery receipt, публичная ошибка содержит `code=DISK_SPACE_LOW`,
+`phase=product_adapter`, `details.reason=recovery_receipt_insufficient_space`.
+Статус операции остаётся `RECOVERY_REQUIRED`: ошибка не разрешает replacement
+или повтор уже выполненного эффекта. Текст исключения и внутренние пути
+не включаются в эти поля. После освобождения места нужен явный `resume`
+исходной операции с полной повторной проверкой того же safety archive.
+
 После replacement выполняются target `restore` и `post_restore`, затем
 activation, start и readiness. Hooks получают opaque IDs/digests, без пароля
 и пути к архиву. Независимый `ExecutableProductAdapter` по умолчанию запрещает

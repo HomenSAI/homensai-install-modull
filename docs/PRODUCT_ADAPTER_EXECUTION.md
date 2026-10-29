@@ -217,6 +217,17 @@ replacement снова проверяются ciphertext, фактический
 подпись recovery payload и все persistent roots. Исключения для update journal
 здесь нет. Такой recovery receipt никогда не разрешает миграцию.
 
+При выдаче и повторной проверке этой квитанции типизированный отказ archive
+space guard и системный `ENOSPC` сохраняются как `DISK_SPACE_LOW` с
+`phase=product_adapter` и фиксированным
+`details.reason=recovery_receipt_insufficient_space`. Код не определяется
+по тексту исключения; внутренние пути и произвольное сообщение ОС не
+публикуются. Остальные отказы верификации сохраняют прежнюю классификацию.
+Отказ до первой замены roots сохраняет её блокировку; существующая квитанция
+при неуспешной повторной проверке не становится разрешением на replacement.
+Освобождение места требует явного resume и настоящего повторного
+decrypt/restore, включая сравнение полного snapshot.
+
 Target hooks получают ровно `installation_id`, `release`, `recovery_action`,
 `source_archive_sha256`, `before_recovery_receipt_id`. Доверенный
 `recovery_authorizer` по умолчанию отсутствует; standalone mutating recovery

@@ -126,6 +126,12 @@ archive. Несовместимый существующий target отклон
 операция или отмена API claim не снимает native fence. Полный контракт и порядок
 отдельного owned-process stop описаны в `INSTALLER_API.md`.
 
+Показывайте `DISK_SPACE_LOW`, если выдача или повторная проверка recovery receipt
+остановлена из-за нехватки места. Сохраняйте исходный operation ID и safety
+archive: после освобождения места пользователь явно продолжает ту же операцию,
+а ядро снова выполняет полную проверку. Общий статус `RECOVERY_REQUIRED`
+не заменяет конкретный `error.code` в интерфейсе.
+
 В текущей версии реальный execution backend адаптера поддерживает Linux native/user. Target Docker или service scope возвращает `CAPABILITY_UNSUPPORTED` до запуска; автоматического fallback на host execution нет. Windows execution также возвращает `CAPABILITY_UNSUPPORTED`: нужен отдельно принятый Job Object backend и Windows tests. Это не скрытая попытка выполнить `.cmd` через shell и не обещание уже пройденной Windows-приёмки.
 
 ### Подписанный descriptor

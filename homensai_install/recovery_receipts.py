@@ -5,9 +5,11 @@
 trusted verifier ядра. Наличие sidecar или строки receipt ID недостаточно.
 """
 from copy import deepcopy
+import errno
 import os
 from pathlib import Path
 
+from shared.archive import InsufficientSpaceError
 from shared.datahome import checked_path
 from shared.update_plan import _atomic_write
 
@@ -20,6 +22,14 @@ _BINDING = {'product_id', 'installation_id', 'operation_id', 'from_release',
     'from_manifest_sha256', 'from_inventory_sha256', 'from_metadata_sha256',
     'recovery_action', 'source_archive_sha256'}
 _VERIFIED = 'full_snapshot_and_signed_recovery_payload_restored'
+
+
+def _verification_failure(error, reason):
+    """Only typed budget/OS ENOSPC failures get a disk-space diagnosis."""
+    if isinstance(error, InsufficientSpaceError) or isinstance(error, OSError) and error.errno == errno.ENOSPC:
+        raise InstallerError('DISK_SPACE_LOW', phase='product_adapter',
+            details={'reason': 'recovery_receipt_insufficient_space'}) from None
+    _fail(reason)
 
 
 def _binding(value):
@@ -64,8 +74,8 @@ class RecoveryBackupReceiptStore(BackupReceiptStore):
             return {'receipt_id': receipt_id, **deepcopy(body)}
         except InstallerError:
             raise
-        except Exception:
-            _fail('recovery_receipt_issuance_failed')
+        except Exception as error:
+            _verification_failure(error, 'recovery_receipt_issuance_failed')
 
     def verify(self, receipt_id, *, expected_binding, consistency_scope):
         try:
@@ -87,5 +97,5 @@ class RecoveryBackupReceiptStore(BackupReceiptStore):
             return {'receipt_id': receipt_id, **deepcopy(body)}
         except InstallerError:
             raise
-        except Exception:
-            _fail('recovery_receipt_verification_failed')
+        except Exception as error:
+            _verification_failure(error, 'recovery_receipt_verification_failed')

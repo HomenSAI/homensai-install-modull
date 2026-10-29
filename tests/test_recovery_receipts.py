@@ -1,5 +1,7 @@
 """Recovery authorization отделена от migration и повторно проверяет ciphertext."""
 from copy import deepcopy
+import errno
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -11,6 +13,7 @@ from homensai_install.errors import InstallerError
 from homensai_install.recovery_receipts import RecoveryBackupReceiptStore
 from homensai_install.migration_snapshot import assert_recovery_snapshot_matches
 from shared import archive_crypto
+from shared import archive as plain_archive
 from shared.datahome import resolve_datahome, PERSISTENT_ROOTS
 
 
@@ -135,3 +138,101 @@ def test_ancestor_identity_or_permissions_substitution_remains_rejected(proof, t
     with pytest.raises(InstallerError):
         store.verify(result['receipt_id'], expected_binding=binding, consistency_scope='owned_components_stopped')
     assert fired
+
+
+class _NoSpaceStream:
+    """Narrow real-file write fault; reads/close and other file IO stay real."""
+    def __init__(self, stream): self.stream = stream
+    def __enter__(self): self.stream.__enter__(); return self
+    def __exit__(self, *args): return self.stream.__exit__(*args)
+    def __getattr__(self, name): return getattr(self.stream, name)
+    def write(self, data):
+        raise OSError(errno.ENOSPC, 'SYNTHETIC_UNTRUSTED_OS_ERROR_TEXT', 'synthetic-private-filename')
+
+
+@pytest.mark.parametrize('action,fault', [
+    ('issue', 'space'), ('verify', 'space'), ('issue', 'snapshot'),
+    ('verify', 'snapshot'), ('issue', 'atomic'),
+])
+def test_typed_space_failure_preserves_cipher_and_authority_then_retries_real_verification(proof, tmp_path, monkeypatch, action, fault):
+    from homensai_install import migration_receipts
+    store, result, binding, archive, home, observed = proof
+    if action == 'issue':
+        store = RecoveryBackupReceiptStore(tmp_path / 'new-space-receipts',
+            password_provider=store.password_provider, recovery_verifier=store.recovery_verifier)
+    original_cipher = archive.read_bytes()
+    original_files = {str(p): (p.read_bytes(), p.stat().st_ino, p.stat().st_mtime_ns, p.stat().st_ctime_ns)
+        for root in home.roots.values() for p in root.rglob('*') if p.is_file()}
+    original_receipt = (proof[0].directory / (result['receipt_id'] + '.json')).read_bytes()
+    observed_before = len(observed)
+    fired = []
+    def call():
+        if action == 'issue': return store.issue(archive, binding, consistency_scope='owned_components_stopped')
+        return store.verify(result['receipt_id'], expected_binding=binding, consistency_scope='owned_components_stopped')
+    with monkeypatch.context() as faulted:
+        if fault == 'space':
+            usage = plain_archive.shutil.disk_usage(tmp_path)
+            def no_free_space(path):
+                fired.append('actual_archive_space_guard')
+                return type(usage)(usage.total, usage.total, 0)
+            faulted.setattr(plain_archive.shutil, 'disk_usage', no_free_space)
+        elif fault == 'snapshot':
+            actual = migration_receipts.os.fdopen
+            def snapshot_write(fd, mode='r', *args, **kwargs):
+                name = os.readlink('/proc/self/fd/' + str(fd))
+                stream = actual(fd, mode, *args, **kwargs)
+                if mode == 'wb' and Path(name).name == 'archive.hsac' and Path(name).parent.parent == store.directory:
+                    fired.append('real_exclusive_snapshot_fd')
+                    return _NoSpaceStream(stream)
+                return stream
+            faulted.setattr(migration_receipts.os, 'fdopen', snapshot_write)
+        else:
+            actual = Path.open
+            def receipt_atomic_write(path, mode='r', *args, **kwargs):
+                stream = actual(path, mode, *args, **kwargs)
+                if mode == 'x' and path.parent == store.directory and path.name.startswith('.update-'):
+                    fired.append('real_receipt_atomic_temporary')
+                    return _NoSpaceStream(stream)
+                return stream
+            faulted.setattr(Path, 'open', receipt_atomic_write)
+        with pytest.raises(InstallerError) as caught: call()
+    assert fired
+    assert caught.value.code == 'DISK_SPACE_LOW'
+    envelope = caught.value.to_dict()
+    assert envelope['phase'] == 'product_adapter'
+    assert envelope['details'] == {'reason': 'recovery_receipt_insufficient_space'}
+    serialized = json.dumps(envelope)
+    assert 'SYNTHETIC_UNTRUSTED_OS_ERROR_TEXT' not in serialized and 'synthetic-private-filename' not in serialized
+    assert str(tmp_path) not in serialized
+    assert archive.read_bytes() == original_cipher
+    assert (proof[0].directory / (result['receipt_id'] + '.json')).read_bytes() == original_receipt
+    assert original_files == {str(p): (p.read_bytes(), p.stat().st_ino, p.stat().st_mtime_ns, p.stat().st_ctime_ns)
+        for root in home.roots.values() for p in root.rglob('*') if p.is_file()}
+    assert len(observed) == observed_before + (fault == 'atomic')
+    assert list(store.directory.glob('verify-*')) == [] and list(store.directory.glob('.update-*')) == []
+    if action == 'issue': assert list(store.directory.glob('*.json')) == []
+    # A failed verification grants no new authority. Once actual space is
+    # available, the same ciphertext is fully re-decrypted and re-verified.
+    assert call() == result
+    assert hashlib.sha256(archive.read_bytes()).digest() == hashlib.sha256(original_cipher).digest()
+
+
+@pytest.mark.parametrize('fault', ['wrong_password', 'tamper', 'other_io', 'installer_error'])
+def test_non_space_failures_are_not_relabelled_as_disk_space(proof, monkeypatch, fault):
+    store, result, binding, archive, _, _ = proof
+    original_error = None
+    if fault == 'wrong_password': store.password_provider = lambda: 'different-synthetic-password'
+    elif fault == 'tamper':
+        raw = bytearray(archive.read_bytes()); raw[-1] ^= 1; archive.write_bytes(raw)
+    elif fault == 'other_io':
+        def read_failure(*args, **kwargs): raise OSError(errno.EIO, 'SYNTHETIC_UNTRUSTED_OS_ERROR_TEXT')
+        monkeypatch.setattr(store, '_read', read_failure)
+    else:
+        original_error = InstallerError('INTEGRITY_FAILED', phase='product_adapter', details={'reason': 'synthetic_verified_refusal'})
+        def trusted_refusal(*args, **kwargs): raise original_error
+        monkeypatch.setattr(store, 'recovery_verifier', trusted_refusal)
+    with pytest.raises(InstallerError) as caught:
+        store.verify(result['receipt_id'], expected_binding=binding, consistency_scope='owned_components_stopped')
+    assert caught.value.code != 'DISK_SPACE_LOW'
+    if original_error is not None: assert caught.value is original_error
+    assert 'SYNTHETIC_UNTRUSTED_OS_ERROR_TEXT' not in json.dumps(caught.value.to_dict())

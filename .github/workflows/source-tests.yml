@@ -164,7 +164,7 @@ jobs:
           --work-dir "$RUNNER_TEMP/hinstall-prerequisites-check"
           --receipt "$RUNNER_TEMP/hinstall-receipts/prerequisites.json"
           --wheelhouse "$RUNNER_TEMP/hinstall-wheelhouse"
-      - name: Verify all sixteen installed reference profiles sequentially
+      - name: Verify installed reference profiles sequentially
         if: ${{ !cancelled() }}
         shell: bash
         run: |

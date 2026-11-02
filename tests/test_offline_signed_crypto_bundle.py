@@ -21,12 +21,15 @@ def test_signed_bundle_prepares_and_installs_from_extracted_wheels(tmp_path):
 
     source = Path(os.environ['HOMENSAI_CRYPTO_WHEELS'])
     payload = tmp_path / 'payload'
-    fragment = build_wheelhouse(source, payload)
+    payload.mkdir()
+    fragment = build_wheelhouse(source, payload / 'crypto')
     (payload / 'demo.txt').write_text('synthetic product', encoding='utf-8')
     root = Path(__file__).resolve().parents[1]
     manifest = load_manifest(root / 'examples/rent.manifest.json')
-    manifest['runtime']['lock_files'] = fragment['lock_files']
-    manifest['runtime']['vendor_wheels'] = fragment['vendor_wheels']
+    manifest['runtime']['lock_files'] = {key: {**item, 'file': 'crypto/' + item['file']}
+                                         for key, item in fragment['lock_files'].items()}
+    manifest['runtime']['vendor_wheels'] = [{**item, 'file': 'crypto/' + item['file']}
+                                           for item in fragment['vendor_wheels']]
     package = tmp_path / 'bundle.zip'
     receipt = build_package(manifest, '1.0', payload, package)
     key = Ed25519PrivateKey.generate()
@@ -43,11 +46,11 @@ def test_signed_bundle_prepares_and_installs_from_extracted_wheels(tmp_path):
     prepare_signed_package(package, envelope, extracted, **trusted)
     assert (extracted / 'demo.txt').read_text() == 'synthetic product'
     for entry in fragment['license_files']:
-        assert (extracted / entry['file']).read_bytes() == (payload / entry['file']).read_bytes()
+        assert (extracted / 'crypto' / entry['file']).read_bytes() == (payload / 'crypto' / entry['file']).read_bytes()
     # Этот вызов ставит только в временный каталог и не обращается к индексу.
     subprocess.run([sys.executable, '-m', 'pip', 'install', '--no-index', '--no-deps',
-                    '--find-links', str(extracted / 'vendor'), '--target', str(tmp_path / 'site'),
-                    '-r', str(extracted / 'locks/linux.lock')], check=True,
+                    '--find-links', str(extracted / 'crypto/vendor'), '--target', str(tmp_path / 'site'),
+                    '-r', str(extracted / 'crypto/locks/linux.lock')], check=True,
                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=90)
     subprocess.run([sys.executable, '-S', '-c',
                     "import sys; sys.path.insert(0, sys.argv[1]); "

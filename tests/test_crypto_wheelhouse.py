@@ -140,3 +140,43 @@ def test_failed_write_leaves_incomplete_marker(sample, tmp_path, monkeypatch):
     with pytest.raises(wh.WheelhouseError):
         wh.build_wheelhouse(source, output)
     assert (output / '.homensai-crypto-incomplete').exists()
+
+
+@pytest.mark.parametrize('mutation', ['license', 'wheel', 'lock', 'metadata', 'extra', 'missing', 'marker'])
+def test_verifier_rejects_incomplete_or_modified_block(sample, tmp_path, mutation):
+    source, filename, _ = sample
+    block = tmp_path / 'block'
+    expected = wh.build_wheelhouse(source, block)
+    assert wh.verify_wheelhouse(block) == expected
+    if mutation == 'license':
+        (block / 'licenses' / filename / 'LICENSE').write_text('modified')
+    elif mutation == 'wheel':
+        (block / 'vendor' / filename).write_bytes(b'modified')
+    elif mutation == 'lock':
+        (block / 'locks/linux.lock').write_text('modified')
+    elif mutation == 'metadata':
+        (block / 'crypto-wheelhouse.json').write_text('{}')
+    elif mutation == 'extra':
+        (block / 'vendor/extra.whl').write_text('extra')
+    elif mutation == 'missing':
+        (block / 'licenses' / filename / 'LICENSE').unlink()
+    else:
+        (block / '.homensai-crypto-incomplete').write_text('incomplete')
+    with pytest.raises(wh.WheelhouseError):
+        wh.verify_wheelhouse(block)
+
+
+def test_package_builder_rejects_tampered_license_even_if_runtime_hashes_match(sample, tmp_path):
+    from shared.package import PackageError, build_package
+
+    source, filename, _ = sample
+    payload = tmp_path / 'payload'
+    fragment = wh.build_wheelhouse(source, payload)
+    manifest_path = wh.Path(wh.__file__).resolve().parent.parent / 'examples' / 'rent.manifest.json'
+    manifest = json.loads(manifest_path.read_text())
+    manifest['runtime']['lock_files'] = fragment['lock_files']
+    manifest['runtime']['vendor_wheels'] = fragment['vendor_wheels']
+    (payload / 'licenses' / filename / 'LICENSE').write_text('tampered')
+    with pytest.raises(PackageError, match='Криптоблок'):
+        build_package(manifest, '1.0', payload, tmp_path / 'bad.zip')
+    assert not (tmp_path / 'bad.zip').exists()

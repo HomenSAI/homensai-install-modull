@@ -77,20 +77,42 @@ def test_lingering_child_makes_result_indeterminate(tmp_path):
         run_python_migration(**settings, execute=True)
 
 
-def test_timeout_stops_same_group_child_writer(tmp_path):
+def test_timeout_stops_same_group_child_writer(tmp_path, monkeypatch):
+    import signal
+    import shared.native_migration as migration
+
     ready, written = tmp_path / 'ready', tmp_path / 'written'
     code = ('import pathlib, subprocess, sys, time\n'
             'child = "import pathlib,sys,time; pathlib.Path(sys.argv[1]).touch(); "'
-            '"time.sleep(2); pathlib.Path(sys.argv[2]).touch()"\n'
+            '"time.sleep(3); pathlib.Path(sys.argv[2]).touch()"\n'
             'subprocess.Popen([sys.executable, "-c", child, sys.argv[1], sys.argv[2]])\n'
             'while not pathlib.Path(sys.argv[1]).exists(): time.sleep(0.01)\n'
             'time.sleep(10)\n')
     settings = options(tmp_path, code, (str(ready), str(written)))
     settings['timeout'] = 1
+    # Synchronize child startup before exercising the migration wait timeout;
+    # slow CI startup must not turn this into a test of scheduler speed.
+    original_popen = migration.subprocess.Popen
+
+    def wait_for_child(*args, **kwargs):
+        process = original_popen(*args, **kwargs)
+        deadline = time.monotonic() + 30
+        while not ready.exists() and process.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.01)
+        if not ready.exists():
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=5)
+            pytest.fail('Дочерний процесс не подтвердил запуск')
+        return process
+
+    monkeypatch.setattr(migration.subprocess, 'Popen', wait_for_child)
     with pytest.raises(EffectIndeterminate):
         run_python_migration(**settings, execute=True)
     assert ready.exists()
-    time.sleep(2.2)
+    time.sleep(3.2)
     assert not written.exists()
 
 

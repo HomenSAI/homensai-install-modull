@@ -31,6 +31,7 @@ _ARTIFACTS = {
 _LOCK = Path(__file__).resolve().parent.parent / 'requirements-crypto.txt'
 _MAX_WHEEL = 64 * 1024 * 1024
 _MAX_LICENSE = 128 * 1024
+_METADATA = 'crypto-wheelhouse.json'
 
 
 class WheelhouseError(ValueError):
@@ -69,21 +70,28 @@ def _lock_check(data: bytes) -> None:
         raise WheelhouseError('Хэши lock не совпадают')
 
 
-def _read_wheel(path: Path, expected: str) -> bytes:
+def _read_file(path: Path, limit: int) -> bytes:
     checked_path(path)
-    flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0)
+    flags = (os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0)
+             | getattr(os, 'O_BINARY', 0))
     fd = os.open(path, flags)
     with os.fdopen(fd, 'rb') as stream:
         before = os.fstat(stream.fileno())
-        if not stat.S_ISREG(before.st_mode) or before.st_size > _MAX_WHEEL:
-            raise WheelhouseError('Недопустимый файл wheel')
-        data = stream.read(_MAX_WHEEL + 1)
+        if not stat.S_ISREG(before.st_mode) or before.st_size > limit:
+            raise WheelhouseError('Недопустимый файл блока')
+        data = stream.read(limit + 1)
         after = os.fstat(stream.fileno())
-    if (len(data) != before.st_size or len(data) > _MAX_WHEEL or
+    if (len(data) != before.st_size or len(data) > limit or
         (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns) !=
-        (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns) or
-        hashlib.sha256(data).hexdigest() != expected):
-        raise WheelhouseError('Wheel изменён или его SHA-256 не совпадает')
+        (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns)):
+        raise WheelhouseError('Файл блока изменился во время чтения')
+    return data
+
+
+def _read_wheel(path: Path, expected: str) -> bytes:
+    data = _read_file(path, _MAX_WHEEL)
+    if hashlib.sha256(data).hexdigest() != expected:
+        raise WheelhouseError('SHA-256 wheel не совпадает')
     return data
 
 
@@ -105,6 +113,73 @@ def _write(path: Path, data: bytes) -> None:
         stream.write(data)
         stream.flush()
         os.fsync(stream.fileno())
+
+
+def _verify_wheelhouse(root: Path, *, allow_marker: bool) -> dict:
+    lock = _LOCK.read_bytes()
+    _lock_check(lock)
+    lock_hash = hashlib.sha256(lock).hexdigest()
+    expected = {'locks', 'vendor', 'licenses', _METADATA}
+    if allow_marker:
+        expected.add(CRYPTO_INCOMPLETE)
+    lock_files = {}
+    for system in ('linux', 'windows'):
+        name = f'locks/{system}.lock'
+        expected.add(name)
+        if _read_file(root / name, 1024 * 1024) != lock:
+            raise WheelhouseError('Lock блока не совпадает')
+        lock_files[system] = {'file': name, 'sha256': lock_hash}
+    vendor, license_files = [], []
+    for filename, (package, digest, names) in sorted(_ARTIFACTS.items()):
+        name = f'vendor/{filename}'
+        expected.update((name, f'licenses/{filename}'))
+        data = _read_wheel(root / name, digest)
+        vendor.append({'file': name, 'sha256': digest})
+        for license_name, contents in _licenses(data, package, names).items():
+            license_path = f'licenses/{filename}/{license_name}'
+            expected.add(license_path)
+            if _read_file(root / license_path, _MAX_LICENSE) != contents:
+                raise WheelhouseError('Лицензия блока не совпадает')
+            license_files.append({'file': license_path, 'sha256': hashlib.sha256(contents).hexdigest()})
+    result = {'lock_files': lock_files, 'vendor_wheels': vendor, 'license_files': license_files}
+    metadata = (json.dumps(result, ensure_ascii=True, sort_keys=True, indent=2) + '\n').encode()
+    if _read_file(root / _METADATA, 1024 * 1024) != metadata:
+        raise WheelhouseError('Описание блока не совпадает')
+    if allow_marker and _read_file(root / CRYPTO_INCOMPLETE, 64) != b'incomplete\n':
+        raise WheelhouseError('Маркер блока изменился')
+    actual = set()
+    pending = [(root, '')]
+    while pending:
+        directory, prefix = pending.pop()
+        with os.scandir(directory) as entries:
+            for entry in entries:
+                name = f'{prefix}/{entry.name}' if prefix else entry.name
+                if name not in expected or name in actual:
+                    raise WheelhouseError('Лишний файл блока')
+                actual.add(name)
+                info = entry.stat(follow_symlinks=False)
+                if getattr(info, 'st_file_attributes', 0) & 0x400:
+                    raise WheelhouseError('Недопустимый объект блока')
+                if stat.S_ISDIR(info.st_mode):
+                    pending.append((Path(entry.path), name))
+                elif not stat.S_ISREG(info.st_mode):
+                    raise WheelhouseError('Недопустимый объект блока')
+    if actual != expected:
+        raise WheelhouseError('Неполный блок')
+    return result
+
+
+def verify_wheelhouse(source: str | Path) -> dict:
+    """Проверить точный состав кандидата, даже если маркер отсутствует."""
+    try:
+        root = checked_path(source)
+        if not root.is_dir():
+            raise WheelhouseError('Требуется каталог блока')
+        return _verify_wheelhouse(root, allow_marker=False)
+    except (OSError, UnicodeError, KeyError, ValueError, RuntimeError, zipfile.BadZipFile, DataHomeError) as error:
+        if isinstance(error, WheelhouseError):
+            raise
+        raise WheelhouseError('Не удалось проверить зависимости') from None
 
 
 def build_wheelhouse(source: str | Path, destination: str | Path) -> dict:
@@ -147,8 +222,10 @@ def build_wheelhouse(source: str | Path, destination: str | Path) -> dict:
                 license_files.append({'file': f'licenses/{filename}/{name}',
                                       'sha256': hashlib.sha256(contents).hexdigest()})
         result = {'lock_files': lock_files, 'vendor_wheels': vendor, 'license_files': license_files}
-        _write(destination / 'crypto-wheelhouse.json',
+        _write(destination / _METADATA,
                (json.dumps(result, ensure_ascii=True, sort_keys=True, indent=2) + '\n').encode())
+        if _verify_wheelhouse(destination, allow_marker=True) != result:
+            raise WheelhouseError('Описание проверенного блока не совпадает')
         marker.unlink()
         return result
     except (OSError, UnicodeError, KeyError, ValueError, RuntimeError, zipfile.BadZipFile, DataHomeError) as error:

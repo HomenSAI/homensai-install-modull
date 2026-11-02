@@ -19,6 +19,7 @@ import zipfile
 
 from shared.archive import ArchiveError, _digest, _info, _safe_name, _signature, _space
 from shared.datahome import DataHomeError, checked_path, contains
+from shared.crypto_wheelhouse import WheelhouseError, verify_wheelhouse
 from shared.manifest import ManifestError, validate_manifest
 from shared.package_markers import CRYPTO_INCOMPLETE
 
@@ -60,6 +61,11 @@ def _files(root: Path) -> tuple[list[dict], dict]:
             pending.extend((Path(item.path), (name + "/" if name else "") + item.name)
                            for item in reversed(children))
         else:
+            if path.name.casefold() == "crypto-wheelhouse.json":
+                try:
+                    verify_wheelhouse(path.parent)
+                except WheelhouseError:
+                    raise PackageError("Криптоблок не прошёл проверку") from None
             if len(result) >= MAX_FILES or signature[3] > MAX_FILE_BYTES:
                 raise PackageError("Превышен лимит файлов payload")
             with path.open("rb") as stream:

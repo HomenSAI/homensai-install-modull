@@ -46,15 +46,24 @@ class Effects:
         self.corrupt_archive = corrupt_archive
         self.ports = None
         self.calls = []
+        self.signed_details = None
 
     def stop(self, key, components):
         self.calls.append(key.split("/")[-1])
 
     def migrate(self, key, migration, command):
-        from shared.native_migration import run_python_migration
+        from shared.native_migration import run_python_migration, run_signed_native_migration
         self.calls.append("migrate")
         interpreter = Path(sys.executable).resolve()
         release = self.home.releases / 'app-2'
+        if self.signed_details is not None:
+            package, envelope, public, product_id = self.signed_details
+            run_signed_native_migration(package_path=package, envelope=envelope, trusted_public_key=public,
+                                        expected_product_id=product_id, expected_version='2',
+                                        release_root=str(release), interpreter=str(interpreter),
+                                        interpreter_sha256=sha256(interpreter.read_bytes()).hexdigest(),
+                                        timeout=15, execute=True)
+            return
         run_python_migration(interpreter=str(interpreter), interpreter_sha256=sha256(interpreter.read_bytes()).hexdigest(),
                              release_root=str(release), script=str(release / 'main.py'),
                              script_sha256=self.ports.payloads['2'].sha256['main.py'],
@@ -327,6 +336,10 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_relea
     wheel = "vendor/demo-0-py3-none-any.whl"
     manifest["runtime"]["vendor_wheels"] = [{"file": wheel, "sha256": sha256(synthetic[wheel]).hexdigest()}]
     if signed_release:
+        if live != 'systemd':
+            data_path = tmp_path / 'installation' / manifest['paths']['data']
+            manifest['migrations']['cmd'] = ['python', 'main.py', 'migrate', '--data-dir', str(data_path),
+                                             '--migration', 'schema-2']
         from shared.host_target import HostTargetError, native_target
         try:
             manifest["compatibility"] = {"targets": [native_target()]}
@@ -369,6 +382,8 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_relea
     effects = (SystemdEffects(home, tmp_path, fail_health=fail_health, manifest=manifest) if live == 'systemd'
                else LiveEffects(home, tmp_path, fail_health=fail_health) if live
                else Effects(home, fail_health=fail_health, corrupt_archive=corrupt))
+    if signed_release:
+        effects.signed_details = (str(package), envelope, public, manifest['product_id'])
     if live:
         request.addfinalizer(effects.close)
     password = "synthetic-test-password-not-a-secret"
@@ -392,7 +407,7 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_relea
         effects.health('0' * 32 + '/initial_health', '', 10, ())
 
     update = UpdatePlan(manifest, installation, ports, release="2", modes=("autonomous" if live == 'systemd' else "platform",),
-                        migration_ids=("schema-2",), guard_effects=live == 'systemd')
+                        migration_ids=("schema-2",), guard_effects=signed_release)
     if corrupt:
         with pytest.raises(UpdateError):
             update.run()

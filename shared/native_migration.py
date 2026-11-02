@@ -17,6 +17,10 @@ import stat
 import subprocess
 
 from shared.datahome import DataHomeError, checked_path
+from shared.host_target import HostTargetError, native_target
+from shared.manifest import ManifestError, check_target
+from shared.package import PackageError
+from shared.package_signing import verify_signed_package
 from shared.update_plan import EffectIndeterminate, UpdateError
 
 _HASH = re.compile(r'[a-f0-9]{64}\Z')
@@ -114,3 +118,61 @@ def run_python_migration(*, interpreter: str, interpreter_sha256: str,
                     process.wait(timeout=5)
                 except subprocess.TimeoutExpired:
                     raise EffectIndeterminate('Остановка миграции не подтверждена') from None
+
+
+def run_signed_native_migration(*, package_path: str, envelope: bytes, trusted_public_key: bytes,
+                                expected_product_id: str, expected_version: str, release_root: str,
+                                interpreter: str, interpreter_sha256: str, timeout: float,
+                                execute: bool = False) -> None:
+    """Запустить только объявленную в подписанном манифесте Python-миграцию.
+
+    Начальный контракт команды: ["python", "relative/script.py", ...fixed_args].
+    Ключ, продукт, версия и хэш runtime независимо задаются вызывающим. Эта
+    проверка не является sandbox, idempotency ledger или проверкой отсутствия
+    вредоносного кода. Параметры из доверенного манифеста видны в argv процесса.
+    """
+    try:
+        metadata = verify_signed_package(package_path, envelope, trusted_public_key=trusted_public_key,
+                                         expected_product_id=expected_product_id, expected_version=expected_version)
+        manifest = metadata['manifest']
+        if (manifest['schema_version'] != 2 or check_target(manifest, native_target())['status'] != 'supported'):
+            raise UpdateError('Целевая среда не подтверждена')
+        command = manifest['migrations']['cmd']
+        if len(command) < 2 or command[0] != 'python' or not command[1].endswith('.py'):
+            raise UpdateError('Команда миграции не поддерживается')
+        expected = {item['path']: item['sha256'] for item in metadata['files']}
+        script = command[1]
+        if script not in expected:
+            raise UpdateError('Команда отсутствует в подписанном составе')
+        root = checked_path(release_root)
+        if not root.is_dir() or root == Path(root.anchor):
+            raise UpdateError('Недопустимый каталог выпуска')
+        directories = {'.'}
+        for name in expected:
+            parts = name.split('/')
+            directories.update('/'.join(parts[:i]) for i in range(1, len(parts)))
+        remaining_files = set(expected)
+        remaining_dirs = directories - {'.'}
+        pending = [root]
+        while pending:
+            current = pending.pop()
+            with os.scandir(current) as entries:
+                for entry in entries:
+                    relative = (current / entry.name).relative_to(root).as_posix()
+                    info = entry.stat(follow_symlinks=False)
+                    if stat.S_ISDIR(info.st_mode) and relative in remaining_dirs:
+                        remaining_dirs.remove(relative)
+                        pending.append(Path(entry.path))
+                    elif stat.S_ISREG(info.st_mode) and relative in remaining_files:
+                        remaining_files.remove(relative)
+                        _checked_file(str(current / entry.name), expected[relative])
+                    else:
+                        raise UpdateError('Состав выпуска не соответствует подписи')
+        if remaining_files or remaining_dirs:
+            raise UpdateError('Состав выпуска не соответствует подписи')
+        run_python_migration(interpreter=interpreter, interpreter_sha256=interpreter_sha256,
+                             release_root=str(root), script=str(root.joinpath(*script.split('/'))),
+                             script_sha256=expected[script], args=tuple(command[2:]),
+                             timeout=timeout, execute=execute)
+    except (PackageError, HostTargetError, ManifestError, DataHomeError, OSError, ValueError, KeyError, TypeError):
+        raise UpdateError('Не удалось подтвердить подписанную миграцию') from None

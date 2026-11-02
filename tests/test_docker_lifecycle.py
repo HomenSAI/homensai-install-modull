@@ -115,6 +115,12 @@ def test_container_status_requires_exact_components_and_identities(change):
         _status_records('\n'.join(json.dumps(row) for row in rows), 'project', services)
 
 
+def test_compose_short_container_id_is_accepted():
+    # Compose v2 may report the daemon's 12-character abbreviated ID.
+    row = {'ID': '08acf1fba08d', 'Project': 'project', 'Service': 'web', 'State': 'running'}
+    assert _status_records(json.dumps(row), 'project', {'web': {}}) == {'web': row['ID']}
+
+
 def test_signed_start_stop_and_retries_do_not_repeat_actions(lifecycle):
     package, envelope, options, daemon = lifecycle
     start = control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
@@ -156,6 +162,19 @@ def test_unknown_start_result_stays_pending_and_is_not_repeated(lifecycle):
 def test_wrong_container_image_does_not_confirm_start(lifecycle):
     package, envelope, options, daemon = lifecycle
     daemon.bad_image = True
+    with pytest.raises(DockerLifecycleError):
+        control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
+    marker = Path(options['work_dir']) / ('compose-lifecycle-' + options['instance_id'] + '.json')
+    assert read_effect_receipt(marker)['status'] == 'start_pending'
+
+
+def test_daemon_returning_tag_instead_of_digest_does_not_confirm_start(lifecycle, monkeypatch):
+    package, envelope, options, daemon = lifecycle
+    def tagged_image(argv, *, timeout, env):
+        if argv[5:8] == ['inspect', '--format', '{{json .Config.Image}}']:
+            return subprocess.CompletedProcess(argv, 0, stdout=json.dumps('docker.io/library/alpine:3.22'))
+        return daemon(argv, timeout=timeout, env=env)
+    monkeypatch.setattr(docker_lifecycle, '_bounded_run', tagged_image)
     with pytest.raises(DockerLifecycleError):
         control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
     marker = Path(options['work_dir']) / ('compose-lifecycle-' + options['instance_id'] + '.json')

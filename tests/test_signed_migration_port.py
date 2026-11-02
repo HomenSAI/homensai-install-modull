@@ -1,5 +1,10 @@
 """Контракт ключа/журнала порта; файловая система и данные синтетические."""
 from pathlib import Path
+import os
+import signal
+import subprocess
+import sys
+import time
 
 import pytest
 
@@ -164,3 +169,108 @@ def test_unencrypted_ports_and_mismatched_installation_rejected(setup, tmp_path)
     ports.password_provider = None
     with pytest.raises(UpdateError):
         SignedMigrationPort(plan, ports, **params)
+
+
+_CRASH_CONTROLLER = r'''
+from pathlib import Path
+import os, sys, time
+sys.path.insert(0, sys.argv[2])
+import shared.signed_migration_port as module
+from shared.adapters_fs import FilesystemPorts
+from shared.manifest import load_manifest
+from shared.signed_migration_port import SignedMigrationPort
+from shared.update_plan import LockBusy, UpdateIndeterminate, UpdatePlan
+
+sandbox, project, mode, boundary = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3], sys.argv[4]
+manifest = load_manifest(project / 'examples/rent.manifest.json')
+root = sandbox / 'installation'
+class Effects:
+    def migrate(self, *args):
+        return self.port.migrate(*args)
+effects = Effects()
+ports = FilesystemPorts(manifest, root, work_dir=sandbox / 'work', payloads={}, effects=effects,
+                        password_provider=lambda: 'synthetic')
+plan = UpdatePlan(manifest, root, ports, release='2', modes=('autonomous',),
+                  migration_ids=('schema-2',), guard_effects=True)
+effects.port = SignedMigrationPort(plan, ports, install_root=str(root), package_path=str(sandbox / 'synthetic.zip'),
+                                   envelope=b'synthetic-envelope', trusted_public_key=b'x' * 32,
+                                   interpreter='/synthetic/python', interpreter_sha256='a' * 64, timeout=1)
+module.archive_crypto.is_encrypted = lambda path: True
+ports._verify_archive = lambda path: {'roots': list(ports.home.roots)}
+def effect(**options):
+    if options.get('execute'):
+        with (sandbox / 'effect-count').open('ab') as stream:
+            stream.write(b'executed\n')
+            stream.flush()
+            os.fsync(stream.fileno())
+module.run_signed_native_migration = effect
+
+if mode == 'crash':
+    original = module._atomic_write
+    def stop_at_receipt(path, value):
+        if value.get('status') == 'done':
+            if boundary == 'done':
+                original(path, value)
+            (sandbox / 'ready').write_text('ready')
+            while True:
+                time.sleep(1)
+        original(path, value)
+    module._atomic_write = stop_at_receipt
+elif mode == 'retry':
+    class Advanced(BaseException):
+        pass
+    original_save = plan._save
+    def observe_advance(value):
+        if value['index'] > plan.forward.index('migrate:0'):
+            raise Advanced()
+        original_save(value)
+    plan._save = observe_advance
+
+try:
+    plan.run(resume_indeterminate=mode != 'check')
+    print('unexpected-completion')
+except UpdateIndeterminate:
+    print('indeterminate')
+except LockBusy:
+    print('locked')
+except BaseException as error:
+    if mode == 'retry' and type(error).__name__ == 'Advanced':
+        print('advanced')
+    else:
+        raise
+'''
+
+
+@pytest.mark.skipif(os.name != 'posix', reason='Проверка SIGKILL только на POSIX')
+@pytest.mark.parametrize('boundary', ['pending', 'done'])
+def test_sigkill_preserves_migration_receipt_and_prevents_duplicate(setup, tmp_path, boundary):
+    plan, ports, port, _, _ = setup
+    controller = tmp_path / 'controller.py'
+    controller.write_text(_CRASH_CONTROLLER, encoding='utf-8')
+    def command(mode):
+        return [sys.executable, '-B', str(controller), str(tmp_path), str(ROOT), mode, boundary]
+    process = subprocess.Popen(command('crash'), cwd=ROOT, stdin=subprocess.DEVNULL,
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+    try:
+        deadline = time.monotonic() + 20
+        while not (tmp_path / 'ready').exists() and time.monotonic() < deadline:
+            if process.poll() is not None:
+                pytest.fail('Контроллер завершился до нужного этапа: ' + process.stderr.read().decode('utf-8', 'replace'))
+            time.sleep(0.05)
+        assert (tmp_path / 'ready').exists()
+        concurrent = subprocess.run(command('check'), cwd=ROOT, capture_output=True, timeout=20, check=True)
+        assert concurrent.stdout.strip() == b'locked'
+        assert (tmp_path / 'effect-count').read_bytes() == b'executed\n'
+    finally:
+        if process.poll() is None:
+            process.kill()
+        stdout, stderr = process.communicate(timeout=10)
+    assert process.returncode == -signal.SIGKILL, (stdout, stderr)
+    assert (tmp_path / 'effect-count').read_bytes() == b'executed\n'
+    assert plan.status()['indeterminate'] is True
+    assert port._read(ports._path(KEY, '.migration.json'))['status'] == boundary
+    check = subprocess.run(command('check'), cwd=ROOT, capture_output=True, timeout=20, check=True)
+    assert check.stdout.strip() == b'indeterminate'
+    retry = subprocess.run(command('retry'), cwd=ROOT, capture_output=True, timeout=20, check=True)
+    assert retry.stdout.strip() == (b'indeterminate' if boundary == 'pending' else b'advanced')
+    assert (tmp_path / 'effect-count').read_bytes() == b'executed\n'

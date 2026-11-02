@@ -686,7 +686,7 @@ def test_api_prepare_invalid_sizes_and_missing_crypto_do_not_write(signed_reques
     monkeypatch.setattr('shared.api._signature_available', lambda: False)
     capabilities = handle({'api_major': 1, 'request_id': 'test', 'operation': 'capabilities', 'params': {}})
     assert 'prepare-native-release' not in capabilities['result']['operations']
-    assert capabilities['result']['mutating_operations'] == []
+    assert 'prepare-native-release' not in capabilities['result']['mutating_operations']
     assert handle(query)['error']['code'] == 'unsupported_operation'
     assert not Path(query['params']['install_root']).exists()
 

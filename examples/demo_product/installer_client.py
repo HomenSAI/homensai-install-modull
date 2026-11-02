@@ -15,6 +15,7 @@ import uuid
 
 _MAX_BYTES = 1024 * 1024
 _CODE = re.compile(r'[a-z][a-z0-9_]{0,63}\Z')
+_SECRET_ENV = re.compile(r'HOMENSAI_SECRET_[A-Z0-9_]{1,96}\Z')
 
 
 class InstallerClientError(RuntimeError):
@@ -44,7 +45,7 @@ class InstallerClient:
         self._python = python_executable
         self._timeout = timeout
 
-    def _call(self, operation: str, params: dict, language: str | None) -> dict:
+    def _call(self, operation: str, params: dict, language: str | None, *, secret_env_name=None) -> dict:
         request_id = uuid.uuid4().hex
         request = {'api_major': 1, 'request_id': request_id, 'operation': operation, 'params': params}
         if language is not None:
@@ -58,6 +59,11 @@ class InstallerClient:
             env = {'PATH': os.defpath, 'PYTHONIOENCODING': 'utf-8'}
             if os.name == 'nt' and 'SystemRoot' in os.environ:
                 env['SystemRoot'] = os.environ['SystemRoot']
+            if secret_env_name is not None:
+                value = os.environ.get(secret_env_name)
+                if value is None or not value or len(value) > 8192:
+                    raise InstallerClientError('secret_unavailable', 'Required installer secret is unavailable')
+                env[secret_env_name] = value
             completed = subprocess.run([self._python, '-B', '-m', 'shared.api'], input=body,
                                        capture_output=True, shell=False, timeout=self._timeout,
                                        check=False, env=env)
@@ -97,15 +103,19 @@ class InstallerClient:
         return value
 
     def call(self, operation: str, params: dict, *, min_minor: int = 0,
-             language: str | None = None) -> dict:
+             language: str | None = None, secret_env_name: str | None = None) -> dict:
         if (type(operation) is not str or not operation or type(params) is not dict
                 or type(min_minor) is not int or min_minor < 0
                 or (language is not None and type(language) is not str)):
             raise ValueError('invalid API request')
+        if secret_env_name is not None and (type(secret_env_name) is not str
+                or _SECRET_ENV.fullmatch(secret_env_name) is None or operation != 'import-update-archive'
+                or params.get('password_env') != secret_env_name):
+            raise ValueError('invalid secret channel')
         capabilities = self.capabilities()
         if (capabilities['api_minor'] < min_minor or operation not in capabilities['operations']
                 or (language is not None and language not in capabilities['languages'])):
             raise InstallerClientError('incompatible_api', 'Required installer capability is unavailable')
         # In particular, do not retry modifying operations or invent their
         # idempotency keys; their owner retains the exact request and key.
-        return self._call(operation, params, language)
+        return self._call(operation, params, language, secret_env_name=secret_env_name)

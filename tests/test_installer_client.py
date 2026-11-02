@@ -83,6 +83,36 @@ def test_client_does_not_pass_secrets_or_use_shell(monkeypatch):
         assert b'sensitive' not in kwargs['input']
 
 
+def test_client_passes_only_explicit_archive_secret_to_operation(monkeypatch):
+    monkeypatch.setenv('HOMENSAI_SECRET_BACKUP', 'synthetic-password')
+    monkeypatch.setenv('UNRELATED_SECRET', 'must-not-pass')
+    seen = []
+    def run(argv, **kwargs):
+        request = json.loads(kwargs['input'])
+        seen.append((request, kwargs['env']))
+        result = ({'api_major': 1, 'api_minor': 27, 'operations': ['import-update-archive'], 'languages': ['en']}
+                  if request['operation'] == 'capabilities' else {'archive_imported': True})
+        body = {'api_major': 1, 'request_id': request['request_id'], 'ok': True, 'result': result}
+        return SimpleNamespace(returncode=0, stdout=json.dumps(body).encode(), stderr=b'')
+    monkeypatch.setattr('examples.demo_product.installer_client.subprocess.run', run)
+    client = InstallerClient()
+    result = client.call('import-update-archive', {'password_env': 'HOMENSAI_SECRET_BACKUP'},
+                         min_minor=27, secret_env_name='HOMENSAI_SECRET_BACKUP')
+    assert result['archive_imported'] is True and len(seen) == 2
+    assert 'HOMENSAI_SECRET_BACKUP' not in seen[0][1]
+    assert seen[1][1]['HOMENSAI_SECRET_BACKUP'] == 'synthetic-password'
+    assert all('UNRELATED_SECRET' not in env for _, env in seen)
+    assert all('synthetic-password' not in json.dumps(request) for request, _ in seen)
+    for invalid in ('PATH', 'PYTHONPATH', 'HOMENSAI_SECRET_'):
+        with pytest.raises(ValueError):
+            client.call('import-update-archive', {'password_env': invalid}, secret_env_name=invalid)
+    monkeypatch.delenv('HOMENSAI_SECRET_BACKUP')
+    with pytest.raises(InstallerClientError) as error:
+        client.call('import-update-archive', {'password_env': 'HOMENSAI_SECRET_BACKUP'},
+                    secret_env_name='HOMENSAI_SECRET_BACKUP')
+    assert error.value.code == 'secret_unavailable' and len(seen) == 3
+
+
 @pytest.mark.parametrize('response', [b'{}', b'{"api_major":1,"api_major":1}', b'bad', b'x' * (1024 * 1024 + 1)])
 def test_invalid_response_does_not_disclose_stderr(monkeypatch, response):
     monkeypatch.setattr('examples.demo_product.installer_client.subprocess.run',

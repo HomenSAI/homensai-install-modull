@@ -14,6 +14,8 @@ import re
 import sys
 from typing import Any
 
+from shared import archive_crypto
+from shared.adapters_fs import FilesystemPorts
 from shared.fresh_prepare import (FreshConflict, FreshPrepareError, prepare_idempotent_native,
                                   status_fresh_native, verify_fresh_release,
                                   _check_fresh_storage, _layout)
@@ -32,10 +34,10 @@ from shared.systemd_portable import PortableUnitError, publish_portable_signed_u
 from shared.runtime_native import NativeRuntimeError, prepare_signed_linux_runtime, verify_signed_linux_runtime
 from shared.systemd_fresh_start import FreshStartError, start_portable_fresh, stop_portable_fresh
 from shared.systemd_cycle import cycle_portable
-from shared.update_plan import UpdateError, UpdatePlan
+from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 
 API_MAJOR = 1
-API_MINOR = 26
+API_MINOR = 27
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -102,6 +104,14 @@ def _signature_available() -> bool:
         return False
 
 
+def _archive_import_available() -> bool:
+    try:
+        archive_crypto._aesgcm()
+        return True
+    except (archive_crypto.ArchiveCryptoError, OSError):
+        return False
+
+
 def _systemd_plan_available() -> bool:
     try:
         return native_target() == {'os': 'linux', 'architecture': 'x86_64', 'execution': 'native'}
@@ -153,6 +163,9 @@ def handle(request: Any) -> dict:
                 raise InvalidRequest()
             operations = ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status", "plan-update", "inspect-update-recovery", "check-local-health"]
             mutating_operations = []
+            if _archive_import_available():
+                operations.append('import-update-archive')
+                mutating_operations.append('import-update-archive')
             if _signature_available():
                 operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release"])
                 mutating_operations.append("prepare-native-release")
@@ -267,6 +280,33 @@ def handle(request: Any) -> dict:
                 if operation == 'plan-update':
                     return _error(request_id, 'update_plan_failed', 'Не удалось составить план обновления', language, 'api.update_plan_failed')
                 return _error(request_id, "update_status_failed", "Не удалось прочитать состояние обновления", language, "api.update_status_failed")
+        elif operation == 'import-update-archive':
+            fields = {'manifest', 'install_root', 'release', 'modes', 'migration_ids',
+                      'work_dir', 'archive', 'expected_sha256', 'password_env'}
+            strings = fields - {'manifest', 'modes', 'migration_ids'}
+            if (set(params) != fields or type(params['manifest']) is not dict
+                    or any(type(params[name]) is not str or not params[name] for name in strings)
+                    or type(params['modes']) is not list or not params['modes']
+                    or type(params['migration_ids']) is not list
+                    or any(type(value) is not str for value in params['modes'] + params['migration_ids'])
+                    or re.fullmatch(r'[a-f0-9]{64}', params['expected_sha256']) is None
+                    or re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', params['password_env']) is None):
+                raise InvalidRequest()
+            if not _archive_import_available():
+                return _error(request_id, 'unsupported_operation', 'Операция API не поддерживается',
+                              language, 'api.unsupported_operation')
+            try:
+                root = checked_path(params['install_root'])
+                ports = FilesystemPorts(params['manifest'], root, work_dir=checked_path(params['work_dir']),
+                    payloads={}, effects=None,
+                    password_provider=archive_crypto.password_provider(env_var=params['password_env']))
+                plan = UpdatePlan(params['manifest'], root, ports, release=params['release'],
+                    modes=tuple(params['modes']), migration_ids=tuple(params['migration_ids']), guard_effects=True)
+                ports.import_archive_for_restore(plan, checked_path(params['archive']), params['expected_sha256'])
+            except (EffectIndeterminate, UpdateError, DataHomeError, ManifestError, OSError, ValueError, RecursionError):
+                return _error(request_id, 'update_archive_import_failed', 'Не удалось подтвердить перенос архива',
+                              language, 'api.update_archive_import_failed')
+            result = {'product_id': ports.home.product_id, 'archive_imported': True, 'resume_authorized': False}
         elif operation == 'cycle-portable-linux':
             fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id', 'expected_version',
                       'install_root', 'modes', 'unit_dir', 'load_key', 'runtime_key', 'initial_start_key',

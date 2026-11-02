@@ -1,11 +1,13 @@
 """Перенос шифрованной копии между двумя синтетическими установками."""
 import hashlib
+import json
 from pathlib import Path
 
 import pytest
 
 from test_linux_signed_release import signed
-from shared import adapters_fs as fs, archive_crypto
+from examples.demo_product.installer_client import InstallerClient
+from shared import adapters_fs as fs, api, archive_crypto, ctl
 from shared.adapters_fs import FilesystemPorts
 from shared.datahome import resolve_datahome
 from shared.effect_receipt import read_effect_receipt
@@ -13,7 +15,7 @@ from shared.manifest import load_manifest
 from shared.update_plan import EffectIndeterminate, UpdateError, UpdateIndeterminate, UpdatePlan, operation_lock
 
 
-def test_encrypted_backup_transfers_to_clean_installation_and_rejects_tampering(tmp_path, monkeypatch):
+def test_encrypted_backup_transfers_to_clean_installation_and_rejects_tampering(tmp_path, monkeypatch, capsys):
     pytest.importorskip('cryptography')
     manifest = load_manifest(Path(__file__).resolve().parents[1] / 'examples/rent.manifest.json')
     manifest['hooks']['pre_start'] = []
@@ -63,8 +65,17 @@ def test_encrypted_backup_transfers_to_clean_installation_and_rejects_tampering(
              'release': '2', 'direction': 'rollback', 'index': plan.rollback.index('restore'),
              'failed_phase': 'stage', 'archive_ready': True, 'outcome': 'running', 'indeterminate': True}
     plan._save(state)
-    with pytest.raises(EffectIndeterminate):
-        destination.import_archive_for_restore(plan, source_archive, '0' * 64)
+    manifest_path = tmp_path / 'manifest.json'
+    manifest_path.write_text(json.dumps(manifest), encoding='utf-8')
+    monkeypatch.setenv('HOMENSAI_SECRET_TEST_ARCHIVE_PASSWORD', 'synthetic password')
+    arguments = ['--manifest', str(manifest_path), 'update-import-archive', '--install-root', str(target),
+                 '--work-dir', str(destination.work), '--archive', str(source_archive),
+                 '--release', '2', '--mode', 'autonomous', '--no-migrations',
+                 '--password-env', 'HOMENSAI_SECRET_TEST_ARCHIVE_PASSWORD', '--json']
+    assert ctl.main([*arguments, '--expected-sha256', '0' * 64]) == 1
+    failure = capsys.readouterr()
+    assert failure.err == '' and json.loads(failure.out)['ok'] is False
+    assert 'synthetic password' not in failure.out and str(source_archive) not in failure.out
     assert not transferred.exists() and not transferred.with_suffix('.archive.json').exists()
     with monkeypatch.context() as patch:
         patch.setattr(fs.os, 'link', lambda *args: (_ for _ in ()).throw(OSError('synthetic publication failure')))
@@ -84,7 +95,27 @@ def test_encrypted_backup_transfers_to_clean_installation_and_rejects_tampering(
         with pytest.raises(Crash):
             destination.import_archive_for_restore(plan, source_archive, expected)
     assert read_effect_receipt(transferred.with_suffix('.archive.json'))['status'] == 'pending'
-    destination.import_archive_for_restore(plan, source_archive, expected)
+    query = {'api_major': 1, 'request_id': 'test-import', 'operation': 'import-update-archive',
+             'language': 'de', 'params': {'manifest': manifest, 'install_root': str(target),
+             'work_dir': str(destination.work), 'archive': str(source_archive), 'release': '2',
+             'modes': ['autonomous'], 'migration_ids': [], 'expected_sha256': expected,
+             'password_env': 'MISSING_SYNTHETIC_PASSWORD'}}
+    failure = api.handle(query)
+    assert failure['error']['code'] == 'update_archive_import_failed'
+    assert 'synthetic password' not in json.dumps(failure) and str(source_archive) not in json.dumps(failure)
+    assert read_effect_receipt(transferred.with_suffix('.archive.json'))['status'] == 'pending'
+    query['params']['password_env'] = 'HOMENSAI_SECRET_TEST_ARCHIVE_PASSWORD'
+    result = api.handle(query)
+    assert result['ok'] is True and result['result']['archive_imported'] is True
+    assert result['result']['resume_authorized'] is False and 'synthetic password' not in json.dumps(result)
+    client_result = InstallerClient(timeout=90).call('import-update-archive', query['params'],
+        min_minor=27, language='en', secret_env_name='HOMENSAI_SECRET_TEST_ARCHIVE_PASSWORD')
+    assert client_result['archive_imported'] is True and client_result['resume_authorized'] is False
+    assert ctl.main([*arguments, '--expected-sha256', expected]) == 0
+    success = capsys.readouterr()
+    result = json.loads(success.out)
+    assert success.err == '' and result['data']['archive_imported'] is True
+    assert result['data']['resume_authorized'] is False and 'synthetic password' not in success.out
     destination.import_archive_for_restore(plan, tmp_path / 'missing source', expected)
     assert plan.status() == state
     assert read_effect_receipt(transferred.with_suffix('.archive.json'))['status'] == 'done'

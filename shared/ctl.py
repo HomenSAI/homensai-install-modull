@@ -12,13 +12,14 @@ import sys
 from shared.archive import ArchiveError, build_archive
 from shared import archive_crypto
 from shared.adapters_docker import DockerAdapterError, DockerComposeAdapter
+from shared.adapters_fs import FilesystemPorts
 from shared.datahome import DataHomeError, checked_path, contains, resolve_datahome
 from shared.doctor import DoctorError, evaluate_health
 from shared.linux_sh import render_linux
 from shared.manifest import ManifestError, load_manifest
 from shared.render_docker import render_docker
 from shared.services import component_order, render_services
-from shared.update_plan import UpdateError, UpdatePlan
+from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.windows_ps import render_windows
 
 
@@ -88,13 +89,14 @@ def _parser() -> Parser:
         "archive-verify": "Проверить полный архив и идентичность продукта",
         "archive-restore": "Восстановить архив в отдельный пустой каталог",
         "update-plan-status": "Прочитать checkpoint без исполнения обновления",
+        "update-import-archive": "Импортировать проверенный архив в приостановленный откат",
     }
     for name, description in descriptions.items():
         command = commands.add_parser(name, help=description, description=description)
         command.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
                              help="Один JSON-объект результата")
         if name in ("plan-install", "render-services", "archive-create", "archive-restore",
-                    "update-plan-status"):
+                    "update-plan-status", "update-import-archive"):
             command.add_argument("--install-root", required=True, help="Абсолютный корень текущей ОС")
         if name in ("plan-install", "archive-create", "archive-restore"):
             command.add_argument("--data-home", help="v1: явный абсолютный DataHome")
@@ -126,20 +128,24 @@ def _parser() -> Parser:
             command.add_argument("--compose-file", required=True, help="Путь публичного compose.yml")
             command.add_argument("--action", choices=("up", "stop", "ps", "logs"), required=True,
                                  help="Только план команды Compose")
-        if name in ("archive-create", "archive-verify", "archive-restore"):
+        if name in ("archive-create", "archive-verify", "archive-restore", "update-import-archive"):
             command.add_argument("--archive", required=True, help="Путь архива (create: новый файл)")
             command.add_argument("--password-env", help="Только имя переменной пароля; иначе скрытый запрос")
         if name == "archive-create":
             command.add_argument("--encrypt", action="store_true", help="Полный ZIP в AES-256-GCM оболочке")
         if name == "archive-restore":
             command.add_argument("--target", required=True, help="Существующий отдельный пустой каталог")
-        if name == "update-plan-status":
+        if name in ("update-plan-status", "update-import-archive"):
             command.add_argument("--release", required=True, help="Целевой публичный ID выпуска плана")
             command.add_argument("--mode", action="append", required=True, help="Исходный набор режимов")
-            command.add_argument("--guard-effects", action="store_true", help="План создан с предварительной отметкой")
+            if name == "update-plan-status":
+                command.add_argument("--guard-effects", action="store_true", help="План создан с предварительной отметкой")
             migrations = command.add_mutually_exclusive_group()
             migrations.add_argument("--migration-id", action="append", help="Исходный порядок миграций")
             migrations.add_argument("--no-migrations", action="store_true", help="План без миграций")
+        if name == "update-import-archive":
+            command.add_argument("--work-dir", required=True, help="Исходный каталог операции")
+            command.add_argument("--expected-sha256", required=True, help="Независимо доверенный SHA-256 архива")
     return parser
 
 
@@ -270,6 +276,16 @@ def _execute(manifest, args, *, password_provider=None) -> tuple[str, dict]:
         return ("Состояние обновления прочитано" if state else "Обновление ещё не начато"), {"state": state}
     provider = password_provider if password_provider is not None else archive_crypto.password_provider(
         env_var=args.password_env)
+    if name == "update-import-archive":
+        ids = () if args.no_migrations else tuple(args.migration_id or ["manifest"])
+        root = checked_path(args.install_root)
+        ports = FilesystemPorts(manifest, root, work_dir=_path(args.work_dir), payloads={},
+                                effects=None, password_provider=provider)
+        plan = UpdatePlan(manifest, root, ports, release=args.release, modes=tuple(args.mode),
+                          migration_ids=ids, guard_effects=True)
+        ports.import_archive_for_restore(plan, _path(args.archive), args.expected_sha256)
+        return "Копия проверена и импортирована; откат не возобновлялся", {
+            "product_id": manifest["product_id"], "archive_imported": True, "resume_authorized": False}
     encrypted = False
     if name == "archive-create":
         home = _home(manifest, args)
@@ -373,6 +389,8 @@ def main(argv: list[str] | None = None, *, password_provider=None) -> int:
         return _emit(1, "Операция ZIP не завершена: проверьте архив, место и каталоги", {}, as_json)
     except UpdateError:
         return _emit(1, "Состояние обновления повреждено, недоступно или относится к другому плану", {}, as_json)
+    except EffectIndeterminate:
+        return _emit(1, "Результат операции не подтверждён; требуется проверка", {}, as_json)
     except UnimplementedPortError:
         return _emit(1, "Реальный адаптер не реализован; выполнение запрещено", {}, as_json)
     except (OSError, UnicodeError, ValueError, RecursionError):

@@ -29,11 +29,48 @@ def cli(data):
 
 def test_capabilities_only_advertises_read_only_operations(monkeypatch):
     monkeypatch.setattr("shared.api._signature_available", lambda: False)
+    monkeypatch.setattr("shared.api._archive_import_available", lambda: False)
     response = handle(request())
     assert response["ok"] is True
     assert response["result"]["operations"] == ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status", "plan-update", "inspect-update-recovery", "check-local-health"]
     assert response["result"]["execution_modes"] == []
     assert response["result"]["manifest_versions"] == [1, 2]
+
+
+def test_archive_import_capability_requires_crypto(monkeypatch, tmp_path):
+    manifest = json.loads((ROOT / 'examples/rent.manifest.json').read_text(encoding='utf-8'))
+    params = {'manifest': manifest, 'install_root': str(tmp_path / 'install'), 'release': 'new',
+              'modes': ['autonomous'], 'migration_ids': [], 'work_dir': str(tmp_path / 'work'),
+              'archive': str(tmp_path / 'archive'), 'expected_sha256': 'a' * 64, 'password_env': 'PASSWORD'}
+    monkeypatch.setattr('shared.api._archive_import_available', lambda: False)
+    caps = handle(request())['result']
+    assert 'import-update-archive' not in caps['operations']
+    assert handle(request('import-update-archive', params))['error']['code'] == 'unsupported_operation'
+    assert not (tmp_path / 'install').exists() and not (tmp_path / 'work').exists()
+    monkeypatch.setattr('shared.api._archive_import_available', lambda: True)
+    caps = handle(request())['result']
+    assert caps['api_minor'] >= 27 and 'import-update-archive' in caps['mutating_operations']
+
+
+@pytest.mark.parametrize('language', ['ru', 'en', 'de'])
+def test_archive_import_schema_and_localized_failure(tmp_path, monkeypatch, language):
+    jsonschema = pytest.importorskip('jsonschema')
+    schema = json.loads((ROOT / 'shared/api-v1-request.schema.json').read_text(encoding='utf-8'))
+    manifest = json.loads((ROOT / 'examples/rent.manifest.json').read_text(encoding='utf-8'))
+    params = {'manifest': manifest, 'install_root': str(tmp_path / 'install'), 'release': 'new',
+              'modes': ['autonomous'], 'migration_ids': [], 'work_dir': str(tmp_path / 'work'),
+              'archive': str(tmp_path / 'archive'), 'expected_sha256': 'a' * 64, 'password_env': 'TEST_SECRET'}
+    query = request('import-update-archive', params, language=language)
+    validator = jsonschema.Draft202012Validator(schema)
+    assert validator.is_valid(query)
+    monkeypatch.setattr('shared.api._archive_import_available', lambda: True)
+    monkeypatch.setenv('TEST_SECRET', 'SECRET-SENTINEL')
+    response = handle(query)
+    assert response['error']['code'] == 'update_archive_import_failed'
+    assert 'SECRET-SENTINEL' not in json.dumps(response) and str(tmp_path) not in json.dumps(response)
+    assert not (tmp_path / 'install').exists() and not (tmp_path / 'work').exists()
+    query['params']['expected_sha256'] = 'A' * 64
+    assert not validator.is_valid(query) and handle(query)['error']['code'] == 'invalid_request'
 
 
 @pytest.mark.parametrize('guarded', [False, True])

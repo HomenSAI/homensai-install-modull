@@ -4,13 +4,22 @@ import os
 from pathlib import Path
 import subprocess
 import time
+import tomllib
 from types import SimpleNamespace
 
 import pytest
 
 from examples.demo_product.installer_client import InstallerClient, InstallerClientError
+import homensai_installer_client
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_packaged_client_and_legacy_import_share_one_versioned_implementation():
+    config = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
+    assert homensai_installer_client.__version__ == config['project']['version']
+    assert homensai_installer_client.InstallerClient is InstallerClient
+    assert homensai_installer_client.InstallerClientError is InstallerClientError
 
 
 def test_real_client_negotiates_and_validates_product_manifest():
@@ -37,6 +46,8 @@ def test_client_uses_explicit_installer_root_from_independent_product(tmp_path, 
     monkeypatch.chdir(tmp_path)
     client = InstallerClient(api_root=str(ROOT), timeout=30)
     assert client.capabilities()['api_major'] == 1
+    # The source-tree default must also avoid the product's current directory.
+    assert InstallerClient(timeout=30).capabilities()['api_major'] == 1
     assert not marker.exists()
 
 
@@ -96,7 +107,7 @@ def test_client_does_not_pass_secrets_or_use_shell(monkeypatch):
             result = {'product_id': 'demo'}
         return SimpleNamespace(returncode=0, stdout=json.dumps({'api_major': 1, 'request_id': request['request_id'],
                                                                  'ok': True, 'result': result}).encode(), stderr=b'')
-    monkeypatch.setattr('examples.demo_product.installer_client._run_bounded', run)
+    monkeypatch.setattr('homensai_installer_client.client._run_bounded', run)
     assert InstallerClient().call('validate', {'manifest': {}}, language='en') == {'product_id': 'demo'}
     assert len(seen) == 2
     for argv, kwargs in seen:
@@ -116,7 +127,7 @@ def test_client_passes_only_explicit_archive_secret_to_operation(monkeypatch):
                   if request['operation'] == 'capabilities' else {'archive_imported': True})
         body = {'api_major': 1, 'request_id': request['request_id'], 'ok': True, 'result': result}
         return SimpleNamespace(returncode=0, stdout=json.dumps(body).encode(), stderr=b'')
-    monkeypatch.setattr('examples.demo_product.installer_client._run_bounded', run)
+    monkeypatch.setattr('homensai_installer_client.client._run_bounded', run)
     client = InstallerClient()
     result = client.call('import-update-archive', {'password_env': 'HOMENSAI_SECRET_BACKUP'},
                          min_minor=27, secret_env_name='HOMENSAI_SECRET_BACKUP')
@@ -137,7 +148,7 @@ def test_client_passes_only_explicit_archive_secret_to_operation(monkeypatch):
 
 @pytest.mark.parametrize('response', [b'{}', b'{"api_major":1,"api_major":1}', b'bad', b'x' * (1024 * 1024 + 1)])
 def test_invalid_response_does_not_disclose_stderr(monkeypatch, response):
-    monkeypatch.setattr('examples.demo_product.installer_client._run_bounded',
+    monkeypatch.setattr('homensai_installer_client.client._run_bounded',
                         lambda *a, **kw: SimpleNamespace(returncode=0, stdout=response, stderr=b'SECRET-SENTINEL'))
     with pytest.raises(InstallerClientError) as exc:
         InstallerClient().capabilities()
@@ -149,7 +160,7 @@ def test_timeout_does_not_retry_or_disclose_error(monkeypatch):
     def fail(*a, **kw):
         calls.append(1)
         raise subprocess.TimeoutExpired('SECRET-SENTINEL', 1)
-    monkeypatch.setattr('examples.demo_product.installer_client._run_bounded', fail)
+    monkeypatch.setattr('homensai_installer_client.client._run_bounded', fail)
     with pytest.raises(InstallerClientError) as exc:
         InstallerClient().call('prepare-native-release', {})
     assert exc.value.code == 'transport_error' and 'SECRET-SENTINEL' not in str(exc.value)
@@ -167,7 +178,7 @@ def test_uncertain_mutating_call_is_not_retried(monkeypatch):
                                    'operations': ['prepare-native-release'], 'languages': ['en']}}
             return SimpleNamespace(returncode=0, stdout=json.dumps(response).encode(), stderr=b'')
         raise subprocess.TimeoutExpired('synthetic', 1)
-    monkeypatch.setattr('examples.demo_product.installer_client._run_bounded', run)
+    monkeypatch.setattr('homensai_installer_client.client._run_bounded', run)
     with pytest.raises(InstallerClientError) as exc:
         InstallerClient().call('prepare-native-release', {'idempotency_key': 'a' * 32}, min_minor=8)
     assert exc.value.code == 'transport_error'
@@ -176,7 +187,7 @@ def test_uncertain_mutating_call_is_not_retried(monkeypatch):
 
 def test_wrong_response_request_id_is_rejected(monkeypatch):
     response = {'api_major': 1, 'request_id': 'unrelated', 'ok': True, 'result': {}}
-    monkeypatch.setattr('examples.demo_product.installer_client._run_bounded',
+    monkeypatch.setattr('homensai_installer_client.client._run_bounded',
                         lambda *a, **kw: SimpleNamespace(returncode=0, stdout=json.dumps(response).encode(), stderr=b''))
     with pytest.raises(InstallerClientError) as exc:
         InstallerClient().capabilities()

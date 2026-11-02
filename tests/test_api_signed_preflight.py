@@ -918,7 +918,7 @@ def test_independent_product_client_recovers_from_lost_prepare_response(tmp_path
         return response
 
     with monkeypatch.context() as patch:
-        patch.setattr('examples.demo_product.installer_client._run_bounded', lose_response)
+        patch.setattr('homensai_installer_client.client._run_bounded', lose_response)
         with pytest.raises(InstallerClientError) as exc:
             client.call('prepare-native-release', preparation, min_minor=8, language='en')
         assert exc.value.code == 'transport_error'

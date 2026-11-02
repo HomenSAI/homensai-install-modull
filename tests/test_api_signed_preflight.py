@@ -100,3 +100,65 @@ def test_operation_is_unavailable_without_signature_support(signed_request, monk
     capabilities = handle({'api_major': 1, 'request_id': 'test', 'operation': 'capabilities', 'params': {}})
     assert 'inspect-fresh-package' not in capabilities['result']['operations']
     assert handle(query)['error']['code'] == 'unsupported_operation'
+
+
+def native_query(query):
+    result = deepcopy(query)
+    result['operation'] = 'inspect-native-fresh-package'
+    del result['params']['target']
+    return result
+
+
+def test_native_inspection_uses_detected_target(signed_request, monkeypatch):
+    query, _, _ = signed_request
+    query = native_query(query)
+    monkeypatch.setattr('shared.api.native_target', lambda: deepcopy(TARGET))
+    result = handle(query)
+    assert result['ok'] and result['result']['process_target'] == TARGET
+    assert not Path(query['params']['install_root']).exists()
+    query['params']['target'] = {'os': 'windows', 'architecture': 'x86_64', 'execution': 'native'}
+    assert handle(query)['error']['code'] == 'invalid_request'
+
+
+def test_native_inspection_refuses_mismatch_and_unknown_platform(signed_request, monkeypatch):
+    import shared.api as api
+    query, _, _ = signed_request
+    query = native_query(query)
+    monkeypatch.setattr(api, 'native_target', lambda: {'os': 'windows', 'architecture': 'x86_64', 'execution': 'native'})
+    assert handle(query)['error']['code'] == 'target_not_supported'
+    def unknown():
+        raise api.HostTargetError('SECRET-SENTINEL')
+    monkeypatch.setattr(api, 'native_target', unknown)
+    result = handle(query)
+    assert result['error']['code'] == 'unsupported_platform'
+    assert 'SECRET-SENTINEL' not in json.dumps(result)
+    assert not Path(query['params']['install_root']).exists()
+    query['language'] = 'de'
+    assert handle(query)['error']['message'] == 'Die Prozessplattform wird nicht unterstützt'
+
+
+def test_native_inspection_requires_signature_support(signed_request, monkeypatch):
+    query, _, _ = signed_request
+    query = native_query(query)
+    monkeypatch.setattr('shared.api._signature_available', lambda: False)
+    capabilities = handle({'api_major': 1, 'request_id': 'test', 'operation': 'capabilities', 'params': {}})
+    assert 'inspect-native-fresh-package' not in capabilities['result']['operations']
+    assert handle(query)['error']['code'] == 'unsupported_operation'
+
+
+def test_native_inspection_current_process_and_cli(signed_request):
+    from shared.host_target import HostTargetError, native_target
+    try:
+        target = native_target()
+    except HostTargetError:
+        pytest.skip('Среда процесса не входит в тестовый профиль')
+    if target != TARGET:
+        pytest.skip('Пакет фикстуры рассчитан на Linux x86_64')
+    query, _, _ = signed_request
+    query = native_query(query)
+    response = handle(query)
+    assert response['ok'] and response['result']['process_target'] == target
+    cli = subprocess.run([sys.executable, '-B', '-m', 'shared.api'], cwd=ROOT,
+                         input=json.dumps(query).encode(), capture_output=True, timeout=30)
+    assert cli.returncode == 0
+    assert json.loads(cli.stdout)['result']['process_target'] == target

@@ -12,5 +12,6 @@
   "api.signature_unavailable": "Проверка подписи недоступна",
   "api.verification_failed": "Подпись или пакет не прошли проверку",
   "api.unsupported_operation": "Операция API не поддерживается",
-  "api.target_not_supported": "Цель не подтверждена подписанным манифестом"
+  "api.target_not_supported": "Цель не подтверждена подписанным манифестом",
+  "api.unsupported_platform": "Платформа процесса не поддерживается"
 }

@@ -12,5 +12,6 @@
   "api.signature_unavailable": "Die Signaturprüfung ist nicht verfügbar",
   "api.verification_failed": "Die Prüfung der Signatur oder des Pakets ist fehlgeschlagen",
   "api.unsupported_operation": "Die API-Operation wird nicht unterstützt",
-  "api.target_not_supported": "Die Zielumgebung wird durch das signierte Manifest nicht bestätigt"
+  "api.target_not_supported": "Die Zielumgebung wird durch das signierte Manifest nicht bestätigt",
+  "api.unsupported_platform": "Die Prozessplattform wird nicht unterstützt"
 }

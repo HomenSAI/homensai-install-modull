@@ -22,7 +22,7 @@ from shared.adapters_fs import FilesystemPorts, ReleaseSource
 from shared import archive_crypto
 from shared.datahome import resolve_datahome
 from shared.manifest import load_manifest, validate_manifest
-from shared.update_plan import UpdateError, UpdatePlan, operation_lock
+from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan, operation_lock
 
 ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / "examples/demo_product"
@@ -207,15 +207,23 @@ class SystemdEffects(Effects):
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, check=False)
 
     def stop(self, key, components):
+        from shared.systemd_group import SystemdGroupError
         super().stop(key, components)
         assert components == ('bot', 'web')
-        self.group.command('stop', execute=True)
+        try:
+            self.group.command('stop', execute=True)
+        except SystemdGroupError:
+            raise EffectIndeterminate() from None
 
     def start(self, key, components, pre_start):
+        from shared.systemd_group import SystemdGroupError
         super().start(key, components, pre_start)
         assert components == ('web', 'bot')
         self.log.write_text('', encoding='utf-8')
-        self.group.command('start', execute=True)
+        try:
+            self.group.command('start', execute=True)
+        except SystemdGroupError:
+            raise EffectIndeterminate() from None
 
     def health(self, key, url, timeout, checks):
         phase = key.split('/')[-1]
@@ -246,6 +254,24 @@ class SystemdEffects(Effects):
                 pass
             time.sleep(0.05)
         raise RuntimeError('test systemd product health failure')
+
+
+@pytest.mark.parametrize('action', ['start', 'stop'])
+def test_systemd_group_failure_has_indeterminate_effect(tmp_path, action):
+    from shared.systemd_group import SystemdGroupError
+
+    class FailingGroup:
+        def command(self, *args, **kwargs):
+            raise SystemdGroupError('synthetic sensitive output')
+
+    effects = SystemdEffects(None, tmp_path, fail_health=False, manifest=None)
+    effects.group = FailingGroup()
+    with pytest.raises(EffectIndeterminate) as error:
+        if action == 'start':
+            effects.start('a' * 32 + '/start', ('web', 'bot'), ())
+        else:
+            effects.stop('a' * 32 + '/stop', ('bot', 'web'))
+    assert 'sensitive' not in str(error.value)
 
 
 @pytest.mark.parametrize("signed_release,encrypted,fail_health,corrupt,live", [

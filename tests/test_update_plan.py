@@ -7,7 +7,8 @@ import pytest
 
 import shared.update_plan as module
 from shared.manifest import load_manifest
-from shared.update_plan import LockBusy, UpdateError, UpdatePlan, operation_lock
+from shared.update_plan import (EffectIndeterminate, LockBusy, UpdateError,
+                                UpdateIndeterminate, UpdatePlan, operation_lock)
 
 
 SECRET = "SYNTHETIC-SECRET-DO-NOT-EMIT"
@@ -158,6 +159,64 @@ def test_crash_resume_each_update_phase(tmp_path, manifest, phase, after):
     assert ports.data["attempts"].count(phase) == 2
 
 
+@pytest.mark.parametrize("phase", FORWARD)
+@pytest.mark.parametrize("after", [False, True])
+def test_unknown_effect_pauses_without_rollback_and_reuses_key(tmp_path, manifest, phase, after):
+    class Uncertain(FakePorts):
+        def action(self, key, effect=None, details=None):
+            if key.endswith('/' + phase):
+                if after:
+                    super().action(key, effect, details)
+                raise EffectIndeterminate(SECRET)
+            return super().action(key, effect, details)
+
+    ports = Uncertain(tmp_path)
+    update = plan(tmp_path, manifest, ports)
+    with pytest.raises(UpdateIndeterminate) as error:
+        update.run()
+    assert SECRET not in str(error.value)
+    state = update.status()
+    assert state['direction'] == 'forward' and state['index'] == FORWARD.index(phase)
+    assert state['indeterminate'] is True
+    assert state['failed_phase'] is None and state['outcome'] == 'running'
+    assert not set(ROLLBACK) & set(phases(ports))
+    assert phases(ports).count(phase) == int(after)
+    resumed = FakePorts(tmp_path)
+    before = resumed.data
+    with pytest.raises(UpdateIndeterminate):
+        plan(tmp_path, manifest, resumed).run()
+    assert resumed.data == before
+    assert plan(tmp_path, manifest, resumed).run(resume_indeterminate=True)['outcome'] == 'updated'
+    assert phases(resumed) == FORWARD
+    assert resumed.data['pointer'] == 'new' and resumed.data['db'] == 2
+
+
+@pytest.mark.parametrize("phase", ROLLBACK)
+def test_unknown_rollback_effect_stays_on_phase(tmp_path, manifest, phase):
+    class UncertainRollback(FakePorts):
+        def action(self, key, effect=None, details=None):
+            if key.endswith('/health'):
+                raise RuntimeError(SECRET)
+            if key.endswith('/' + phase):
+                super().action(key, effect, details)
+                raise EffectIndeterminate(SECRET)
+            return super().action(key, effect, details)
+
+    ports = UncertainRollback(tmp_path)
+    update = plan(tmp_path, manifest, ports)
+    with pytest.raises(UpdateIndeterminate) as error:
+        update.run()
+    assert SECRET not in str(error.value)
+    state = update.status()
+    assert state['direction'] == 'rollback' and state['index'] == ROLLBACK.index(phase)
+    assert state['indeterminate'] is True
+    with pytest.raises(UpdateIndeterminate):
+        plan(tmp_path, manifest, FakePorts(tmp_path)).run()
+    result = plan(tmp_path, manifest, FakePorts(tmp_path)).run(resume_indeterminate=True)
+    assert result['outcome'] == 'rolled_back'
+    assert phases(ports)[-6:] == ROLLBACK
+
+
 @pytest.mark.parametrize("phase", ROLLBACK)
 @pytest.mark.parametrize("after", [False, True])
 def test_crash_resume_each_rollback_phase(tmp_path, manifest, phase, after):
@@ -283,7 +342,7 @@ def test_rollback_checkpoint_crash_resume(tmp_path, manifest, monkeypatch, bound
     assert result["outcome"] == "rolled_back" and ports.data["db"] == 0
 
 
-@pytest.mark.parametrize("corruption", ["invalid-json", "extra", "no-backup", "negative", "plan", "duplicate"])
+@pytest.mark.parametrize("corruption", ["invalid-json", "extra", "no-backup", "negative", "plan", "duplicate", "uncertain"])
 def test_corrupt_state_refused_without_effects(tmp_path, manifest, corruption):
     update = plan(tmp_path, manifest, FakePorts(tmp_path, crash="restore", fail="health"))
     with pytest.raises(Crash):
@@ -300,6 +359,8 @@ def test_corrupt_state_refused_without_effects(tmp_path, manifest, corruption):
             saved["archive_ready"] = False
         elif corruption == "negative":
             saved["index"] = -1
+        elif corruption == "uncertain":
+            saved["indeterminate"] = False
         else:
             saved["plan"] = "a" * 64
         text = json.dumps(saved)

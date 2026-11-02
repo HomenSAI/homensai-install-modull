@@ -30,6 +30,14 @@ class LockBusy(UpdateError):
     """Операция уже занята или блокировка недоступна."""
 
 
+class EffectIndeterminate(Exception):
+    """Порт не может подтвердить эффект; его текст не раскрывается вызывающему."""
+
+
+class UpdateIndeterminate(UpdateError):
+    """Транзакция остановлена на прежнем шаге из-за неизвестного исхода."""
+
+
 class UpdatePorts(Protocol):
     """Все эффекты принадлежат адаптеру; key должен переживать смерть процесса.
 
@@ -39,6 +47,8 @@ class UpdatePorts(Protocol):
     start/stop: все писатели; health: HTTP 200 без proxy/redirect + hooks,
     ограниченные общим timeout. pre_start выполняется до запуска компонентов.
     switch_pointer: атомарная durable запись manifest.update.pointer_file.
+    Неизвестный исход эффекта обозначать EffectIndeterminate: до разрешения
+    неопределённости нельзя автоматически начинать откат или повторять эффект.
     """
 
     def current_release(self) -> str: ...
@@ -205,7 +215,7 @@ class UpdatePlan:
             raise UpdateError("Состояние повреждено или недоступно") from None
         keys = {"version", "transaction", "plan", "old_release", "release", "direction",
                 "index", "failed_phase", "archive_ready", "outcome"}
-        if (type(value) is not dict or set(value) != keys
+        if (type(value) is not dict or set(value) not in (keys, keys | {"indeterminate"})
                 or type(value["version"]) is not int or value["version"] != 1
                 or type(value["transaction"]) is not str
                 or re.fullmatch(r"[0-9a-f]{32}", value["transaction"]) is None
@@ -214,11 +224,13 @@ class UpdatePlan:
                 or value["direction"] not in ("forward", "rollback")
                 or type(value["index"]) is not int
                 or type(value["archive_ready"]) is not bool
+                or ("indeterminate" in value and value["indeterminate"] is not True)
                 or value["outcome"] not in ("running", "updated", "rolled_back")):
             raise UpdateError("Состояние не соответствует плану")
         phases = self.forward if value["direction"] == "forward" else self.rollback
         index = value["index"]
         if (not 0 <= index <= len(phases)
+                or (value.get("indeterminate") is True and value["outcome"] != "running")
                 or (value["direction"] == "forward" and value["failed_phase"] is not None)
                 or (value["direction"] == "rollback" and value["failed_phase"] not in self.forward)
                 or value["archive_ready"] != (
@@ -273,12 +285,18 @@ class UpdatePlan:
         elif phase == "post_update":
             ports.post_update(key, commands("post_update"))
 
-    def run(self) -> dict[str, Any]:
+    def run(self, *, resume_indeterminate: bool = False) -> dict[str, Any]:
         """Выполнить/возобновить; сбой rollback оставляет фазу для безопасного retry.
 
         BaseException (смерть процесса) и ошибки checkpoint не запускают откат.
+        EffectIndeterminate помечает checkpoint и не запускает rollback. После
+        проверки вызывающим требуется явный resume_indeterminate=True. Повтор
+        безопасен, только если порт разрешил неопределённость и выполняет
+        обязательства идемпотентности по тому же key.
         Обычная ошибка внешнего шага переключает durable направление на rollback.
         """
+        if type(resume_indeterminate) is not bool:
+            raise UpdateError("Недопустимый признак возобновления")
         checked_path(self.lock_path.parent).mkdir(parents=True, exist_ok=True)
         with operation_lock(self.lock_path):
             checked_path(self.state_path.parent).mkdir(parents=True, exist_ok=True)
@@ -294,11 +312,20 @@ class UpdatePlan:
                          "old_release": previous, "release": self.release, "direction": "forward",
                          "index": 0, "failed_phase": None, "archive_ready": False, "outcome": "running"}
                 self._save(state)
+            if state.get("indeterminate") is True:
+                if not resume_indeterminate:
+                    raise UpdateIndeterminate("Исход шага не подтверждён; требуется проверка перед повтором")
+                del state["indeterminate"]
+                self._save(state)
             while state["outcome"] == "running":
                 phases = self.forward if state["direction"] == "forward" else self.rollback
                 phase = phases[state["index"]]
                 try:
                     self._execute(state, phase)
+                except EffectIndeterminate:
+                    state["indeterminate"] = True
+                    self._save(state)
+                    raise UpdateIndeterminate("Исход шага не подтверждён; требуется проверка перед повтором") from None
                 except Exception:
                     if state["direction"] == "rollback":
                         raise UpdateError("Откат приостановлен; повторите run после устранения причины") from None

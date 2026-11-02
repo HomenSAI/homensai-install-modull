@@ -125,6 +125,18 @@ def test_real_demo_migration_update_and_rollback(tmp_path, signed_release, encry
         assert receipt["process_target"] == manifest["compatibility"]["targets"][0]
         payloads["2"] = ReleaseSource(prepared, receipt["files"])
     installation = tmp_path / "installation"
+    if signed_release:
+        from shared.fresh_prepare import prepare_fresh_native
+        from shared.preflight import NAMES
+        package_one = tmp_path / "release-1.zip"
+        build_package(manifest, "1", source / "app-1", package_one)
+        envelope_one = sign_package(package_one, private_key=private,
+                                    expected_product_id=manifest["product_id"], expected_version="1")
+        fresh = prepare_fresh_native(package_one, envelope_one, installation,
+                                     trusted_public_key=public, expected_product_id=manifest["product_id"],
+                                     expected_version="1", required_bytes={name: 0 for name in NAMES},
+                                     reserve_bytes=0)
+        assert fresh['status'] == 'prepared'
     home = resolve_datahome(manifest, installation)
     for directory in (home.app, home.releases, *home.roots.values()):
         directory.mkdir(parents=True, exist_ok=True)
@@ -135,9 +147,10 @@ def test_real_demo_migration_update_and_rollback(tmp_path, signed_release, encry
                             payloads=payloads, effects=effects, allow_unencrypted=not encrypted,
                             password_provider=password_provider)
     effects.ports = ports
-    with operation_lock(home.roots["services"] / "operation.lock"):
-        ports.stage_release("0" * 32 + "/stage", "1")
-        ports.switch_pointer("0" * 32 + "/switch", "1")
+    if not signed_release:
+        with operation_lock(home.roots["services"] / "operation.lock"):
+            ports.stage_release("0" * 32 + "/stage", "1")
+            ports.switch_pointer("0" * 32 + "/switch", "1")
     invoke(ports.release_path("1") / "main.py", home.roots["data"])
     settings = home.roots["data"] / "settings.json"
     settings.write_text('{"display_name":"Example","locale":"de"}\n', encoding="utf-8")

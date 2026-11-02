@@ -133,6 +133,7 @@ def _prepare_signed_package(package_path: str | Path, envelope: bytes, destinati
                       "files": {item["path"]: item["sha256"] for item in metadata["files"]}}
             if target is not None:
                 result["process_target"] = target
+                result["manifest"] = metadata["manifest"]
             return result
     except (OSError, ValueError, RuntimeError, EOFError, NotImplementedError,
             DataHomeError, ArchiveError, UpdateError, zipfile.BadZipFile) as error:

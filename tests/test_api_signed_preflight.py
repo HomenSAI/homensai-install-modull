@@ -204,3 +204,91 @@ def test_preparation_rejects_unknown_host_and_wrong_key(signed_request, tmp_path
     with pytest.raises(PackageError):
         prepare_native(query, destination)
     assert not destination.exists()
+
+
+def fresh_prepare(query):
+    from shared.fresh_prepare import prepare_fresh_native
+    params = query['params']
+    return prepare_fresh_native(params['package_path'], base64.b64decode(params['envelope']),
+        params['install_root'], trusted_public_key=base64.b64decode(params['trusted_public_key']),
+        expected_product_id=params['expected_product_id'], expected_version=params['expected_version'],
+        required_bytes=params['required_bytes'], reserve_bytes=params['reserve_bytes'])
+
+
+def test_fresh_signed_preparation_creates_only_a_staged_release(signed_request, monkeypatch):
+    from shared.fresh_prepare import FreshPrepareError
+    query, _, _ = signed_request
+    monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    root = Path(query['params']['install_root'])
+    result = fresh_prepare(query)
+    assert result['status'] == 'prepared' and result['process_target'] == TARGET
+    assert json.loads((root / '.homensai-fresh.json').read_text())['status'] == 'prepared'
+    assert json.loads((root / 'services/active.json').read_text()) == {'release': '1'}
+    assert (root / 'releases/app-1/locks/demo-linux.lock').exists()
+    assert not list((root / 'data').iterdir())
+    (root / 'data/keep.txt').write_text('preserve')
+    with pytest.raises(FreshPrepareError):
+        fresh_prepare(query)
+    assert (root / 'data/keep.txt').read_text() == 'preserve'
+
+
+def test_fresh_failure_preserves_partial_root_for_recovery(signed_request, monkeypatch):
+    from shared.fresh_prepare import FreshPrepareError
+    query, _, _ = signed_request
+    monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    def fail(*args, **kwargs):
+        raise OSError('SECRET-SENTINEL')
+    monkeypatch.setattr('shared.fresh_prepare.FilesystemPorts.stage_release', fail)
+    root = Path(query['params']['install_root'])
+    with pytest.raises(FreshPrepareError) as error:
+        fresh_prepare(query)
+    assert 'SECRET-SENTINEL' not in str(error.value)
+    assert json.loads((root / '.homensai-fresh.json').read_text())['status'] == 'preparing'
+    assert not (root / 'services/active.json').exists()
+    with pytest.raises(FreshPrepareError):
+        fresh_prepare(query)
+
+
+def test_fresh_preparation_rejects_wrong_key_before_writing(signed_request):
+    from shared.fresh_prepare import FreshPrepareError
+    query, _, _ = signed_request
+    query['params']['trusted_public_key'] = base64.b64encode(b'x' * 32).decode()
+    with pytest.raises(FreshPrepareError):
+        fresh_prepare(query)
+    assert not Path(query['params']['install_root']).exists()
+
+
+def test_fresh_refuses_external_product_paths_before_creating_root(signed_request, tmp_path, monkeypatch):
+    import shared.fresh_prepare as fresh
+    query, _, _ = signed_request
+    original = fresh.verify_signed_package
+    def outside(*args, **kwargs):
+        metadata = original(*args, **kwargs)
+        metadata['manifest']['paths'] = {name: str(tmp_path / 'outside' / name) for name in NAMES}
+        return metadata
+    monkeypatch.setattr(fresh, 'verify_signed_package', outside)
+    monkeypatch.setattr(fresh, 'native_target', lambda: deepcopy(TARGET))
+    with pytest.raises(fresh.FreshPrepareError):
+        fresh_prepare(query)
+    assert not Path(query['params']['install_root']).exists()
+    assert not (tmp_path / 'outside').exists()
+
+
+def test_fresh_detects_inconsistent_signed_snapshots(signed_request, monkeypatch):
+    import shared.fresh_prepare as fresh
+    query, _, _ = signed_request
+    original = fresh.verify_signed_package
+    def changed(*args, **kwargs):
+        metadata = original(*args, **kwargs)
+        metadata['manifest']['product_name'] = 'Different synthetic manifest'
+        return metadata
+    monkeypatch.setattr(fresh, 'verify_signed_package', changed)
+    monkeypatch.setattr(fresh, 'native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    root = Path(query['params']['install_root'])
+    with pytest.raises(fresh.FreshPrepareError):
+        fresh_prepare(query)
+    assert json.loads((root / '.homensai-fresh.json').read_text())['status'] == 'preparing'
+    assert not (root / 'services/active.json').exists()

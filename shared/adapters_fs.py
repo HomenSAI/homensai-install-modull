@@ -25,7 +25,7 @@ from shared import archive_crypto
 from shared.datahome import checked_path, contains, resolve_datahome
 from shared.effect_receipt import read_effect_receipt
 from shared.manifest import validate_manifest
-from shared.update_plan import EffectIndeterminate, UpdateError, _atomic_write, _identifier, operation_lock
+from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan, _atomic_write, _identifier, operation_lock
 
 
 class InjectedEffects(Protocol):
@@ -144,6 +144,51 @@ class FilesystemPorts:
 
     def archive_path(self, key: str) -> Path:
         return self._path(key, ".hsac" if self.password_provider is not None else ".zip")
+
+    def recover_archive_binding(self, plan: UpdatePlan, key: str, expected_sha256: str) -> None:
+        """Подтвердить байты незавершённой копии по независимо полученному SHA-256.
+
+        Это не подтверждает остановку писателей и не разрешает повтор эффекта.
+        Вызывающий обязан проверить происхождение и свежесть контрольной суммы.
+        """
+        if (self.password_provider is None or type(plan) is not UpdatePlan
+                or plan.ports is not self or plan.guard_effects is not True
+                or plan.manifest != self.manifest or plan.state_path != self.state
+                or plan.lock_path != self.lock or type(key) is not str
+                or re.fullmatch(r'[0-9a-f]{32}/(?:archive|backup:(?:0|[1-9][0-9]*)|before_rollback)', key) is None
+                or type(expected_sha256) is not str
+                or re.fullmatch(r'[0-9a-f]{64}', expected_sha256) is None):
+            raise UpdateError('Недопустимые параметры подтверждения копии')
+        path = self.archive_path(key)
+        binding_path = checked_path(path.with_suffix('.archive.json'))
+        pending = {'version': 1, 'key': key, 'product_id': self.home.product_id,
+                   'sha256': None, 'status': 'pending'}
+        done = {**pending, 'sha256': expected_sha256, 'status': 'done'}
+        with operation_lock(plan.lock_path):
+            state = plan.status()
+            if state is None or state['outcome'] != 'running' or state.get('indeterminate') is not True:
+                raise UpdateError('Нет неопределённого этапа копирования')
+            phases = plan.forward if state['direction'] == 'forward' else plan.rollback
+            if (state['index'] >= len(phases) or key != state['transaction'] + '/' + phases[state['index']]
+                    or (state['direction'] == 'rollback') != key.endswith('/before_rollback')):
+                raise UpdateError('Копия не соответствует текущему этапу')
+            record = read_effect_receipt(binding_path)
+            if record is not None and record != pending and record != done:
+                raise EffectIndeterminate('Отметка копии не соответствует операции')
+            try:
+                receipt = archive_crypto.verify_archive(
+                    path, password_provider=self.password_provider, expected_product_id=self.home.product_id,
+                    require_encrypted=True, expected_ciphertext_sha256=expected_sha256)
+                if set(receipt['roots']) != set(self.home.roots):
+                    raise UpdateError('Корни архива отличаются от установки')
+                if plan.status() != state or read_effect_receipt(binding_path) != record:
+                    raise EffectIndeterminate('Состояние операции изменилось')
+                if record != done:
+                    _atomic_write(binding_path, done)
+                if read_effect_receipt(binding_path) != done:
+                    raise EffectIndeterminate('Отметка копии не подтверждена')
+            except Exception:
+                raise EffectIndeterminate('Подтверждение копии не удалось') from None
 
     def _archive_binding(self, path: Path) -> dict:
         path = checked_path(path)

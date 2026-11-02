@@ -14,7 +14,7 @@ from shared import archive as plain, archive_crypto as crypto, ctl
 from shared.adapters_fs import FilesystemPorts
 from shared.datahome import resolve_datahome
 from shared.manifest import load_manifest
-from shared.update_plan import EffectIndeterminate, UpdateError, _atomic_write
+from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan, _atomic_write, operation_lock
 
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples/rent.manifest.json"
@@ -508,6 +508,101 @@ def test_existing_encrypted_file_without_receipt_is_not_adopted(tmp_path, home):
     with pytest.raises(EffectIndeterminate):
         ports.backup(key, 'archive', ())
     assert path.read_bytes() == crypto.MAGIC + b'untracked'
+
+
+@pytest.mark.parametrize('missing', [False, True])
+def test_recover_archive_binding_requires_independent_digest_and_matching_checkpoint(aes, tmp_path, home, missing):
+    from shared.effect_receipt import read_effect_receipt
+    manifest = load_manifest(EXAMPLE)
+    ports = FilesystemPorts(manifest, tmp_path / 'installation', work_dir=tmp_path / 'work',
+                            payloads={}, effects=None, password_provider=lambda: PASSWORD)
+    plan = UpdatePlan(manifest, tmp_path / 'installation', ports, release='2', modes=('autonomous',),
+                      migration_ids=(), guard_effects=True)
+    transaction = 'f' * 32
+    key = transaction + '/archive'
+    ports.backup(key, 'archive', ())
+    path = ports.archive_path(key)
+    original = path.read_bytes()
+    binding = path.with_suffix('.archive.json')
+    done = read_effect_receipt(binding)
+    pending = {**done, 'sha256': None, 'status': 'pending'}
+    if missing:
+        binding.unlink()
+    else:
+        _atomic_write(binding, pending)
+    state = {'version': 1, 'transaction': transaction, 'plan': plan.digest, 'old_release': '1',
+             'release': '2', 'direction': 'forward', 'index': plan.forward.index('archive'),
+             'failed_phase': None, 'archive_ready': False, 'outcome': 'running', 'indeterminate': True}
+    plan._save(state)
+    before = read_effect_receipt(binding)
+    with pytest.raises(UpdateError):
+        ports.recover_archive_binding(plan, key, 'not-a-sha')
+    with pytest.raises(EffectIndeterminate):
+        ports.recover_archive_binding(plan, key, '0' * 64)
+    with pytest.raises(UpdateError):
+        ports.recover_archive_binding(plan, 'e' * 32 + '/archive', done['sha256'])
+    assert read_effect_receipt(binding) == before
+    with operation_lock(plan.lock_path):
+        with pytest.raises(UpdateError):
+            ports.recover_archive_binding(plan, key, done['sha256'])
+    ports.recover_archive_binding(plan, key, done['sha256'])
+    ports.recover_archive_binding(plan, key, done['sha256'])
+    assert read_effect_receipt(binding) == done
+    assert path.read_bytes() == original and plan.status() == state
+    assert (home.roots['data'] / 'sample.bin').read_bytes() == PAYLOAD
+    no_scratch(tmp_path)
+
+
+def test_recover_archive_binding_refuses_wrong_password_and_unrelated_receipt(aes, tmp_path, home):
+    from shared.effect_receipt import read_effect_receipt
+    manifest = load_manifest(EXAMPLE)
+    ports = FilesystemPorts(manifest, tmp_path / 'installation', work_dir=tmp_path / 'work',
+                            payloads={}, effects=None, password_provider=lambda: PASSWORD)
+    plan = UpdatePlan(manifest, tmp_path / 'installation', ports, release='2', modes=('autonomous',),
+                      migration_ids=(), guard_effects=True)
+    key = 'a' * 32 + '/archive'
+    ports.backup(key, 'archive', ())
+    binding = ports.archive_path(key).with_suffix('.archive.json')
+    done = read_effect_receipt(binding)
+    pending = {**done, 'sha256': None, 'status': 'pending'}
+    _atomic_write(binding, pending)
+    plan._save({'version': 1, 'transaction': 'a' * 32, 'plan': plan.digest, 'old_release': '1',
+                'release': '2', 'direction': 'forward', 'index': plan.forward.index('archive'),
+                'failed_phase': None, 'archive_ready': False, 'outcome': 'running', 'indeterminate': True})
+    ports.password_provider = lambda: 'wrong password'
+    with pytest.raises(EffectIndeterminate):
+        ports.recover_archive_binding(plan, key, done['sha256'])
+    assert read_effect_receipt(binding) == pending
+    ports.password_provider = lambda: PASSWORD
+    unrelated = {**pending, 'key': 'b' * 32 + '/archive'}
+    _atomic_write(binding, unrelated)
+    with pytest.raises(EffectIndeterminate):
+        ports.recover_archive_binding(plan, key, done['sha256'])
+    assert read_effect_receipt(binding) == unrelated
+
+
+@pytest.mark.parametrize('phase,direction', [('backup:0', 'forward'), ('before_rollback', 'rollback')])
+def test_recover_archive_binding_for_migration_and_rollback(aes, tmp_path, home, phase, direction):
+    from shared.effect_receipt import read_effect_receipt
+    manifest = load_manifest(EXAMPLE)
+    ports = FilesystemPorts(manifest, tmp_path / 'installation', work_dir=tmp_path / 'work',
+                            payloads={}, effects=None, password_provider=lambda: PASSWORD)
+    plan = UpdatePlan(manifest, tmp_path / 'installation', ports, release='2', modes=('autonomous',),
+                      migration_ids=('migration',), guard_effects=True)
+    key = 'c' * 32 + '/' + phase
+    ports.work.mkdir()
+    path = ports.archive_path(key)
+    crypto.build_encrypted_archive(home, path, password_provider=lambda: PASSWORD)
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    phases = plan.forward if direction == 'forward' else plan.rollback
+    state = {'version': 1, 'transaction': 'c' * 32, 'plan': plan.digest, 'old_release': '1',
+             'release': '2', 'direction': direction, 'index': phases.index(phase),
+             'failed_phase': None if direction == 'forward' else 'stage', 'archive_ready': True,
+             'outcome': 'running', 'indeterminate': True}
+    plan._save(state)
+    ports.recover_archive_binding(plan, key, digest)
+    assert read_effect_receipt(path.with_suffix('.archive.json'))['sha256'] == digest
+    assert plan.status() == state
 
 
 def test_fs_ports_encrypted_backup_before_rollback_and_restore(aes, tmp_path, home):

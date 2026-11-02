@@ -198,7 +198,7 @@ def control_signed_compose(package_path: str, envelope: bytes, *, trusted_public
                            modes: tuple[str, ...], instance_id: str, work_dir: str,
                            preparation_id: str, action_id: str, action: str,
                            executable: str, executable_sha256: str, socket_path: str,
-                           timeout_seconds: int = 30) -> dict:
+                           timeout_seconds: int = 30, verify_only: bool = False) -> dict:
     """Один start и один stop; неизвестный результат не повторяется автоматически.
 
     Проверяет ответы доверенного daemon, но не безопасность образов и не всех
@@ -206,7 +206,8 @@ def control_signed_compose(package_path: str, envelope: bytes, *, trusted_public
     находятся вне блокировки этого модуля.
     """
     try:
-        if (type(action) is not str or action not in ('start', 'stop', 'reconcile-start', 'reconcile-stop')
+        if (type(verify_only) is not bool or (verify_only and action != 'start')
+                or type(action) is not str or action not in ('start', 'stop', 'reconcile-start', 'reconcile-stop')
                 or type(preparation_id) is not str or re.fullmatch(r'[a-f0-9]{32}', preparation_id) is None
                 or type(action_id) is not str or re.fullmatch(r'[a-f0-9]{32}', action_id) is None
                 or action_id == preparation_id or type(executable) is not str
@@ -237,6 +238,8 @@ def control_signed_compose(package_path: str, envelope: bytes, *, trusted_public
         with operation_lock(lock):
             record = read_effect_receipt(marker)
             _validate_record(record, binding, preparation_id)
+            if verify_only and (record is None or record['status'] != 'running'):
+                raise DockerLifecycleError('Нет подтверждённого запуска')
             if (record is None and action != 'start') or (record is not None and
                     ((action == 'start' and (record['start_key'] != action_id or record['status'] != 'running'))
                      or (action == 'stop' and (action_id == record['start_key'] or

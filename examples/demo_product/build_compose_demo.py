@@ -29,11 +29,14 @@ def build(output: Path, image: str, port: int) -> dict:
     work = output / 'work'
     work.mkdir(mode=0o700)
     manifest = load_manifest(Path(__file__).resolve().parents[1] / 'rent.manifest.json')
+    manifest['product_id'] = 'homensai-test-demo'
+    manifest['product_name'] = 'HomenS.AI Synthetic Demo'
     manifest['paths'] = {name: name for name in NAMES}
     manifest['compatibility'] = {'targets': [{'os': 'linux', 'architecture': 'x86_64', 'execution': 'docker'}]}
     manifest['secrets'] = []
     manifest['hooks'] = {name: [] for name in manifest['hooks']}
     manifest['web']['port'] = port
+    manifest['web']['healthz'] = '/health'
     # The demo does not install a native runtime; these are synthetic fixtures.
     artifacts = [*manifest['runtime']['lock_files'].values(), *manifest['runtime']['vendor_wheels']]
     for index, artifact in enumerate(artifacts):

@@ -4,6 +4,7 @@
 """
 
 from hashlib import sha256
+from contextlib import contextmanager
 import json
 from pathlib import Path
 import sqlite3
@@ -14,9 +15,10 @@ import zipfile
 import pytest
 
 from shared.adapters_fs import FilesystemPorts, ReleaseSource
+from shared import archive_crypto
 from shared.datahome import resolve_datahome
 from shared.manifest import load_manifest, validate_manifest
-from shared.update_plan import UpdatePlan, operation_lock
+from shared.update_plan import UpdateError, UpdatePlan, operation_lock
 
 ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / "examples/demo_product"
@@ -34,9 +36,11 @@ def entries(db):
 
 
 class Effects:
-    def __init__(self, home, *, fail_health):
+    def __init__(self, home, *, fail_health, corrupt_archive=False):
         self.home = home
         self.fail_health = fail_health
+        self.corrupt_archive = corrupt_archive
+        self.ports = None
         self.calls = []
 
     def stop(self, key, components):
@@ -54,15 +58,23 @@ class Effects:
         phase = key.split("/")[-1]
         self.calls.append(phase)
         if phase == "health" and self.fail_health:
+            if self.corrupt_archive:
+                path = self.ports.archive_path(key.split('/')[0] + '/archive')
+                ciphertext = bytearray(path.read_bytes())
+                ciphertext[-1] ^= 1
+                path.write_bytes(ciphertext)
             raise RuntimeError("synthetic health failure")
 
     def post_update(self, key, hooks):
         self.calls.append("post_update")
 
 
-@pytest.mark.parametrize("fail_health", [False, True])
-@pytest.mark.parametrize("signed_release", [False, True])
-def test_real_demo_migration_update_and_rollback(tmp_path, fail_health, signed_release):
+@pytest.mark.parametrize("signed_release,encrypted,fail_health,corrupt", [
+    (False, False, False, False), (False, False, True, False),
+    (True, False, False, False), (True, False, True, False),
+    (True, True, False, False), (True, True, True, False), (True, True, True, True),
+])
+def test_real_demo_migration_update_and_rollback(tmp_path, signed_release, encrypted, fail_health, corrupt):
     source = tmp_path / "source"
     subprocess.run([sys.executable, "-B", str(DEMO / "build_releases.py"), str(source)],
                    capture_output=True, text=True, timeout=15, check=True)
@@ -116,9 +128,13 @@ def test_real_demo_migration_update_and_rollback(tmp_path, fail_health, signed_r
     home = resolve_datahome(manifest, installation)
     for directory in (home.app, home.releases, *home.roots.values()):
         directory.mkdir(parents=True, exist_ok=True)
-    effects = Effects(home, fail_health=fail_health)
+    effects = Effects(home, fail_health=fail_health, corrupt_archive=corrupt)
+    password = "synthetic-test-password-not-a-secret"
+    password_provider = (lambda: password) if encrypted else None
     ports = FilesystemPorts(manifest, installation, work_dir=tmp_path / "work",
-                            payloads=payloads, effects=effects, allow_unencrypted=True)
+                            payloads=payloads, effects=effects, allow_unencrypted=not encrypted,
+                            password_provider=password_provider)
+    effects.ports = ports
     with operation_lock(home.roots["services"] / "operation.lock"):
         ports.stage_release("0" * 32 + "/stage", "1")
         ports.switch_pointer("0" * 32 + "/switch", "1")
@@ -126,22 +142,53 @@ def test_real_demo_migration_update_and_rollback(tmp_path, fail_health, signed_r
     settings = home.roots["data"] / "settings.json"
     settings.write_text('{"display_name":"Example","locale":"de"}\n', encoding="utf-8")
 
-    result = UpdatePlan(manifest, installation, ports, release="2", modes=("platform",),
-                        migration_ids=("schema-2",)).run()
+    update = UpdatePlan(manifest, installation, ports, release="2", modes=("platform",),
+                        migration_ids=("schema-2",))
+    if corrupt:
+        with pytest.raises(UpdateError):
+            update.run()
+        # Повреждённый архив не должен частично восстановить или удалить данные.
+        assert ports.current_release() == "2"
+        assert entries(home.roots["data"] / "demo.sqlite3") == ["synthetic-schema-1", "synthetic-schema-2"]
+        assert json.loads(settings.read_text(encoding="utf-8"))["locale"] == "de"
+        assert 'rollback_health' not in effects.calls
+        return
+    result = update.run()
     assert result["outcome"] == ("rolled_back" if fail_health else "updated")
     assert ports.current_release() == ("1" if fail_health else "2")
     expected = ["synthetic-schema-1"] + ([] if fail_health else ["synthetic-schema-2"])
     assert entries(home.roots["data"] / "demo.sqlite3") == expected
     assert json.loads(settings.read_text(encoding="utf-8"))["locale"] == "de"
+
+    @contextmanager
+    def read_snapshot(path):
+        if encrypted:
+            assert archive_crypto.is_encrypted(path)
+            assert password.encode() not in path.read_bytes()
+            assert b'synthetic-schema-1' not in path.read_bytes()
+            with archive_crypto.decrypted_archive(path, password_provider=password_provider,
+                                                   expected_product_id=manifest['product_id']) as (plain, _):
+                with zipfile.ZipFile(plain) as archive:
+                    yield archive
+        else:
+            with zipfile.ZipFile(path) as archive:
+                yield archive
+
     before_migration = ports.archive_path(result["transaction"] + "/backup:0")
-    with zipfile.ZipFile(before_migration) as archive:
+    with read_snapshot(before_migration) as archive:
         original_db = tmp_path / "before-migration.sqlite3"
         original_db.write_bytes(archive.read("roots/data/demo.sqlite3"))
     assert entries(original_db) == ["synthetic-schema-1"]
     if fail_health:
         snapshot = ports.archive_path(result["transaction"] + "/before_rollback")
-        with zipfile.ZipFile(snapshot) as archive:
+        with read_snapshot(snapshot) as archive:
             migrated_db = tmp_path / "before-rollback.sqlite3"
             migrated_db.write_bytes(archive.read("roots/data/demo.sqlite3"))
         assert entries(migrated_db) == ["synthetic-schema-1", "synthetic-schema-2"]
         assert "rollback_health" in effects.calls
+    if encrypted:
+        assert archive_crypto.is_encrypted(ports.archive_path(result["transaction"] + "/archive"))
+        assert not list((tmp_path / 'work').glob('*.zip'))
+        assert not list((tmp_path / 'work').glob('.archive-crypto-*'))
+        assert not list((tmp_path / 'work').glob('.archive-build-*'))
+        assert not list((tmp_path / 'work').glob('.restore-*'))

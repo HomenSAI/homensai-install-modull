@@ -16,6 +16,7 @@ import os
 from pathlib import Path
 import re
 import stat
+import tempfile
 from typing import Mapping, Protocol
 import uuid
 
@@ -254,21 +255,24 @@ class FilesystemPorts:
         receipt = self._verify_archive(archive)
         if set(receipt["roots"]) != set(self.home.roots):
             raise UpdateError("Корни архива отличаются от установки")
-        scratch = checked_path(self.work / ("restore-" + uuid.uuid4().hex))
-        scratch.mkdir()
-        if self.password_provider is None:
-            restore_archive(archive, scratch, expected_product_id=self.home.product_id)
-        else:
-            archive_crypto.restore_archive(archive, scratch, password_provider=self.password_provider,
-                                            expected_product_id=self.home.product_id)
-        for name, target in sorted(self.home.roots.items()):
-            preserved = set()
-            if name == "services":
-                for path in (self.pointer, self.state, self.lock):
-                    preserved.add(path.relative_to(target).as_posix())
-                    preserved.update(parent.relative_to(target).as_posix()
-                                     for parent in path.parents if contains(target, parent))
-            self._reconcile(scratch / "roots" / name, target, preserved)
+        # Расшифрованное дерево не должно оставаться после обычного завершения
+        # или исключения. После аварийного завершения нужна отдельная очистка.
+        with tempfile.TemporaryDirectory(prefix=".restore-", dir=self.work) as directory:
+            scratch = checked_path(directory)
+            if self.password_provider is None:
+                restore_archive(archive, scratch, expected_product_id=self.home.product_id)
+            else:
+                archive_crypto.restore_archive(archive, scratch, password_provider=self.password_provider,
+                                                expected_product_id=self.home.product_id)
+            for name, target in sorted(self.home.roots.items()):
+                preserved = set()
+                if name == "services":
+                    for path in (self.pointer, self.state, self.lock):
+                        preserved.add(path.relative_to(target).as_posix())
+                        preserved.update(parent.relative_to(target).as_posix()
+                                         for parent in path.parents if contains(target, parent))
+                self._reconcile(scratch / "roots" / name, target, preserved)
+        # Не подтверждать завершение, пока не удалось удалить временное дерево.
         self._record(key, value)
 
     @staticmethod

@@ -67,6 +67,7 @@ def missing_crypto(monkeypatch):
 def no_scratch(tmp_path):
     assert not list(tmp_path.rglob(".archive-crypto-*"))
     assert not list(tmp_path.rglob(".archive-build-*"))
+    assert not list(tmp_path.rglob(".restore-*"))
 
 
 def test_header_without_crypto(monkeypatch):
@@ -410,4 +411,30 @@ def test_fs_ports_encrypted_backup_before_rollback_and_restore(aes, tmp_path, ho
     ports.restore(transaction + "/restore", key, ())
     assert live.read_bytes() == PAYLOAD
     assert crypto.is_encrypted(ports.archive_path(transaction + "/before_rollback"))
+    no_scratch(tmp_path)
+
+
+def test_fs_ports_failed_reconciliation_cleans_and_allows_retry(aes, tmp_path, home, monkeypatch):
+    ports = FilesystemPorts(load_manifest(EXAMPLE), tmp_path / "installation", work_dir=tmp_path / "work",
+                            payloads={}, effects=None, password_provider=lambda: PASSWORD)
+    transaction = "c" * 32
+    archive_key = transaction + "/archive"
+    ports.backup(archive_key, "archive", ())
+    live = home.roots["data"] / "sample.bin"
+    live.write_bytes(b"modified synthetic data")
+    ports.backup(transaction + "/before_rollback", "before-rollback", ())
+    original = ports._reconcile
+    def fail(source, target, preserved):
+        if os.name != "nt":
+            assert source.parents[1].stat().st_mode & 0o777 == 0o700
+        raise OSError("synthetic reconciliation failure")
+    monkeypatch.setattr(ports, "_reconcile", fail)
+    with pytest.raises(OSError):
+        ports.restore(transaction + "/restore", archive_key, ())
+    assert live.read_bytes() == b"modified synthetic data"
+    assert not ports._path(transaction + "/restore", ".json").exists()
+    no_scratch(tmp_path)
+    monkeypatch.setattr(ports, "_reconcile", original)
+    ports.restore(transaction + "/restore", archive_key, ())
+    assert live.read_bytes() == PAYLOAD
     no_scratch(tmp_path)

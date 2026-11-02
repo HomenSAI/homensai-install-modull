@@ -9,6 +9,10 @@
 не исполнялись**. Linux/systemd и install/update/restore/rollback не приняты;
 готового установщика нет.
 
+Позднее отдельно добавлен ограниченный адаптер уже загруженных пользовательских
+units: [SYSTEMD-USER.md](SYSTEMD-USER.md). Он не исполняет этот bundle и пока
+не принимает его override; результаты раздельны.
+
 ## API и CLI
 
 ```python

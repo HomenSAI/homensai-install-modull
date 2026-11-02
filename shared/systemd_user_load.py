@@ -328,3 +328,20 @@ def portable_signed_user_group(package_path, envelope, install_root, *, trusted_
         trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
         expected_version=expected_version, modes=modes, unit_dir=unit_dir,
         operation_id=operation_id, portable=True, runner=runner, timeout=timeout)
+
+
+def portable_signed_runtime_user_group(package_path, envelope, install_root, *, trusted_public_key,
+                                       expected_product_id, expected_version, modes, unit_dir,
+                                       operation_id, runtime_operation_id, runtime_reserve_bytes,
+                                       runner=None, timeout=30):
+    """Свежая группа: проверять runtime перед каждым явным start, но не stop."""
+    from shared.systemd_runtime_group import RuntimeCheckedUserGroup
+
+    group = portable_signed_user_group(package_path, envelope, install_root,
+        trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
+        expected_version=expected_version, modes=modes, unit_dir=unit_dir,
+        operation_id=operation_id, runner=runner, timeout=timeout)
+    return RuntimeCheckedUserGroup(group, package_path, envelope, install_root,
+        trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
+        expected_version=expected_version, runtime_operation_id=runtime_operation_id,
+        reserve_bytes=runtime_reserve_bytes)

@@ -220,7 +220,8 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path):
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
     from examples.demo_product.installer_client import InstallerClient, InstallerClientError
     from shared.systemd_portable import RECIPE_PATH as SERVICE_RECIPE_PATH, RECIPE_V1 as SERVICE_RECIPE_V1
-    from shared.systemd_user_load import portable_signed_user_group
+    from shared.systemd_user_load import portable_signed_runtime_user_group
+    from shared.systemd_group import SystemdGroupError
 
     identity = pwd.getpwuid(os.getuid())
     if (os.getuid() == 0 or identity.pw_name != 'homenstest'
@@ -328,8 +329,17 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path):
         loaded = client.call('load-portable-systemd-user-units',
                              {**common, 'idempotency_key': 'c' * 32}, min_minor=17)
         assert loaded['state'] == 'loaded'
-        group = portable_signed_user_group(package, envelope, str(install), **options,
-                    modes=('autonomous',), unit_dir=str(destination), operation_id='c' * 32)
+        group = portable_signed_runtime_user_group(package, envelope, str(install), **options,
+                    modes=('autonomous',), unit_dir=str(destination), operation_id='c' * 32,
+                    runtime_operation_id='a' * 32, runtime_reserve_bytes=0)
+        interpreter.chmod(0o600)
+        with pytest.raises(SystemdGroupError):
+            group.command('start', execute=True)
+        for name in names:
+            state = subprocess.run(['/usr/bin/systemctl', '--user', 'is-active', name], env=env,
+                                   stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30)
+            assert state.stdout.strip() == 'inactive'
+        interpreter.chmod(0o700)
         assert all(item['active_state'] == 'active' for item in group.command('start', execute=True))
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:

@@ -109,3 +109,26 @@ def test_rejects_missing_or_wrong_adapter_without_effects():
         with pytest.raises(SystemdGroupError):
             SystemdUserGroup(deepcopy(MANIFEST), modes=('autonomous',), adapters=modified)
     assert events == []
+
+
+def test_runtime_checked_group_refuses_start_but_still_allows_stop(monkeypatch):
+    from shared.runtime_native import NativeRuntimeError
+    from shared.systemd_runtime_group import RuntimeCheckedUserGroup
+
+    events = []
+    subject, _ = group(events)
+    def reject(*args, **kwargs):
+        events.append(('verify', kwargs['operation_id']))
+        raise NativeRuntimeError('SECRET-SENTINEL')
+    monkeypatch.setattr('shared.systemd_runtime_group.verify_signed_linux_runtime', reject)
+    guarded = RuntimeCheckedUserGroup(subject, '/package', b'envelope', '/install',
+        trusted_public_key=b'x' * 32, expected_product_id=MANIFEST['product_id'],
+        expected_version='1', runtime_operation_id='a' * 32, reserve_bytes=0)
+    assert len(guarded.command('start')) == len(ORDER) and not events
+    with pytest.raises(SystemdGroupError) as error:
+        guarded.command('start', execute=True)
+    assert 'SECRET-SENTINEL' not in str(error.value)
+    assert events == [('verify', 'a' * 32)]
+    guarded.command('stop', execute=True)
+    assert ('stop', 'web') in events
+    assert not any(action == 'start' for action, _ in events)

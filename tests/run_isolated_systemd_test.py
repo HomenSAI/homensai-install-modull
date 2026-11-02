@@ -42,19 +42,23 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
 done
 if [ "$ready" != 1 ]; then cat /tmp/homensai-test-systemd.log; exit 1; fi
 cd /project
-python -m pytest -q -p no:cacheprovider tests/test_isolated_signed_demo.py tests/test_services.py tests/test_linux_sh.py tests/test_runtime_native.py tests/test_systemd_portable.py tests/test_systemd_user_publish.py tests/test_api.py tests/test_api_signed_preflight.py tests/test_i18n.py
+python -m pytest -q -p no:cacheprovider tests/test_isolated_signed_demo.py tests/test_services.py tests/test_linux_sh.py tests/test_runtime_native.py tests/test_systemd_group.py tests/test_systemd_portable.py tests/test_systemd_user_publish.py tests/test_api.py tests/test_api_signed_preflight.py tests/test_i18n.py
 '''
 
 
 def main() -> int:
-    if sys.argv[1:] != ['--run'] or not hasattr(os, 'getuid') or os.getuid() == 0:
-        print('Нужны непривилегированный пользователь и явный --run', file=sys.stderr)
+    if sys.argv[1:] not in (['--run'], ['--run', '--runtime']) or not hasattr(os, 'getuid') or os.getuid() == 0:
+        print('Нужны непривилегированный пользователь и --run [--runtime]', file=sys.stderr)
         return 2
     with tempfile.TemporaryDirectory(prefix='homensai-isolated-systemd-') as temp:
         harness = Path(temp)
         harness.chmod(0o755)  # Скрипты не содержат секретов; их читает тестовый uid контейнера.
         (harness / 'setup.sh').write_text(SETUP, encoding='utf-8')
-        (harness / 'session.sh').write_text(SESSION, encoding='utf-8')
+        session = SESSION
+        if sys.argv[1:] == ['--run', '--runtime']:
+            session = SESSION.rsplit('python -m pytest', 1)[0] + (
+                'python -m pytest -q -p no:cacheprovider tests/test_runtime_native.py tests/test_systemd_group.py\n')
+        (harness / 'session.sh').write_text(session, encoding='utf-8')
         cidfile = harness / 'container.cid'
         command = ['podman', 'run', '--rm', '--cidfile', str(cidfile), '--systemd=always',
                    '--network=slirp4netns', '-v', str(ROOT) + ':/project:ro',

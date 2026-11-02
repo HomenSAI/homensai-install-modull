@@ -391,3 +391,111 @@ def test_fresh_resume_rechecks_free_space_before_staging(signed_request, monkeyp
     assert not (root / 'services/active.json').exists()
     assert not (root / 'releases/app-1').exists()
     assert json.loads((root / '.homensai-fresh.json').read_text())['status'] == 'preparing'
+
+
+@pytest.mark.parametrize('phase', ['after_journal', 'before_snapshot'])
+def test_fresh_resume_before_snapshot_is_ready(signed_request, monkeypatch, phase):
+    import shared.fresh_prepare as fresh
+    query, _, _ = signed_request
+    monkeypatch.setattr(fresh, 'native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    original = fresh._atomic_write
+    def crash_after_journal(path, value):
+        original(path, value)
+        raise SystemExit('simulated interruption after journal')
+    def crash_before_snapshot(*args, **kwargs):
+        raise SystemExit('simulated interruption before snapshot')
+    with monkeypatch.context() as patch:
+        patch.setattr(fresh, '_atomic_write' if phase == 'after_journal' else 'prepare_native_signed_package',
+                      crash_after_journal if phase == 'after_journal' else crash_before_snapshot)
+        with pytest.raises(SystemExit):
+            fresh_prepare(query)
+    root = Path(query['params']['install_root'])
+    assert not (root / '.homensai-control/prepared').exists()
+    assert fresh_resume(query)['status'] == 'prepared'
+    assert (root / 'releases/app-1/locks/demo-linux.lock').exists()
+
+
+def test_fresh_initial_and_resume_share_exclusive_lock(signed_request, monkeypatch):
+    import shared.fresh_prepare as fresh
+    query, _, _ = signed_request
+    monkeypatch.setattr(fresh, 'native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    original = fresh.prepare_native_signed_package
+    attempted = []
+    def concurrently(*args, **kwargs):
+        with pytest.raises(fresh.FreshPrepareError):
+            fresh_resume(query)
+        attempted.append(True)
+        return original(*args, **kwargs)
+    monkeypatch.setattr(fresh, 'prepare_native_signed_package', concurrently)
+    assert fresh_prepare(query)['status'] == 'prepared'
+    assert attempted == [True]
+
+
+@pytest.mark.parametrize('change', ['partial', 'data', 'bootstrap', 'old-v2'])
+def test_fresh_early_resume_refuses_untrusted_state(signed_request, monkeypatch, change):
+    import shared.fresh_prepare as fresh
+    query, _, _ = signed_request
+    monkeypatch.setattr(fresh, 'native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    def crash(*args, **kwargs):
+        raise SystemExit('synthetic')
+    with monkeypatch.context() as patch:
+        patch.setattr(fresh, 'prepare_native_signed_package', crash)
+        with pytest.raises(SystemExit):
+            fresh_prepare(query)
+    root = Path(query['params']['install_root'])
+    if change == 'partial':
+        (root / '.homensai-control/prepared').mkdir()
+        (root / '.homensai-control/prepared/keep').write_text('keep')
+    elif change == 'data':
+        (root / 'data').mkdir()
+        (root / 'data/keep').write_text('keep')
+    elif change == 'bootstrap':
+        (root / '.homensai-bootstrap.lock').write_text('keep')
+    elif change == 'old-v2':
+        marker = root / '.homensai-fresh.json'
+        state = json.loads(marker.read_text())
+        state['format'] = 2
+        marker.write_text(json.dumps(state))
+    with pytest.raises(fresh.FreshPrepareError):
+        fresh_resume(query)
+    if change == 'partial':
+        assert (root / '.homensai-control/prepared/keep').read_text() == 'keep'
+    if change == 'data':
+        assert (root / 'data/keep').read_text() == 'keep'
+    if change == 'bootstrap':
+        assert (root / '.homensai-bootstrap.lock').read_text() == 'keep'
+    assert not (root / 'services/active.json').exists()
+
+
+def test_fresh_resume_after_real_process_exit(signed_request):
+    from shared.host_target import HostTargetError, native_target
+    try:
+        if native_target() != TARGET:
+            pytest.skip('Проверка процесса использует фикстуру Linux x86_64')
+    except HostTargetError:
+        pytest.skip('Платформа процесса не поддерживается')
+    query, _, _ = signed_request
+    script = '''\
+import base64, json, os, sys
+import shared.fresh_prepare as fresh
+p = json.load(sys.stdin)['params']
+original = fresh._atomic_write
+def interrupted(path, state):
+    original(path, state)
+    os._exit(73)
+fresh._atomic_write = interrupted
+fresh.prepare_fresh_native(p['package_path'], base64.b64decode(p['envelope']), p['install_root'],
+    trusted_public_key=base64.b64decode(p['trusted_public_key']), expected_product_id=p['expected_product_id'],
+    expected_version=p['expected_version'], required_bytes=p['required_bytes'], reserve_bytes=p['reserve_bytes'])
+'''
+    child = subprocess.run([sys.executable, '-B', '-c', script], cwd=ROOT, input=json.dumps(query).encode(),
+                           capture_output=True, timeout=30)
+    assert child.returncode == 73 and child.stderr == b''
+    root = Path(query['params']['install_root'])
+    lock = (root / '.homensai-bootstrap.lock').read_bytes()
+    assert json.loads(lock[1:])['status'] == 'held'
+    assert fresh_resume(query)['status'] == 'prepared'
+    assert json.loads((root / 'services/active.json').read_text()) == {'release': '1'}

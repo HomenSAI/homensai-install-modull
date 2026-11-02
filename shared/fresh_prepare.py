@@ -21,7 +21,7 @@ from shared.manifest import ManifestError, check_target
 from shared.package import PackageError
 from shared.package_prepare import prepare_native_signed_package
 from shared.package_signing import verify_signed_package
-from shared.preflight import MAX_BYTES, PreflightError, _nearest_directory, preflight_fresh
+from shared.preflight import MAX_BYTES, NAMES, PreflightError, _nearest_directory, preflight_fresh
 from shared.update_plan import UpdateError, _atomic_write, _object, operation_lock
 
 
@@ -41,9 +41,11 @@ def _layout(manifest, root):
     paths = (home.app, home.releases, *home.roots.values())
     control = checked_path(root / '.homensai-control')
     marker = checked_path(root / '.homensai-fresh.json')
+    bootstrap = checked_path(root / '.homensai-bootstrap.lock')
     if any(path == root or not contains(root, path)
            or contains(path, control) or contains(control, path)
-           or contains(path, marker) or contains(marker, path) for path in paths):
+           or contains(path, marker) or contains(marker, path)
+           or contains(path, bootstrap) or contains(bootstrap, path) for path in paths):
         raise FreshPrepareError('Пути выходят за пределы нового корня или пересекают управление')
     return home, paths, control, marker
 
@@ -69,32 +71,33 @@ def prepare_fresh_native(package_path, envelope, install_root, *, trusted_public
         preflight_fresh(manifest, root, required_bytes=required_bytes, reserve_bytes=reserve_bytes)
         home, paths, control, marker = _layout(manifest, root)
         root.mkdir(mode=0o700)
-        transaction = uuid.uuid4().hex
-        state = {'format': 2, 'transaction': transaction, 'product_id': expected_product_id,
-                 'version': expected_version, 'status': 'preparing',
-                 'plan': _plan(root, metadata, trusted_public_key, target)}
-        _atomic_write(marker, state)
-        control.mkdir(mode=0o700)
-        prepared = control / 'prepared'
-        receipt = prepare_native_signed_package(package_path, envelope, prepared, **options)
-        inventory = {item['path']: item['sha256'] for item in metadata['files']}
-        if receipt['manifest'] != manifest or receipt['files'] != inventory or receipt['process_target'] != target:
-            raise FreshPrepareError('Пакет изменился во время подготовки')
-        # После создания корня повторяем проверку до создания путей продукта.
-        preflight_fresh(manifest, root, required_bytes=required_bytes, reserve_bytes=reserve_bytes)
-        for path in paths:
-            checked_path(path).mkdir(parents=True, exist_ok=True, mode=0o700)
-        # Никакое резервное копирование здесь не вызывается; provider не выдаёт пароль.
-        ports = FilesystemPorts(manifest, root, work_dir=control / 'work',
-                                payloads={expected_version: ReleaseSource(prepared, inventory)},
-                                effects=None, password_provider=lambda: None)
-        with operation_lock(home.roots['services'] / 'operation.lock'):
-            ports.stage_release(transaction + '/stage', expected_version)
-            ports.switch_pointer(transaction + '/switch', expected_version)
-            if ports.current_release() != expected_version:
-                raise FreshPrepareError('Указатель выпуска не подтверждён')
-            state['status'] = 'prepared'
+        with operation_lock(root / '.homensai-bootstrap.lock'):
+            transaction = uuid.uuid4().hex
+            state = {'format': 3, 'transaction': transaction, 'product_id': expected_product_id,
+                     'version': expected_version, 'status': 'preparing',
+                     'plan': _plan(root, metadata, trusted_public_key, target)}
             _atomic_write(marker, state)
+            control.mkdir(mode=0o700)
+            prepared = control / 'prepared'
+            receipt = prepare_native_signed_package(package_path, envelope, prepared, **options)
+            inventory = {item['path']: item['sha256'] for item in metadata['files']}
+            if receipt['manifest'] != manifest or receipt['files'] != inventory or receipt['process_target'] != target:
+                raise FreshPrepareError('Пакет изменился во время подготовки')
+            # После создания корня повторяем проверку до создания путей продукта.
+            preflight_fresh(manifest, root, required_bytes=required_bytes, reserve_bytes=reserve_bytes)
+            for path in paths:
+                checked_path(path).mkdir(parents=True, exist_ok=True, mode=0o700)
+            # Никакое резервное копирование здесь не вызывается; provider не выдаёт пароль.
+            ports = FilesystemPorts(manifest, root, work_dir=control / 'work',
+                                    payloads={expected_version: ReleaseSource(prepared, inventory)},
+                                    effects=None, password_provider=lambda: None)
+            with operation_lock(home.roots['services'] / 'operation.lock'):
+                ports.stage_release(transaction + '/stage', expected_version)
+                ports.switch_pointer(transaction + '/switch', expected_version)
+                if ports.current_release() != expected_version:
+                    raise FreshPrepareError('Указатель выпуска не подтверждён')
+                state['status'] = 'prepared'
+                _atomic_write(marker, state)
         return {**state, 'process_target': receipt['process_target']}
     except (PackageError, DataHomeError, HostTargetError, ManifestError, PreflightError,
             UpdateError, OSError, ValueError, KeyError, TypeError, RecursionError):
@@ -109,13 +112,30 @@ def _read_state(marker, plan, product_id, version):
         state = json.loads(stream.read(8193).decode('utf-8'), object_pairs_hook=_object)
     if (type(state) is not dict
             or set(state) != {'format', 'transaction', 'product_id', 'version', 'status', 'plan'}
-            or type(state['format']) is not int or state['format'] != 2
+            or type(state['format']) is not int or state['format'] != 3
             or type(state['transaction']) is not str
             or re.fullmatch(r'[a-f0-9]{32}', state['transaction']) is None
             or state['product_id'] != product_id or state['version'] != version
             or state['status'] != 'preparing' or state['plan'] != plan):
         raise FreshPrepareError('Журнал не соответствует проверенному выпуску')
     return state
+
+
+def _check_lock(path):
+    """Не открывать на запись чужой, связанный или повреждённый файл блокировки."""
+    info = path.lstat()
+    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > 8192:
+        raise FreshPrepareError('Служебная блокировка недоступна')
+    with path.open('rb') as stream:
+        raw = stream.read(8193)
+    if raw[:1] != b'\0':
+        raise FreshPrepareError('Неизвестный формат блокировки')
+    lock = json.loads(raw[1:].decode('utf-8'), object_pairs_hook=_object)
+    if (type(lock) is not dict or set(lock) != {'version', 'status', 'pid'}
+            or type(lock['version']) is not int or lock['version'] != 1
+            or lock['status'] not in ('held', 'released')
+            or type(lock['pid']) is not int or lock['pid'] <= 0):
+        raise FreshPrepareError('Неизвестный формат блокировки')
 
 
 def _check_resume_files(home, ports, prepared, inventory, version):
@@ -151,17 +171,7 @@ def _check_resume_files(home, ports, prepared, inventory, version):
                 if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > 8192:
                     raise FreshPrepareError('Служебный файл недоступен')
         if ports.lock.exists():
-            with ports.lock.open('rb') as stream:
-                raw = stream.read(8193)
-            # Файл блокировки создан только operation_lock, первый байт зарезервирован.
-            if raw[:1] != b'\0':
-                raise FreshPrepareError('Неизвестный формат блокировки')
-            lock = json.loads(raw[1:].decode('utf-8'), object_pairs_hook=_object)
-            if (type(lock) is not dict or set(lock) != {'version', 'status', 'pid'}
-                    or type(lock['version']) is not int or lock['version'] != 1
-                    or lock['status'] not in ('held', 'released')
-                    or type(lock['pid']) is not int or lock['pid'] <= 0):
-                raise FreshPrepareError('Неизвестный формат блокировки')
+            _check_lock(ports.lock)
         if ports.pointer.exists():
             with ports.pointer.open('rb') as stream:
                 pointer = json.loads(stream.read(8193).decode('utf-8'), object_pairs_hook=_object)
@@ -171,10 +181,10 @@ def _check_resume_files(home, ports, prepared, inventory, version):
 
 def resume_fresh_native(package_path, envelope, install_root, *, trusted_public_key,
                         expected_product_id, expected_version, reserve_bytes=64 * 1024 * 1024):
-    """Продолжить только после полной подготовки payload и проверки владения.
+    """Продолжить после проверки журнала и полного подписанного payload.
 
     Не удаляет неполные staging-каталоги, не запускает код и не повторяет
-    готовую операцию. Старые журналы формата 1 автоматически не принимаются.
+    готовую операцию. Старые журналы форматов 1 и 2 не принимаются.
     """
     try:
         if type(reserve_bytes) is not int or not 0 <= reserve_bytes <= MAX_BYTES:
@@ -191,30 +201,44 @@ def resume_fresh_native(package_path, envelope, install_root, *, trusted_public_
         home, paths, control, marker = _layout(manifest, root)
         plan = _plan(root, metadata, trusted_public_key, target)
         state = _read_state(marker, plan, expected_product_id, expected_version)
-        prepared = checked_path(control / 'prepared')
-        inventory = {item['path']: item['sha256'] for item in metadata['files']}
-        ports = FilesystemPorts(manifest, root, work_dir=control / 'work',
-                                payloads={expected_version: ReleaseSource(prepared, inventory)},
-                                effects=None, password_provider=lambda: None)
-        _check_resume_files(home, ports, prepared, inventory, expected_version)
-        checked_path(home.roots['services']).mkdir(parents=True, exist_ok=True, mode=0o700)
-        with operation_lock(ports.lock):
+        bootstrap = checked_path(root / '.homensai-bootstrap.lock')
+        _check_lock(bootstrap)
+        with operation_lock(bootstrap):
             if _read_state(marker, plan, expected_product_id, expected_version) != state:
                 raise FreshPrepareError('Состояние изменилось')
+            prepared = checked_path(control / 'prepared')
+            inventory = {item['path']: item['sha256'] for item in metadata['files']}
+            if not prepared.exists():
+                # Продуктовые пути обязаны оставаться свежими; посторонние данные не трогаем.
+                preflight_fresh(manifest, root, required_bytes={name: 0 for name in NAMES},
+                                reserve_bytes=reserve_bytes)
+                control.mkdir(mode=0o700, exist_ok=True)
+                receipt = prepare_native_signed_package(package_path, envelope, prepared, **options)
+                if (receipt['manifest'] != manifest or receipt['files'] != inventory
+                        or receipt['process_target'] != target):
+                    raise FreshPrepareError('Пакет изменился во время подготовки')
+            ports = FilesystemPorts(manifest, root, work_dir=control / 'work',
+                                    payloads={expected_version: ReleaseSource(prepared, inventory)},
+                                    effects=None, password_provider=lambda: None)
             _check_resume_files(home, ports, prepared, inventory, expected_version)
-            release = ports.release_path(expected_version)
-            needed = 0 if release.exists() else sum(item['size'] for item in metadata['files'])
-            if needed + reserve_bytes > MAX_BYTES or shutil.disk_usage(_nearest_directory(home.releases)).free < needed + reserve_bytes:
-                raise FreshPrepareError('Недостаточно места для продолжения')
-            for path in paths:
-                checked_path(path).mkdir(parents=True, exist_ok=True, mode=0o700)
-            transaction = state['transaction']
-            ports.stage_release(transaction + '/stage', expected_version)
-            ports.switch_pointer(transaction + '/switch', expected_version)
-            if ports.current_release() != expected_version:
-                raise FreshPrepareError('Указатель выпуска не подтверждён')
-            state['status'] = 'prepared'
-            _atomic_write(marker, state)
+            checked_path(home.roots['services']).mkdir(parents=True, exist_ok=True, mode=0o700)
+            with operation_lock(ports.lock):
+                if _read_state(marker, plan, expected_product_id, expected_version) != state:
+                    raise FreshPrepareError('Состояние изменилось')
+                _check_resume_files(home, ports, prepared, inventory, expected_version)
+                release = ports.release_path(expected_version)
+                needed = 0 if release.exists() else sum(item['size'] for item in metadata['files'])
+                if needed + reserve_bytes > MAX_BYTES or shutil.disk_usage(_nearest_directory(home.releases)).free < needed + reserve_bytes:
+                    raise FreshPrepareError('Недостаточно места для продолжения')
+                for path in paths:
+                    checked_path(path).mkdir(parents=True, exist_ok=True, mode=0o700)
+                transaction = state['transaction']
+                ports.stage_release(transaction + '/stage', expected_version)
+                ports.switch_pointer(transaction + '/switch', expected_version)
+                if ports.current_release() != expected_version:
+                    raise FreshPrepareError('Указатель выпуска не подтверждён')
+                state['status'] = 'prepared'
+                _atomic_write(marker, state)
         return {**state, 'process_target': target}
     except (PackageError, DataHomeError, HostTargetError, ManifestError, PreflightError,
             UpdateError, OSError, ValueError, KeyError, TypeError, RecursionError):

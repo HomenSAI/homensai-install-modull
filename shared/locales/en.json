@@ -14,5 +14,7 @@
   "api.unsupported_operation": "API operation is not supported",
   "api.target_not_supported": "Target is not confirmed by the signed manifest",
   "api.unsupported_platform": "The process platform is not supported",
-  "api.fresh_status_failed": "Could not read preparation state"
+  "api.fresh_status_failed": "Could not read preparation state",
+  "api.fresh_prepare_failed": "Could not prepare the release",
+  "api.operation_conflict": "Request does not match the operation"
 }

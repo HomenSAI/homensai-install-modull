@@ -570,3 +570,157 @@ def test_cli_fresh_status_reports_prepared(signed_request):
                             input=json.dumps(query).encode(), capture_output=True, timeout=30)
     assert result.returncode == 1
     assert json.loads(result.stdout)['error']['code'] == 'fresh_status_failed'
+
+
+def api_prepare_query(query):
+    value = deepcopy(query)
+    value['operation'] = 'prepare-native-release'
+    del value['params']['target']
+    value['params']['idempotency_key'] = 'a' * 32
+    return value
+
+
+def test_api_prepare_repeat_and_conflicting_request(signed_request, monkeypatch):
+    query, _, _ = signed_request
+    monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    query = api_prepare_query(query)
+    capabilities = handle({'api_major': 1, 'request_id': 'test', 'operation': 'capabilities', 'params': {}})
+    assert 'prepare-native-release' in capabilities['result']['mutating_operations']
+    first = handle(query)
+    assert first['ok'] and first['result']['transaction'] == 'a' * 32
+    assert first['result']['installation_complete'] is False
+    root = Path(query['params']['install_root'])
+    (root / 'data/keep').write_text('preserve')
+    again = handle(query)
+    assert again == first and (root / 'data/keep').read_text() == 'preserve'
+    conflict = deepcopy(query)
+    conflict['params']['reserve_bytes'] = 1
+    assert handle(conflict)['error']['code'] == 'conflict'
+    conflict = deepcopy(query)
+    conflict['params']['idempotency_key'] = 'b' * 32
+    assert handle(conflict)['error']['code'] == 'conflict'
+    assert (root / 'data/keep').read_text() == 'preserve'
+    status = status_query({**query, 'params': {**query['params'], 'target': deepcopy(TARGET)}})
+    del status['params']['idempotency_key']
+    assert handle(status)['result']['reported_status'] == 'prepared'
+
+
+def test_api_prepare_retries_after_interrupted_stage(signed_request, monkeypatch):
+    query, _, _ = signed_request
+    monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    query = api_prepare_query(query)
+    def fail(*args, **kwargs):
+        raise OSError('SECRET-SENTINEL')
+    with monkeypatch.context() as patch:
+        patch.setattr('shared.fresh_prepare.FilesystemPorts.stage_release', fail)
+        response = handle(query)
+    assert response['error']['code'] == 'fresh_prepare_failed'
+    assert 'SECRET-SENTINEL' not in json.dumps(response)
+    resumed = handle(query)
+    assert resumed['ok'] and resumed['result']['transaction'] == 'a' * 32
+    assert resumed['result']['status'] == 'prepared'
+
+
+def test_api_prepare_concurrent_duplicate_does_not_create_two_operations(signed_request, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    import threading
+    from shared.adapters_fs import FilesystemPorts
+    query, _, _ = signed_request
+    monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    query = api_prepare_query(query)
+    entered, release = threading.Event(), threading.Event()
+    original = FilesystemPorts.stage_release
+    def hold(self, *args):
+        entered.set()
+        if not release.wait(10):
+            raise RuntimeError('test timed out')
+        return original(self, *args)
+    with monkeypatch.context() as patch:
+        patch.setattr(FilesystemPorts, 'stage_release', hold)
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(handle, deepcopy(query))
+            try:
+                assert entered.wait(10)
+                concurrent = handle(deepcopy(query))
+                assert concurrent['error']['code'] == 'fresh_prepare_failed'
+            finally:
+                release.set()
+            first = future.result(timeout=20)
+    assert first['ok'] and handle(query) == first
+
+
+def test_api_prepare_rejects_bad_key_before_write(signed_request):
+    query, _, _ = signed_request
+    query = api_prepare_query(query)
+    query['params']['idempotency_key'] = 'SECRET-SENTINEL'
+    result = handle(query)
+    assert result['error']['code'] == 'invalid_request'
+    assert 'SECRET-SENTINEL' not in json.dumps(result)
+    assert not Path(query['params']['install_root']).exists()
+
+
+def test_api_prepare_invalid_sizes_and_missing_crypto_do_not_write(signed_request, monkeypatch):
+    query, _, _ = signed_request
+    query = api_prepare_query(query)
+    query['params']['required_bytes']['data'] = True
+    assert handle(query)['error']['code'] == 'invalid_request'
+    query['params']['required_bytes']['data'] = 0
+    monkeypatch.setattr('shared.api._signature_available', lambda: False)
+    capabilities = handle({'api_major': 1, 'request_id': 'test', 'operation': 'capabilities', 'params': {}})
+    assert 'prepare-native-release' not in capabilities['result']['operations']
+    assert capabilities['result']['mutating_operations'] == []
+    assert handle(query)['error']['code'] == 'unsupported_operation'
+    assert not Path(query['params']['install_root']).exists()
+
+
+@pytest.mark.parametrize('interrupted_status', ['preparing', 'prepared'])
+def test_cli_prepare_recovers_after_real_process_exit(signed_request, interrupted_status):
+    from shared.host_target import HostTargetError, native_target
+    try:
+        if native_target() != TARGET:
+            pytest.skip('Фикстура рассчитана на Linux x86_64')
+    except HostTargetError:
+        pytest.skip('Платформа процесса не поддерживается')
+    query, _, _ = signed_request
+    query = api_prepare_query(query)
+    script = '''\
+import json, os, sys
+import shared.fresh_prepare as fresh
+from shared.api import handle
+query = json.load(sys.stdin)
+original = fresh._atomic_write
+def interrupted(path, state):
+    original(path, state)
+    if state['status'] == sys.argv[1]:
+        os._exit(73)
+fresh._atomic_write = interrupted
+handle(query)
+'''
+    child = subprocess.run([sys.executable, '-B', '-c', script, interrupted_status], cwd=ROOT, input=json.dumps(query).encode(),
+                           capture_output=True, timeout=30)
+    assert child.returncode == 73
+    command = [sys.executable, '-B', '-m', 'shared.api']
+    result = subprocess.run(command, cwd=ROOT, input=json.dumps(query).encode(), capture_output=True, timeout=30)
+    assert result.returncode == 0 and result.stderr == b''
+    response = json.loads(result.stdout)
+    assert response['result']['transaction'] == 'a' * 32
+    assert response['result']['status'] == 'prepared' and response['result']['installation_complete'] is False
+    again = subprocess.run(command, cwd=ROOT, input=json.dumps(query).encode(), capture_output=True, timeout=30)
+    assert again.returncode == 0 and json.loads(again.stdout) == response
+
+
+def test_api_replay_reverifies_package_and_rejects_tampering(signed_request, monkeypatch):
+    query, path, _ = signed_request
+    monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    query = api_prepare_query(query)
+    assert handle(query)['ok']
+    root = Path(query['params']['install_root'])
+    (root / 'data/keep').write_text('preserve')
+    with path.open('ab') as stream:
+        stream.write(b'tamper')
+    assert handle(query)['error']['code'] == 'fresh_prepare_failed'
+    assert (root / 'data/keep').read_text() == 'preserve'

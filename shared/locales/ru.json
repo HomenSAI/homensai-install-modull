@@ -14,5 +14,7 @@
   "api.unsupported_operation": "Операция API не поддерживается",
   "api.target_not_supported": "Цель не подтверждена подписанным манифестом",
   "api.unsupported_platform": "Платформа процесса не поддерживается",
-  "api.fresh_status_failed": "Не удалось прочитать состояние подготовки"
+  "api.fresh_status_failed": "Не удалось прочитать состояние подготовки",
+  "api.fresh_prepare_failed": "Не удалось подготовить выпуск",
+  "api.operation_conflict": "Запрос не соответствует операции"
 }

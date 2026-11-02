@@ -29,9 +29,25 @@ class FreshPrepareError(RuntimeError):
     """Свежий выпуск не подготовлен; подробности входа не раскрываются."""
 
 
+class FreshConflict(FreshPrepareError):
+    """Идентификатор операции уже связан с другим запросом."""
+
+
 def _plan(root, metadata, key, target):
     value = {'root': str(root), 'key': hashlib.sha256(key).hexdigest(),
              'metadata': metadata, 'target': target}
+    return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=True,
+                                     separators=(',', ':')).encode('ascii')).hexdigest()
+
+
+def _request_hash(package_path, envelope, required_bytes, reserve_bytes):
+    if (type(envelope) is not bytes or type(required_bytes) is not dict
+            or set(required_bytes) != set(NAMES)
+            or any(type(value) is not int or not 0 <= value <= MAX_BYTES for value in required_bytes.values())
+            or type(reserve_bytes) is not int or not 0 <= reserve_bytes <= MAX_BYTES):
+        raise FreshPrepareError('Некорректный запрос подготовки')
+    value = {'package_path': str(checked_path(package_path)), 'envelope': hashlib.sha256(envelope).hexdigest(),
+             'required_bytes': required_bytes, 'reserve_bytes': reserve_bytes}
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=True,
                                      separators=(',', ':')).encode('ascii')).hexdigest()
 
@@ -51,13 +67,19 @@ def _layout(manifest, root):
 
 
 def prepare_fresh_native(package_path, envelope, install_root, *, trusted_public_key,
-                         expected_product_id, expected_version, required_bytes, reserve_bytes):
+                         expected_product_id, expected_version, required_bytes, reserve_bytes,
+                         transaction_id=None, request_hash=None):
     """Подготовить каталоги и указатель из подписанного пакета; код не запускать.
 
     Не создаёт службы, runtime или БД и не подтверждает пригодность продукта.
     Частичные каталоги не удаляются и не используются повторно автоматически.
     """
     try:
+        if ((transaction_id is None) != (request_hash is None)
+                or (transaction_id is not None and (type(transaction_id) is not str
+                    or re.fullmatch(r'[a-f0-9]{32}', transaction_id) is None
+                    or type(request_hash) is not str or re.fullmatch(r'[a-f0-9]{64}', request_hash) is None))):
+            raise FreshPrepareError('Некорректный идентификатор запроса')
         root = checked_path(install_root)
         if root == Path(root.anchor) or root.exists() or not root.parent.is_dir():
             raise FreshPrepareError('Требуется новый корень установки')
@@ -72,10 +94,12 @@ def prepare_fresh_native(package_path, envelope, install_root, *, trusted_public
         home, paths, control, marker = _layout(manifest, root)
         root.mkdir(mode=0o700)
         with operation_lock(root / '.homensai-bootstrap.lock'):
-            transaction = uuid.uuid4().hex
-            state = {'format': 3, 'transaction': transaction, 'product_id': expected_product_id,
+            transaction = transaction_id or uuid.uuid4().hex
+            state = {'format': 4 if transaction_id else 3, 'transaction': transaction, 'product_id': expected_product_id,
                      'version': expected_version, 'status': 'preparing',
                      'plan': _plan(root, metadata, trusted_public_key, target)}
+            if transaction_id:
+                state['request_hash'] = request_hash
             _atomic_write(marker, state)
             control.mkdir(mode=0o700)
             prepared = control / 'prepared'
@@ -110,9 +134,12 @@ def _read_state(marker, plan, product_id, version, *, statuses=('preparing',)):
         raise FreshPrepareError('Журнал операции недоступен')
     with marker.open('rb') as stream:
         state = json.loads(stream.read(8193).decode('utf-8'), object_pairs_hook=_object)
-    if (type(state) is not dict
-            or set(state) != {'format', 'transaction', 'product_id', 'version', 'status', 'plan'}
-            or type(state['format']) is not int or state['format'] != 3
+    if (type(state) is not dict or type(state.get('format')) is not int
+            or state['format'] not in (3, 4)
+            or set(state) != ({'format', 'transaction', 'product_id', 'version', 'status', 'plan'}
+                              | ({'request_hash'} if state['format'] == 4 else set()))
+            or (state['format'] == 4 and (type(state['request_hash']) is not str
+                or re.fullmatch(r'[a-f0-9]{64}', state['request_hash']) is None))
             or type(state['transaction']) is not str
             or re.fullmatch(r'[a-f0-9]{32}', state['transaction']) is None
             or state['product_id'] != product_id or state['version'] != version
@@ -205,7 +232,8 @@ def _check_resume_files(home, ports, prepared, inventory, version):
 
 
 def resume_fresh_native(package_path, envelope, install_root, *, trusted_public_key,
-                        expected_product_id, expected_version, reserve_bytes=64 * 1024 * 1024):
+                        expected_product_id, expected_version, reserve_bytes=64 * 1024 * 1024,
+                        expected_transaction=None, expected_request_hash=None):
     """Продолжить после проверки журнала и полного подписанного payload.
 
     Не удаляет неполные staging-каталоги, не запускает код и не повторяет
@@ -226,6 +254,9 @@ def resume_fresh_native(package_path, envelope, install_root, *, trusted_public_
         home, paths, control, marker = _layout(manifest, root)
         plan = _plan(root, metadata, trusted_public_key, target)
         state = _read_state(marker, plan, expected_product_id, expected_version)
+        if expected_transaction is not None and (state.get('format') != 4
+                or state['transaction'] != expected_transaction or state['request_hash'] != expected_request_hash):
+            raise FreshPrepareError('Запрос не соответствует операции')
         bootstrap = checked_path(root / '.homensai-bootstrap.lock')
         _check_lock(bootstrap)
         with operation_lock(bootstrap):
@@ -268,3 +299,47 @@ def resume_fresh_native(package_path, envelope, install_root, *, trusted_public_
     except (PackageError, DataHomeError, HostTargetError, ManifestError, PreflightError,
             UpdateError, OSError, ValueError, KeyError, TypeError, RecursionError):
         raise FreshPrepareError('Не удалось продолжить подготовку') from None
+
+
+def prepare_idempotent_native(package_path, envelope, install_root, *, trusted_public_key,
+                              expected_product_id, expected_version, required_bytes, reserve_bytes,
+                              operation_id):
+    """Начать или повторить ту же подготовку; другие запросы с ключом запрещены."""
+    try:
+        if type(operation_id) is not str or re.fullmatch(r'[a-f0-9]{32}', operation_id) is None:
+            raise FreshPrepareError('Некорректный идентификатор операции')
+        request_hash = _request_hash(package_path, envelope, required_bytes, reserve_bytes)
+        root = checked_path(install_root)
+        options = dict(trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
+                       expected_version=expected_version)
+        if not root.exists():
+            return prepare_fresh_native(package_path, envelope, root, **options,
+                                        required_bytes=required_bytes, reserve_bytes=reserve_bytes,
+                                        transaction_id=operation_id, request_hash=request_hash)
+        if root == Path(root.anchor) or not root.is_dir():
+            raise FreshPrepareError('Корень недоступен')
+        metadata = verify_signed_package(package_path, envelope, **options)
+        manifest, target = metadata['manifest'], native_target()
+        if manifest['schema_version'] != 2 or check_target(manifest, target)['status'] != 'supported':
+            raise FreshPrepareError('Платформа не подтверждена')
+        _, _, _, marker = _layout(manifest, root)
+        plan = _plan(root, metadata, trusted_public_key, target)
+        state = _read_state(marker, plan, expected_product_id, expected_version,
+                            statuses=('preparing', 'prepared'))
+        if (state['format'] != 4 or state['transaction'] != operation_id
+                or state['request_hash'] != request_hash):
+            raise FreshConflict('Запрос не соответствует операции')
+        if state['status'] == 'preparing':
+            return resume_fresh_native(package_path, envelope, root, **options, reserve_bytes=reserve_bytes,
+                                       expected_transaction=operation_id, expected_request_hash=request_hash)
+        bootstrap = checked_path(root / '.homensai-bootstrap.lock')
+        _check_lock(bootstrap)
+        with operation_lock(bootstrap):
+            current = _read_state(marker, plan, expected_product_id, expected_version,
+                                  statuses=('prepared',))
+            if current != state:
+                raise FreshPrepareError('Состояние изменилось')
+        return {**state, 'process_target': target}
+    except (PackageError, DataHomeError, HostTargetError, ManifestError, PreflightError,
+            UpdateError, OSError, ValueError, KeyError, TypeError, RecursionError):
+        raise FreshPrepareError('Не удалось подготовить выпуск') from None

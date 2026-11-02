@@ -1,5 +1,5 @@
 # HomenS.AI · © 2026 Serhii Khomenko
-"""Экспериментальный локальный API v1: проверки манифеста, путей и пакета.
+"""Экспериментальный локальный API v1: проверки и подготовка выпуска.
 
 Это не установщик и не сетевой сервис. Новые операции нельзя объявлять до их
 реализации и проверки; значения входных данных не возвращаются в ошибках.
@@ -14,16 +14,16 @@ import re
 import sys
 from typing import Any
 
-from shared.fresh_prepare import FreshPrepareError, status_fresh_native
+from shared.fresh_prepare import FreshConflict, FreshPrepareError, prepare_idempotent_native, status_fresh_native
 from shared.host_target import HostTargetError, native_target
 from shared.i18n import LanguageError, available_languages, translate
 from shared.manifest import ManifestError, check_target, validate_manifest
 from shared.package import PackageError
 from shared.package_signing import MAX_ENVELOPE, _crypto, verify_signed_package
-from shared.preflight import PreflightError, preflight_fresh
+from shared.preflight import MAX_BYTES as MAX_DISK_BYTES, NAMES as PATH_NAMES, PreflightError, preflight_fresh
 
 API_MAJOR = 1
-API_MINOR = 7
+API_MINOR = 8
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -103,7 +103,7 @@ def _base64(value: Any, max_decoded: int) -> bytes:
 
 
 def handle(request: Any) -> dict:
-    """Обработать один объект без процессов, сети или изменения файлов."""
+    """Обработать запрос без процессов и сети; некоторые операции записывают файлы."""
     request_id = None
     language = None
     try:
@@ -133,10 +133,13 @@ def handle(request: Any) -> dict:
             if params:
                 raise InvalidRequest()
             operations = ["capabilities", "validate", "preflight-fresh", "check-target"]
+            mutating_operations = []
             if _signature_available():
-                operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status"])
+                operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "prepare-native-release"])
+                mutating_operations.append("prepare-native-release")
             result = {"api_major": API_MAJOR, "api_minor": API_MINOR,
                       "operations": operations,
+                      "mutating_operations": mutating_operations,
                       "languages": available_languages(),
                       "manifest_versions": [1, 2], "execution_modes": [],
                       "limits": {"request_bytes": MAX_BYTES, "depth": MAX_DEPTH,
@@ -167,6 +170,43 @@ def handle(request: Any) -> dict:
                                          reserve_bytes=params["reserve_bytes"])
             except PreflightError:
                 return _error(request_id, "preflight_failed", "Предварительная проверка не пройдена", language, "api.preflight_failed")
+        elif operation == "prepare-native-release":
+            fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version",
+                      "install_root", "required_bytes", "reserve_bytes", "idempotency_key"}
+            strings = fields - {"required_bytes", "reserve_bytes"}
+            if set(params) != fields or any(type(params[field]) is not str for field in strings):
+                raise InvalidRequest()
+            sizes, reserve = params['required_bytes'], params['reserve_bytes']
+            if (type(sizes) is not dict or set(sizes) != set(PATH_NAMES)
+                    or any(type(value) is not int or not 0 <= value <= MAX_DISK_BYTES for value in sizes.values())
+                    or type(reserve) is not int or not 0 <= reserve <= MAX_DISK_BYTES):
+                raise InvalidRequest()
+            if not _signature_available():
+                return _error(request_id, "unsupported_operation", "Проверка подписи недоступна", language, "api.signature_unavailable")
+            if (not params['package_path'] or not params['install_root']
+                    or re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,62}", params['expected_product_id']) is None
+                    or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", params['expected_version']) is None
+                    or re.fullmatch(r"[a-f0-9]{32}", params['idempotency_key']) is None):
+                raise InvalidRequest()
+            envelope = _base64(params['envelope'], MAX_ENVELOPE)
+            key = _base64(params['trusted_public_key'], 32)
+            if len(key) != 32:
+                raise InvalidRequest()
+            try:
+                state = prepare_idempotent_native(params['package_path'], envelope, params['install_root'],
+                                                  trusted_public_key=key,
+                                                  expected_product_id=params['expected_product_id'],
+                                                  expected_version=params['expected_version'],
+                                                  required_bytes=params['required_bytes'],
+                                                  reserve_bytes=params['reserve_bytes'],
+                                                  operation_id=params['idempotency_key'])
+            except FreshConflict:
+                return _error(request_id, "conflict", "Запрос не соответствует операции", language, "api.operation_conflict")
+            except FreshPrepareError:
+                return _error(request_id, "fresh_prepare_failed", "Не удалось подготовить выпуск", language, "api.fresh_prepare_failed")
+            result = {'transaction': state['transaction'], 'product_id': state['product_id'],
+                      'version': state['version'], 'status': state['status'],
+                      'process_target': state['process_target'], 'installation_complete': False}
         elif operation == "fresh-status":
             fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root"}
             if set(params) != fields or any(type(params[field]) is not str for field in fields):
@@ -276,7 +316,7 @@ def main() -> int:
     sys.stdout.write(json.dumps(response, ensure_ascii=True, separators=(",", ":")) + "\n")
     if response["ok"]:
         return 0
-    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed") else 2
+    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_prepare_failed") else 2
 
 
 if __name__ == "__main__":

@@ -502,3 +502,60 @@ def test_inspect_pending_rejects_unbound_receipt_without_manager_call(published_
     with pytest.raises(UnitLoadError):
         inspect_pending_call(published_units, runner=manager)
     assert receipt.read_bytes() == before and not manager.calls
+
+
+@pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
+                    reason='Требуется явно созданный изолированный systemd-контейнер')
+def test_isolated_manager_reloads_signed_units_without_start(signed_units):
+    import pwd
+    import subprocess
+    from shared.systemd_user_load import load_signed_user_units
+
+    identity = pwd.getpwuid(os.getuid())
+    if (os.getuid() == 0 or identity.pw_name != 'homenstest'
+            or identity.pw_dir != '/home/homenstest' or not Path('/run/.containerenv').is_file()):
+        pytest.skip('Защитные условия изолированной тестовой среды не выполнены')
+    package, envelope, root, options, _, units = signed_units
+    destination = Path(identity.pw_dir) / '.config/systemd/user'
+    assert destination.is_dir()
+    marker = destination / ('.' + options['expected_product_id'] + '.homensai-units.pending')
+    expected = [destination / name for name in units]
+    assert not marker.exists() and all(not path.exists() for path in expected)
+    calls = []
+
+    def actual_runner(argv, *, timeout, env):
+        calls.append(argv[4:])
+        return pub._run(argv, timeout=timeout, env=env)
+
+    try:
+        published = pub.publish_signed_user_units(package, envelope, str(root), **options,
+                      modes=('autonomous',), unit_dir=str(destination), execute=True)
+        assert published['state'] == 'published' and published['services_started'] is False
+        loaded = load_signed_user_units(package, envelope, str(root), **options,
+                     modes=('autonomous',), unit_dir=str(destination), execute=True, runner=actual_runner)
+        assert loaded['state'] == 'loaded' and loaded['services_started'] is False
+        assert calls.count(['daemon-reload']) == 1
+        assert json.loads((root / '.homensai-control/user-systemd-reload.json').read_text())['status'] == 'done'
+        assert load_signed_user_units(package, envelope, str(root), **options,
+                   modes=('autonomous',), unit_dir=str(destination), execute=True, runner=actual_runner) == loaded
+        assert calls.count(['daemon-reload']) == 1
+        assert all(path.read_bytes() == units[path.name] for path in expected)
+    finally:
+        for path in expected:
+            if path.exists():
+                info = path.lstat()
+                assert stat.S_ISREG(info.st_mode) and info.st_uid == os.getuid() and info.st_nlink == 1
+                assert path.read_bytes() == units[path.name]
+                path.unlink()
+        if marker.exists():
+            info = marker.lstat()
+            assert stat.S_ISREG(info.st_mode) and info.st_uid == os.getuid() and info.st_nlink == 1
+            body = json.loads(marker.read_text())
+            assert body['product_id'] == options['expected_product_id'] and body['version'] == '1'
+            assert {item['name']: item['sha256'] for item in body['units']} == {
+                name: hashlib.sha256(value).hexdigest() for name, value in units.items()}
+            marker.unlink()
+        # This reload is confined to the disposable, explicitly gated manager.
+        env = pub._manager_environment()
+        subprocess.run(['/usr/bin/systemctl', '--user', 'daemon-reload'], env=env,
+                       stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)

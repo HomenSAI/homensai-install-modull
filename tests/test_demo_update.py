@@ -61,7 +61,8 @@ class Effects:
 
 
 @pytest.mark.parametrize("fail_health", [False, True])
-def test_real_demo_migration_update_and_rollback(tmp_path, fail_health):
+@pytest.mark.parametrize("signed_release", [False, True])
+def test_real_demo_migration_update_and_rollback(tmp_path, fail_health, signed_release):
     source = tmp_path / "source"
     subprocess.run([sys.executable, "-B", str(DEMO / "build_releases.py"), str(source)],
                    capture_output=True, text=True, timeout=15, check=True)
@@ -88,6 +89,22 @@ def test_real_demo_migration_update_and_rollback(tmp_path, fail_health):
     wheel = "vendor/demo-0-py3-none-any.whl"
     manifest["runtime"]["vendor_wheels"] = [{"file": wheel, "sha256": sha256(synthetic[wheel]).hexdigest()}]
     validate_manifest(manifest)
+    if signed_release:
+        ed = pytest.importorskip("cryptography.hazmat.primitives.asymmetric.ed25519")
+        ser = pytest.importorskip("cryptography.hazmat.primitives.serialization")
+        from shared.package import build_package
+        from shared.package_prepare import prepare_signed_package
+        from shared.package_signing import sign_package
+        private = ed.Ed25519PrivateKey.generate()
+        public = private.public_key().public_bytes(ser.Encoding.Raw, ser.PublicFormat.Raw)
+        package = tmp_path / "release-2.zip"
+        build_package(manifest, "2", source / "app-2", package)
+        envelope = sign_package(package, private_key=private,
+                                expected_product_id=manifest["product_id"], expected_version="2")
+        prepared = tmp_path / "verified-release-2"
+        receipt = prepare_signed_package(package, envelope, prepared, trusted_public_key=public,
+                                         expected_product_id=manifest["product_id"], expected_version="2")
+        payloads["2"] = ReleaseSource(prepared, receipt["files"])
     installation = tmp_path / "installation"
     home = resolve_datahome(manifest, installation)
     for directory in (home.app, home.releases, *home.roots.values()):

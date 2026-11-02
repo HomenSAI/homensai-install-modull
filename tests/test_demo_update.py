@@ -22,7 +22,7 @@ from shared.adapters_fs import FilesystemPorts, ReleaseSource
 from shared import archive_crypto
 from shared.datahome import resolve_datahome
 from shared.manifest import load_manifest, validate_manifest
-from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan, operation_lock
+from shared.update_plan import EffectIndeterminate, UpdateError, UpdateIndeterminate, UpdatePlan, operation_lock
 
 ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / "examples/demo_product"
@@ -223,12 +223,6 @@ class SystemdEffects(Effects):
                 subprocess.run(self.base + [action, '--', unit], env=self.env, stdin=subprocess.DEVNULL,
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, check=False)
 
-    def migrate(self, key, migration, command):
-        # Временный Python, извлечённый из образа, зависит от LD_LIBRARY_PATH;
-        # изолированный production-кандидат не принимает эту переменную.
-        self.calls.append('migrate')
-        invoke(self.home.releases / 'app-2' / 'main.py', self.home.roots['data'], '--migration', migration)
-
     def stop(self, key, components):
         from shared.systemd_group import SystemdGroupError
         super().stop(key, components)
@@ -306,6 +300,8 @@ def test_systemd_group_failure_has_indeterminate_effect(tmp_path, action):
         os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix', reason='opt-in systemd')),
     pytest.param(True, True, True, False, 'systemd', marks=pytest.mark.skipif(
         os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix', reason='opt-in systemd')),
+    pytest.param(True, True, 'migration', False, 'systemd', marks=pytest.mark.skipif(
+        os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix', reason='opt-in systemd')),
 ])
 def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_release, encrypted, fail_health, corrupt, live):
     source = tmp_path / "source"
@@ -338,9 +334,10 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_relea
     wheel = "vendor/demo-0-py3-none-any.whl"
     manifest["runtime"]["vendor_wheels"] = [{"file": wheel, "sha256": sha256(synthetic[wheel]).hexdigest()}]
     if signed_release:
-        if live != 'systemd':
-            manifest['migrations']['cmd'] = ['python', 'main.py', 'migrate', '--data-dir', '@DATA_DIR@',
-                                             '--migration', '@MIGRATION_ID@']
+        manifest['migrations']['cmd'] = ['python', 'main.py', 'migrate', '--data-dir', '@DATA_DIR@',
+                                         '--migration', '@MIGRATION_ID@']
+        if fail_health == 'migration':
+            manifest['migrations']['cmd'].extend(['--fail', 'during'])
         from shared.host_target import HostTargetError, native_target
         try:
             manifest["compatibility"] = {"targets": [native_target()]}
@@ -410,6 +407,30 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_relea
 
     update = UpdatePlan(manifest, installation, ports, release="2", modes=("autonomous" if live == 'systemd' else "platform",),
                         migration_ids=("schema-2",), guard_effects=signed_release)
+    if fail_health == 'migration':
+        from shared.api import handle
+        with pytest.raises(UpdateIndeterminate):
+            update.run()
+        state = update.status()
+        assert state['direction'] == 'forward' and state['indeterminate'] is True
+        assert update.forward[state['index']] == 'migrate:0'
+        assert ports.current_release() == '1'
+        assert entries(home.roots['data'] / 'demo.sqlite3') == ['synthetic-schema-1']
+        assert all(adapter.confirm_stopped()['active_state'] == 'inactive'
+                   for adapter in effects.group.adapters.values())
+        backup = ports.archive_path(state['transaction'] + '/backup:0')
+        assert archive_crypto.is_encrypted(backup)
+        assert archive_crypto.verify_archive(backup, password_provider=password_provider,
+                                             expected_product_id=manifest['product_id'])['product_id'] == manifest['product_id']
+        response = handle({'api_major': 1, 'request_id': 'synthetic', 'operation': 'update-plan-status',
+                           'params': {'manifest': manifest, 'install_root': str(installation), 'release': '2',
+                                      'modes': ['autonomous'], 'migration_ids': ['schema-2'], 'guard_effects': True}})
+        assert response['ok'] is True and response['result']['state'] == state
+        with pytest.raises(UpdateIndeterminate):
+            update.run()
+        assert ports.current_release() == '1' and 'rollback_health' not in effects.calls
+        assert effects.calls.count('migrate') == 1
+        return
     if corrupt:
         with pytest.raises(UpdateError):
             update.run()

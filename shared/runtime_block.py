@@ -33,7 +33,10 @@ def _parse(raw):
         raise RuntimeBlockError('Описание runtime слишком велико')
     value = json.loads(raw.decode('utf-8'), object_pairs_hook=_object)
     expected = {'format', 'target', 'python_version', 'origin', 'license', 'license_files', 'executables', 'files'}
-    if (type(value) is not dict or set(value) != expected or type(value['format']) is not int
+    if (type(value) is not dict or not expected <= set(value) or set(value) - expected - {'artifact_sha256'}
+            or ('artifact_sha256' in value and (type(value['artifact_sha256']) is not str
+                or re.fullmatch(r'[a-f0-9]{64}', value['artifact_sha256']) is None))
+            or type(value['format']) is not int
             or value['format'] != 1 or value['target'] != {'os': 'linux', 'architecture': 'x86_64'}
             or type(value['python_version']) is not str
             or re.fullmatch(r'3\.14\.(0|[1-9][0-9]{0,3})', value['python_version']) is None

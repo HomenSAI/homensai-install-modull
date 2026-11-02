@@ -67,11 +67,13 @@ def test_modified_block_is_rejected(candidate, tmp_path, mutation):
         verify_runtime_block(block)
 
 
-@pytest.mark.parametrize('mutation', ['hash', 'origin', 'origin_query', 'empty_license', 'license_executable', 'unknown_field', 'missing_python'])
+@pytest.mark.parametrize('mutation', ['hash', 'artifact_hash', 'origin', 'origin_query', 'empty_license', 'license_executable', 'unknown_field', 'missing_python'])
 def test_invalid_lock_rejected_before_destination_created(candidate, tmp_path, mutation):
     source, lock_path, lock = candidate
     if mutation == 'hash':
         lock['files'][0]['sha256'] = '0' * 64
+    elif mutation == 'artifact_hash':
+        lock['artifact_sha256'] = 'invalid'
     elif mutation == 'origin':
         lock['origin'] = 'http://example.org/not-authenticated'
     elif mutation == 'origin_query':

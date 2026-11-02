@@ -20,7 +20,7 @@ from shared.fresh_prepare import FreshPrepareError, verify_fresh_release
 from shared.manifest import ManifestError
 from shared.package import PackageError
 from shared.package_signing import verify_signed_package
-from shared.services import component_order
+from shared.services import component_order, render_fixed_user_services
 from shared.systemd_user import SystemdUserError, _PROPERTIES, _run, _trusted_file
 from shared.update_plan import UpdateError, _atomic_write, _object
 
@@ -229,7 +229,7 @@ def _publish_files(directory, names, units, public, product_id, version, verify_
 
 def publish_signed_user_units(package_path, envelope, install_root, *, trusted_public_key,
                               expected_product_id, expected_version, modes, unit_dir,
-                              execute=False, operation_id=None, runner=None, timeout=30):
+                              execute=False, operation_id=None, verify_generated_units=False, runner=None, timeout=30):
     """Опубликовать подписанные units в каталоге user-manager без перезаписи.
 
     Пакет содержит systemd-user/<product>-<component>.service. Dry-run ничего
@@ -237,7 +237,7 @@ def publish_signed_user_units(package_path, envelope, install_root, *, trusted_p
     файлы и маркер остаются для ручной проверки. Этого шага недостаточно для
     запуска или полной установки; доверенная подпись не доказывает безопасность.
     """
-    if (type(execute) is not bool or type(modes) is not tuple or not modes
+    if (type(execute) is not bool or type(verify_generated_units) is not bool or type(modes) is not tuple or not modes
             or type(timeout) not in (int, float) or not 0 < timeout <= 120
             or (runner is not None and not callable(runner))
             or (operation_id is not None and (type(operation_id) is not str
@@ -265,6 +265,10 @@ def publish_signed_user_units(package_path, envelope, install_root, *, trusted_p
             if len(data) != entry['size']:
                 raise UnitPublicationError('Размер unit не совпадает')
             units.append((name, entry['sha256'], data))
+        if verify_generated_units:
+            generated = render_fixed_user_services(manifest, modes=modes, install_root=str(checked_path(install_root)))
+            if set(generated) != set(names) or any(generated[name].encode('utf-8') != data for name, _, data in units):
+                raise UnitPublicationError('Подписанные units не соответствуют корню и манифесту')
         if (verify_signed_package(package_path, envelope, **options) != metadata
                 or verify_fresh_release(package_path, envelope, install_root, **options) != verified):
             raise UnitPublicationError('Выпуск изменился во время подготовки')
@@ -302,6 +306,8 @@ def publish_signed_user_units(package_path, envelope, install_root, *, trusted_p
                                'modes': modes, 'install_sha256': hashlib.sha256(str(root).encode()).hexdigest(),
                                'directory_sha256': hashlib.sha256(str(directory).encode()).hexdigest(),
                                'publisher_sha256': hashlib.sha256(trusted_public_key).hexdigest()}
+                    if verify_generated_units:
+                        context['verify_generated_units'] = True
                     binding = hashlib.sha256(json.dumps(context, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
                     receipt = checked_path(control / 'user-systemd-publication.json')
                     pending = {'version': 1, 'operation_id': operation_id, 'binding': binding, 'status': 'pending'}

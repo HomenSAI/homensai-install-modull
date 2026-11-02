@@ -30,7 +30,7 @@ from shared.systemd_user_load import UnitLoadError, load_signed_user_units
 from shared.update_plan import UpdateError, UpdatePlan
 
 API_MAJOR = 1
-API_MINOR = 15
+API_MINOR = 16
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -265,10 +265,14 @@ def handle(request: Any) -> dict:
             loading = operation == "load-systemd-user-units"
             if publishing or loading:
                 fields |= {"unit_dir", "idempotency_key"}
-            strings = fields - {"modes"}
+            if publishing and 'verify_generated_units' in params:
+                fields.add('verify_generated_units')
+            strings = fields - {"modes", "verify_generated_units"}
             if (set(params) != fields or any(type(params[field]) is not str for field in strings)
                     or type(params['modes']) is not list or not params['modes']
-                    or any(type(mode) is not str for mode in params['modes'])):
+                    or any(type(mode) is not str for mode in params['modes'])
+                    or (publishing and 'verify_generated_units' in params
+                        and type(params['verify_generated_units']) is not bool)):
                 raise InvalidRequest()
             if not _signature_available() or not _systemd_plan_available():
                 return _error(request_id, "unsupported_operation", "Операция API не поддерживается", language, "api.unsupported_operation")
@@ -284,11 +288,12 @@ def handle(request: Any) -> dict:
                 raise InvalidRequest()
             try:
                 function = load_signed_user_units if loading else publish_signed_user_units
+                generated_policy = {'verify_generated_units': params.get('verify_generated_units', False)} if publishing else {}
                 plan = function(params['package_path'], envelope, params['install_root'],
                     trusted_public_key=key, expected_product_id=params['expected_product_id'],
                     expected_version=params['expected_version'], modes=tuple(params['modes']),
                     unit_dir=params['unit_dir'] if publishing or loading else '', execute=publishing or loading,
-                    operation_id=params['idempotency_key'] if publishing or loading else None)
+                    operation_id=params['idempotency_key'] if publishing or loading else None, **generated_policy)
             except (UnitPublicationError, UnitLoadError):
                 if loading:
                     return _error(request_id, 'systemd_load_failed', 'Не удалось подтвердить загрузку служб',

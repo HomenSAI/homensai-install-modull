@@ -528,10 +528,18 @@ def test_api_publish_has_key_bound_retry_and_schema(signed_units, local_director
     monkeypatch.setattr(pub, '_run', runner_for(destination))
     query = api_publish_request(signed_units, destination)
     caps = handle({'api_major': 1, 'request_id': 'test', 'operation': 'capabilities', 'params': {}})['result']
-    assert caps['api_minor'] >= 14 and query['operation'] in caps['mutating_operations']
+    assert caps['api_minor'] >= 16 and query['operation'] in caps['mutating_operations']
     validator = pytest.importorskip('jsonschema').Draft202012Validator(
         json.loads((ROOT / 'shared/api-v1-request.schema.json').read_text()))
     assert validator.is_valid(query)
+    query['params']['verify_generated_units'] = True
+    assert validator.is_valid(query)
+    assert handle(query)['error']['code'] == 'systemd_publish_failed'
+    assert not list(destination.iterdir())
+    assert not (signed_units[2] / '.homensai-control/user-systemd-publication.json').exists()
+    query['params']['verify_generated_units'] = 'true'
+    assert not validator.is_valid(query) and handle(query)['error']['code'] == 'invalid_request'
+    del query['params']['verify_generated_units']
     first = handle(query)
     assert first['ok'] and first['result']['state'] == 'published'
     assert first['result']['services_started'] is False and first['result']['installation_complete'] is False

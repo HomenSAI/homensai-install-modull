@@ -93,12 +93,28 @@ def test_signed_demo_prepared_published_loaded_and_started(tmp_path):
            'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/' + str(os.getuid()) + '/bus'}
     client = InstallerClient(timeout=90)
     try:
+        other = tmp_path / 'other install'
+        other_common = {**common, 'install_root': str(other)}
+        client.call('prepare-native-release', {**other_common, 'required_bytes': {name: 0 for name in NAMES},
+                    'reserve_bytes': 0, 'idempotency_key': '4' * 32}, min_minor=8)
+        with pytest.raises(InstallerClientError) as failure:
+            client.call('publish-systemd-user-units', {**other_common, 'modes': ['autonomous'],
+                        'unit_dir': str(destination), 'idempotency_key': '5' * 32,
+                        'verify_generated_units': True}, min_minor=16)
+        assert failure.value.code == 'systemd_publish_failed'
+        assert all(not p.exists() for p in expected) and not marker.exists()
+        assert not (other / '.homensai-control/user-systemd-publication.json').exists()
         prepared = client.call('prepare-native-release', {**common, 'required_bytes': {name: 0 for name in NAMES},
                               'reserve_bytes': 0, 'idempotency_key': '1' * 32}, min_minor=8)
         assert prepared['status'] == 'prepared' and prepared['installation_complete'] is False
         service_args = {**common, 'modes': ['autonomous'], 'unit_dir': str(destination)}
-        published = client.call('publish-systemd-user-units', {**service_args, 'idempotency_key': '2' * 32}, min_minor=14)
+        publication = {**service_args, 'idempotency_key': '2' * 32, 'verify_generated_units': True}
+        published = client.call('publish-systemd-user-units', publication, min_minor=16)
         assert published['state'] == 'published' and published['services_started'] is False
+        assert client.call('publish-systemd-user-units', publication, min_minor=16) == published
+        with pytest.raises(InstallerClientError) as conflict:
+            client.call('publish-systemd-user-units', {**publication, 'verify_generated_units': False}, min_minor=16)
+        assert conflict.value.code == 'systemd_publish_failed'
         loaded = client.call('load-systemd-user-units', {**service_args, 'idempotency_key': '3' * 32}, min_minor=15)
         assert loaded['state'] == 'loaded' and loaded['services_started'] is False
         group = signed_user_group(package, envelope, str(install), trusted_public_key=public,

@@ -51,9 +51,15 @@ class Effects:
         self.calls.append(key.split("/")[-1])
 
     def migrate(self, key, migration, command):
+        from shared.native_migration import run_python_migration
         self.calls.append("migrate")
-        invoke(self.home.releases / "app-2" / "main.py", self.home.roots["data"],
-               "--migration", migration)
+        interpreter = Path(sys.executable).resolve()
+        release = self.home.releases / 'app-2'
+        run_python_migration(interpreter=str(interpreter), interpreter_sha256=sha256(interpreter.read_bytes()).hexdigest(),
+                             release_root=str(release), script=str(release / 'main.py'),
+                             script_sha256=self.ports.payloads['2'].sha256['main.py'],
+                             args=('migrate', '--data-dir', str(self.home.roots['data']), '--migration', migration),
+                             timeout=15, execute=True)
 
     def start(self, key, components, pre_start):
         self.calls.append(key.split("/")[-1])
@@ -205,6 +211,12 @@ class SystemdEffects(Effects):
             for action in ('stop', 'reset-failed'):
                 subprocess.run(self.base + [action, '--', unit], env=self.env, stdin=subprocess.DEVNULL,
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, check=False)
+
+    def migrate(self, key, migration, command):
+        # Временный Python, извлечённый из образа, зависит от LD_LIBRARY_PATH;
+        # изолированный production-кандидат не принимает эту переменную.
+        self.calls.append('migrate')
+        invoke(self.home.releases / 'app-2' / 'main.py', self.home.roots['data'], '--migration', migration)
 
     def stop(self, key, components):
         from shared.systemd_group import SystemdGroupError

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ранний локальный API HomenS.AI v1: запрос",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["api_major", "operation", "request_id", "params"],
+  "properties": {
+    "api_major": {"type": "integer", "const": 1},
+    "operation": {"type": "string", "enum": ["capabilities", "validate"]},
+    "request_id": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+    "params": {"type": "object"}
+  },
+  "oneOf": [
+    {"properties": {"operation": {"const": "capabilities"}, "params": {"type": "object", "maxProperties": 0}}},
+    {"properties": {"operation": {"const": "validate"}, "params": {"type": "object", "required": ["manifest"], "additionalProperties": false, "properties": {"manifest": {"type": "object"}}}}}
+  ]
+}

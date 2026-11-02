@@ -172,6 +172,45 @@ def test_null_quiescence_receipt_cannot_authorize_another_snapshot(setup, monkey
     assert marker.read_bytes() == b'null'
 
 
+def test_confirming_archive_does_not_confirm_interrupted_linux_quiescence(setup, monkeypatch):
+    pytest.importorskip('cryptography')
+    import shared.adapters_fs as fs
+    from shared.effect_receipt import read_effect_receipt
+    from shared.update_plan import UpdateIndeterminate
+
+    class Crash(BaseException):
+        pass
+
+    plan, ports, state, _ = _prepare_archive(setup)
+    for root in ports.home.roots.values():
+        root.mkdir(parents=True, exist_ok=True)
+    key = state['transaction'] + '/archive'
+    original = fs._atomic_write
+    captured = []
+    def interrupted(path, value):
+        if str(path).endswith('.archive.json') and value.get('status') == 'done':
+            captured.append(value['sha256'])
+            raise Crash()
+        original(path, value)
+    with monkeypatch.context() as patch:
+        patch.setattr(fs, '_atomic_write', interrupted)
+        token = _ACTIVE_EFFECT.set((plan, state['transaction'], 'archive'))
+        try:
+            with pytest.raises(Crash):
+                ports.backup(key, 'archive', ())
+        finally:
+            _ACTIVE_EFFECT.reset(token)
+    assert len(captured) == 1
+    ports.recover_archive_binding(plan, key, captured[0])
+    assert read_effect_receipt(ports.archive_path(key).with_suffix('.archive.json'))['status'] == 'done'
+    marker = ports._path(key, '.quiescence.json')
+    assert read_effect_receipt(marker)['status'] == 'pending'
+    with pytest.raises(UpdateIndeterminate):
+        plan.run(resume_indeterminate=True)
+    assert read_effect_receipt(marker)['status'] == 'pending'
+    assert plan.status() == state
+
+
 def test_unrecorded_stop_and_existing_untracked_archive_are_rejected(setup, monkeypatch):
     plan, ports, state, _ = _prepare_archive(setup)
     key = state['transaction'] + '/archive'

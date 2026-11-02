@@ -13,11 +13,13 @@ from shared.systemd_lifecycle_port import SystemdLifecyclePort
 from shared.update_health_port import LocalUpdateHealthPort
 from shared.update_plan import UpdateError, UpdatePlan
 from shared.update_prepare import _expected_tree, prepare_signed_linux_update, verify_started_linux_update
+from shared.writer_guard import CooperativeWriterLock
 
 
 def assemble_prepared_linux_update(*, group, password_provider, interpreter: str,
                                    interpreter_sha256: str, timeout: float, reopen: bool = False,
-                                   reconcile_stop_key: str | None = None, **options) -> UpdatePlan:
+                                   reconcile_stop_key: str | None = None,
+                                   writer_lock: CooperativeWriterLock | None = None, **options) -> UpdatePlan:
     """Связать проверенную подготовку и порты; не исполнять план или процессы.
 
     Группа, источники ключей, пароль, runtime и отсутствие сторонних писателей
@@ -51,7 +53,7 @@ def assemble_prepared_linux_update(*, group, password_provider, interpreter: str
             interpreter_sha256=interpreter_sha256, timeout=timeout)
         previous = PreviousSignedRelease(options['old_package'], options['old_envelope'], options['old_key'])
         ports.effects = LinuxSignedUpdateEffects(lifecycle, migration, LocalUpdateHealthPort(plan, ports),
-                                                previous_release=previous)
+                                                previous_release=previous, writer_lock=writer_lock)
         result = (verify_started_linux_update(**options) if reopen else prepare_signed_linux_update(**options))
         if reconcile_stop_key is not None:
             state = result['state']

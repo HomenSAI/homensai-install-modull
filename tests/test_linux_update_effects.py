@@ -12,6 +12,7 @@ from shared.systemd_lifecycle_port import SystemdLifecyclePort
 from shared.systemd_user import SystemdUserAdapter
 from shared.update_health_port import LocalUpdateHealthPort
 from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan, _ACTIVE_EFFECT
+from shared.writer_guard import CooperativeWriterLock, WriterGuardError
 
 
 class FakeAdapter(SystemdUserAdapter):
@@ -104,6 +105,14 @@ def test_mixed_transaction_ports_and_post_hooks_rejected(setup, tmp_path):
         LinuxSignedUpdateEffects(effects.lifecycle, effects.migration, effects.health_port)
 
 
+@pytest.mark.skipif(not __import__('sys').platform.startswith('linux'), reason='Requires Linux flock')
+def test_writer_lock_cannot_be_inside_persistent_roots(setup):
+    _, ports, effects, _, _ = setup
+    guard = CooperativeWriterLock(str(ports.home.roots['data'] / 'writers.lock'))
+    with pytest.raises(UpdateError):
+        LinuxSignedUpdateEffects(effects.lifecycle, effects.migration, effects.health_port, writer_lock=guard)
+
+
 def _prepare_archive(setup):
     plan, ports, _, state, adapters = setup
     transaction = state['transaction']
@@ -135,6 +144,63 @@ def test_backup_requires_stopped_group_and_confirms_it_after_snapshot(setup, mon
         with pytest.raises(EffectIndeterminate):
             ports.backup(key, 'archive', ())
         assert len(calls) == 1
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+
+
+@pytest.mark.skipif(not __import__('sys').platform.startswith('linux'), reason='Requires Linux flock')
+def test_cooperating_writer_blocks_backup_and_backup_blocks_writer(setup, tmp_path, monkeypatch):
+    plan, ports, state, _ = _prepare_archive(setup)
+    private = tmp_path / 'writer-lock'
+    private.mkdir(mode=0o700)
+    guard = CooperativeWriterLock(str(private / 'writers.lock'))
+    ports.effects.writer_lock = guard
+    key = state['transaction'] + '/archive'
+    calls = []
+    def backup(*args):
+        calls.append(args)
+        with pytest.raises(WriterGuardError):
+            with guard.hold(exclusive=False):
+                pytest.fail('cooperating writer entered during backup')
+        ports.archive_path(key).write_bytes(b'synthetic archive')
+    monkeypatch.setattr(ports, '_backup', backup)
+    token = _ACTIVE_EFFECT.set((plan, state['transaction'], 'archive'))
+    try:
+        with guard.hold(exclusive=False):
+            with pytest.raises(EffectIndeterminate):
+                ports.backup(key, 'archive', ())
+        assert not ports._path(key, '.quiescence.json').exists() and calls == []
+        ports.backup(key, 'archive', ())
+        from shared.effect_receipt import read_effect_receipt
+        record = read_effect_receipt(ports._path(key, '.quiescence.json'))
+        assert record['status'] == 'done' and 'writer_lock_sha256' in record and len(calls) == 1
+        ports.effects.writer_lock = None
+        with pytest.raises(EffectIndeterminate):
+            ports.backup(key, 'archive', ())
+        assert len(calls) == 1
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+
+
+@pytest.mark.skipif(not __import__('sys').platform.startswith('linux'), reason='Requires Linux flock')
+def test_replaced_writer_lock_leaves_backup_pending(setup, tmp_path, monkeypatch):
+    plan, ports, state, _ = _prepare_archive(setup)
+    private = tmp_path / 'writer-lock'
+    private.mkdir(mode=0o700)
+    guard = CooperativeWriterLock(str(private / 'writers.lock'))
+    ports.effects.writer_lock = guard
+    key = state['transaction'] + '/archive'
+    def backup(*args):
+        ports.archive_path(key).write_bytes(b'synthetic archive')
+        guard.path.unlink()
+        guard.path.touch(mode=0o600)
+    monkeypatch.setattr(ports, '_backup', backup)
+    token = _ACTIVE_EFFECT.set((plan, state['transaction'], 'archive'))
+    try:
+        with pytest.raises(EffectIndeterminate):
+            ports.backup(key, 'archive', ())
+        from shared.effect_receipt import read_effect_receipt
+        assert read_effect_receipt(ports._path(key, '.quiescence.json'))['status'] == 'pending'
     finally:
         _ACTIVE_EFFECT.reset(token)
 

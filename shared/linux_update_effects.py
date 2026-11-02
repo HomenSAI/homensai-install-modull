@@ -2,11 +2,12 @@
 """Связка ограниченных портов обновления для Linux user-systemd."""
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
+import hashlib
 import re
 
-from shared.datahome import DataHomeError, checked_path
+from shared.datahome import DataHomeError, checked_path, contains
 from shared.adapters_fs import _tree
 from shared.effect_receipt import read_effect_receipt
 from shared.host_target import native_target
@@ -16,6 +17,7 @@ from shared.signed_migration_port import SignedMigrationPort
 from shared.systemd_lifecycle_port import SystemdLifecyclePort
 from shared.update_health_port import LocalUpdateHealthPort
 from shared.update_plan import EffectIndeterminate, LockBusy, UpdateError, _ACTIVE_EFFECT, _atomic_write
+from shared.writer_guard import CooperativeWriterLock
 
 _BACKUP_KEY = re.compile(r'([a-f0-9]{32})/(archive|backup:(?:0|[1-9][0-9]{0,5})|before_rollback)\Z')
 
@@ -51,18 +53,25 @@ class LinuxSignedUpdateEffects:
     Вызывающий код отвечает за доверенный выпуск, группу, runtime и остановку
     всех остальных писателей. Произвольные hooks не поддерживаются.
     """
-    def __init__(self, lifecycle, migration, health, *, previous_release=None):
+    def __init__(self, lifecycle, migration, health, *, previous_release=None, writer_lock=None):
         if (not isinstance(lifecycle, SystemdLifecyclePort)
                 or not isinstance(migration, SignedMigrationPort)
                 or not isinstance(health, LocalUpdateHealthPort)
                 or lifecycle.plan is not migration.plan or lifecycle.plan is not health.plan
                 or lifecycle.ports is not migration.ports or lifecycle.ports is not health.ports
                 or lifecycle.plan.manifest['hooks']['post_update']
-                or (previous_release is not None and type(previous_release) is not PreviousSignedRelease)):
+                or (previous_release is not None and type(previous_release) is not PreviousSignedRelease)
+                or (writer_lock is not None and type(writer_lock) is not CooperativeWriterLock)):
             raise UpdateError('Несовместимые порты обновления')
+        if writer_lock is not None:
+            home = lifecycle.ports.home
+            protected = [home.app, home.releases, *home.roots.values(), lifecycle.ports.work]
+            if any(contains(checked_path(path), writer_lock.path) for path in protected):
+                raise UpdateError('Блокировка пересекается с выпуском, данными или архивом')
         self.plan = lifecycle.plan
         self.lifecycle, self.migration, self.health_port = lifecycle, migration, health
         self.previous_release = previous_release
+        self.writer_lock = writer_lock
 
     @contextmanager
     def operation_guard(self):
@@ -211,6 +220,9 @@ class LinuxSignedUpdateEffects:
                    'stop_key': transaction + '/' + stop_phase,
                    'installation_sha256': self.lifecycle.install_hash,
                    'units_sha256': self.lifecycle.units_hash}
+        writer_lock = self.writer_lock
+        if writer_lock is not None:
+            binding['writer_lock_sha256'] = hashlib.sha256(str(writer_lock.path).encode('utf-8')).hexdigest()
         stop_binding = {'version': 1, 'plan': self.plan.digest, 'key': binding['stop_key'],
                         'action': 'stop', 'installation_sha256': self.lifecycle.install_hash,
                         'units_sha256': self.lifecycle.units_hash, 'status': 'done'}
@@ -232,14 +244,16 @@ class LinuxSignedUpdateEffects:
                 raise EffectIndeterminate('Предыдущая копия требует проверки')
             if (record is None and ports.archive_path(key).exists()) or (record == done and not ports.archive_path(key).exists()):
                 raise EffectIndeterminate('Копия не соответствует отметке')
-            confirm_stopped()
+            with writer_lock.hold(exclusive=True) if writer_lock is not None else nullcontext():
+                confirm_stopped()
+                if record is None:
+                    _atomic_write(marker, {**binding, 'status': 'pending'})
+                backup(key, purpose, command)
+                confirm_stopped()
+                if record is None:
+                    if read_effect_receipt(marker) != {**binding, 'status': 'pending'}:
+                        raise EffectIndeterminate('Отметка копии изменилась')
             if record is None:
-                _atomic_write(marker, {**binding, 'status': 'pending'})
-            backup(key, purpose, command)
-            confirm_stopped()
-            if record is None:
-                if read_effect_receipt(marker) != {**binding, 'status': 'pending'}:
-                    raise EffectIndeterminate('Отметка копии изменилась')
                 _atomic_write(marker, done)
             if read_effect_receipt(marker) != done:
                 raise EffectIndeterminate('Копия не подтверждена')

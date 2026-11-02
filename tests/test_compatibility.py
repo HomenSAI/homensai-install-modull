@@ -15,6 +15,14 @@ V2 = json.loads((ROOT / 'examples/rent.manifest.json').read_text(encoding='utf-8
 V1 = json.loads((ROOT / 'examples/jobpilot.manifest.json').read_text(encoding='utf-8'))
 WINDOWS = {'os': 'windows', 'architecture': 'x86_64', 'execution': 'native'}
 LINUX_DOCKER = {'os': 'linux', 'architecture': 'x86_64', 'execution': 'docker'}
+EXAMPLE_TARGETS = [
+    {'os': os_name, 'architecture': 'x86_64', 'execution': execution}
+    for os_name in ('windows', 'linux') for execution in ('native', 'docker')
+]
+EXAMPLES = [
+    ('windows-native', {0}), ('linux-native', {2}),
+    ('windows-native-docker', {0, 1}), ('all-targets', {0, 1, 2, 3}),
+]
 
 
 def declared():
@@ -67,3 +75,52 @@ def test_api_python_and_cli_agree():
     process = subprocess.run([sys.executable, '-B', '-m', 'shared.api'], cwd=ROOT,
                              input=json.dumps(request).encode(), capture_output=True, timeout=15)
     assert process.returncode == 0 and json.loads(process.stdout) == result
+
+
+@pytest.mark.parametrize('name,supported', EXAMPLES)
+def test_standalone_example_declares_exact_targets_and_builds_common_package(tmp_path, name, supported):
+    from shared.manifest import load_manifest
+    from shared.package import build_package, verify_package
+    root = ROOT / 'examples/compatibility'
+    manifest = load_manifest(root / (name + '.json'))
+    for index, target in enumerate(EXAMPLE_TARGETS):
+        expected = 'supported' if index in supported else 'unsupported'
+        assert check_target(manifest, target) == {'status': expected}
+        request = {'api_major': 1, 'request_id': 'example', 'operation': 'check-target',
+                   'params': {'manifest': manifest, 'target': target}}
+        assert handle(request)['result'] == {'status': expected}
+    package = tmp_path / (name + '.zip')
+    built = build_package(manifest, '1', root / 'payload', package)
+    verified = verify_package(package, expected_sha256=built['sha256'])
+    assert verified['manifest'] == manifest
+    assert {entry['path'] for entry in verified['files']} >= {
+        'locks/linux.lock', 'locks/windows.lock', 'vendor/synthetic_demo-0.0.0-py3-none-any.whl'}
+
+
+@pytest.mark.parametrize('name,supported', EXAMPLES)
+@pytest.mark.parametrize('target_index', [0, 2])
+def test_signed_example_rejects_undeclared_native_target(tmp_path, monkeypatch, name, supported, target_index):
+    ed = pytest.importorskip('cryptography.hazmat.primitives.asymmetric.ed25519')
+    serialization = pytest.importorskip('cryptography.hazmat.primitives.serialization')
+    from shared.manifest import load_manifest
+    from shared.package import PackageError, build_package
+    from shared.package_prepare import prepare_native_signed_package
+    from shared.package_signing import sign_package
+    root = ROOT / 'examples/compatibility'
+    manifest = load_manifest(root / (name + '.json'))
+    package = tmp_path / 'example.zip'
+    build_package(manifest, '1', root / 'payload', package)
+    private = ed.Ed25519PrivateKey.generate()
+    public = private.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    envelope = sign_package(package, private_key=private, expected_product_id=manifest['product_id'], expected_version='1')
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: EXAMPLE_TARGETS[target_index])
+    destination = tmp_path / 'prepared'
+    options = {'trusted_public_key': public, 'expected_product_id': manifest['product_id'], 'expected_version': '1'}
+    if target_index in supported:
+        result = prepare_native_signed_package(package, envelope, destination, **options)
+        assert result['process_target'] == EXAMPLE_TARGETS[target_index]
+        assert (destination / 'README.txt').is_file()
+    else:
+        with pytest.raises(PackageError):
+            prepare_native_signed_package(package, envelope, destination, **options)
+        assert not destination.exists()

@@ -13,6 +13,8 @@ ZIP/SHA-256 и восстановление в пустой каталог: [ARC
 Контракт: [shared/manifest.schema.json](../shared/manifest.schema.json).
 Примеры: [JobPilot v1](../examples/jobpilot.manifest.json),
 [Rent v2](../examples/rent.manifest.json).
+Дополнительные самостоятельные примеры целей Windows, Linux и Docker с общим
+тестовым payload: [примеры совместимости](../examples/compatibility/README.md).
 Происхождение: [PROVENANCE.md](PROVENANCE.md).
 
 ## Контракт v2 и миграция

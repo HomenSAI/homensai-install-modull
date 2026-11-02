@@ -37,7 +37,7 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
                                product_id: str, version: str, install_root: str, unit_dir: str,
                                work_dir: str, modes: tuple[str, ...], required_bytes: dict,
                                reserve_bytes: int, workflow_key: str, keys: dict,
-                               language: str = 'en') -> dict:
+                               language: str = 'en', inspect_only: bool = False) -> dict:
     """Выполнить последовательность API с долговечным checkpoint каждого шага.
 
     Ключи и workspace заранее сохраняет вызывающая сторона. Pending не доказывает
@@ -45,7 +45,7 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
     самостоятельно решает, возможно ли продолжение. Никаких секретов не принимает.
     """
     try:
-        if (type(workflow_key) is not str or _KEY.fullmatch(workflow_key) is None
+        if (type(inspect_only) is not bool or type(workflow_key) is not str or _KEY.fullmatch(workflow_key) is None
                 or type(keys) is not dict or set(keys) != set(_NAMES)
                 or any(type(value) is not str or _KEY.fullmatch(value) is None for value in keys.values())
                 or len({workflow_key, *keys.values()}) != len(_NAMES) + 1
@@ -105,6 +105,12 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
         with operation_lock(lock):
             state = read_effect_receipt(marker)
             if state is None:
+                if inspect_only:
+                    return {'state': 'no_checkpoint', 'completed_steps': None, 'total_steps': len(steps),
+                            'current_step': None, 'step_may_have_executed': None,
+                            'checkpoint_matches_request': False, 'effects_verified': False,
+                            'current_health_verified': False, 'resume_authorized': False,
+                            'installation_complete': False}
                 state = {'version': 2, 'binding': binding, 'index': 0, 'status': 'pending'}
                 _atomic_write(marker, state)
             if (set(state) != {'version', 'binding', 'index', 'status'}
@@ -114,6 +120,16 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
                     or not 0 <= state['index'] <= len(steps)
                     or state['status'] != ('done' if state['index'] == len(steps) else 'pending')):
                 raise FreshControllerError()
+            if inspect_only:
+                if read_effect_receipt(marker) != state:
+                    raise FreshControllerError()
+                complete = state['status'] == 'done'
+                return {'state': 'recorded_complete' if complete else 'pending',
+                        'completed_steps': state['index'], 'total_steps': len(steps),
+                        'current_step': None if complete else steps[state['index']][0],
+                        'step_may_have_executed': not complete, 'checkpoint_matches_request': True,
+                        'effects_verified': False, 'current_health_verified': False,
+                        'resume_authorized': False, 'installation_complete': False}
             while state['index'] < len(steps):
                 name, params, result_key, expected = steps[state['index']]
                 deadline = time.monotonic() + min(metadata['manifest']['update']['health_wait'], 30)

@@ -39,7 +39,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 31
+API_MINOR = 32
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -175,8 +175,8 @@ def handle(request: Any) -> dict:
                 operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release"])
                 mutating_operations.append("prepare-native-release")
                 if _systemd_plan_available():
-                    operations.append('install-portable-linux')
-                    mutating_operations.append('install-portable-linux')
+                    operations.extend(['install-portable-linux', 'inspect-portable-linux-install'])
+                    mutating_operations.extend(['install-portable-linux', 'inspect-portable-linux-install'])
                     operations.extend(['prepare-signed-linux-update', 'inspect-signed-linux-update'])
                     # Проверка записывает служебные файлы блокировок, не изменяя продукт.
                     mutating_operations.extend(['prepare-signed-linux-update', 'inspect-signed-linux-update'])
@@ -507,7 +507,7 @@ def handle(request: Any) -> dict:
                 return _error(request_id, 'linux_runtime_failed', 'Не удалось подтвердить Linux runtime',
                               language, 'api.linux_runtime_failed')
             result['installation_complete'] = False
-        elif operation == 'install-portable-linux':
+        elif operation in ('install-portable-linux', 'inspect-portable-linux-install'):
             fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id', 'expected_version',
                       'install_root', 'unit_dir', 'work_dir', 'modes', 'required_bytes', 'reserve_bytes',
                       'workflow_key', 'keys'}
@@ -543,7 +543,7 @@ def handle(request: Any) -> dict:
                     install_root=params['install_root'], unit_dir=params['unit_dir'], work_dir=params['work_dir'],
                     modes=tuple(params['modes']), required_bytes=params['required_bytes'],
                     reserve_bytes=params['reserve_bytes'], workflow_key=params['workflow_key'], keys=params['keys'],
-                    language=language or 'en')
+                    language=language or 'en', inspect_only=(operation == 'inspect-portable-linux-install'))
             except FreshControllerError:
                 return _error(request_id, 'fresh_controller_failed', 'Не удалось подтвердить установку',
                               language, 'api.fresh_controller_failed')

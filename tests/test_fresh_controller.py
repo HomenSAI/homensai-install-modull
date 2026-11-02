@@ -73,6 +73,8 @@ def test_controller_rejects_changed_request_corrupt_journal_and_busy_lock(workfl
     marker.write_text(json.dumps(malformed))
     with pytest.raises(FreshControllerError):
         run_portable_linux_install(**workflow)
+    with pytest.raises(FreshControllerError):
+        run_portable_linux_install(**workflow, inspect_only=True)
     marker.write_bytes(original)
     lock = Path(workflow['work_dir']) / ('install-' + workflow['workflow_key'] + '.lock')
     with operation_lock(lock):
@@ -115,3 +117,25 @@ def test_previous_version_one_journal_remains_supported(workflow, monkeypatch):
     with pytest.raises(FreshControllerError) as conflict:
         run_portable_linux_install(**workflow, language='de')
     assert conflict.value.code == 'controller_failed'
+
+
+def test_inspection_reads_journal_without_executing_steps(workflow, monkeypatch):
+    calls = []
+    def handle(request):
+        calls.append(request['operation'])
+        return {'ok': False, 'error': {'code': 'fresh_prepare_failed'}}
+    monkeypatch.setattr(api, 'handle', handle)
+    marker = Path(workflow['work_dir']) / ('install-' + workflow['workflow_key'] + '.json')
+    result = run_portable_linux_install(**workflow, inspect_only=True)
+    assert result['state'] == 'no_checkpoint' and result['completed_steps'] is None
+    assert result['step_may_have_executed'] is None and not marker.exists() and calls == []
+    with pytest.raises(FreshControllerError):
+        run_portable_linux_install(**workflow)
+    before, calls_before = marker.read_bytes(), list(calls)
+    result = run_portable_linux_install(**workflow, inspect_only=True, language='de')
+    assert result['state'] == 'pending' and result['completed_steps'] == 0
+    assert result['current_step'] == 'prepare-native-release' and result['step_may_have_executed'] is True
+    assert result['resume_authorized'] is False and result['effects_verified'] is False
+    assert marker.read_bytes() == before and calls == calls_before
+    with pytest.raises(FreshControllerError):
+        run_portable_linux_install(**{**workflow, 'reserve_bytes': 1}, inspect_only=True)

@@ -65,3 +65,28 @@ def test_api_disables_operation_without_crypto_or_supported_platform(workflow, m
     caps = api.handle({'api_major': 1, 'request_id': 'caps', 'operation': 'capabilities', 'params': {}})['result']
     assert query['operation'] not in caps['operations']
     assert api.handle(query)['error']['code'] == 'unsupported_operation'
+
+
+def test_status_api_has_same_parameters_and_never_starts_installation(workflow, monkeypatch):
+    query = query_for(workflow)
+    query['operation'] = 'inspect-portable-linux-install'
+    validator = pytest.importorskip('jsonschema').Draft202012Validator(
+        json.loads((Path(__file__).resolve().parents[1] / 'shared/api-v1-request.schema.json').read_text()))
+    assert validator.is_valid(query)
+    caps = api.handle({'api_major': 1, 'request_id': 'caps', 'operation': 'capabilities', 'params': {}})['result']
+    assert caps['api_minor'] >= 32 and query['operation'] in caps['mutating_operations']
+    marker = Path(workflow['work_dir']) / ('install-' + workflow['workflow_key'] + '.json')
+    response = api.handle(query)
+    assert response['ok'] and response['result']['state'] == 'no_checkpoint'
+    assert response['result']['resume_authorized'] is False and not marker.exists()
+    def fail(request):
+        return {'ok': False, 'error': {'code': 'fresh_prepare_failed'}}
+    with monkeypatch.context() as patch:
+        patch.setattr(api, 'handle', fail)
+        with pytest.raises(fresh_controller.FreshControllerError):
+            fresh_controller.run_portable_linux_install(**workflow)
+    before = marker.read_bytes()
+    response = api.handle(query)
+    assert response['ok'] and response['result']['state'] == 'pending'
+    assert response['result']['current_step'] == 'prepare-native-release'
+    assert response['result']['step_may_have_executed'] and marker.read_bytes() == before

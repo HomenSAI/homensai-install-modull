@@ -349,10 +349,17 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
             api_args['modes'] = list(args['modes'])
             from examples.demo_product.installer_client import InstallerClient
             client = InstallerClient(timeout=300)
+            observed = client.call('inspect-portable-linux-install', api_args, min_minor=32, language='de')
+            assert observed['state'] == 'pending' and observed['completed_steps'] == 1
+            assert observed['current_step'] == 'prepare-linux-runtime' and observed['step_may_have_executed'] is True
+            assert observed['resume_authorized'] is False and json.loads(marker_file.read_text())['index'] == 1
             result = client.call('install-portable-linux', api_args, min_minor=31, language='de')
             assert result['state'] == 'recorded_complete' and result['health_verified_at_execution'] is True
             assert result['installation_complete'] is False and result['process_identity_verified'] is False
             assert client.call('install-portable-linux', api_args, min_minor=31, language='ru') == result
+            completed = client.call('inspect-portable-linux-install', api_args, min_minor=32, language='ru')
+            assert completed['state'] == 'recorded_complete' and completed['completed_steps'] == 6
+            assert completed['effects_verified'] is False and completed['current_health_verified'] is False
             heartbeat_path = install / 'data/worker-heartbeat.json'
             deadline = time.monotonic() + 15
             while not heartbeat_path.exists() and time.monotonic() < deadline:

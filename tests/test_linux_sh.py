@@ -112,7 +112,7 @@ def test_hostile_root_shell_round_trip(manifest, root):
         words = shlex.split(line)
         assert words[:2] == ["install", "-d"] and len(words) == 10 and words[-2] == "--"
     unit = result["homensai-rent-demo-core-server.service"]
-    working = '"' + (root + "/demo-layout/app").replace('"', '\\"').replace("%", "%%") + '"'
+    working = (root + "/demo-layout/app").replace("%", "%%")
     assert "WorkingDirectory=" + working in unit
 
 
@@ -194,7 +194,7 @@ def test_bad_manifest_rejected(manifest, mutation):
 
 def test_absolute_paths(manifest):
     manifest["paths"] = {key: "/srv/" + key for key in manifest["paths"]}
-    assert 'WorkingDirectory="/srv/app"' in render(manifest)["homensai-rent-demo-core-server.service"]
+    assert 'WorkingDirectory=/srv/app' in render(manifest)["homensai-rent-demo-core-server.service"]
 
 
 def test_cli_bundle_no_execution_and_no_overwrite(tmp_path, capsys):

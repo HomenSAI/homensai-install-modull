@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 import pytest
 
 from shared.manifest import ManifestError, load_manifest, validate_manifest
-from shared.services import component_order, render_services, verify_winsw
+from shared.services import component_order, render_fixed_user_services, render_services, verify_winsw
 
 
 PAYLOAD = b"synthetic-not-an-executable"
@@ -93,7 +93,7 @@ def test_unit_escaping_dependencies_restart_and_absolute_path(manifest):
     output = render(manifest)
     unit = output["homensai-rent-demo-web.service"]
     assert 'ExecStart="python" "a\\"b\\\\c %%i $$X $${X}; &"\n' in unit
-    assert 'WorkingDirectory="/srv/demo app/demo-layout/app"\n' in unit
+    assert 'WorkingDirectory=/srv/demo app/demo-layout/app\n' in unit
     for line in ("RestartSec=60", "StartLimitIntervalSec=600", "StartLimitBurst=3"):
         assert line in unit
     bot = output["homensai-rent-demo-bot.service"]
@@ -150,3 +150,34 @@ def test_rejects_systemd_executable_prefix_or_relative_path(manifest, executable
     manifest["components"][0]["cmd"][0] = executable
     with pytest.raises(ManifestError):
         render(manifest)
+
+
+def test_fixed_user_units_escape_values_and_exclude_service_secret_policy(manifest):
+    manifest['secrets'] = []
+    for component in manifest['components']:
+        component['cmd'] = ['/usr/bin/python3', 'name with spaces', 'literal%$"\\']
+    units = render_fixed_user_services(manifest, modes=('autonomous',), install_root='/srv/demo path')
+    assert list(units) == [f'homensai-rent-demo-{name}.service' for name in ('web', 'bot', 'scheduler')]
+    assert 'ExecStart="/usr/bin/python3" "name with spaces" "literal%%$$\\"\\\\"' in units['homensai-rent-demo-web.service']
+    assert 'WorkingDirectory=/srv/demo path/demo-layout/app' in units['homensai-rent-demo-web.service']
+    assert all('PassEnvironment=' not in text and '[Install]' not in text for text in units.values())
+
+
+@pytest.mark.parametrize('condition', ['secrets', 'relative_executable', 'newline', 'root', 'windows_app'])
+def test_fixed_user_units_reject_unsupported_inputs(manifest, condition):
+    manifest['secrets'] = []
+    for component in manifest['components']:
+        component['cmd'] = ['/usr/bin/python3', '-B']
+    root = '/srv/demo'
+    if condition == 'secrets':
+        manifest['secrets'] = [{'name': 'TOKEN', 'required': True, 'contexts': ['service'], 'same_value': False}]
+    elif condition == 'relative_executable':
+        manifest['components'][0]['cmd'][0] = 'python3'
+    elif condition == 'newline':
+        manifest['components'][0]['cmd'].append('arg\nExecStart=/bin/false')
+    elif condition == 'root':
+        root = '/'
+    else:
+        manifest['paths']['app'] = 'C:\\app'
+    with pytest.raises(ManifestError):
+        render_fixed_user_services(manifest, modes=('autonomous',), install_root=root)

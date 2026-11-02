@@ -8,7 +8,7 @@ StartLimitBurst=3
 [Service]
 Type=simple
 ExecStart="python" "-m" "fictitious_rent_demo.core_server"
-WorkingDirectory="/srv/demo/demo-layout/app"
+WorkingDirectory=/srv/demo/demo-layout/app
 Restart=on-failure
 RestartSec=60
 Environment=HOMENSAI_WEB_HOST=127.0.0.1

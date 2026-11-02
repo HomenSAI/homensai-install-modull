@@ -79,6 +79,8 @@ def render_services(manifest: dict[str, Any], *, platform: str,
     app_text = str(app if app.is_absolute() else base / app)
     if not path_type(app_text).is_absolute():
         raise ManifestError("Требуется абсолютный рабочий каталог")
+    if platform == 'linux' and '\\' in app_text:
+        raise ManifestError('systemd: обратная косая черта в рабочем каталоге не поддерживается')
     if platform == "windows" and ("winsw" not in manifest or not verify_winsw(
             winsw_payload, manifest["winsw"]["sha256"])):
         raise ManifestError("WinSW: отсутствует pin или SHA-256 не совпадает")
@@ -130,10 +132,52 @@ def render_services(manifest: dict[str, Any], *, platform: str,
                      "After=" + dependencies, "Requires=" + dependencies,
                      f"StartLimitIntervalSec={restart['window']}", f"StartLimitBurst={restart['max']}",
                      "", "[Service]", "Type=simple", "ExecStart=" + argv,
-                     "WorkingDirectory=" + _unit_arg(app_text).replace("$$", "$"),
+                     "WorkingDirectory=" + app_text.replace("%", "%%"),
                      "Restart=on-failure", f"RestartSec={restart['delay']}",
                      "Environment=HOMENSAI_WEB_HOST=127.0.0.1",
                      f"Environment=HOMENSAI_WEB_PORT={manifest['web']['port']}",
                      "PassEnvironment=" + " ".join(names), "", "[Install]", "WantedBy=multi-user.target", ""]
             result[prefix + name + ".service"] = "\n".join(lines)
+    return result
+
+
+def render_fixed_user_services(manifest: dict[str, Any], *, modes: tuple[str, ...],
+                               install_root: str) -> dict[str, str]:
+    """Создать тексты user-units для заранее известного корня, без записи.
+
+    Результат содержит абсолютный путь установки. Его нужно сформировать до
+    подписи пакета; перенос на другой корень этим интерфейсом не поддерживается.
+    Доставка секретов, очистка окружения и проверка исполняемого кода не входят
+    в этот генератор. Продукты, которым нужны service-секреты, отклоняются.
+    """
+    manifest = validate_manifest(manifest)
+    if type(modes) is not tuple or not modes or any(type(mode) is not str for mode in modes):
+        raise ManifestError('systemd user: недопустимые режимы')
+    if (type(install_root) is not str or not install_root.startswith('/') or install_root == '/'
+            or '\\' in install_root or '//' in install_root
+            or any(part in ('.', '..') for part in install_root.split('/'))):
+        raise ManifestError('systemd user: недопустимый корень')
+    app = manifest['paths']['app']
+    if app.startswith('/') or '\\' in app or ':' in app:
+        raise ManifestError('systemd user: нужен относительный каталог app')
+    if any('service' in item['contexts'] for item in manifest['secrets']):
+        raise ManifestError('systemd user: доставка секретов не поддерживается')
+    order = component_order(manifest, modes)
+    components = {item['name']: item for item in manifest['components']}
+    values = [install_root, app]
+    for name in order:
+        command = components[name]['cmd']
+        if not command[0].startswith('/') or command[0].startswith('//') or '\\' in command[0]:
+            raise ManifestError('systemd user: требуется абсолютный executable')
+        values.extend(command)
+    if any(any(ord(char) < 32 or 0x7f <= ord(char) <= 0x9f or
+                   0xd800 <= ord(char) <= 0xdfff or char in '\u2028\u2029'
+               for char in value) for value in values):
+        raise ManifestError('systemd user: недопустимый символ')
+    units = render_services(manifest, platform='linux', modes=modes, install_root=install_root)
+    result = {}
+    for name, text in units.items():
+        lines = [line for line in text.splitlines()
+                 if not line.startswith(('PassEnvironment=', 'WantedBy=')) and line != '[Install]']
+        result[name] = '\n'.join(lines).rstrip() + '\n'
     return result

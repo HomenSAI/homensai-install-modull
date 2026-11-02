@@ -16,8 +16,9 @@ from shared.manifest import load_manifest
 from shared.package import build_package
 from shared.package_signing import sign_package
 from shared.preflight import NAMES
+from shared.services import render_fixed_user_services
 from shared.systemd_user_load import signed_user_group
-from examples.demo_product.installer_client import InstallerClient
+from examples.demo_product.installer_client import InstallerClient, InstallerClientError
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -40,6 +41,7 @@ def test_signed_demo_prepared_published_loaded_and_started(tmp_path):
     manifest['compatibility'] = {'targets': [{'os': 'linux', 'architecture': 'x86_64', 'execution': 'native'}]}
     manifest['components'] = [item for item in manifest['components'] if item['name'] != 'scheduler']
     manifest['modes'][0]['components'] = ['web', 'bot']
+    manifest['secrets'] = []
     payload = tmp_path / 'payload'
     payload.mkdir()
     for index, artifact in enumerate([*manifest['runtime']['lock_files'].values(), *manifest['runtime']['vendor_wheels']]):
@@ -54,16 +56,22 @@ def test_signed_demo_prepared_published_loaded_and_started(tmp_path):
     demo.mkdir()
     (demo / 'main.py').write_text(source.replace('homensai-test-demo', product))
     (demo / 'release.json').write_bytes((ROOT / 'examples/demo_product/releases/1/release.json').read_bytes())
-    install = tmp_path / 'install'
+    install = tmp_path / 'install with spaces'
     data_dir = install / 'data'
     program = install / 'releases/app-1/demo/main.py'
-    log = data_dir / 'web.log'
-    units = {}
-    for component, action in [('web', 'serve'), ('bot', 'worker')]:
-        name = product + '-' + component + '.service'
-        output = f'StandardOutput=append:{log}\n' if component == 'web' else ''
-        body = (f'[Unit]\nDescription=Synthetic demo\n[Service]\nRuntimeMaxSec=90s\n{output}'
-                f'ExecStart={sys.executable} -B {program} {action} --data-dir {data_dir}\n').encode()
+    probe = subprocess.run([sys.executable, '-B', '-c',
+        'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()'],
+        capture_output=True, text=True, timeout=10, check=True)
+    port = int(probe.stdout.strip())
+    manifest['web']['port'] = port
+    for component in manifest['components']:
+        if component['name'] == 'web':
+            component['cmd'] = [sys.executable, '-B', str(program), 'serve', '--data-dir', str(data_dir), '--port', str(port)]
+        elif component['name'] == 'bot':
+            component['cmd'] = [sys.executable, '-B', str(program), 'worker', '--data-dir', str(data_dir)]
+    units = {name: text.encode() for name, text in render_fixed_user_services(
+        manifest, modes=('autonomous',), install_root=str(install)).items()}
+    for name, body in units.items():
         path = payload / 'systemd-user' / name
         path.parent.mkdir(exist_ok=True)
         path.write_bytes(body)
@@ -100,13 +108,12 @@ def test_signed_demo_prepared_published_loaded_and_started(tmp_path):
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
             try:
-                port = json.loads(log.read_text().splitlines()[-1])['port']
                 heartbeat = json.loads((data_dir / 'worker-heartbeat.json').read_text())
                 result = client.call('check-local-health', {'port': port, 'product_id': product,
                                       'version': '1', 'path': '/health', 'timeout_seconds': 2}, min_minor=12)
                 if result['health_response_matches'] and heartbeat['release'] == '1':
                     break
-            except (OSError, ValueError, IndexError, KeyError):
+            except (OSError, ValueError, IndexError, KeyError, InstallerClientError):
                 pass
             time.sleep(0.1)
         else:

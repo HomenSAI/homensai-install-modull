@@ -45,7 +45,7 @@ def compose(tmp_path, manifest):
 
 
 @pytest.mark.parametrize("method,tail", [
-    ("start", ["up", "-d"]), ("stop", ["stop"]), ("ps", ["ps"]), ("logs", ["logs"])])
+    ("start", ["up", "-d", "--no-build", "--pull", "never"]), ("stop", ["stop"]), ("ps", ["ps"]), ("logs", ["logs"])])
 def test_every_command_dry_and_executed(manifest, compose, method, tail, monkeypatch):
     calls = []
     result = subprocess.CompletedProcess([], 0, stdout="synthetic output", stderr="")
@@ -82,6 +82,19 @@ def test_default_runner_is_subprocess_run_but_never_called_by_default(manifest, 
     assert len(calls) == 1
     adapter.stop()
     assert len(calls) == 1  # Разрешение не сохраняется между вызовами.
+
+
+def test_missing_local_image_fails_without_retry_or_implicit_build(manifest, compose):
+    calls = []
+    def unavailable(argv, **kwargs):
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 1, stdout='', stderr='synthetic missing image')
+    adapter = docker.DockerComposeAdapter(manifest, compose, runner=unavailable)
+    with pytest.raises(docker.DockerAdapterError) as error:
+        adapter.start(execute=True)
+    assert 'synthetic missing image' not in str(error.value)
+    assert len(calls) == 1
+    assert calls[0][-5:] == ['up', '-d', '--no-build', '--pull', 'never']
 
 
 @pytest.mark.parametrize("method", ["start", "stop", "ps", "logs"])
@@ -131,7 +144,7 @@ def test_nonexistent_file_can_be_planned_but_not_executed(manifest, tmp_path):
     path = tmp_path / "not-created" / "compose.yml"
     adapter = docker.DockerComposeAdapter(manifest, path,
         runner=lambda *a, **k: pytest.fail("runner не должен вызываться"))
-    assert adapter.start()[-2:] == ["up", "-d"]
+    assert adapter.start()[-5:] == ["up", "-d", "--no-build", "--pull", "never"]
     assert not path.parent.exists()
     with pytest.raises(docker.DockerAdapterError):
         adapter.start(execute=True)
@@ -255,7 +268,7 @@ def test_v2_refused(tmp_path):
         docker.DockerComposeAdapter(manifest, tmp_path / "compose.yml")
 
 
-@pytest.mark.parametrize("action,tail", [("up", ["up", "-d"]), ("stop", ["stop"]),
+@pytest.mark.parametrize("action,tail", [("up", ["up", "-d", "--no-build", "--pull", "never"]), ("stop", ["stop"]),
                                          ("ps", ["ps"]), ("logs", ["logs"])])
 @pytest.mark.parametrize("as_json", [True, False])
 def test_ctl_docker_plan_only(manifest, tmp_path, capsys, monkeypatch, action, tail, as_json):

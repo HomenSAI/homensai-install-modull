@@ -99,7 +99,7 @@ class DockerComposeAdapter:
         path = _compose_path(self._compose)
         argv = ["docker", "compose", "-p", self._product, "-f", str(path), action]
         if action == "up":
-            argv.append("-d")
+            argv.extend(["-d", "--no-build", "--pull", "never"])
         if not execute:
             return argv
         if not path.is_file():

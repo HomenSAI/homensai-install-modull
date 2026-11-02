@@ -20,6 +20,7 @@ import zipfile
 from shared.archive import ArchiveError, _digest, _info, _safe_name, _signature, _space
 from shared.datahome import DataHomeError, checked_path, contains
 from shared.manifest import ManifestError, validate_manifest
+from shared.package_markers import CRYPTO_INCOMPLETE
 
 MAX_FILES = 10000
 MAX_FILE_BYTES = 1024 * 1024 * 1024
@@ -46,6 +47,8 @@ def _files(root: Path) -> tuple[list[dict], dict]:
         signature = _signature(path)
         if name:
             _safe_name(name)
+            if path.name.casefold() == CRYPTO_INCOMPLETE.casefold():
+                raise PackageError("Незавершённый блок криптозависимостей")
             folded = name.casefold()
             if folded in seen:
                 raise PackageError("Конфликт имён payload")
@@ -106,6 +109,8 @@ def _metadata(value):
         if type(name) is not str or len(name) > 1024:
             raise PackageError("Некорректный путь пакета")
         _safe_name(name)
+        if any(part.casefold() == CRYPTO_INCOMPLETE.casefold() for part in name.split("/")):
+            raise PackageError("Незавершённый блок криптозависимостей")
         if (name.casefold() in folded or type(size) is not int or not 0 <= size <= MAX_FILE_BYTES
                 or type(digest) is not str or _HASH.fullmatch(digest) is None):
             raise PackageError("Некорректный файл пакета")

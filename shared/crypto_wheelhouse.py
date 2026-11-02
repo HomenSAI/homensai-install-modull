@@ -18,6 +18,7 @@ import zipfile
 
 from shared.crypto_policy import LOCKED_VERSIONS
 from shared.datahome import DataHomeError, checked_path, contains
+from shared.package_markers import CRYPTO_INCOMPLETE
 
 # Имена и хэши относятся только к CPython 3.14 x86-64 (Windows / glibc Linux).
 _ARTIFACTS = {
@@ -123,7 +124,7 @@ def build_wheelhouse(source: str | Path, destination: str | Path) -> dict:
             wheels[filename] = data
             licenses[filename] = _licenses(data, package, names)
         destination.mkdir(mode=0o700)
-        marker = destination / '.homensai-crypto-incomplete'
+        marker = destination / CRYPTO_INCOMPLETE
         _write(marker, b'incomplete\n')
         for directory in ('vendor', 'locks', 'licenses'):
             (destination / directory).mkdir()

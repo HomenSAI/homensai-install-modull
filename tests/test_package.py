@@ -136,3 +136,29 @@ def test_v2_requires_declared_runtime_files_and_hashes(payload, tmp_path):
         item["sha256"] = sha256(data).hexdigest()
     result = build_package(manifest, "1", payload, target)
     assert verify_package(target, expected_sha256=result["sha256"])["manifest"] == manifest
+
+
+@pytest.mark.parametrize('as_directory', [False, True])
+def test_incomplete_crypto_block_is_never_packaged(tmp_path, payload, product, as_directory):
+    block = payload / 'nested' / '.HOMENSAI-CRYPTO-INCOMPLETE'
+    block.parent.mkdir()
+    if as_directory:
+        block.mkdir()
+    else:
+        block.write_text('incomplete')
+    target = tmp_path / 'package.zip'
+    with pytest.raises(PackageError, match='Незавершённый'):
+        build_package(product, '1', payload, target)
+    assert not target.exists()
+
+
+def test_verifier_rejects_incomplete_crypto_marker_in_forged_package(tmp_path, product):
+    data = b'incomplete'
+    metadata = {'format': 1, 'product_id': product['product_id'], 'version': '1',
+                'manifest': product,
+                'files': [{'path': 'nested/.homensai-crypto-incomplete', 'size': len(data),
+                           'sha256': sha256(data).hexdigest()}]}
+    target = tmp_path / 'forged.zip'
+    write_forged(target, metadata, data)
+    with pytest.raises(PackageError, match='Незавершённый'):
+        verify_package(target, expected_sha256=digest(target))

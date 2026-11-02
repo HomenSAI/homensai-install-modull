@@ -15,6 +15,8 @@ from shared.package_signing import sign_package, verify_signed_package
 from shared.preflight import NAMES
 from shared.systemd_portable import (RECIPE_PATH, RECIPE_V1, PortableUnitError,
                                       plan_portable_signed_user_units, publish_portable_signed_user_units)
+from shared.systemd_user_load import (UnitLoadError, load_portable_signed_user_units,
+                                      inspect_pending_portable_user_units, portable_signed_user_group)
 from shared import systemd_user_publish as pub
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -136,13 +138,18 @@ def fake_manager(directory):
 @pytest.fixture
 def portable_directory(tmp_path, monkeypatch):
     import shared.systemd_portable as portable
+    import shared.systemd_user as adapter
+    import shared.systemd_user_load as loader
     directory = tmp_path / 'user-units'
     directory.mkdir(mode=0o700)
     monkeypatch.setattr(portable, '_unit_directory', lambda path: Path(path))
+    monkeypatch.setattr(loader, '_unit_directory', lambda path: Path(path))
     def trusted(path, expected):
         if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
             raise pub.SystemdUserError('synthetic untrusted file')
     monkeypatch.setattr(pub, '_trusted_file', trusted)
+    monkeypatch.setattr(loader, '_trusted_file', trusted)
+    monkeypatch.setattr(adapter, '_trusted_file', trusted)
     return directory
 
 
@@ -150,6 +157,79 @@ def portable_publish(data, directory, **kwargs):
     package, envelope, options, roots = data
     return publish_portable_signed_user_units(package, envelope, str(roots[0]), **options,
                                               modes=('autonomous',), unit_dir=str(directory), **kwargs)
+
+
+def portable_load(data, directory, **kwargs):
+    package, envelope, options, roots = data
+    return load_portable_signed_user_units(package, envelope, str(roots[0]), **options,
+                                            modes=('autonomous',), unit_dir=str(directory), **kwargs)
+
+
+class FakeReloadManager:
+    def __init__(self, directory, *, lose_response=False):
+        self.directory, self.lose_response, self.reloaded, self.calls = directory, lose_response, False, []
+
+    def __call__(self, argv, *, timeout, env):
+        self.calls.append(argv[4:])
+        if argv[4:] == ['daemon-reload']:
+            self.reloaded = True
+            if self.lose_response:
+                raise TimeoutError('synthetic lost response')
+            return ''
+        if '--value' in argv:
+            return str(self.directory) + '\n'
+        name = argv[-1]
+        return (f'Id={name}\nLoadState=loaded\nActiveState=inactive\nSubState=dead\n'
+                f'FragmentPath={self.directory / name}\nDropInPaths=\n'
+                f'NeedDaemonReload={"no" if self.reloaded else "yes"}\n')
+
+
+def test_portable_loading_requires_bound_publication(portable_release, portable_directory):
+    manager = FakeReloadManager(portable_directory)
+    with pytest.raises(UnitLoadError):
+        portable_load(portable_release, portable_directory, execute=True, operation_id='b' * 32, runner=manager)
+    assert not manager.calls
+    publisher, _ = fake_manager(portable_directory)
+    portable_publish(portable_release, portable_directory, execute=True, operation_id='a' * 32, runner=publisher)
+    receipt = portable_release[3][0] / '.homensai-control/user-systemd-publication.json'
+    record = json.loads(receipt.read_text())
+    record['binding'] = '0' * 64
+    receipt.write_text(json.dumps(record))
+    with pytest.raises(UnitLoadError):
+        portable_load(portable_release, portable_directory, execute=True, operation_id='b' * 32, runner=manager)
+    assert not manager.calls
+
+
+@pytest.mark.parametrize('lost_response', [False, True])
+def test_portable_loading_never_replays_reload(portable_release, portable_directory, lost_response):
+    publisher, _ = fake_manager(portable_directory)
+    portable_publish(portable_release, portable_directory, execute=True, operation_id='a' * 32, runner=publisher)
+    manager = FakeReloadManager(portable_directory, lose_response=lost_response)
+    args = dict(execute=True, operation_id='b' * 32, runner=manager)
+    if lost_response:
+        with pytest.raises(UnitLoadError):
+            portable_load(portable_release, portable_directory, **args)
+        receipt = portable_release[3][0] / '.homensai-control/user-systemd-reload.json'
+        before = receipt.read_bytes()
+        with pytest.raises(UnitLoadError):
+            portable_load(portable_release, portable_directory, **args)
+        package, envelope, options, roots = portable_release
+        observed = inspect_pending_portable_user_units(package, envelope, str(roots[0]), **options,
+                       modes=('autonomous',), unit_dir=str(portable_directory), operation_id='b' * 32, runner=manager)
+        assert observed['state'] == 'pending_observed' and observed['reload_completion_verified'] is False
+        assert receipt.read_bytes() == before
+    else:
+        loaded = portable_load(portable_release, portable_directory, **args)
+        assert loaded['state'] == 'loaded' and loaded['services_started'] is False
+        assert portable_load(portable_release, portable_directory, **args) == loaded
+        package, envelope, options, roots = portable_release
+        group = portable_signed_user_group(package, envelope, str(roots[0]), **options,
+                    modes=('autonomous',), unit_dir=str(portable_directory), operation_id='b' * 32, runner=manager)
+        assert tuple(group.order) == ('web', 'bot', 'scheduler')
+    assert manager.calls.count(['daemon-reload']) == 1
+    with pytest.raises(UnitLoadError):
+        portable_load(portable_release, portable_directory, execute=True, operation_id='c' * 32, runner=manager)
+    assert manager.calls.count(['daemon-reload']) == 1
 
 
 def test_portable_publication_repeats_without_rewrite_and_rejects_conflict(portable_release, portable_directory):
@@ -197,6 +277,7 @@ def test_portable_publication_interruption_preserves_pending(portable_release, p
                     reason='Нужен отдельный тестовый user-systemd')
 def test_portable_publication_with_isolated_real_user_manager(portable_release):
     import pwd
+    import subprocess
     identity = pwd.getpwuid(os.getuid())
     if (os.getuid() == 0 or identity.pw_name != 'homenstest'
             or identity.pw_dir != '/home/homenstest' or not Path('/run/.containerenv').is_file()):
@@ -219,6 +300,13 @@ def test_portable_publication_with_isolated_real_user_manager(portable_release):
         assert result['state'] == 'published' and result['services_started'] is False
         assert all(call[0] == 'show' for call in calls)
         assert all(p.read_bytes() == body for p, body in expected.items())
+        loaded = portable_load(portable_release, directory, execute=True, operation_id='b' * 32, runner=actual)
+        assert loaded['state'] == 'loaded' and loaded['services_started'] is False
+        assert portable_load(portable_release, directory, execute=True, operation_id='b' * 32, runner=actual) == loaded
+        assert calls.count(['daemon-reload']) == 1
+        group = portable_signed_user_group(package, envelope, str(roots[0]), **options,
+                    modes=('autonomous',), unit_dir=str(directory), operation_id='b' * 32, runner=actual)
+        assert tuple(group.order) == ('web', 'bot', 'scheduler') and calls.count(['daemon-reload']) == 1
     finally:
         for path, body in expected.items():
             if path.exists():
@@ -234,3 +322,6 @@ def test_portable_publication_with_isolated_real_user_manager(portable_release):
             assert {item['name']: item['sha256'] for item in body['units']} == {
                 path.name: hashlib.sha256(data).hexdigest() for path, data in expected.items()}
             marker.unlink()
+        env = pub._manager_environment()
+        subprocess.run(['/usr/bin/systemctl', '--user', 'daemon-reload'], env=env,
+                       stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)

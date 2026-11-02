@@ -29,6 +29,15 @@ class PortableUnitError(RuntimeError):
     """Подписанный рецепт, выпуск или формирование units не подтверждены."""
 
 
+def _publication_binding(*, product_id, version, transaction, plan, modes, root, directory, trusted_public_key):
+    context = {'product_id': product_id, 'version': version, 'transaction': transaction,
+               'generator': plan['generator'], 'units': plan['units'], 'modes': modes,
+               'install_sha256': hashlib.sha256(str(root).encode()).hexdigest(),
+               'directory_sha256': hashlib.sha256(str(directory).encode()).hexdigest(),
+               'publisher_sha256': hashlib.sha256(trusted_public_key).hexdigest()}
+    return hashlib.sha256(json.dumps(context, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
 def plan_portable_signed_user_units(package_path, envelope, install_root, *, trusted_public_key,
                                     expected_product_id, expected_version, modes):
     """Вернуть публичные тексты и хэши units, без изменения системы.
@@ -104,13 +113,9 @@ def publish_portable_signed_user_units(package_path, envelope, install_root, *, 
         units = [(item['name'], item['sha256'], plan['unit_texts'][item['name']].encode('utf-8'))
                  for item in plan['units']]
         names = [item[0] for item in units]
-        context = {'product_id': expected_product_id, 'version': expected_version,
-                   'transaction': verified['transaction'], 'generator': plan['generator'],
-                   'units': plan['units'], 'modes': modes,
-                   'install_sha256': hashlib.sha256(str(root).encode()).hexdigest(),
-                   'directory_sha256': hashlib.sha256(str(directory).encode()).hexdigest(),
-                   'publisher_sha256': hashlib.sha256(trusted_public_key).hexdigest()}
-        binding = hashlib.sha256(json.dumps(context, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+        binding = _publication_binding(product_id=expected_product_id, version=expected_version,
+                    transaction=verified['transaction'], plan=plan, modes=modes, root=root,
+                    directory=directory, trusted_public_key=trusted_public_key)
         receipt = checked_path(control / 'user-systemd-publication.json')
         pending = {'version': 1, 'operation_id': operation_id, 'binding': binding, 'status': 'pending'}
         done = {**pending, 'status': 'done'}

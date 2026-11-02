@@ -21,6 +21,7 @@ from shared.services import component_order
 from shared.systemd_user import SystemdUserAdapter, SystemdUserError, _PROPERTIES, _run, _trusted_file
 from shared.systemd_user_publish import (UnitPublicationError, _existing_lock, _manager_environment,
                                          _publication_receipt, _unit_directory, publish_signed_user_units)
+from shared.systemd_portable import PortableUnitError, _publication_binding, plan_portable_signed_user_units
 from shared.update_plan import UpdateError, _atomic_write, _object
 
 
@@ -103,28 +104,31 @@ def _before_reload(runner, directory, name, timeout):
 
 def _load_signed_user_units(package_path, envelope, install_root, *, trusted_public_key,
                             expected_product_id, expected_version, modes, unit_dir,
-                            execute=False, inspect_pending=False, require_done=False, operation_id=None,
+                            execute=False, inspect_pending=False, require_done=False, operation_id=None, portable=False,
                             runner=None, timeout=30):
-    if (type(execute) is not bool or type(modes) is not tuple or not modes
+    if (type(execute) is not bool or type(portable) is not bool or type(modes) is not tuple or not modes
             or type(inspect_pending) is not bool or (inspect_pending and not execute)
             or type(require_done) is not bool or (require_done and (not execute or inspect_pending))
             or type(timeout) not in (int, float) or not 0 < timeout <= 120
             or (runner is not None and not callable(runner))
             or (operation_id is not None and (type(operation_id) is not str
-                or re.fullmatch(r'[a-f0-9]{32}', operation_id) is None))):
+                or re.fullmatch(r'[a-f0-9]{32}', operation_id) is None))
+            or (portable and execute and operation_id is None)):
         raise UnitLoadError('Недопустимые параметры загрузки')
     try:
         options = dict(trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
                        expected_version=expected_version)
-        plan = publish_signed_user_units(package_path, envelope, install_root, **options,
-                                         modes=modes, unit_dir=unit_dir)
+        plan = (plan_portable_signed_user_units(package_path, envelope, install_root, **options, modes=modes)
+                if portable else publish_signed_user_units(package_path, envelope, install_root, **options,
+                                                          modes=modes, unit_dir=unit_dir))
         metadata = verify_signed_package(package_path, envelope, **options)
         verified = verify_fresh_release(package_path, envelope, install_root, **options)
         manifest = metadata['manifest']
         expected_names = [expected_product_id + '-' + item + '.service' for item in component_order(manifest, modes)]
         inventory = {item['path']: item['sha256'] for item in metadata['files']}
         if ([item['name'] for item in plan['units']] != expected_names
-                or any(inventory.get('systemd-user/' + item['name']) != item['sha256'] for item in plan['units'])):
+                or (not portable and any(inventory.get('systemd-user/' + item['name']) != item['sha256']
+                                         for item in plan['units']))):
             raise UnitLoadError('Состав служб изменился')
         root = checked_path(install_root)
         home = resolve_datahome(manifest, root)
@@ -153,18 +157,28 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
         if operation_id is not None:
             context['operation_id'] = operation_id
             context['modes'] = modes
+        if portable:
+            context['generator'] = plan['generator']
         binding = hashlib.sha256(json.dumps(context, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
         pending, done = {'version': 1, 'binding': binding, 'status': 'pending'}, {'version': 1, 'binding': binding, 'status': 'done'}
         with _existing_lock(bootstrap):
             with _existing_lock(service_lock):
                 if (verify_signed_package(package_path, envelope, **options) != metadata
-                        or verify_fresh_release(package_path, envelope, install_root, **options) != verified):
+                        or verify_fresh_release(package_path, envelope, install_root, **options) != verified
+                        or (portable and plan_portable_signed_user_units(package_path, envelope, install_root,
+                                                      **options, modes=modes) != plan)):
                     raise UnitLoadError('Выпуск изменился')
                 publication = _publication_receipt(control / 'user-systemd-publication.json')
                 if publication is not None and publication['status'] != 'done':
                     raise UnitLoadError('Публикация служб не подтверждена')
                 if publication is not None and operation_id is not None and publication['operation_id'] == operation_id:
                     raise UnitLoadError('Ключ уже использован для публикации')
+                if portable:
+                    expected_publication = _publication_binding(product_id=expected_product_id,
+                        version=expected_version, transaction=verified['transaction'], plan=plan,
+                        modes=modes, root=root, directory=directory, trusted_public_key=trusted_public_key)
+                    if publication is None or publication['status'] != 'done' or publication['binding'] != expected_publication:
+                        raise UnitLoadError('Публикация переносимых служб не подтверждена')
                 update_state = checked_path(home.roots['services'] / manifest['update']['state_file'].replace('\\', '/'))
                 if not _absent(update_state):
                     raise UnitLoadError('Состояние обновления требует проверки')
@@ -198,7 +212,9 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
                     if status['active_state'] != 'inactive' or status['sub_state'] != 'dead':
                         raise UnitLoadError('Служба активна или её состояние не подтверждено')
                 if (verify_signed_package(package_path, envelope, **options) != metadata
-                        or verify_fresh_release(package_path, envelope, install_root, **options) != verified):
+                        or verify_fresh_release(package_path, envelope, install_root, **options) != verified
+                        or (portable and plan_portable_signed_user_units(package_path, envelope, install_root,
+                                                      **options, modes=modes) != plan)):
                     raise UnitLoadError('Выпуск изменился')
                 if old is None:
                     if _read_receipt(receipt) != pending:
@@ -210,7 +226,7 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
                     raise UnitLoadError('Отметка изменилась')
         return public
     except (OSError, ValueError, TypeError, KeyError, RecursionError, DataHomeError, ManifestError,
-            PackageError, FreshPrepareError, SystemdUserError, UnitPublicationError, UpdateError):
+            PackageError, FreshPrepareError, SystemdUserError, UnitPublicationError, PortableUnitError, UpdateError):
         raise UnitLoadError('Не удалось подтвердить загрузку служб') from None
 
 
@@ -234,9 +250,29 @@ def inspect_pending_user_units(package_path, envelope, install_root, *, trusted_
         execute=True, inspect_pending=True, operation_id=operation_id, runner=runner, timeout=timeout)
 
 
+def load_portable_signed_user_units(package_path, envelope, install_root, *, trusted_public_key,
+                                    expected_product_id, expected_version, modes, unit_dir,
+                                    execute=False, operation_id=None, runner=None, timeout=30):
+    """Загрузить опубликованные units из подписанного переносимого рецепта."""
+    return _load_signed_user_units(package_path, envelope, install_root,
+        trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
+        expected_version=expected_version, modes=modes, unit_dir=unit_dir,
+        execute=execute, operation_id=operation_id, portable=True, runner=runner, timeout=timeout)
+
+
+def inspect_pending_portable_user_units(package_path, envelope, install_root, *, trusted_public_key,
+                                        expected_product_id, expected_version, modes, unit_dir,
+                                        operation_id, runner=None, timeout=30):
+    """Наблюдать pending без нового reload; результат reload не подтверждается."""
+    return _load_signed_user_units(package_path, envelope, install_root,
+        trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
+        expected_version=expected_version, modes=modes, unit_dir=unit_dir,
+        execute=True, inspect_pending=True, operation_id=operation_id, portable=True, runner=runner, timeout=timeout)
+
+
 def signed_user_group(package_path, envelope, install_root, *, trusted_public_key,
                       expected_product_id, expected_version, modes, unit_dir,
-                      operation_id=None, runner=None, timeout=30):
+                      operation_id=None, portable=False, runner=None, timeout=30):
     """Создать группу из подписанного выпуска после подтверждённой загрузки.
 
     Сам вызов не запускает службы и не вызывает daemon-reload. Статус менеджера
@@ -249,7 +285,7 @@ def signed_user_group(package_path, envelope, install_root, *, trusted_public_ke
     try:
         loaded = _load_signed_user_units(package_path, envelope, install_root, **options,
                     modes=modes, unit_dir=unit_dir, execute=True, require_done=True,
-                    operation_id=operation_id, runner=runner, timeout=timeout)
+                    operation_id=operation_id, portable=portable, runner=runner, timeout=timeout)
         metadata = verify_signed_package(package_path, envelope, **options)
         verified = verify_fresh_release(package_path, envelope, install_root, **options)
         manifest = metadata['manifest']
@@ -258,8 +294,11 @@ def signed_user_group(package_path, envelope, install_root, *, trusted_public_ke
         inventory = {item['path']: item['sha256'] for item in metadata['files']}
         units = loaded['units']
         names = [expected_product_id + '-' + name + '.service' for name in order]
+        portable_plan = (plan_portable_signed_user_units(package_path, envelope, install_root, **options, modes=modes)
+                         if portable else None)
         if ([item['name'] for item in units] != names or
-                any(inventory.get('systemd-user/' + item['name']) != item['sha256'] for item in units)):
+                (portable and portable_plan['units'] != units) or
+                (not portable and any(inventory.get('systemd-user/' + item['name']) != item['sha256'] for item in units))):
             raise UnitLoadError('Состав служб изменился')
         adapters = {component: SystemdUserAdapter(manifest, modes=modes, component=component,
                        fragment_path=str(directory / item['name']), fragment_sha256=item['sha256'],
@@ -270,9 +309,22 @@ def signed_user_group(package_path, envelope, install_root, *, trusted_public_ke
             if status['active_state'] != 'inactive' or status['sub_state'] != 'dead':
                 raise UnitLoadError('Состояние службы изменилось')
         if (verify_signed_package(package_path, envelope, **options) != metadata
-                or verify_fresh_release(package_path, envelope, install_root, **options) != verified):
+                or verify_fresh_release(package_path, envelope, install_root, **options) != verified
+                or (portable and plan_portable_signed_user_units(package_path, envelope, install_root,
+                                             **options, modes=modes) != portable_plan)):
             raise UnitLoadError('Выпуск изменился')
         return group
     except (OSError, ValueError, TypeError, KeyError, RecursionError, DataHomeError, ManifestError,
-            PackageError, FreshPrepareError, SystemdUserError, SystemdGroupError, UnitPublicationError, UpdateError):
+            PackageError, FreshPrepareError, SystemdUserError, SystemdGroupError, UnitPublicationError,
+            PortableUnitError, UpdateError):
         raise UnitLoadError('Не удалось подтвердить группу служб') from None
+
+
+def portable_signed_user_group(package_path, envelope, install_root, *, trusted_public_key,
+                               expected_product_id, expected_version, modes, unit_dir,
+                               operation_id, runner=None, timeout=30):
+    """Построить группу из подтверждённого переносимого рецепта без запуска."""
+    return signed_user_group(package_path, envelope, install_root,
+        trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
+        expected_version=expected_version, modes=modes, unit_dir=unit_dir,
+        operation_id=operation_id, portable=True, runner=runner, timeout=timeout)

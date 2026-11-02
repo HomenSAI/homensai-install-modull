@@ -15,7 +15,7 @@ import stat
 import uuid
 
 from shared.adapters_fs import FilesystemPorts, ReleaseSource, _tree
-from shared.archive import ArchiveError
+from shared.archive import ArchiveError, RESERVE as ARCHIVE_RESERVE
 from shared.datahome import DataHomeError, checked_path, contains, resolve_datahome
 from shared.host_target import HostTargetError, native_target
 from shared.manifest import ManifestError, check_target
@@ -74,9 +74,9 @@ def _check_fresh_storage(package_path, metadata, root, reserve_bytes):
     if not stat.S_ISREG(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
         raise FreshPrepareError('Пакет недоступен')
     payload_bytes = sum(item['size'] for item in metadata['files'])
-    # package_prepare reserves twice the ZIP size plus 4 MiB, while staging
-    # temporarily holds both the prepared copy and the installed release.
-    minimum = max(info.st_size * 2 + 4 * 1024 * 1024, payload_bytes * 2)
+    # package_prepare asks _space for twice the ZIP plus 4 MiB, and _space
+    # adds its own reserve. Staging also holds two copies of the payload.
+    minimum = max(info.st_size * 2 + 4 * 1024 * 1024 + ARCHIVE_RESERVE, payload_bytes * 2)
     needed = minimum + reserve_bytes
     if needed > MAX_BYTES:
         raise FreshPrepareError('Недопустимая оценка места')
@@ -341,6 +341,7 @@ def resume_fresh_native(package_path, envelope, install_root, *, trusted_public_
                 # Продуктовые пути обязаны оставаться свежими; посторонние данные не трогаем.
                 preflight_fresh(manifest, root, required_bytes={name: 0 for name in NAMES},
                                 reserve_bytes=reserve_bytes)
+                _check_fresh_storage(package_path, metadata, root, reserve_bytes)
                 control.mkdir(mode=0o700, exist_ok=True)
                 receipt = prepare_native_signed_package(package_path, envelope, prepared, **options)
                 if (receipt['manifest'] != manifest or receipt['files'] != inventory

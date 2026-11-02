@@ -117,7 +117,7 @@ def test_native_inspection_uses_detected_target(signed_request, monkeypatch):
     result = handle(query)
     assert result['ok'] and result['result']['process_target'] == TARGET
     estimate = result['result']['storage_estimate']
-    assert estimate['minimum_bytes'] >= package.stat().st_size * 2 + 4 * 1024 * 1024
+    assert estimate['minimum_bytes'] >= package.stat().st_size * 2 + 5 * 1024 * 1024
     assert estimate['reserve_bytes'] == 0 and estimate['free_bytes'] >= estimate['minimum_bytes']
     assert not Path(query['params']['install_root']).exists()
     query['params']['target'] = {'os': 'windows', 'architecture': 'x86_64', 'execution': 'native'}
@@ -940,7 +940,7 @@ def test_fresh_prepare_refuses_underestimated_package_space_before_creation(sign
     query, path, manifest = signed_request
     query['params']['reserve_bytes'] = reserve
     monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: deepcopy(TARGET))
-    minimum = path.stat().st_size * 2 + 4 * 1024 * 1024
+    minimum = path.stat().st_size * 2 + 5 * 1024 * 1024
     monkeypatch.setattr('shared.fresh_prepare.shutil.disk_usage',
                         lambda _: SimpleNamespace(free=minimum + reserve - 1))
     root = Path(query['params']['install_root'])
@@ -975,3 +975,41 @@ def test_fresh_prepare_rechecks_space_after_lock_before_extraction(signed_reques
     assert response['error']['code'] == 'fresh_prepare_failed' and len(calls) == 2
     assert root.is_dir() and not (root / '.homensai-fresh.json').exists()
     assert not (root / '.homensai-control').exists()
+
+
+@pytest.mark.parametrize('enough', [False, True])
+def test_api_resume_before_snapshot_respects_package_space_and_reserve(signed_request, monkeypatch, enough):
+    from types import SimpleNamespace
+    import shared.fresh_prepare as fresh
+
+    query, package, _ = signed_request
+    monkeypatch.setattr(fresh, 'native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    query = api_prepare_query(query)
+    query['params']['reserve_bytes'] = 4096
+    root = Path(query['params']['install_root'])
+
+    def fail_before_snapshot(*args, **kwargs):
+        raise OSError('synthetic interruption')
+
+    with monkeypatch.context() as patch:
+        patch.setattr(fresh, 'prepare_native_signed_package', fail_before_snapshot)
+        assert handle(query)['error']['code'] == 'fresh_prepare_failed'
+    assert json.loads((root / '.homensai-fresh.json').read_text())['status'] == 'preparing'
+    assert not (root / '.homensai-control/prepared').exists()
+    minimum = package.stat().st_size * 2 + 5 * 1024 * 1024
+    free = minimum + query['params']['reserve_bytes'] - (0 if enough else 1)
+    monkeypatch.setattr(fresh.shutil, 'disk_usage', lambda _: SimpleNamespace(free=free))
+    if not enough:
+        def unexpected_extraction(*args, **kwargs):
+            pytest.fail('extraction must not start below the reserved minimum')
+        monkeypatch.setattr(fresh, 'prepare_native_signed_package', unexpected_extraction)
+    result = handle(query)
+    if enough:
+        assert result['ok'] and result['result']['status'] == 'prepared'
+        assert (root / 'releases/app-1/locks/demo-linux.lock').is_file()
+    else:
+        assert result['error']['code'] == 'fresh_prepare_failed'
+        assert not (root / '.homensai-control/prepared').exists()
+        assert not (root / 'releases').exists()
+        assert json.loads((root / '.homensai-fresh.json').read_text())['status'] == 'preparing'

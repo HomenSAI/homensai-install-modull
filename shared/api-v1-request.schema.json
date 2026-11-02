@@ -6,13 +6,22 @@
   "required": ["api_major", "operation", "request_id", "params"],
   "properties": {
     "api_major": {"type": "integer", "const": 1},
-    "operation": {"type": "string", "enum": ["capabilities", "validate", "verify-package"]},
+    "operation": {"type": "string", "enum": ["capabilities", "validate", "preflight-fresh", "verify-package"]},
     "request_id": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
     "params": {"type": "object"}
   },
   "oneOf": [
     {"properties": {"operation": {"const": "capabilities"}, "params": {"type": "object", "maxProperties": 0}}},
     {"properties": {"operation": {"const": "validate"}, "params": {"type": "object", "required": ["manifest"], "additionalProperties": false, "properties": {"manifest": {"type": "object"}}}}},
+    {"properties": {"operation": {"const": "preflight-fresh"}, "params": {"type": "object", "required": ["manifest", "install_root", "required_bytes", "reserve_bytes"], "additionalProperties": false, "properties": {
+      "manifest": {"type": "object"}, "install_root": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "required_bytes": {"type": "object", "additionalProperties": false, "required": ["app", "releases", "data", "backup", "services", "config", "runtime"], "properties": {
+        "app": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}, "releases": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807},
+        "data": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}, "backup": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807},
+        "services": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}, "config": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}, "runtime": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}
+      }},
+      "reserve_bytes": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}
+    }}}},
     {"properties": {"operation": {"const": "verify-package"}, "params": {"type": "object", "additionalProperties": false, "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version"], "properties": {
       "package_path": {"type": "string", "minLength": 1, "maxLength": 8192},
       "envelope": {"type": "string", "minLength": 4, "maxLength": 5464},

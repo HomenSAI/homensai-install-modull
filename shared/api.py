@@ -1,5 +1,5 @@
 # HomenS.AI · © 2026 Serhii Khomenko
-"""Экспериментальный локальный API v1: проверка манифеста и подписи пакета.
+"""Экспериментальный локальный API v1: проверки манифеста, путей и пакета.
 
 Это не установщик и не сетевой сервис. Новые операции нельзя объявлять до их
 реализации и проверки; значения входных данных не возвращаются в ошибках.
@@ -17,9 +17,10 @@ from typing import Any
 from shared.manifest import ManifestError, validate_manifest
 from shared.package import PackageError
 from shared.package_signing import MAX_ENVELOPE, _crypto, verify_signed_package
+from shared.preflight import PreflightError, preflight_fresh
 
 API_MAJOR = 1
-API_MINOR = 1
+API_MINOR = 2
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -112,7 +113,7 @@ def handle(request: Any) -> dict:
         if operation == "capabilities":
             if params:
                 raise InvalidRequest()
-            operations = ["capabilities", "validate"]
+            operations = ["capabilities", "validate", "preflight-fresh"]
             if _signature_available():
                 operations.append("verify-package")
             result = {"api_major": API_MAJOR, "api_minor": API_MINOR,
@@ -128,6 +129,17 @@ def handle(request: Any) -> dict:
             except (ManifestError, RecursionError):
                 return _error(request_id, "invalid_request", "Манифест не соответствует контракту")
             result = {"product_id": manifest["product_id"], "schema_version": manifest["schema_version"]}
+        elif operation == "preflight-fresh":
+            if set(params) != {"manifest", "install_root", "required_bytes", "reserve_bytes"}:
+                raise InvalidRequest()
+            if type(params["install_root"]) is not str:
+                raise InvalidRequest()
+            try:
+                result = preflight_fresh(params["manifest"], params["install_root"],
+                                         required_bytes=params["required_bytes"],
+                                         reserve_bytes=params["reserve_bytes"])
+            except PreflightError:
+                return _error(request_id, "preflight_failed", "Предварительная проверка не пройдена")
         elif operation == "verify-package":
             if set(params) != {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version"}:
                 raise InvalidRequest()
@@ -187,7 +199,7 @@ def main() -> int:
     sys.stdout.write(json.dumps(response, ensure_ascii=True, separators=(",", ":")) + "\n")
     if response["ok"]:
         return 0
-    return 1 if response["error"]["code"] == "verification_failed" else 2
+    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed") else 2
 
 
 if __name__ == "__main__":

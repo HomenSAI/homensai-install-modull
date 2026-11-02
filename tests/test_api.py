@@ -31,7 +31,7 @@ def test_capabilities_only_advertises_read_only_operations(monkeypatch):
     monkeypatch.setattr("shared.api._signature_available", lambda: False)
     response = handle(request())
     assert response["ok"] is True
-    assert response["result"]["operations"] == ["capabilities", "validate"]
+    assert response["result"]["operations"] == ["capabilities", "validate", "preflight-fresh"]
     assert response["result"]["execution_modes"] == []
     assert response["result"]["manifest_versions"] == [1, 2]
 
@@ -156,3 +156,26 @@ def test_verify_package_rejects_malformed_parameters_without_reading(monkeypatch
     response = handle(request("verify-package", params))
     assert response["error"]["code"] == "invalid_request"
     assert "SECRET-INVALID!" not in json.dumps(response)
+
+
+def test_fresh_preflight_api_is_read_only_and_cli_agrees(tmp_path):
+    manifest = json.loads((ROOT / "examples/rent.manifest.json").read_text(encoding="utf-8"))
+    manifest["paths"] = {name: name for name in manifest["paths"]}
+    names = ("app", "releases", "data", "backup", "services", "config", "runtime")
+    root = tmp_path / "new-installation"
+    params = {"manifest": manifest, "install_root": str(root),
+              "required_bytes": {name: 0 for name in names}, "reserve_bytes": 0}
+    query = request("preflight-fresh", params)
+    response = handle(query)
+    assert response["ok"] and response["result"]["checks_passed"]
+    assert "package_authenticity" in response["result"]["not_checked"]
+    result = cli(json.dumps(query).encode())
+    cli_response = json.loads(result.stdout)
+    assert result.returncode == 0 and cli_response["result"]["directories"] == response["result"]["directories"]
+    assert cli_response["result"]["checks_passed"]
+    assert not root.exists()
+    (root / "data").mkdir(parents=True)
+    (root / "data/keep").write_text("preserve")
+    result = cli(json.dumps(query).encode())
+    assert result.returncode == 1 and json.loads(result.stdout)["error"]["code"] == "preflight_failed"
+    assert (root / "data/keep").read_text() == "preserve"

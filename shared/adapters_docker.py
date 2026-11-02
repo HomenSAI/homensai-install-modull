@@ -8,14 +8,19 @@
 from __future__ import annotations
 
 import math
+import os
 from pathlib import Path
 import re
+import stat
 import subprocess
 from typing import Callable
 import urllib.request
 
 from shared.datahome import checked_path
 from shared.manifest import ManifestError, validate_manifest
+from shared.render_docker import render_docker
+
+_MAX_COMPOSE = 1024 * 1024
 
 
 class DockerAdapterError(RuntimeError):
@@ -59,6 +64,30 @@ def _compose_path(value):
     return path
 
 
+def _verify_compose(path: Path, expected: bytes) -> None:
+    """Проверить обычный файл по результату рендера без выдачи его содержимого."""
+    try:
+        flags = (os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0)
+                 | getattr(os, 'O_BINARY', 0))
+        descriptor = os.open(path, flags)
+        with os.fdopen(descriptor, 'rb') as stream:
+            before = os.fstat(stream.fileno())
+            if (not stat.S_ISREG(before.st_mode) or before.st_size > _MAX_COMPOSE
+                    or before.st_nlink != 1):
+                raise DockerAdapterError('Недопустимый файл Compose')
+            body = stream.read(_MAX_COMPOSE + 1)
+            after = os.fstat(stream.fileno())
+        current = _compose_path(path).lstat()
+        signature = lambda item: (item.st_dev, item.st_ino, item.st_mode, item.st_size,
+                                  item.st_mtime_ns, item.st_ctime_ns)
+        if (signature(before) != signature(after) or signature(after) != signature(current)
+                or len(body) != before.st_size
+                or body not in (expected, expected.replace(b'\n', b'\r\n'))):
+            raise DockerAdapterError('Compose не соответствует манифесту')
+    except (OSError, ValueError):
+        raise DockerAdapterError('Не удалось проверить Compose') from None
+
+
 class DockerComposeAdapter:
     """start/stop/ps/logs -> argv либо CompletedProcess; health -> план либо True.
 
@@ -78,6 +107,9 @@ class DockerComposeAdapter:
             raise DockerAdapterError("Недопустимый ID проекта Compose")
         self._product = product
         self._compose = _compose_path(compose_file)
+        self._expected_compose = render_docker(manifest)['compose.yml'].encode('utf-8')
+        if len(self._expected_compose) > _MAX_COMPOSE:
+            raise DockerAdapterError('Сформированный Compose слишком велик')
         # Дополнительная точная проверка: без DNS, credentials, query и fragment.
         url = manifest["healthcheck_url"]
         if re.fullmatch(r"http://127\.0\.0\.1:" + str(manifest["port"])
@@ -104,6 +136,7 @@ class DockerComposeAdapter:
             return argv
         if not path.is_file():
             raise DockerAdapterError("Файл Compose для исполнения отсутствует")
+        _verify_compose(path, self._expected_compose)
         try:
             result = self._runner(
                 argv, shell=False, timeout=self._timeout, check=False,

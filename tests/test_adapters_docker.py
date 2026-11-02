@@ -97,6 +97,46 @@ def test_missing_local_image_fails_without_retry_or_implicit_build(manifest, com
     assert calls[0][-5:] == ['up', '-d', '--no-build', '--pull', 'never']
 
 
+@pytest.mark.parametrize('action', ['up', 'stop', 'ps', 'logs'])
+def test_tampered_compose_is_rejected_before_any_docker_command(manifest, compose, action):
+    calls = []
+    adapter = docker.DockerComposeAdapter(manifest, compose, runner=lambda *a, **k: calls.append(a))
+    compose.write_text(compose.read_text(encoding='utf-8') + '\n# ' + SENTINEL, encoding='utf-8')
+    with pytest.raises(docker.DockerAdapterError) as error:
+        adapter.command(action, execute=True)
+    assert SENTINEL not in str(error.value)
+    assert calls == []
+
+
+def test_mismatched_manifest_and_compose_never_reach_runner(manifest, compose):
+    manifest['port'] += 1
+    manifest['healthcheck_url'] = f'http://127.0.0.1:{manifest["port"]}/healthz'
+    adapter = docker.DockerComposeAdapter(manifest, compose, runner=lambda *a, **k: pytest.fail('runner'))
+    with pytest.raises(docker.DockerAdapterError):
+        adapter.start(execute=True)
+
+
+def test_crlf_rendered_compose_is_accepted(manifest, compose):
+    original = render_docker(manifest)['compose.yml'].encode('utf-8')
+    compose.write_bytes(original.replace(b'\n', b'\r\n'))
+    calls = []
+    def runner(argv, **kwargs):
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 0)
+    docker.DockerComposeAdapter(manifest, compose, runner=runner).start(execute=True)
+    assert len(calls) == 1
+
+
+def test_hardlinked_compose_is_rejected_when_supported(manifest, compose, tmp_path):
+    try:
+        os.link(compose, tmp_path / 'linked-compose.yml')
+    except OSError:
+        pytest.skip('Hard links недоступны')
+    adapter = docker.DockerComposeAdapter(manifest, compose, runner=lambda *a, **k: pytest.fail('runner'))
+    with pytest.raises(docker.DockerAdapterError):
+        adapter.start(execute=True)
+
+
 @pytest.mark.parametrize("method", ["start", "stop", "ps", "logs"])
 @pytest.mark.parametrize("failure", ["exit", "timeout", "os", "called-process", "custom"])
 def test_command_failures_are_sanitized(manifest, compose, method, failure):

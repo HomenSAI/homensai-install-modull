@@ -18,6 +18,12 @@ import time
 
 def database(data_dir: Path) -> sqlite3.Connection:
     data_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        with (data_dir / "settings.json").open("x", encoding="utf-8") as settings:
+            json.dump({"display_name": "Synthetic User", "locale": "ru"}, settings)
+            settings.write("\n")
+    except FileExistsError:
+        pass
     connection = sqlite3.connect(data_dir / "demo.sqlite3")
     connection.execute("CREATE TABLE IF NOT EXISTS entries (id INTEGER PRIMARY KEY, text TEXT NOT NULL)")
     connection.execute("CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY)")
@@ -81,12 +87,27 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Синтетический тестовый продукт")
     parser.add_argument("action", choices=("migrate", "serve", "worker"))
     parser.add_argument("--data-dir", type=Path, required=True)
-    parser.add_argument("--release", choices=("1", "2"), default="1")
+    parser.add_argument("--release", choices=("1", "2"))
     parser.add_argument("--migration", choices=("schema-1", "schema-2"), default="schema-1")
     parser.add_argument("--fail", choices=("none", "before", "during", "after", "start", "health"), default="none")
     parser.add_argument("--port", type=int, default=0)
     args = parser.parse_args()
+    release_file = Path(__file__).with_name("release.json")
+    if release_file.exists():
+        try:
+            meta = json.loads(release_file.read_text(encoding="utf-8"))
+            if type(meta) is not dict or set(meta) != {"release"} or meta["release"] not in ("1", "2"):
+                raise ValueError("некорректные метаданные")
+        except (OSError, ValueError, TypeError):
+            parser.error("Некорректный файл версии тестового продукта")
+        if args.release is not None and args.release != meta["release"]:
+            parser.error("Запрошенная версия отличается от версии выпуска")
+        args.release = meta["release"]
+    else:
+        args.release = args.release or "1"
     if args.action == "migrate":
+        if args.release == "1" and args.migration == "schema-2":
+            parser.error("Миграция schema-2 недоступна в версии 1")
         migrate(args.data_dir, args.migration, args.fail)
     elif args.action == "serve":
         serve(args.data_dir, args.release, args.port, args.fail)

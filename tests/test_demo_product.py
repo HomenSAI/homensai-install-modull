@@ -41,6 +41,15 @@ def test_resume_after_commit_is_idempotent(tmp_path):
     assert entries(tmp_path) == [("synthetic-schema-1",), ("synthetic-schema-2",)]
 
 
+def test_settings_persist_across_migrations(tmp_path):
+    assert run(tmp_path, "migrate").returncode == 0
+    settings = tmp_path / "settings.json"
+    assert json.loads(settings.read_text(encoding="utf-8"))["display_name"] == "Synthetic User"
+    settings.write_text('{"locale":"de","display_name":"Test"}\n', encoding="utf-8")
+    assert run(tmp_path, "migrate", "--release", "2", "--migration", "schema-2").returncode == 0
+    assert json.loads(settings.read_text(encoding="utf-8"))["locale"] == "de"
+
+
 def test_start_failure(tmp_path):
     assert run(tmp_path, "serve", "--fail", "start").returncode != 0
     assert not (tmp_path / "demo.sqlite3").exists()
@@ -101,3 +110,24 @@ def test_worker_writes_heartbeat(tmp_path):
     finally:
         process.terminate()
         process.wait(timeout=10)
+
+
+def test_distinct_release_payloads_enforce_release_identity(tmp_path):
+    releases = tmp_path / "releases"
+    builder = DEMO.with_name("build_releases.py")
+    built = subprocess.run([sys.executable, "-B", str(builder), str(releases)],
+                           capture_output=True, text=True, timeout=10)
+    assert built.returncode == 0
+    data = tmp_path / "data"
+    def invoke(version, *extra):
+        return subprocess.run([sys.executable, "-B", str(releases / ("app-" + version) / "main.py"),
+                               "migrate", "--data-dir", str(data), *extra],
+                              capture_output=True, text=True, timeout=10)
+    assert invoke("1").returncode == 0
+    assert invoke("1", "--migration", "schema-2").returncode != 0
+    assert invoke("1", "--release", "2").returncode != 0
+    assert invoke("2", "--migration", "schema-2").returncode == 0
+    assert entries(data) == [("synthetic-schema-1",), ("synthetic-schema-2",)]
+    assert (releases / "app-1" / "release.json").read_bytes() != (releases / "app-2" / "release.json").read_bytes()
+    assert subprocess.run([sys.executable, "-B", str(builder), str(releases)],
+                          capture_output=True, text=True, timeout=10).returncode != 0

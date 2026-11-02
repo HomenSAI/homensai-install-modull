@@ -1,6 +1,7 @@
 """Одноразовый цикл Compose с фиктивным daemon; реальный Docker не вызывается."""
 import json
 import base64
+from copy import deepcopy
 import hashlib
 import os
 from pathlib import Path
@@ -16,13 +17,25 @@ from test_docker_recipe import signed_plan
 from test_docker_prepare import preparation
 from test_docker_images import image_check, inspect_query
 from shared import api, docker_images, docker_lifecycle
-from shared.docker_lifecycle import DockerLifecycleError, _status_records, control_signed_compose, status_signed_compose
+from shared.docker_lifecycle import DockerLifecycleError, _status_records, _verify_runtime, control_signed_compose, status_signed_compose
 from shared.effect_receipt import read_effect_receipt
 from shared.i18n import translate
 from examples.demo_product.installer_client import InstallerClient
 
 pytestmark = pytest.mark.skipif(not sys.platform.startswith('linux') or platform.machine().lower() != 'x86_64',
                                 reason='Ограниченное управление требует Linux x86-64')
+
+
+def runtime_views(project, service):
+    ports = None
+    if 'ports' in service:
+        ip, source, target = service['ports'][0].split(':')
+        ports = {target + '/tcp': [{'HostIp': ip, 'HostPort': source}]}
+    config = {'User': service['user'], 'Cmd': [x.replace('$$', '$') for x in service['command']], 'Entrypoint': []}
+    host = {'ReadonlyRootfs': True, 'Privileged': False, 'CapAdd': [], 'CapDrop': ['ALL'], 'Devices': [], 'DeviceRequests': None,
+            'SecurityOpt': ['no-new-privileges'], 'NetworkMode': 'bridge', 'PortBindings': ports}
+    mounts = [{'Type': 'volume', 'Name': project + '_data', 'Destination': '/data', 'RW': True}]
+    return config, host, mounts, {project + '_default': {}}
 
 
 class FakeDaemon:
@@ -36,6 +49,7 @@ class FakeDaemon:
         self.crash_after_stop = False
         self.bad_image = False
         self.bad_hash = False
+        self.unsafe_runtime = False
 
     def __call__(self, argv, *, timeout, env):
         assert env['DOCKER_CONFIG'] == env['HOME'] and 'SYNTHETIC_DOCKER_SECRET' not in env
@@ -77,6 +91,15 @@ class FakeDaemon:
             output = json.dumps('sha256:' + ('e' if self.bad_image else 'd') * 64)
         elif args[:3] == ['inspect', '--format', '{{json (index .Config.Labels "com.docker.compose.config-hash")}}']:
             output = json.dumps(('a' if self.bad_hash else 'f') * 64)
+        elif args[:2] == ['inspect', '--format'] and args[2] in ('{{json .Config}}', '{{json .HostConfig}}',
+                                                                  '{{json .Mounts}}', '{{json .NetworkSettings.Networks}}'):
+            name = list(services)[int(args[-1], 16) - 1]
+            views = runtime_views(project, services[name])
+            if self.unsafe_runtime:
+                views[1]['Privileged'] = True
+            index = ('{{json .Config}}', '{{json .HostConfig}}', '{{json .Mounts}}',
+                     '{{json .NetworkSettings.Networks}}').index(args[2])
+            output = json.dumps(views[index])
         else:
             raise AssertionError('неизвестная команда Docker')
         return subprocess.CompletedProcess(argv, 0, stdout=output)
@@ -122,6 +145,37 @@ def test_compose_short_container_id_is_accepted():
     # Compose v2 may report the daemon's 12-character abbreviated ID.
     row = {'ID': '08acf1fba08d', 'Project': 'project', 'Service': 'web', 'State': 'running'}
     assert _status_records(json.dumps(row), 'project', {'web': {}}) == {'web': row['ID']}
+
+
+@pytest.mark.parametrize('change', ['command', 'user', 'entrypoint', 'readwrite_root', 'privileged',
+    'capability', 'missing_drops', 'device', 'security', 'host_network', 'host_pid', 'host_ipc', 'host_uts',
+    'extra_network', 'bind_mount', 'extra_mount',
+    'public_port', 'extra_port'])
+def test_runtime_rejects_unsafe_or_unexpected_settings(change):
+    service = {'user': '10001:10001', 'command': ['python', '-c', 'print("$$HOME")'],
+               'ports': ['127.0.0.1:43817:8080']}
+    config, host, mounts, networks = deepcopy(runtime_views('project', service))
+    _verify_runtime(config, host, mounts, networks, service, 'project')
+    if change == 'command': config['Cmd'] = ['sh']
+    elif change == 'user': config['User'] = '0:0'
+    elif change == 'entrypoint': config['Entrypoint'] = ['/bin/sh']
+    elif change == 'readwrite_root': host['ReadonlyRootfs'] = False
+    elif change == 'privileged': host['Privileged'] = True
+    elif change == 'capability': host['CapAdd'] = ['SYS_ADMIN']
+    elif change == 'missing_drops': host['CapDrop'] = []
+    elif change == 'device': host['Devices'] = [{'PathOnHost': '/dev/sda'}]
+    elif change == 'security': host['SecurityOpt'] = ['seccomp=unconfined']
+    elif change == 'host_network': host['NetworkMode'] = 'host'
+    elif change == 'host_pid': host['PidMode'] = 'host'
+    elif change == 'host_ipc': host['IpcMode'] = 'host'
+    elif change == 'host_uts': host['UTSMode'] = 'host'
+    elif change == 'extra_network': networks['foreign'] = {}
+    elif change == 'bind_mount': mounts[0]['Type'] = 'bind'
+    elif change == 'extra_mount': mounts.append({'Type': 'bind', 'Destination': '/host'})
+    elif change == 'public_port': host['PortBindings']['8080/tcp'][0]['HostIp'] = '0.0.0.0'
+    else: host['PortBindings']['9000/tcp'] = [{'HostIp': '0.0.0.0', 'HostPort': '9000'}]
+    with pytest.raises(DockerLifecycleError):
+        _verify_runtime(config, host, mounts, networks, service, 'project')
 
 
 def test_signed_start_stop_and_retries_do_not_repeat_actions(lifecycle):
@@ -281,6 +335,15 @@ def test_wrong_container_image_does_not_confirm_start(lifecycle):
 def test_wrong_configuration_hash_never_confirms_start(lifecycle):
     package, envelope, options, daemon = lifecycle
     daemon.bad_hash = True
+    with pytest.raises(DockerLifecycleError):
+        control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
+    marker = Path(options['work_dir']) / ('compose-lifecycle-' + options['instance_id'] + '.json')
+    assert read_effect_receipt(marker)['status'] == 'start_pending'
+
+
+def test_privileged_container_is_not_confirmed_even_with_valid_compose_label(lifecycle):
+    package, envelope, options, daemon = lifecycle
+    daemon.unsafe_runtime = True
     with pytest.raises(DockerLifecycleError):
         control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
     marker = Path(options['work_dir']) / ('compose-lifecycle-' + options['instance_id'] + '.json')
@@ -507,6 +570,18 @@ elif args[:3] == ['inspect', '--format', '{{json .Image}}']:
     output = json.dumps('sha256:' + 'd' * 64)
 elif args[:3] == ['inspect', '--format', '{{json (index .Config.Labels "com.docker.compose.config-hash")}}']:
     output = json.dumps('f' * 64)
+elif args[:2] == ['inspect', '--format']:
+    service = services[list(services)[int(args[-1],16)-1]]
+    ports = None
+    if 'ports' in service:
+        ip, source, target = service['ports'][0].split(':')
+        ports = {target + '/tcp': [{'HostIp': ip, 'HostPort': source}]}
+    views = {'{{json .Config}}': {'User': service['user'], 'Cmd': [x.replace('$$', '$') for x in service['command']], 'Entrypoint': []},
+             '{{json .HostConfig}}': {'ReadonlyRootfs': True, 'Privileged': False, 'CapAdd': [], 'CapDrop': ['ALL'], 'Devices': [],
+               'DeviceRequests': None, 'SecurityOpt': ['no-new-privileges'], 'NetworkMode': 'bridge', 'PortBindings': ports},
+             '{{json .Mounts}}': [{'Type':'volume','Name':project+'_data','Destination':'/data','RW':True}],
+             '{{json .NetworkSettings.Networks}}': {project+'_default': {}}}
+    output = json.dumps(views[args[2]])
 else:
     raise SystemExit(2)
 sys.stdout.write(output + ('\\n' if output else ''))

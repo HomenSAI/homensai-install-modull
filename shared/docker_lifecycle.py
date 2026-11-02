@@ -112,6 +112,47 @@ def _status_records(output, project, services, *, stopped=False):
     return found
 
 
+def _verify_runtime(config, host, mounts, networks, service, project):
+    """Compare selected daemon-reported settings with the signed Compose model."""
+    if any(type(value) is not dict for value in (config, host, networks)) or type(mounts) is not list:
+        raise DockerLifecycleError('Некорректные настройки контейнера')
+    expected_command = [arg.replace('$$', '$') for arg in service['command']]
+    security = host.get('SecurityOpt')
+    safe_security = {'no-new-privileges', 'no-new-privileges:true', 'no-new-privileges=true'}
+    drops = host.get('CapDrop')
+    base_caps = {'AUDIT_WRITE', 'CHOWN', 'DAC_OVERRIDE', 'FOWNER', 'FSETID', 'KILL', 'MKNOD',
+                 'NET_BIND_SERVICE', 'NET_RAW', 'SETFCAP', 'SETGID', 'SETPCAP', 'SETUID', 'SYS_CHROOT'}
+    if (type(drops) is not list or any(type(cap) is not str for cap in drops)
+            or not (set(drops) == {'ALL'} or base_caps.issubset({cap.removeprefix('CAP_') for cap in drops}))):
+        raise DockerLifecycleError('Удаление capabilities не подтверждено')
+    if (config.get('User') != service['user'] or config.get('Cmd') != expected_command
+            or config.get('Entrypoint') not in (None, '', [])
+            or host.get('ReadonlyRootfs') is not True or host.get('Privileged') is not False
+            or host.get('CapAdd') not in (None, []) or host.get('Devices') not in (None, [])
+            or host.get('DeviceRequests') not in (None, [])
+            or host.get('PidMode') not in (None, '', 'private')
+            or host.get('IpcMode') not in (None, '', 'private', 'shareable')
+            or host.get('UTSMode') not in (None, '', 'private')
+            or type(security) is not list or len(security) != 1 or type(security[0]) is not str
+            or security[0] not in safe_security
+            or host.get('NetworkMode') not in ('bridge', project + '_default')
+            or set(networks) != {project + '_default'}):
+        raise DockerLifecycleError('Настройки безопасности контейнера не соответствуют плану')
+    if (len(mounts) != 1 or type(mounts[0]) is not dict or mounts[0].get('Type') != 'volume'
+            or mounts[0].get('Name') != project + '_data' or mounts[0].get('Destination') != '/data'
+            or mounts[0].get('RW') is not True):
+        raise DockerLifecycleError('Тома контейнера не соответствуют плану')
+    bindings = host.get('PortBindings')
+    if 'ports' not in service:
+        if bindings not in (None, {}):
+            raise DockerLifecycleError('Лишние порты контейнера')
+    else:
+        host_ip, host_port, container_port = service['ports'][0].split(':')
+        expected = {container_port + '/tcp': [{'HostIp': host_ip, 'HostPort': host_port}]}
+        if bindings != expected:
+            raise DockerLifecycleError('Порты контейнера не соответствуют плану')
+
+
 def control_signed_compose(package_path: str, envelope: bytes, *, trusted_public_key: bytes,
                            expected_product_id: str, expected_version: str, target: dict,
                            modes: tuple[str, ...], instance_id: str, work_dir: str,
@@ -240,6 +281,11 @@ def control_signed_compose(package_path: str, envelope: bytes, *, trusted_public
                                      '{{json (index .Config.Labels "com.docker.compose.config-hash")}}', container_id])
                         if json.loads(label, object_pairs_hook=_object, parse_constant=_reject_constant) != hashes[name]:
                             raise DockerLifecycleError('Конфигурация контейнера не подтверждена')
+                        views = []
+                        for field in ('Config', 'HostConfig', 'Mounts', 'NetworkSettings.Networks'):
+                            output = run(['inspect', '--format', '{{json .' + field + '}}', container_id])
+                            views.append(json.loads(output, object_pairs_hook=_object, parse_constant=_reject_constant))
+                        _verify_runtime(*views, services[name], project)
                     if _status_records(run(prefix + ['ps', '--all', '--format', 'json']),
                                        project, services, stopped=stopped) != rows:
                         raise DockerLifecycleError('Состав контейнеров изменился')

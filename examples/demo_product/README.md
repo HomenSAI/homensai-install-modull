@@ -47,6 +47,12 @@ health = client.call('check-local-health', {
     'port': port, 'product_id': 'homensai-test-demo', 'version': '1',
     'path': '/health', 'timeout_seconds': 3,
 }, min_minor=12, language='en')
+# Только предварительный порядок фаз, без проверки готовности и без запуска:
+update_plan = client.call('plan-update', {
+    'manifest': manifest, 'install_root': '/absolute/install/path',
+    'release': '2', 'modes': ['autonomous'],
+    'migration_ids': ['schema-2'], 'guard_effects': True,
+}, min_minor=25, language='en')
 ```
 
 Перед вызовом клиент сверяет major/minor API, доступную операцию и язык; при

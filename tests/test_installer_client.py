@@ -24,6 +24,18 @@ def test_real_client_negotiates_and_validates_product_manifest():
     assert str(exc.value) == 'Manifest does not meet the contract'
 
 
+def test_real_client_can_preview_update_without_creating_installation(tmp_path):
+    client = InstallerClient(timeout=30)
+    manifest = json.loads((ROOT / 'examples/rent.manifest.json').read_text())
+    params = {'manifest': manifest, 'install_root': str(tmp_path / 'installation'), 'release': '2',
+              'modes': ['autonomous'], 'migration_ids': ['schema-2'], 'guard_effects': True}
+    result = client.call('plan-update', params, min_minor=25, language='de')
+    assert result['forward'][:5] == ['stop', 'archive', 'stage', 'backup:0', 'migrate:0']
+    assert result['rollback'][0] == 'rollback_stop'
+    assert result['execution_supported'] is False and result['readiness_verified'] is False
+    assert not Path(params['install_root']).exists()
+
+
 def test_missing_capability_stops_before_action():
     client = InstallerClient(timeout=30)
     with pytest.raises(InstallerClientError) as exc:

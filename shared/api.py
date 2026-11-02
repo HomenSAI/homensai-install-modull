@@ -35,7 +35,7 @@ from shared.systemd_cycle import cycle_portable
 from shared.update_plan import UpdateError, UpdatePlan
 
 API_MAJOR = 1
-API_MINOR = 24
+API_MINOR = 25
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -151,7 +151,7 @@ def handle(request: Any) -> dict:
         if operation == "capabilities":
             if params:
                 raise InvalidRequest()
-            operations = ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status", "check-local-health"]
+            operations = ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status", "plan-update", "check-local-health"]
             mutating_operations = []
             if _signature_available():
                 operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release"])
@@ -227,7 +227,7 @@ def handle(request: Any) -> dict:
                                          reserve_bytes=params["reserve_bytes"])
             except PreflightError:
                 return _error(request_id, "preflight_failed", "Предварительная проверка не пройдена", language, "api.preflight_failed")
-        elif operation == "update-plan-status":
+        elif operation in ("update-plan-status", "plan-update"):
             fields = {"manifest", "install_root", "release", "modes", "migration_ids", "guard_effects"}
             if (set(params) != fields or type(params['manifest']) is not dict
                     or type(params['install_root']) is not str or not params['install_root']
@@ -240,8 +240,16 @@ def handle(request: Any) -> dict:
                 plan = UpdatePlan(params['manifest'], checked_path(params['install_root']), object(),
                                   release=params['release'], modes=tuple(params['modes']),
                                   migration_ids=tuple(params['migration_ids']), guard_effects=params['guard_effects'])
-                result = {'state': plan.status()}
+                if operation == 'plan-update':
+                    result = {'plan_sha256': plan.digest, 'components': list(plan.components),
+                              'forward': list(plan.forward), 'rollback': list(plan.rollback),
+                              'guard_effects': plan.guard_effects, 'execution_supported': False,
+                              'readiness_verified': False}
+                else:
+                    result = {'state': plan.status()}
             except (DataHomeError, ManifestError, UpdateError, OSError, RecursionError):
+                if operation == 'plan-update':
+                    return _error(request_id, 'update_plan_failed', 'Не удалось составить план обновления', language, 'api.update_plan_failed')
                 return _error(request_id, "update_status_failed", "Не удалось прочитать состояние обновления", language, "api.update_status_failed")
         elif operation == 'cycle-portable-linux':
             fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id', 'expected_version',

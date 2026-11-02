@@ -31,7 +31,7 @@ def test_capabilities_only_advertises_read_only_operations(monkeypatch):
     monkeypatch.setattr("shared.api._signature_available", lambda: False)
     response = handle(request())
     assert response["ok"] is True
-    assert response["result"]["operations"] == ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status", "check-local-health"]
+    assert response["result"]["operations"] == ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status", "plan-update", "check-local-health"]
     assert response["result"]["execution_modes"] == []
     assert response["result"]["manifest_versions"] == [1, 2]
 
@@ -86,6 +86,54 @@ def test_update_status_request_schema_accepts_and_rejects_guard_type(tmp_path):
     validator = jsonschema.Draft202012Validator(schema)
     query = request('update-plan-status', params)
     assert validator.is_valid(query) and handle(query)['ok'] is True
+    query['params']['guard_effects'] = 1
+    assert not validator.is_valid(query) and handle(query)['error']['code'] == 'invalid_request'
+
+
+def test_update_preview_exposes_order_without_reading_state_or_executing(tmp_path, monkeypatch):
+    from shared.update_plan import UpdatePlan
+    manifest = json.loads((ROOT / 'examples/rent.manifest.json').read_text(encoding='utf-8'))
+    params = {'manifest': manifest, 'install_root': str(tmp_path / 'install'), 'release': 'new',
+              'modes': ['autonomous'], 'migration_ids': ['one', 'two'], 'guard_effects': True}
+    plan = UpdatePlan(manifest, Path(params['install_root']), object(), release='new',
+                      modes=('autonomous',), migration_ids=('one', 'two'), guard_effects=True)
+    monkeypatch.setattr(UpdatePlan, 'run', lambda *args, **kwargs: pytest.fail('preview ran update'))
+    monkeypatch.setattr(UpdatePlan, 'status', lambda *args, **kwargs: pytest.fail('preview read state'))
+    response = handle(request('plan-update', params))
+    assert response['ok'] is True
+    result = response['result']
+    assert result == {'plan_sha256': plan.digest, 'components': list(plan.components),
+                      'forward': list(plan.forward), 'rollback': list(plan.rollback),
+                      'guard_effects': True, 'execution_supported': False, 'readiness_verified': False}
+    assert result['forward'] == ['stop', 'archive', 'stage', 'backup:0', 'migrate:0', 'backup:1',
+                                 'migrate:1', 'switch', 'start', 'health', 'post_update']
+    assert not Path(params['install_root']).exists()
+    assert 'plan-update' in handle(request())['result']['operations']
+    assert 'plan-update' not in handle(request())['result']['mutating_operations']
+
+
+@pytest.mark.parametrize('language', ['ru', 'en', 'de'])
+def test_update_preview_rejects_invalid_plan_with_localized_error(tmp_path, language):
+    manifest = json.loads((ROOT / 'examples/rent.manifest.json').read_text(encoding='utf-8'))
+    params = {'manifest': manifest, 'install_root': str(tmp_path / 'install'), 'release': 'new',
+              'modes': ['invalid'], 'migration_ids': [], 'guard_effects': True}
+    result = handle(request('plan-update', params, language=language))
+    assert result['ok'] is False and result['error']['code'] == 'update_plan_failed'
+    assert str(tmp_path) not in json.dumps(result)
+    assert not Path(params['install_root']).exists()
+
+
+def test_update_preview_request_schema_and_cli(tmp_path):
+    jsonschema = pytest.importorskip('jsonschema')
+    schema = json.loads((ROOT / 'shared/api-v1-request.schema.json').read_text(encoding='utf-8'))
+    manifest = json.loads((ROOT / 'examples/rent.manifest.json').read_text(encoding='utf-8'))
+    params = {'manifest': manifest, 'install_root': str(tmp_path / 'install'), 'release': 'new',
+              'modes': ['autonomous'], 'migration_ids': [], 'guard_effects': True}
+    query = request('plan-update', params)
+    validator = jsonschema.Draft202012Validator(schema)
+    assert validator.is_valid(query)
+    output = cli(json.dumps(query).encode())
+    assert output.returncode == 0 and json.loads(output.stdout) == handle(query)
     query['params']['guard_effects'] = 1
     assert not validator.is_valid(query) and handle(query)['error']['code'] == 'invalid_request'
 

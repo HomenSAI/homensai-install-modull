@@ -9,7 +9,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from pathlib import Path
 import stat
 
 from shared.datahome import DataHomeError, checked_path, resolve_datahome
@@ -101,11 +100,11 @@ def _before_reload(runner, directory, name, timeout):
         raise UnitLoadError('Имя службы занято')
 
 
-def load_signed_user_units(package_path, envelope, install_root, *, trusted_public_key,
-                           expected_product_id, expected_version, modes, unit_dir,
-                           execute=False, runner=None, timeout=30):
-    """Загрузить ожидаемые units без запуска; pending требует ручного разбора."""
+def _load_signed_user_units(package_path, envelope, install_root, *, trusted_public_key,
+                            expected_product_id, expected_version, modes, unit_dir,
+                            execute=False, inspect_pending=False, runner=None, timeout=30):
     if (type(execute) is not bool or type(modes) is not tuple or not modes
+            or type(inspect_pending) is not bool or (inspect_pending and not execute)
             or type(timeout) not in (int, float) or not 0 < timeout <= 120
             or (runner is not None and not callable(runner))):
         raise UnitLoadError('Недопустимые параметры загрузки')
@@ -124,8 +123,11 @@ def load_signed_user_units(package_path, envelope, install_root, *, trusted_publ
             raise UnitLoadError('Состав служб изменился')
         root = checked_path(install_root)
         home = resolve_datahome(manifest, root)
-        public = {'units': plan['units'], 'state': 'planned' if not execute else 'loaded',
+        public = {'units': plan['units'], 'state': 'pending_observed' if inspect_pending else
+                  ('planned' if not execute else 'loaded'),
                   'services_started': False}
+        if inspect_pending:
+            public['reload_completion_verified'] = False
         if not execute:
             return public
         control = checked_path(root / '.homensai-control')
@@ -154,7 +156,7 @@ def load_signed_user_units(package_path, envelope, install_root, *, trusted_publ
                 if not _absent(update_state):
                     raise UnitLoadError('Состояние обновления требует проверки')
                 old = _read_receipt(receipt)
-                if old not in (None, done):
+                if (inspect_pending and old != pending) or (not inspect_pending and old not in (None, done)):
                     raise UnitLoadError('Результат предыдущей загрузки требует проверки')
                 paths = _manager_call(runner, ['show', '--property=UnitPath', '--value'], timeout)
                 if str(directory) not in paths.split():
@@ -189,7 +191,29 @@ def load_signed_user_units(package_path, envelope, install_root, *, trusted_publ
                     _atomic_write(receipt, done)
                     if _read_receipt(receipt) != done:
                         raise UnitLoadError('Отметка не подтверждена')
+                elif inspect_pending and _read_receipt(receipt) != pending:
+                    raise UnitLoadError('Отметка изменилась')
         return public
     except (OSError, ValueError, TypeError, KeyError, RecursionError, DataHomeError, ManifestError,
             PackageError, FreshPrepareError, SystemdUserError, UnitPublicationError, UpdateError):
         raise UnitLoadError('Не удалось подтвердить загрузку служб') from None
+
+
+def load_signed_user_units(package_path, envelope, install_root, *, trusted_public_key,
+                           expected_product_id, expected_version, modes, unit_dir,
+                           execute=False, runner=None, timeout=30):
+    """Загрузить ожидаемые units без запуска; pending автоматически не повторяется."""
+    return _load_signed_user_units(package_path, envelope, install_root,
+        trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
+        expected_version=expected_version, modes=modes, unit_dir=unit_dir,
+        execute=execute, runner=runner, timeout=timeout)
+
+
+def inspect_pending_user_units(package_path, envelope, install_root, *, trusted_public_key,
+                               expected_product_id, expected_version, modes, unit_dir,
+                               runner=None, timeout=30):
+    """Проверка pending без reload/start и записи отметки; show может загрузить unit."""
+    return _load_signed_user_units(package_path, envelope, install_root,
+        trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
+        expected_version=expected_version, modes=modes, unit_dir=unit_dir,
+        execute=True, inspect_pending=True, runner=runner, timeout=timeout)

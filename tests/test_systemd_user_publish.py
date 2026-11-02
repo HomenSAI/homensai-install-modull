@@ -427,3 +427,78 @@ def test_reload_followed_by_unexpected_active_unit_leaves_pending(published_unit
     receipt = published_units[2] / '.homensai-control/user-systemd-reload.json'
     assert json.loads(receipt.read_text())['status'] == 'pending'
     assert manager.calls.count(['daemon-reload']) == 1
+
+
+def inspect_pending_call(data, **kwargs):
+    from shared.systemd_user_load import inspect_pending_user_units
+    package, envelope, root, options, destination, _ = data
+    return inspect_pending_user_units(package, envelope, str(root), **options,
+                                      modes=('autonomous',), unit_dir=str(destination), **kwargs)
+
+
+def test_inspect_pending_does_not_write_or_claim_reload_completion(published_units, monkeypatch):
+    import shared.systemd_user_load as loader
+    manager = FakeReloadManager(published_units[-2], lose_response=True)
+    with pytest.raises(loader.UnitLoadError):
+        load_call(published_units, execute=True, runner=manager)
+    receipt = published_units[2] / '.homensai-control/user-systemd-reload.json'
+    before = receipt.read_bytes()
+    calls_before = manager.calls.count(['daemon-reload'])
+    def forbidden(*args, **kwargs):
+        pytest.fail('read-only inspection must not write a receipt')
+    monkeypatch.setattr(loader, '_atomic_write', forbidden)
+    monkeypatch.setattr(loader, '_new_receipt', forbidden)
+    result = inspect_pending_call(published_units, runner=manager)
+    assert result['state'] == 'pending_observed' and result['reload_completion_verified'] is False
+    assert result['services_started'] is False
+    assert receipt.read_bytes() == before and json.loads(before)['status'] == 'pending'
+    assert manager.calls.count(['daemon-reload']) == calls_before == 1
+    with pytest.raises(loader.UnitLoadError):
+        load_call(published_units, execute=True, runner=manager)
+    assert receipt.read_bytes() == before and manager.calls.count(['daemon-reload']) == 1
+
+
+@pytest.mark.parametrize('change', ['not_loaded', 'active', 'dropin', 'modified_unit'])
+def test_inspect_pending_refuses_inconsistent_state_and_preserves_receipt(published_units, change):
+    from shared.systemd_user_load import UnitLoadError
+    manager = FakeReloadManager(published_units[-2], lose_response=True)
+    with pytest.raises(UnitLoadError):
+        load_call(published_units, execute=True, runner=manager)
+    receipt = published_units[2] / '.homensai-control/user-systemd-reload.json'
+    before = receipt.read_bytes()
+    if change == 'not_loaded':
+        manager.reloaded = False
+    elif change == 'active':
+        manager.active = True
+    elif change == 'dropin':
+        manager.dropin = True
+    else:
+        name = next(iter(published_units[-1]))
+        (published_units[-2] / name).write_text('tampered')
+    with pytest.raises(UnitLoadError):
+        inspect_pending_call(published_units, runner=manager)
+    assert receipt.read_bytes() == before and manager.calls.count(['daemon-reload']) == 1
+
+
+def test_inspect_pending_requires_matching_pending_receipt(published_units):
+    from shared.systemd_user_load import UnitLoadError
+    manager = FakeReloadManager(published_units[-2])
+    with pytest.raises(UnitLoadError):
+        inspect_pending_call(published_units, runner=manager)
+    assert not manager.calls
+    assert load_call(published_units, execute=True, runner=manager)['state'] == 'loaded'
+    previous = list(manager.calls)
+    with pytest.raises(UnitLoadError):
+        inspect_pending_call(published_units, runner=manager)
+    assert manager.calls == previous
+
+
+def test_inspect_pending_rejects_unbound_receipt_without_manager_call(published_units):
+    from shared.systemd_user_load import UnitLoadError
+    receipt = published_units[2] / '.homensai-control/user-systemd-reload.json'
+    before = json.dumps({'version': 1, 'binding': '0' * 64, 'status': 'pending'}).encode()
+    receipt.write_bytes(before)
+    manager = FakeReloadManager(published_units[-2])
+    with pytest.raises(UnitLoadError):
+        inspect_pending_call(published_units, runner=manager)
+    assert receipt.read_bytes() == before and not manager.calls

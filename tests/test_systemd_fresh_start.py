@@ -194,3 +194,82 @@ def test_reconcile_pending_start_observes_without_repeating(scenario, monkeypatc
     assert start.start_portable_fresh('package', b'envelope', str(root), **args, reconcile=True) == result
     assert json.loads(receipt.read_text())['status'] == 'done'
     assert calls == [('start', True)]
+
+
+@pytest.fixture
+def cycle_scenario(scenario, monkeypatch):
+    from shared import systemd_cycle as cycle
+    root, args, calls, group = scenario
+    start.start_portable_fresh('package', b'envelope', str(root), **args)
+    stop_args = {**args, 'start_key': args['operation_id'], 'operation_id': 'e' * 32}
+    start.stop_portable_fresh('package', b'envelope', str(root), **stop_args)
+    monkeypatch.setattr(cycle, 'verify_signed_linux_runtime', lambda *a, **kw: None)
+    monkeypatch.setattr(cycle, 'portable_signed_runtime_user_group', lambda *a, **kw: group)
+    monkeypatch.setattr(cycle, 'signed_user_group', lambda *a, **kw: group)
+    cycle_args = {**args, 'initial_start_key': 'd' * 32, 'initial_stop_key': 'e' * 32}
+    calls.clear()
+    return cycle, root, cycle_args, calls, group
+
+
+def test_multiple_cycles_and_stale_keys(cycle_scenario):
+    cycle, root, args, calls, _ = cycle_scenario
+    for action, key in [('start', '1'), ('stop', '2'), ('start', '3'), ('stop', '4')]:
+        options = {**args, 'operation_id': key * 32, 'action': action}
+        first = cycle.cycle_portable('package', b'envelope', str(root), **options)
+        assert cycle.cycle_portable('package', b'envelope', str(root), **options) == first
+    assert calls == [('start', True), ('stop', True), ('start', True), ('stop', True)]
+    state = json.loads((root / '.homensai-control/user-systemd-cycle-v2.json').read_text())
+    assert [e['status'] for e in state['events']] == ['done'] * 4
+    with pytest.raises(start.FreshStartError):
+        cycle.cycle_portable('package', b'envelope', str(root), **{**args, 'operation_id': '1' * 32, 'action': 'start'})
+    with pytest.raises(start.FreshStartError):
+        start.stop_portable_fresh('package', b'envelope', str(root), **{
+            **{k: v for k, v in args.items() if not k.startswith('initial_')},
+            'start_key': 'd' * 32, 'operation_id': 'e' * 32})
+
+
+def test_cycle_recovers_pending_and_can_stop_partial_start(cycle_scenario, monkeypatch):
+    cycle, root, args, calls, group = cycle_scenario
+    def fail(action, *, execute=False):
+        calls.append((action, execute))
+        raise RuntimeError('lost')
+    monkeypatch.setattr(group, 'command', fail)
+    opts = {**args, 'action': 'start', 'operation_id': '1' * 32}
+    with pytest.raises(start.FreshStartError):
+        cycle.cycle_portable('package', b'envelope', str(root), **opts)
+    with pytest.raises(start.FreshStartError):
+        cycle.cycle_portable('package', b'envelope', str(root), **opts)
+    result = cycle.cycle_portable('package', b'envelope', str(root), **opts, reconcile=True)
+    assert result['prior_command_confirmed'] is False and calls == [('start', True)]
+    monkeypatch.setattr(group, 'command', lambda action, execute=False: calls.append((action, execute)))
+    cycle.cycle_portable('package', b'envelope', str(root), **{**args, 'action': 'stop', 'operation_id': '2' * 32})
+    monkeypatch.setattr(group, 'command', fail)
+    with pytest.raises(start.FreshStartError):
+        cycle.cycle_portable('package', b'envelope', str(root), **{**args, 'action': 'start', 'operation_id': '3' * 32})
+    monkeypatch.setattr(group, 'command', lambda action, execute=False: calls.append((action, execute)))
+    cycle.cycle_portable('package', b'envelope', str(root), **{**args, 'action': 'stop', 'operation_id': '4' * 32})
+    state = json.loads((root / '.homensai-control/user-systemd-cycle-v2.json').read_text())
+    assert [e['status'] for e in state['events']] == ['done', 'done', 'interrupted', 'done']
+
+
+def test_cycle_rejects_unconfirmed_recovery_and_modified_history(cycle_scenario, monkeypatch):
+    cycle, root, args, calls, group = cycle_scenario
+    def fail(action, *, execute=False):
+        calls.append((action, execute))
+        raise RuntimeError('lost')
+    monkeypatch.setattr(group, 'command', fail)
+    opts = {**args, 'action': 'start', 'operation_id': '1' * 32}
+    with pytest.raises(start.FreshStartError):
+        cycle.cycle_portable('package', b'envelope', str(root), **opts)
+    path = root / '.homensai-control/user-systemd-cycle-v2.json'
+    before = path.read_bytes()
+    monkeypatch.setattr(cycle, 'signed_user_group', lambda *a, **kw: (_ for _ in ()).throw(RuntimeError('inactive')))
+    with pytest.raises(start.FreshStartError):
+        cycle.cycle_portable('package', b'envelope', str(root), **opts, reconcile=True)
+    assert path.read_bytes() == before and calls == [('start', True)]
+    state = json.loads(before)
+    state['events'].append({'action': 'start', 'key': '2' * 32, 'status': 'done'})
+    path.write_text(json.dumps(state))
+    with pytest.raises(start.FreshStartError):
+        cycle.cycle_portable('package', b'envelope', str(root), **opts, reconcile=True)
+    assert calls == [('start', True)]

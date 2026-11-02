@@ -31,10 +31,11 @@ from shared.systemd_user_load import (UnitLoadError, load_signed_user_units, loa
 from shared.systemd_portable import PortableUnitError, publish_portable_signed_user_units
 from shared.runtime_native import NativeRuntimeError, prepare_signed_linux_runtime, verify_signed_linux_runtime
 from shared.systemd_fresh_start import FreshStartError, start_portable_fresh, stop_portable_fresh
+from shared.systemd_cycle import cycle_portable
 from shared.update_plan import UpdateError, UpdatePlan
 
 API_MAJOR = 1
-API_MINOR = 23
+API_MINOR = 24
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -172,6 +173,8 @@ def handle(request: Any) -> dict:
                     mutating_operations.append("reconcile-portable-linux-stop")
                     operations.append("reconcile-portable-linux-start")
                     mutating_operations.append("reconcile-portable-linux-start")
+                    operations.append("cycle-portable-linux")
+                    mutating_operations.append("cycle-portable-linux")
                     mutating_operations.append("prepare-linux-runtime")
             result = {"api_major": API_MAJOR, "api_minor": API_MINOR,
                       "operations": operations,
@@ -240,6 +243,39 @@ def handle(request: Any) -> dict:
                 result = {'state': plan.status()}
             except (DataHomeError, ManifestError, UpdateError, OSError, RecursionError):
                 return _error(request_id, "update_status_failed", "Не удалось прочитать состояние обновления", language, "api.update_status_failed")
+        elif operation == 'cycle-portable-linux':
+            fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id', 'expected_version',
+                      'install_root', 'modes', 'unit_dir', 'load_key', 'runtime_key', 'initial_start_key',
+                      'initial_stop_key', 'reserve_bytes', 'idempotency_key', 'action', 'reconcile'}
+            string_fields = fields - {'modes', 'reserve_bytes', 'reconcile'}
+            keys = ('load_key', 'runtime_key', 'initial_start_key', 'initial_stop_key', 'idempotency_key')
+            if (set(params) != fields or any(type(params[name]) is not str or not params[name] for name in string_fields)
+                    or type(params['modes']) is not list or not params['modes']
+                    or any(type(mode) is not str for mode in params['modes'])
+                    or type(params['reserve_bytes']) is not int or not 0 <= params['reserve_bytes'] <= MAX_DISK_BYTES
+                    or type(params['reconcile']) is not bool or params['action'] not in ('start', 'stop')
+                    or re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,62}', params['expected_product_id']) is None
+                    or re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', params['expected_version']) is None
+                    or any(re.fullmatch(r'[a-f0-9]{32}', params[name]) is None for name in keys)
+                    or len({params[name] for name in keys}) != len(keys)):
+                raise InvalidRequest()
+            if not _signature_available() or not _systemd_plan_available():
+                return _error(request_id, 'unsupported_operation', 'Операция API не поддерживается', language, 'api.unsupported_operation')
+            envelope = _base64(params['envelope'], MAX_ENVELOPE)
+            key = _base64(params['trusted_public_key'], 32)
+            if len(key) != 32:
+                raise InvalidRequest()
+            try:
+                result = cycle_portable(params['package_path'], envelope, params['install_root'],
+                    trusted_public_key=key, expected_product_id=params['expected_product_id'],
+                    expected_version=params['expected_version'], modes=tuple(params['modes']), unit_dir=params['unit_dir'],
+                    load_key=params['load_key'], runtime_key=params['runtime_key'],
+                    initial_start_key=params['initial_start_key'], initial_stop_key=params['initial_stop_key'],
+                    reserve_bytes=params['reserve_bytes'], operation_id=params['idempotency_key'],
+                    action=params['action'], reconcile=params['reconcile'])
+            except FreshStartError:
+                return _error(request_id, 'linux_cycle_failed', 'Не удалось подтвердить управление службами',
+                              language, 'api.linux_cycle_failed')
         elif operation in ('check-portable-linux-start', 'start-portable-linux', 'stop-portable-linux',
                            'reconcile-portable-linux-stop', 'reconcile-portable-linux-start'):
             fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id',
@@ -551,7 +587,7 @@ def main() -> int:
     sys.stdout.write(json.dumps(response, ensure_ascii=True, separators=(",", ":")) + "\n")
     if response["ok"]:
         return 0
-    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_verify_failed", "fresh_prepare_failed", "update_status_failed", "health_check_failed", "systemd_plan_failed", "systemd_publish_failed", "systemd_load_failed", "linux_runtime_failed", "linux_start_check_failed", "linux_start_failed", "linux_stop_failed") else 2
+    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_verify_failed", "fresh_prepare_failed", "update_status_failed", "health_check_failed", "systemd_plan_failed", "systemd_publish_failed", "systemd_load_failed", "linux_runtime_failed", "linux_start_check_failed", "linux_start_failed", "linux_stop_failed", "linux_cycle_failed") else 2
 
 
 if __name__ == "__main__":

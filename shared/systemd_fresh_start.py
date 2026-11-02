@@ -85,6 +85,12 @@ def stop_portable_fresh(package_path, envelope, install_root, *, trusted_public_
         with _lifecycle_lock(install_root):
             root, directory = checked_path(install_root), checked_path(unit_dir)
             control = checked_path(root / '.homensai-control')
+            try:
+                (control / 'user-systemd-cycle-v2.json').lstat()
+            except FileNotFoundError:
+                pass
+            else:
+                raise FreshStartError('Установка перешла к новому журналу цикла')
             publication = _publication_receipt(control / 'user-systemd-publication.json')
             if publication is None or publication['status'] != 'done' or publication['operation_id'] == operation_id:
                 raise FreshStartError('Публикация не подтверждена')

@@ -26,5 +26,6 @@
   "api.linux_runtime_failed": "Could not confirm the Linux runtime",
   "api.linux_start_check_failed": "Could not check service readiness",
   "api.linux_start_failed": "Could not confirm service start",
-  "api.linux_stop_failed": "Could not confirm service stop"
+  "api.linux_stop_failed": "Could not confirm service stop",
+  "api.linux_cycle_failed": "Could not confirm service operation"
 }

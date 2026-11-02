@@ -415,6 +415,14 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch):
             key: value for key, value in stopped.items() if key != 'prior_stop_command_confirmed'}
         with pytest.raises(InstallerClientError):
             client.call('start-portable-linux', start_request, min_minor=20)
+        interpreter.chmod(0o700)
+        cycle_request = {**readiness, 'initial_start_key': 'd' * 32, 'initial_stop_key': 'e' * 32,
+                         'idempotency_key': '1' * 32, 'action': 'start', 'reconcile': False}
+        assert validator.is_valid({**request, 'operation': 'cycle-portable-linux', 'params': cycle_request})
+        second = client.call('cycle-portable-linux', cycle_request, min_minor=24)
+        assert second['state'] == 'started' and second['health_verified'] is False
+        stop_cycle = {**cycle_request, 'idempotency_key': '2' * 32, 'action': 'stop'}
+        assert client.call('cycle-portable-linux', stop_cycle, min_minor=24)['state'] == 'stopped'
     finally:
         subprocess.run(['/usr/bin/systemctl', '--user', 'stop', '--', *names], env=env,
                        stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=False)

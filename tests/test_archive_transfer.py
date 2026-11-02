@@ -4,17 +4,20 @@ from pathlib import Path
 
 import pytest
 
+from test_linux_signed_release import signed
 from shared import adapters_fs as fs, archive_crypto
 from shared.adapters_fs import FilesystemPorts
 from shared.datahome import resolve_datahome
 from shared.effect_receipt import read_effect_receipt
 from shared.manifest import load_manifest
-from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan, operation_lock
+from shared.update_plan import EffectIndeterminate, UpdateError, UpdateIndeterminate, UpdatePlan, operation_lock
 
 
 def test_encrypted_backup_transfers_to_clean_installation_and_rejects_tampering(tmp_path, monkeypatch):
     pytest.importorskip('cryptography')
     manifest = load_manifest(Path(__file__).resolve().parents[1] / 'examples/rent.manifest.json')
+    manifest['hooks']['pre_start'] = []
+    manifest['hooks']['health_checks'] = []
     origin = tmp_path / 'исходная установка'
     target = tmp_path / 'новая установка'
     source_home = resolve_datahome(manifest, origin)
@@ -31,8 +34,18 @@ def test_encrypted_backup_transfers_to_clean_installation_and_rejects_tampering(
     (target_home.roots['data'] / 'temporary.txt').write_bytes(b'destination before restore')
     source = FilesystemPorts(manifest, origin, work_dir=tmp_path / 'исходная работа',
                              payloads={}, effects=None, password_provider=lambda: 'synthetic password')
+    events = []
+    class RestoredProduct:
+        def start(self, key, components, pre_start):
+            assert key.endswith('/rollback_start') and not pre_start
+            assert (target_home.roots['data'] / 'папка с пробелом' / 'данные.txt').read_text() == 'synthetic data'
+            events.append('start')
+        def health(self, key, url, timeout, checks):
+            assert key.endswith('/rollback_health') and not checks
+            events.append('health')
     destination = FilesystemPorts(manifest, target, work_dir=tmp_path / 'новая работа',
-                                  payloads={}, effects=None, password_provider=lambda: 'synthetic password')
+                                  payloads={}, effects=RestoredProduct(), password_provider=lambda: 'synthetic password')
+    (target_home.releases / 'app-1').mkdir()
     transaction = 'd' * 32
     archive_key = transaction + '/archive'
     with operation_lock(source.lock):
@@ -87,16 +100,16 @@ def test_encrypted_backup_transfers_to_clean_installation_and_rejects_tampering(
         assert destination.pointer.read_bytes() == b'{"release":"target-version"}\n'
         assert plan.status() == state
         transferred.write_bytes(original)
-        destination.restore(transaction + '/restore', archive_key, ())
-        destination.restore(transaction + '/restore', archive_key, ())
-        for name, root in target_home.roots.items():
-            assert (root / 'папка с пробелом' / 'данные.txt').read_text(encoding='utf-8') == 'synthetic ' + name
-            assert (root / 'empty').is_dir()
-        assert not (target_home.roots['data'] / 'temporary.txt').exists()
-        assert destination.pointer.read_bytes() == b'{"release":"target-version"}\n'
-        assert plan.status() == state
-        assert (target_home.app / 'keep.txt').read_bytes() == b'installed application'
-        assert (target_home.releases / 'keep.txt').read_bytes() == b'installed releases'
+    result = plan.run(resume_indeterminate=True)
+    assert result['outcome'] == 'rolled_back'
+    assert destination.current_release() == '1' and events == ['start', 'health']
+    assert plan.run() == result and events == ['start', 'health']
+    for name, root in target_home.roots.items():
+        assert (root / 'папка с пробелом' / 'данные.txt').read_text(encoding='utf-8') == 'synthetic ' + name
+        assert (root / 'empty').is_dir()
+    assert not (target_home.roots['data'] / 'temporary.txt').exists()
+    assert (target_home.app / 'keep.txt').read_bytes() == b'installed application'
+    assert (target_home.releases / 'keep.txt').read_bytes() == b'installed releases'
 
 
 def test_import_never_overwrites_untracked_archive_or_accepts_wrong_phase(tmp_path):
@@ -123,3 +136,40 @@ def test_import_never_overwrites_untracked_archive_or_accepts_wrong_phase(tmp_pa
     with pytest.raises(UpdateError):
         ports.import_archive_for_restore(plan, tmp_path / 'source', '0' * 64)
     assert destination.read_bytes() == b'untracked existing data' and plan.status() == state
+
+
+def test_transferred_backup_resumes_guarded_signed_rollback(signed, tmp_path, monkeypatch):
+    pytest.importorskip('cryptography')
+    plan, destination, state, adapters, _ = signed
+    for root in (destination.home.app, destination.home.releases, *destination.home.roots.values()):
+        root.mkdir(parents=True, exist_ok=True)
+    source_root = tmp_path / 'другая установка'
+    source_home = resolve_datahome(plan.manifest, source_root)
+    for root in source_home.roots.values():
+        root.mkdir(parents=True, exist_ok=True)
+    (source_home.roots['data'] / 'database.txt').write_bytes(b'synthetic original database')
+    (destination.home.roots['data'] / 'database.txt').write_bytes(b'synthetic later database')
+    source = FilesystemPorts(plan.manifest, source_root, work_dir=tmp_path / 'source work',
+                             payloads={}, effects=None, password_provider=lambda: 'synthetic')
+    key = state['transaction'] + '/archive'
+    with operation_lock(source.lock):
+        source.backup(key, 'archive', ())
+    source_archive = source.archive_path(key)
+    expected = hashlib.sha256(source_archive.read_bytes()).hexdigest()
+    state.update(direction='rollback', index=plan.rollback.index('rollback_stop'), failed_phase='health',
+                 archive_ready=True, indeterminate=True)
+    plan._save(state)
+    with pytest.raises(UpdateIndeterminate):
+        plan.run(resume_indeterminate=True)
+    waiting = plan.status()
+    assert waiting['index'] == plan.rollback.index('restore') and waiting['indeterminate'] is True
+    assert read_effect_receipt(destination._path(state['transaction'] + '/before_rollback',
+                                                 '.quiescence.json'))['status'] == 'done'
+    assert (destination.home.roots['data'] / 'database.txt').read_bytes() == b'synthetic later database'
+    destination.import_archive_for_restore(plan, source_archive, expected)
+    calls = []
+    monkeypatch.setattr('shared.update_health_port.check_local_health', lambda *args, **kwargs: calls.append(1))
+    result = plan.run(resume_indeterminate=True)
+    assert result['outcome'] == 'rolled_back' and destination.current_release() == '1'
+    assert (destination.home.roots['data'] / 'database.txt').read_bytes() == b'synthetic original database'
+    assert all(adapter.active for adapter in adapters.values()) and calls == [1]

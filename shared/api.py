@@ -21,6 +21,7 @@ from shared.fresh_prepare import (FreshConflict, FreshPrepareError, prepare_idem
                                   _check_fresh_storage, _layout)
 from shared.datahome import DataHomeError, checked_path
 from shared.docker_preflight import DockerPreflightError, check_docker
+from shared.docker_prepare import DockerPrepareError, prepare_signed_compose
 from shared.docker_recipe import DockerRecipeError, plan_signed_compose
 from shared.host_target import HostTargetError, native_target
 from shared.health import HealthError, check_local_health
@@ -40,7 +41,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 33
+API_MINOR = 34
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -177,6 +178,8 @@ def handle(request: Any) -> dict:
                 operations.append('plan-signed-compose')
                 mutating_operations.append("prepare-native-release")
                 if _systemd_plan_available():
+                    operations.append('prepare-signed-compose')
+                    mutating_operations.append('prepare-signed-compose')
                     operations.extend(['install-portable-linux', 'inspect-portable-linux-install'])
                     mutating_operations.extend(['install-portable-linux', 'inspect-portable-linux-install'])
                     operations.extend(['prepare-signed-linux-update', 'inspect-signed-linux-update'])
@@ -292,9 +295,11 @@ def handle(request: Any) -> dict:
                 if operation == 'plan-update':
                     return _error(request_id, 'update_plan_failed', 'Не удалось составить план обновления', language, 'api.update_plan_failed')
                 return _error(request_id, "update_status_failed", "Не удалось прочитать состояние обновления", language, "api.update_status_failed")
-        elif operation == 'plan-signed-compose':
+        elif operation in ('plan-signed-compose', 'prepare-signed-compose'):
             fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id',
                       'expected_version', 'target', 'modes', 'instance_id'}
+            if operation == 'prepare-signed-compose':
+                fields |= {'work_dir', 'idempotency_key'}
             strings = fields - {'target', 'modes'}
             if (set(params) != fields or any(type(params[name]) is not str or not params[name] for name in strings)
                     or type(params['target']) is not dict or set(params['target']) != {'os', 'architecture', 'execution'}
@@ -304,10 +309,12 @@ def handle(request: Any) -> dict:
                     or not params['modes'] or any(type(value) is not str or not value for value in params['modes'])
                     or len(set(params['modes'])) != len(params['modes'])
                     or re.fullmatch(r'[a-f0-9]{32}', params['instance_id']) is None
+                    or (operation == 'prepare-signed-compose'
+                        and re.fullmatch(r'[a-f0-9]{32}', params['idempotency_key']) is None)
                     or re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,62}', params['expected_product_id']) is None
                     or re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', params['expected_version']) is None):
                 raise InvalidRequest()
-            if not _signature_available():
+            if not _signature_available() or (operation == 'prepare-signed-compose' and not _systemd_plan_available()):
                 return _error(request_id, 'unsupported_operation', 'Проверка подписи недоступна',
                               language, 'api.signature_unavailable')
             envelope = _base64(params['envelope'], MAX_ENVELOPE)
@@ -315,10 +322,18 @@ def handle(request: Any) -> dict:
             if len(key) != 32:
                 raise InvalidRequest()
             try:
-                result = plan_signed_compose(params['package_path'], envelope, trusted_public_key=key,
-                    expected_product_id=params['expected_product_id'], expected_version=params['expected_version'],
-                    target=params['target'], modes=tuple(params['modes']), instance_id=params['instance_id'])
-            except DockerRecipeError:
+                options = {'trusted_public_key': key, 'expected_product_id': params['expected_product_id'],
+                           'expected_version': params['expected_version'], 'target': params['target'],
+                           'modes': tuple(params['modes']), 'instance_id': params['instance_id']}
+                if operation == 'prepare-signed-compose':
+                    result = prepare_signed_compose(params['package_path'], envelope, **options,
+                        work_dir=params['work_dir'], operation_id=params['idempotency_key'])
+                else:
+                    result = plan_signed_compose(params['package_path'], envelope, **options)
+            except (DockerRecipeError, DockerPrepareError):
+                if operation == 'prepare-signed-compose':
+                    return _error(request_id, 'docker_prepare_failed', 'Не удалось подготовить Compose',
+                                  language, 'api.docker_prepare_failed')
                 return _error(request_id, 'docker_plan_failed', 'Не удалось проверить Docker-план',
                               language, 'api.docker_plan_failed')
         elif operation in ('prepare-signed-linux-update', 'inspect-signed-linux-update'):

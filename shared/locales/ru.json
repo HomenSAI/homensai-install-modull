@@ -34,5 +34,6 @@
   "api.update_prepare_failed": "Не удалось подготовить обновление",
   "api.update_inspect_failed": "Не удалось проверить обновление",
   "api.fresh_controller_failed": "Не удалось подтвердить установку",
-  "api.docker_plan_failed": "Не удалось проверить Docker-план"
+  "api.docker_plan_failed": "Не удалось проверить Docker-план",
+  "api.docker_prepare_failed": "Не удалось подготовить Compose"
 }

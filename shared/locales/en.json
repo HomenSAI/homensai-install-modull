@@ -34,5 +34,6 @@
   "api.update_prepare_failed": "Could not prepare the update",
   "api.update_inspect_failed": "Could not inspect the update",
   "api.fresh_controller_failed": "Could not confirm the installation",
-  "api.docker_plan_failed": "Could not verify the Docker plan"
+  "api.docker_plan_failed": "Could not verify the Docker plan",
+  "api.docker_prepare_failed": "Could not prepare Compose"
 }

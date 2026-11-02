@@ -145,6 +145,86 @@ class FilesystemPorts:
     def archive_path(self, key: str) -> Path:
         return self._path(key, ".hsac" if self.password_provider is not None else ".zip")
 
+    def import_archive_for_restore(self, plan: UpdatePlan, source: str | Path, expected_sha256: str) -> None:
+        """Перенести подтверждённый шифрованный архив в текущий checkpoint отката.
+
+        Доверие к происхождению и свежести хэша обеспечивает вызывающая сторона.
+        Копирование не изменяет источник, живые данные или состояние плана.
+        """
+        if (self.password_provider is None or type(plan) is not UpdatePlan or plan.ports is not self
+                or plan.guard_effects is not True or plan.manifest != self.manifest
+                or plan.state_path != self.state or plan.lock_path != self.lock
+                or not isinstance(source, (str, Path)) or type(expected_sha256) is not str
+                or re.fullmatch(r'[a-f0-9]{64}', expected_sha256) is None):
+            raise UpdateError('Недопустимые параметры переноса копии')
+        with operation_lock(plan.lock_path):
+            state = plan.status()
+            if (state is None or state['direction'] != 'rollback' or state['outcome'] != 'running'
+                    or state.get('indeterminate') is not True or not state['archive_ready']
+                    or state['index'] != plan.rollback.index('restore')):
+                raise UpdateError('Нет неопределённого этапа восстановления')
+            transaction = state['transaction']
+            key = transaction + '/archive'
+            path = self.archive_path(key)
+            binding = checked_path(path.with_suffix('.archive.json'))
+            pending = {'version': 1, 'key': key, 'product_id': self.home.product_id,
+                       'sha256': None, 'status': 'pending'}
+            done = {**pending, 'sha256': expected_sha256, 'status': 'done'}
+            record = read_effect_receipt(binding)
+            if record is not None and record != pending and record != done:
+                raise EffectIndeterminate('Отметка копии не соответствует операции')
+            if record is None and path.exists():
+                raise EffectIndeterminate('Архив без отметки нельзя заменить')
+            temporary = None
+            created = False
+            try:
+                safety = self._verify_archive(self.archive_path(transaction + '/before_rollback'))
+                if set(safety['roots']) != set(self.home.roots):
+                    raise UpdateError('Копия перед откатом не соответствует установке')
+                if record == done or (record == pending and path.exists()):
+                    snapshot = archive_crypto.verify_archive(path, password_provider=self.password_provider,
+                        expected_product_id=self.home.product_id, require_encrypted=True,
+                        expected_ciphertext_sha256=expected_sha256)
+                else:
+                    origin = checked_path(source)
+                    snapshot = archive_crypto.verify_archive(origin, password_provider=self.password_provider,
+                        expected_product_id=self.home.product_id, require_encrypted=True,
+                        expected_ciphertext_sha256=expected_sha256)
+                    if set(snapshot['roots']) != set(self.home.roots):
+                        raise UpdateError('Корни архива отличаются от установки')
+                    if plan.status() != state or read_effect_receipt(binding) != record:
+                        raise EffectIndeterminate('Состояние операции изменилось')
+                    if record is None:
+                        _atomic_write(binding, pending)
+                        record = pending
+                    temporary = checked_path(self.work / ('.archive-import-' + uuid.uuid4().hex + '.tmp'))
+                    with _open_regular(origin) as incoming, temporary.open('xb') as outgoing:
+                        created = True
+                        while block := incoming.read(1024 * 1024):
+                            outgoing.write(block)
+                        outgoing.flush()
+                        os.fsync(outgoing.fileno())
+                    snapshot = archive_crypto.verify_archive(temporary, password_provider=self.password_provider,
+                        expected_product_id=self.home.product_id, require_encrypted=True,
+                        expected_ciphertext_sha256=expected_sha256)
+                    os.link(temporary, path)
+                    _sync_directory(self.work)
+                if set(snapshot['roots']) != set(self.home.roots):
+                    raise UpdateError('Корни архива отличаются от установки')
+                if plan.status() != state or read_effect_receipt(binding) != record:
+                    raise EffectIndeterminate('Состояние операции изменилось')
+                if record != done:
+                    _atomic_write(binding, done)
+                self._verify_archive(path)
+            except Exception:
+                raise EffectIndeterminate('Перенос копии не подтверждён') from None
+            finally:
+                if created:
+                    try:
+                        temporary.unlink(missing_ok=True)
+                    except OSError:
+                        raise EffectIndeterminate('Очистка временной копии не подтверждена') from None
+
     def recover_archive_binding(self, plan: UpdatePlan, key: str, expected_sha256: str) -> None:
         """Подтвердить байты незавершённой копии по независимо полученному SHA-256.
 

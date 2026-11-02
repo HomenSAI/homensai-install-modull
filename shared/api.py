@@ -19,6 +19,7 @@ from shared.fresh_prepare import (FreshConflict, FreshPrepareError, prepare_idem
                                   _check_fresh_storage, _layout)
 from shared.datahome import DataHomeError, checked_path
 from shared.host_target import HostTargetError, native_target
+from shared.health import HealthError, check_local_health
 from shared.i18n import LanguageError, available_languages, translate
 from shared.manifest import ManifestError, check_target, validate_manifest
 from shared.package import PackageError
@@ -27,7 +28,7 @@ from shared.preflight import MAX_BYTES as MAX_DISK_BYTES, NAMES as PATH_NAMES, P
 from shared.update_plan import UpdateError, UpdatePlan
 
 API_MAJOR = 1
-API_MINOR = 11
+API_MINOR = 12
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -107,7 +108,7 @@ def _base64(value: Any, max_decoded: int) -> bytes:
 
 
 def handle(request: Any) -> dict:
-    """Обработать запрос без процессов и сети; некоторые операции записывают файлы."""
+    """Обработать локальный запрос; health обращается к 127.0.0.1."""
     request_id = None
     language = None
     try:
@@ -136,7 +137,7 @@ def handle(request: Any) -> dict:
         if operation == "capabilities":
             if params:
                 raise InvalidRequest()
-            operations = ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status"]
+            operations = ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status", "check-local-health"]
             mutating_operations = []
             if _signature_available():
                 operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release"])
@@ -163,6 +164,24 @@ def handle(request: Any) -> dict:
                 result = check_target(params["manifest"], params["target"])
             except (ManifestError, RecursionError):
                 return _error(request_id, "invalid_request", "Манифест или цель не соответствуют контракту", language, "api.invalid_target")
+        elif operation == "check-local-health":
+            fields = {'port', 'product_id', 'version', 'path', 'timeout_seconds'}
+            if (set(params) != fields or type(params['port']) is not int or not 1 <= params['port'] <= 65535
+                    or type(params['product_id']) is not str
+                    or re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,62}', params['product_id']) is None
+                    or type(params['version']) is not str
+                    or re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', params['version']) is None
+                    or type(params['path']) is not str
+                    or re.fullmatch(r'/[A-Za-z0-9/_.~-]{0,1023}', params['path']) is None
+                    or type(params['timeout_seconds']) is not int or not 1 <= params['timeout_seconds'] <= 30):
+                raise InvalidRequest()
+            try:
+                check_local_health(params['port'], product_id=params['product_id'], version=params['version'],
+                                   path=params['path'], timeout=params['timeout_seconds'])
+            except HealthError:
+                return _error(request_id, 'health_check_failed', 'Не удалось подтвердить состояние продукта',
+                              language, 'api.health_check_failed')
+            result = {'health_response_matches': True, 'process_identity_verified': False}
         elif operation == "preflight-fresh":
             if set(params) != {"manifest", "install_root", "required_bytes", "reserve_bytes"}:
                 raise InvalidRequest()
@@ -348,7 +367,7 @@ def main() -> int:
     sys.stdout.write(json.dumps(response, ensure_ascii=True, separators=(",", ":")) + "\n")
     if response["ok"]:
         return 0
-    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_verify_failed", "fresh_prepare_failed", "update_status_failed") else 2
+    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_verify_failed", "fresh_prepare_failed", "update_status_failed", "health_check_failed") else 2
 
 
 if __name__ == "__main__":

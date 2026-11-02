@@ -16,6 +16,7 @@
   "api.unsupported_platform": "The process platform is not supported",
   "api.fresh_status_failed": "Could not read preparation state",
   "api.fresh_verify_failed": "Could not verify the prepared release",
+  "api.health_check_failed": "Could not confirm product health",
   "api.fresh_prepare_failed": "Could not prepare the release",
   "api.operation_conflict": "Request does not match the operation",
   "api.update_status_failed": "Could not read update state"

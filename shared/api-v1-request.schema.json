@@ -6,12 +6,17 @@
   "required": ["api_major", "operation", "request_id", "params"],
   "properties": {
     "api_major": {"type": "integer", "const": 1},
-    "operation": {"type": "string", "enum": ["capabilities", "validate", "preflight-fresh", "check-target", "verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release", "update-plan-status"]},
+    "operation": {"type": "string", "enum": ["capabilities", "validate", "preflight-fresh", "check-target", "check-local-health", "verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release", "update-plan-status"]},
     "request_id": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
     "language": {"type": "string", "pattern": "^[a-z]{2,3}(?![\\s\\S])"},
     "params": {"type": "object"}
   },
   "oneOf": [
+    {"properties": {"operation": {"const": "check-local-health"}, "params": {"type": "object", "additionalProperties": false, "required": ["port", "product_id", "version", "path", "timeout_seconds"], "properties": {
+      "port": {"type": "integer", "minimum": 1, "maximum": 65535}, "product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},
+      "version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+      "path": {"type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^/[A-Za-z0-9/_.~-]*(?![\\s\\S])"}, "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 30}
+    }}}},
     {"properties": {"operation": {"const": "capabilities"}, "params": {"type": "object", "maxProperties": 0}}},
     {"properties": {"operation": {"const": "validate"}, "params": {"type": "object", "required": ["manifest"], "additionalProperties": false, "properties": {"manifest": {"type": "object"}}}}},
     {"properties": {"operation": {"const": "update-plan-status"}, "params": {"type": "object", "additionalProperties": false, "required": ["manifest", "install_root", "release", "modes", "migration_ids", "guard_effects"], "properties": {

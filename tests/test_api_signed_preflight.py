@@ -5,8 +5,10 @@ from hashlib import sha256
 import json
 import os
 from pathlib import Path
+import sqlite3
 import subprocess
 import sys
+import time
 
 import pytest
 
@@ -925,7 +927,56 @@ def test_independent_product_client_recovers_from_lost_prepare_response(tmp_path
     assert repeated['transaction'] == 'd' * 32 and repeated['installation_complete'] is False
     verified = client.call('verify-native-release', shared, min_minor=10, language='de')
     assert verified['release_files_match'] is True and verified['installation_complete'] is False
-    assert (root / 'releases/app-1/main.py').read_bytes() == (payload / 'main.py').read_bytes()
+    script = root / 'releases/app-1/main.py'
+    assert script.read_bytes() == (payload / 'main.py').read_bytes()
+    # Test-owned processes exercise the prepared artifact; the installer API
+    # itself does not install services or start the product.
+    data = root / 'data'
+    migration = subprocess.run([sys.executable, '-B', str(script), 'migrate', '--data-dir', str(data)],
+                               capture_output=True, timeout=30)
+    assert migration.returncode == 0
+    with sqlite3.connect(data / 'demo.sqlite3') as conn:
+        assert conn.execute('SELECT text FROM entries').fetchall() == [('synthetic-schema-1',)]
+    processes = []
+    with (tmp_path / 'server.log').open('w+', encoding='utf-8') as log:
+        try:
+            server = subprocess.Popen([sys.executable, '-B', str(script), 'serve', '--data-dir', str(data),
+                                       '--port', '0'], stdout=log, stderr=subprocess.DEVNULL)
+            processes.append(server)
+            worker = subprocess.Popen([sys.executable, '-B', str(script), 'worker', '--data-dir', str(data)],
+                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            processes.append(worker)
+            deadline = time.monotonic() + 30
+            port = None
+            heartbeat = data / 'worker-heartbeat.json'
+            while time.monotonic() < deadline:
+                log.seek(0)
+                line = log.readline()
+                if line:
+                    port = json.loads(line)['port']
+                if port and heartbeat.is_file():
+                    beat = json.loads(heartbeat.read_text(encoding='utf-8'))
+                    if beat['pid'] == worker.pid and beat['release'] == '1':
+                        break
+                if any(process.poll() is not None for process in processes):
+                    pytest.fail('Синтетический процесс завершился при запуске')
+                time.sleep(0.05)
+            else:
+                pytest.fail('Синтетические процессы не подтвердили готовность')
+            # The API subprocess connects only to the local test server.
+            health = client.call('check-local-health', {
+                'port': port, 'product_id': 'homensai-test-demo', 'version': '1',
+                'path': '/health', 'timeout_seconds': 3}, min_minor=12, language='de')
+            assert health == {'health_response_matches': True, 'process_identity_verified': False}
+        finally:
+            for process in reversed(processes):
+                if process.poll() is None:
+                    process.terminate()
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=10)
     (root / 'releases/app-1/main.py').write_text('tampered')
     with pytest.raises(InstallerClientError) as exc:
         client.call('prepare-native-release', preparation, min_minor=8, language='en')

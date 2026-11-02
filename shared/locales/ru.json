@@ -16,6 +16,7 @@
   "api.unsupported_platform": "Платформа процесса не поддерживается",
   "api.fresh_status_failed": "Не удалось прочитать состояние подготовки",
   "api.fresh_verify_failed": "Не удалось проверить подготовленный выпуск",
+  "api.health_check_failed": "Не удалось подтвердить состояние продукта",
   "api.fresh_prepare_failed": "Не удалось подготовить выпуск",
   "api.operation_conflict": "Запрос не соответствует операции",
   "api.update_status_failed": "Не удалось прочитать состояние обновления"

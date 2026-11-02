@@ -24,5 +24,6 @@
   "api.systemd_publish_failed": "Could not confirm publication of the services",
   "api.systemd_load_failed": "Could not confirm loading of the services",
   "api.linux_runtime_failed": "Could not confirm the Linux runtime",
-  "api.linux_start_check_failed": "Could not check service readiness"
+  "api.linux_start_check_failed": "Could not check service readiness",
+  "api.linux_start_failed": "Could not confirm service start"
 }

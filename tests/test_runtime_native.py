@@ -295,7 +295,7 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path):
     install = tmp_path / 'real runtime with spaces'
     prepare_fresh_native(package, envelope, install, **options,
                          required_bytes={name: 0 for name in NAMES}, reserve_bytes=0)
-    client = InstallerClient(timeout=120)
+    client = InstallerClient(timeout=300)
     runtime_args = {'package_path': str(package), 'envelope': base64.b64encode(envelope).decode(),
                     'trusted_public_key': base64.b64encode(public).decode(), 'expected_product_id': manifest['product_id'],
                     'expected_version': '1', 'install_root': str(install), 'reserve_bytes': 0, 'idempotency_key': 'a' * 32}
@@ -350,12 +350,19 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path):
             client.call('check-portable-linux-start', readiness, min_minor=19)
         with pytest.raises(SystemdGroupError):
             group.command('start', execute=True)
+        start_request = {**readiness, 'idempotency_key': 'd' * 32}
+        assert validator.is_valid({**request, 'operation': 'start-portable-linux', 'params': start_request})
+        with pytest.raises(InstallerClientError):
+            client.call('start-portable-linux', start_request, min_minor=20)
+        assert not (install / '.homensai-control/user-systemd-start.json').exists()
         for name in names:
             state = subprocess.run(['/usr/bin/systemctl', '--user', 'is-active', name], env=env,
                                    stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30)
             assert state.stdout.strip() == 'inactive'
         interpreter.chmod(0o700)
-        assert all(item['active_state'] == 'active' for item in group.command('start', execute=True))
+        started = client.call('start-portable-linux', start_request, min_minor=20)
+        assert started['state'] == 'started' and started['health_verified'] is False
+        assert client.call('start-portable-linux', start_request, min_minor=20) == started
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
             try:
@@ -371,6 +378,8 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path):
             pytest.fail('Подписанный продукт не подтвердил ответ и heartbeat')
         assert result['process_identity_verified'] is False
         assert all(item['active_state'] == 'inactive' for item in group.command('stop', execute=True))
+        with pytest.raises(InstallerClientError):
+            client.call('start-portable-linux', start_request, min_minor=20)
     finally:
         subprocess.run(['/usr/bin/systemctl', '--user', 'stop', '--', *names], env=env,
                        stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=False)

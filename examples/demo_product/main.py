@@ -12,6 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
+import signal
 import sqlite3
 import time
 
@@ -48,6 +49,8 @@ def migrate(data_dir: Path, migration: str, failure: str) -> None:
 def serve(data_dir: Path, release: str, port: int, failure: str) -> None:
     if failure == "start":
         raise RuntimeError("Синтетический отказ запуска")
+    if failure == "stop":
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
     with closing(database(data_dir)):
         pass
 
@@ -73,6 +76,8 @@ def serve(data_dir: Path, release: str, port: int, failure: str) -> None:
 def worker(data_dir: Path, release: str, failure: str) -> None:
     if failure == "start":
         raise RuntimeError("Синтетический отказ запуска")
+    if failure == "stop":
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
     data_dir.mkdir(parents=True, exist_ok=True)
     heartbeat = data_dir / "worker-heartbeat.json"
     while True:
@@ -89,7 +94,7 @@ def main() -> int:
     parser.add_argument("--data-dir", type=Path, required=True)
     parser.add_argument("--release", choices=("1", "2"))
     parser.add_argument("--migration", choices=("schema-1", "schema-2"), default="schema-1")
-    parser.add_argument("--fail", choices=("none", "before", "during", "after", "start", "health"), default="none")
+    parser.add_argument("--fail", choices=("none", "before", "during", "after", "start", "health", "stop"), default="none")
     parser.add_argument("--port", type=int, default=0)
     args = parser.parse_args()
     release_file = Path(__file__).with_name("release.json")

@@ -110,7 +110,10 @@ class LiveEffects(Effects):
     def close(self):
         for process in reversed(self.processes):
             if process.poll() is None:
-                process.terminate()
+                if self.fail_health == 'stop':
+                    process.kill()
+                else:
+                    process.terminate()
             try:
                 process.wait(timeout=8)
             except subprocess.TimeoutExpired:
@@ -123,6 +126,14 @@ class LiveEffects(Effects):
 
     def stop(self, key, components):
         super().stop(key, components)
+        if self.fail_health == 'stop':
+            for process in self.processes:
+                process.terminate()
+            try:
+                for process in self.processes:
+                    process.wait(timeout=0.5)
+            except subprocess.TimeoutExpired:
+                raise EffectIndeterminate('Синтетический писатель не остановлен') from None
         self.close()
 
     def start(self, key, components, pre_start):
@@ -133,11 +144,13 @@ class LiveEffects(Effects):
         executable = self.ports.release_path(self.release) / 'main.py'
         data = str(self.home.roots['data'])
         self.log = (self.tmp_path / 'synthetic-service.log').open('w+', encoding='utf-8')
-        failure = 'health' if self.fail_health and key.endswith('/start') else 'none'
+        failure = ('stop' if self.fail_health == 'stop' else
+                   'health' if self.fail_health and key.endswith('/start') else 'none')
         server = subprocess.Popen([sys.executable, '-B', str(executable), 'serve', '--data-dir', data,
                                    '--port', str(self.manifest_port), '--fail', failure], stdout=self.log, stderr=subprocess.DEVNULL)
         self.processes.append(server)
-        worker = subprocess.Popen([sys.executable, '-B', str(executable), 'worker', '--data-dir', data],
+        worker = subprocess.Popen([sys.executable, '-B', str(executable), 'worker', '--data-dir', data,
+                                   '--fail', 'stop' if failure == 'stop' else 'none'],
                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.processes.append(worker)
         deadline = time.monotonic() + 10
@@ -344,6 +357,8 @@ def test_systemd_group_failure_has_indeterminate_effect(tmp_path, action):
     (True, False, False, False, False), (True, False, True, False, False),
     (True, True, False, False, False), (True, True, True, False, False), (True, True, True, True, False),
     (True, True, False, False, True), (True, True, True, False, True),
+    pytest.param(True, True, 'stop', False, True, marks=pytest.mark.skipif(
+        os.name != 'posix', reason='Сигнал SIGTERM проверяется на POSIX')),
     pytest.param(True, True, False, False, 'systemd', marks=pytest.mark.skipif(
         os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix', reason='opt-in systemd')),
     pytest.param(True, True, True, False, 'systemd', marks=pytest.mark.skipif(
@@ -505,6 +520,17 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
         effects.lifecycle_port = SystemdLifecyclePort(update, ports, install_root=str(installation), group=effects.group)
         effects.composite = LinuxSignedUpdateEffects(effects.lifecycle_port, effects.migration_port,
                                                    LocalUpdateHealthPort(update, ports))
+    if fail_health == 'stop':
+        with pytest.raises(UpdateIndeterminate):
+            update.run()
+        state = update.status()
+        assert state['direction'] == 'forward' and state['indeterminate'] is True
+        assert update.forward[state['index']] == 'stop' and state['archive_ready'] is False
+        assert all(process.poll() is None for process in effects.processes)
+        assert not ports.archive_path(state['transaction'] + '/archive').exists()
+        assert 'migrate' not in effects.calls and ports.current_release() == '1'
+        assert entries(home.roots['data'] / 'demo.sqlite3') == ['synthetic-schema-1']
+        return
     if fail_health == 'stop-crash':
         import shared.systemd_lifecycle_port as lifecycle
         from shared.effect_receipt import read_effect_receipt

@@ -1,6 +1,7 @@
 """Проверки синтетического продукта и локальных процессов, без внешней сети."""
 
 import json
+import os
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -50,8 +51,9 @@ def test_settings_persist_across_migrations(tmp_path):
     assert json.loads(settings.read_text(encoding="utf-8"))["locale"] == "de"
 
 
-def test_start_failure(tmp_path):
-    assert run(tmp_path, "serve", "--fail", "start").returncode != 0
+@pytest.mark.parametrize('action', ['serve', 'worker'])
+def test_start_failure(tmp_path, action):
+    assert run(tmp_path, action, "--fail", "start").returncode != 0
     assert not (tmp_path / "demo.sqlite3").exists()
 
 
@@ -110,6 +112,34 @@ def test_worker_writes_heartbeat(tmp_path):
     finally:
         process.terminate()
         process.wait(timeout=10)
+
+
+@pytest.mark.skipif(os.name != 'posix', reason='Сигнал SIGTERM проверяется на POSIX')
+@pytest.mark.parametrize('action', ['serve', 'worker'])
+def test_controlled_stop_failure_keeps_process_running(tmp_path, action):
+    output = tmp_path / 'process.log'
+    with output.open('w+') as log:
+        process = subprocess.Popen(command(tmp_path, action, '--fail', 'stop'), stdout=log,
+                                   stderr=subprocess.DEVNULL)
+        try:
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline:
+                log.seek(0)
+                if (log.readline() if action == 'serve' else (tmp_path / 'worker-heartbeat.json').exists()):
+                    break
+                if process.poll() is not None:
+                    pytest.fail('Тестовый процесс завершился до готовности')
+                time.sleep(0.05)
+            else:
+                pytest.fail('Тестовый процесс не подтвердил готовность')
+            process.terminate()
+            with pytest.raises(subprocess.TimeoutExpired):
+                process.wait(timeout=0.5)
+            assert process.poll() is None
+        finally:
+            if process.poll() is None:
+                process.kill()
+            process.wait(timeout=10)
 
 
 def test_distinct_release_payloads_enforce_release_identity(tmp_path):

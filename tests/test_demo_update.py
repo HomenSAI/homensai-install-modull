@@ -622,6 +622,18 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
         assert all(adapter.confirm_stopped()['active_state'] == 'inactive'
                    for adapter in effects.group.adapters.values())
         if assembled:
+            import base64
+            from shared.api import handle
+            api_params = {name: value for name, value in assembly_options.items() if name not in
+                          ('group', 'password_provider', 'interpreter', 'interpreter_sha256', 'timeout')}
+            for name in ('new_envelope', 'old_envelope', 'new_key', 'old_key'):
+                api_params[name] = base64.b64encode(api_params[name]).decode('ascii')
+            api_params['modes'], api_params['migration_ids'] = list(api_params['modes']), list(api_params['migration_ids'])
+            api_params['idempotency_key'] = api_params.pop('operation_id')
+            response = handle({'api_major': 1, 'request_id': 'inspect-interrupted-test',
+                               'operation': 'inspect-signed-linux-update', 'params': api_params})
+            assert response['ok'] is True and response['result']['state'] == state
+            assert response['result']['resume_authorized'] is False and commands == ['stop']
             update = assemble_prepared_linux_update(**assembly_options, reopen=True, reconcile_stop_key=key)
             ports = update.ports
             effects.ports, effects.composite = ports, ports.effects

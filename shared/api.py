@@ -36,10 +36,10 @@ from shared.runtime_native import NativeRuntimeError, prepare_signed_linux_runti
 from shared.systemd_fresh_start import FreshStartError, start_portable_fresh, stop_portable_fresh
 from shared.systemd_cycle import cycle_portable
 from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
-from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update
+from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 29
+API_MINOR = 30
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -175,8 +175,9 @@ def handle(request: Any) -> dict:
                 operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release"])
                 mutating_operations.append("prepare-native-release")
                 if _systemd_plan_available():
-                    operations.append('prepare-signed-linux-update')
-                    mutating_operations.append('prepare-signed-linux-update')
+                    operations.extend(['prepare-signed-linux-update', 'inspect-signed-linux-update'])
+                    # Проверка записывает служебные файлы блокировок, не изменяя продукт.
+                    mutating_operations.extend(['prepare-signed-linux-update', 'inspect-signed-linux-update'])
                     operations.extend(["plan-systemd-user-units", "publish-systemd-user-units", "load-systemd-user-units"])
                     mutating_operations.extend(["publish-systemd-user-units", "load-systemd-user-units"])
                     operations.extend(["plan-portable-systemd-user-units", "publish-portable-systemd-user-units",
@@ -287,7 +288,7 @@ def handle(request: Any) -> dict:
                 if operation == 'plan-update':
                     return _error(request_id, 'update_plan_failed', 'Не удалось составить план обновления', language, 'api.update_plan_failed')
                 return _error(request_id, "update_status_failed", "Не удалось прочитать состояние обновления", language, "api.update_status_failed")
-        elif operation == 'prepare-signed-linux-update':
+        elif operation in ('prepare-signed-linux-update', 'inspect-signed-linux-update'):
             fields = {'new_package', 'new_envelope', 'new_key', 'old_package', 'old_envelope', 'old_key',
                       'product_id', 'old_version', 'new_version', 'install_root', 'work_dir', 'modes',
                       'migration_ids', 'idempotency_key'}
@@ -310,12 +311,19 @@ def handle(request: Any) -> dict:
             if len(new_key) != 32 or len(old_key) != 32:
                 raise InvalidRequest()
             try:
-                result = prepare_signed_linux_update(new_package=params['new_package'], new_envelope=new_envelope,
+                handler = (prepare_signed_linux_update if operation == 'prepare-signed-linux-update'
+                           else verify_started_linux_update)
+                result = handler(new_package=params['new_package'], new_envelope=new_envelope,
                     new_key=new_key, old_package=params['old_package'], old_envelope=old_envelope, old_key=old_key,
                     product_id=params['product_id'], old_version=params['old_version'], new_version=params['new_version'],
                     install_root=params['install_root'], work_dir=params['work_dir'], modes=tuple(params['modes']),
                     migration_ids=tuple(params['migration_ids']), operation_id=params['idempotency_key'])
+                if operation == 'inspect-signed-linux-update':
+                    result.update(effects_verified=False, resume_authorized=False)
             except UpdatePrepareError:
+                if operation == 'inspect-signed-linux-update':
+                    return _error(request_id, 'update_inspect_failed', 'Не удалось проверить обновление',
+                                  language, 'api.update_inspect_failed')
                 return _error(request_id, 'update_prepare_failed', 'Не удалось подготовить обновление',
                               language, 'api.update_prepare_failed')
         elif operation == 'check-docker-engine':

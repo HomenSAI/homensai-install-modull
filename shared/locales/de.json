@@ -31,5 +31,6 @@
   "api.linux_cycle_failed": "Die Dienstoperation konnte nicht bestätigt werden",
   "api.update_archive_import_failed": "Der Archivimport konnte nicht bestätigt werden",
   "api.docker_preflight_failed": "Docker konnte nicht geprüft werden",
-  "api.update_prepare_failed": "Das Update konnte nicht vorbereitet werden"
+  "api.update_prepare_failed": "Das Update konnte nicht vorbereitet werden",
+  "api.update_inspect_failed": "Das Update konnte nicht überprüft werden"
 }

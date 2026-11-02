@@ -31,5 +31,6 @@
   "api.linux_cycle_failed": "Не удалось подтвердить управление службами",
   "api.update_archive_import_failed": "Не удалось подтвердить перенос архива",
   "api.docker_preflight_failed": "Не удалось проверить Docker",
-  "api.update_prepare_failed": "Не удалось подготовить обновление"
+  "api.update_prepare_failed": "Не удалось подготовить обновление",
+  "api.update_inspect_failed": "Не удалось проверить обновление"
 }

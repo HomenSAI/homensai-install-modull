@@ -262,9 +262,11 @@ def build_encrypted_archive(home, destination: str | Path, *, password_provider)
 
 
 def verify_archive(path: str | Path, *, password_provider=None,
-                   expected_product_id: str | None = None) -> dict:
-    """Автоопределение по magic, независимо от расширения; ZIP работает без crypto."""
-    if not is_encrypted(path):
+                   expected_product_id: str | None = None, require_encrypted: bool = False) -> dict:
+    """Проверить архив; строгий режим не допускает перехода на обычный ZIP."""
+    if type(require_encrypted) is not bool:
+        raise ArchiveCryptoError('Недопустимый режим проверки архива')
+    if not require_encrypted and not is_encrypted(path):
         return plain.verify_archive(path, expected_product_id=expected_product_id)
     with decrypted_archive(path, password_provider=password_provider,
                            expected_product_id=expected_product_id) as (_, manifest):
@@ -272,9 +274,11 @@ def verify_archive(path: str | Path, *, password_provider=None,
 
 
 def restore_archive(path: str | Path, target: str | Path, *, password_provider=None,
-                    expected_product_id: str | None = None) -> dict:
-    """Ни одной записи в target до полной аутентификации и проверки inner ZIP."""
-    if not is_encrypted(path):
+                    expected_product_id: str | None = None, require_encrypted: bool = False) -> dict:
+    """В строгом режиме восстановить только после проверки шифрованной оболочки."""
+    if type(require_encrypted) is not bool:
+        raise ArchiveCryptoError('Недопустимый режим восстановления архива')
+    if not require_encrypted and not is_encrypted(path):
         return plain.restore_archive(path, target, expected_product_id=expected_product_id)
     with decrypted_archive(path, password_provider=password_provider,
                            expected_product_id=expected_product_id) as (temporary, _):

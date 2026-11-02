@@ -150,7 +150,7 @@ class FilesystemPorts:
         if not archive_crypto.is_encrypted(path):
             raise UpdateError("Ожидался шифрованный архив; обычный ZIP запрещён")
         return archive_crypto.verify_archive(path, password_provider=self.password_provider,
-                                             expected_product_id=self.home.product_id)
+                                             expected_product_id=self.home.product_id, require_encrypted=True)
 
     def release_path(self, release: str) -> Path:
         if not _identifier(release):
@@ -271,7 +271,7 @@ class FilesystemPorts:
                 restore_archive(archive, scratch, expected_product_id=self.home.product_id)
             else:
                 archive_crypto.restore_archive(archive, scratch, password_provider=self.password_provider,
-                                                expected_product_id=self.home.product_id)
+                                                expected_product_id=self.home.product_id, require_encrypted=True)
             for name, target in sorted(self.home.roots.items()):
                 preserved = set()
                 if name == "services":

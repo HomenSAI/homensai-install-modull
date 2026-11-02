@@ -393,6 +393,64 @@ def test_fs_ports_no_plaintext_downgrade_without_crypto(tmp_path, home):
         ports.backup(key, "archive", ())
 
 
+def test_strict_encrypted_mode_never_falls_back_to_plain_zip(aes, tmp_path, home, monkeypatch):
+    path = tmp_path / 'plain.zip'
+    plain.build_archive(home, path)
+    target = tmp_path / 'target'
+    target.mkdir()
+    monkeypatch.setattr(crypto, 'is_encrypted', lambda *args: pytest.fail('strict mode must not sniff and fall back'))
+    with pytest.raises(plain.ArchiveError):
+        crypto.verify_archive(path, password_provider=lambda: PASSWORD, require_encrypted=True)
+    with pytest.raises(plain.ArchiveError):
+        crypto.restore_archive(path, target, password_provider=lambda: PASSWORD, require_encrypted=True)
+    assert not list(target.iterdir())
+
+
+@pytest.mark.parametrize('value', [None, 0, 1, 'true', []])
+def test_strict_encryption_flag_requires_bool(value, tmp_path):
+    for operation in (crypto.verify_archive, crypto.restore_archive):
+        args = [tmp_path / 'input'] + ([tmp_path / 'target'] if operation is crypto.restore_archive else [])
+        with pytest.raises(crypto.ArchiveCryptoError):
+            operation(*args, require_encrypted=value)
+
+
+def test_fs_verifier_rejects_plaintext_after_encryption_probe(aes, tmp_path, home, monkeypatch):
+    ports = FilesystemPorts(load_manifest(EXAMPLE), tmp_path / 'installation', work_dir=tmp_path / 'work',
+                            payloads={}, effects=None, password_provider=lambda: PASSWORD)
+    ports.work.mkdir()
+    key = 'a' * 32 + '/archive'
+    path = ports.archive_path(key)
+    plain.build_archive(home, path)
+    monkeypatch.setattr(crypto, 'is_encrypted', lambda path: True)  # Файл подменён после первого опроса.
+    with pytest.raises(plain.ArchiveError):
+        ports._verify_archive(path)
+
+
+def test_restore_rejects_plaintext_swap_after_verification(aes, tmp_path, home, monkeypatch):
+    ports = FilesystemPorts(load_manifest(EXAMPLE), tmp_path / 'installation', work_dir=tmp_path / 'work',
+                            payloads={}, effects=None, password_provider=lambda: PASSWORD)
+    transaction = 'b' * 32
+    archive_key = transaction + '/archive'
+    ports.backup(archive_key, 'archive', ())
+    ports.backup(transaction + '/before_rollback', 'before-rollback', ())
+    live = home.roots['data'] / 'sample.bin'
+    live.write_bytes(b'new synthetic data')
+    plaintext = tmp_path / 'replacement.zip'
+    plain.build_archive(home, plaintext)
+    original = ports._verify_archive
+    archive = ports.archive_path(archive_key)
+    def verify_and_swap(path):
+        receipt = original(path)
+        if path == archive:
+            os.replace(plaintext, archive)
+        return receipt
+    monkeypatch.setattr(ports, '_verify_archive', verify_and_swap)
+    with pytest.raises(plain.ArchiveError):
+        ports.restore(transaction + '/restore', archive_key, ())
+    assert live.read_bytes() == b'new synthetic data'
+    assert not ports._path(transaction + '/restore', '.json').exists()
+
+
 def test_fs_ports_encrypted_backup_before_rollback_and_restore(aes, tmp_path, home):
     ports = FilesystemPorts(load_manifest(EXAMPLE), tmp_path / "installation", work_dir=tmp_path / "work",
                             payloads={}, effects=None, password_provider=lambda: PASSWORD)

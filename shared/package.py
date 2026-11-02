@@ -35,7 +35,7 @@ class PackageError(ValueError):
     """Фиксированная ошибка без содержимого пользовательских файлов."""
 
 
-def _files(root: Path) -> tuple[list[dict], dict]:
+def _files(root: Path, *, verify_crypto_block: bool = True) -> tuple[list[dict], dict]:
     if not root.is_dir():
         raise PackageError("Требуется каталог payload")
     pending = [(root, "")]
@@ -61,7 +61,7 @@ def _files(root: Path) -> tuple[list[dict], dict]:
             pending.extend((Path(item.path), (name + "/" if name else "") + item.name)
                            for item in reversed(children))
         else:
-            if path.name.casefold() == "crypto-wheelhouse.json":
+            if verify_crypto_block and path.name.casefold() == "crypto-wheelhouse.json":
                 try:
                     verify_wheelhouse(path.parent)
                 except WheelhouseError:

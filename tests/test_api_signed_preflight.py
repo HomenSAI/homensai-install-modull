@@ -724,3 +724,84 @@ def test_api_replay_reverifies_package_and_rejects_tampering(signed_request, mon
         stream.write(b'tamper')
     assert handle(query)['error']['code'] == 'fresh_prepare_failed'
     assert (root / 'data/keep').read_text() == 'preserve'
+
+
+def test_api_verifies_prepared_release_against_signed_package(signed_request, monkeypatch):
+    query, _, _ = signed_request
+    monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    fresh_prepare(query)
+    root = Path(query['params']['install_root'])
+    before = {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob('*') if p.is_file()}
+    query = status_query(query)
+    query['operation'] = 'verify-native-release'
+    capabilities = handle({'api_major': 1, 'request_id': 't', 'operation': 'capabilities', 'params': {}})['result']
+    assert capabilities['api_minor'] >= 10 and 'verify-native-release' in capabilities['operations']
+    assert 'verify-native-release' not in capabilities['mutating_operations']
+    result = handle(query)
+    assert result['ok'] and result['result']['release_files_match'] is True
+    assert result['result']['installation_complete'] is False
+    assert str(root) not in json.dumps(result)
+    assert before == {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob('*') if p.is_file()}
+
+
+@pytest.mark.parametrize('change', ['file', 'extra_file', 'empty_dir', 'pointer', 'state', 'key'])
+def test_api_release_verification_refuses_modified_state(signed_request, monkeypatch, change):
+    query, _, _ = signed_request
+    monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    fresh_prepare(query)
+    root = Path(query['params']['install_root'])
+    release = root / 'releases/app-1'
+    query = status_query(query)
+    query['operation'] = 'verify-native-release'
+    query['language'] = 'en'
+    if change == 'file':
+        (release / 'locks/demo-linux.lock').write_text('tampered')
+    elif change == 'extra_file':
+        (release / 'unexpected').write_text('unexpected')
+    elif change == 'empty_dir':
+        (release / 'unexpected').mkdir()
+    elif change == 'pointer':
+        (root / 'services/active.json').write_text('{"release":"other"}')
+    elif change == 'state':
+        marker = root / '.homensai-fresh.json'
+        value = json.loads(marker.read_text())
+        value['status'] = 'preparing'
+        marker.write_text(json.dumps(value))
+    else:
+        query['params']['trusted_public_key'] = base64.b64encode(b'x' * 32).decode()
+    result = handle(query)
+    assert not result['ok'] and result['error']['code'] == 'fresh_verify_failed'
+    assert result['error']['message'] == 'Could not verify the prepared release'
+    assert str(root) not in json.dumps(result)
+
+
+def test_verify_native_release_request_matches_json_schema(signed_request):
+    jsonschema = pytest.importorskip('jsonschema')
+    query, _, _ = signed_request
+    query = status_query(query)
+    query['operation'] = 'verify-native-release'
+    schema = json.loads((ROOT / 'shared/api-v1-request.schema.json').read_text())
+    validator = jsonschema.Draft202012Validator(schema)
+    assert validator.is_valid(query)
+    query['params']['extra'] = 'forbidden'
+    assert not validator.is_valid(query)
+    assert handle(query)['error']['code'] == 'invalid_request'
+
+
+def test_cli_verifies_native_release(signed_request):
+    from shared.host_target import HostTargetError, native_target
+    try:
+        if native_target() != TARGET:
+            pytest.skip('Фикстура рассчитана на Linux x86_64')
+    except HostTargetError:
+        pytest.skip('Платформа процесса не поддерживается')
+    query, _, _ = signed_request
+    fresh_prepare(query)
+    query = status_query(query)
+    query['operation'] = 'verify-native-release'
+    process = subprocess.run([sys.executable, '-B', '-m', 'shared.api'], cwd=ROOT,
+                             input=json.dumps(query).encode(), capture_output=True, timeout=30)
+    assert process.returncode == 0 and process.stderr == b''
+    assert json.loads(process.stdout) == handle(query)

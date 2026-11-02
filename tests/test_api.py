@@ -124,12 +124,13 @@ def test_missing_signature_dependency_does_not_advertise_or_fallback(monkeypatch
     assert response["error"]["code"] == "unsupported_operation"
 
 
-def test_fresh_status_is_not_advertised_without_signature_support(monkeypatch):
+@pytest.mark.parametrize('operation', ['fresh-status', 'verify-native-release'])
+def test_fresh_status_is_not_advertised_without_signature_support(monkeypatch, operation):
     monkeypatch.setattr("shared.api._signature_available", lambda: False)
-    assert "fresh-status" not in handle(request())["result"]["operations"]
+    assert operation not in handle(request())["result"]["operations"]
     params = {"package_path": "/missing", "envelope": "e30=", "trusted_public_key": "YQ==",
               "expected_product_id": "demo", "expected_version": "1", "install_root": "/missing"}
-    assert handle(request("fresh-status", params))["error"]["code"] == "unsupported_operation"
+    assert handle(request(operation, params))["error"]["code"] == "unsupported_operation"
 
 
 @pytest.mark.parametrize("name,product,version", [

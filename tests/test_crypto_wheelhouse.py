@@ -180,3 +180,17 @@ def test_package_builder_rejects_tampered_license_even_if_runtime_hashes_match(s
     with pytest.raises(PackageError, match='Криптоблок'):
         build_package(manifest, '1.0', payload, tmp_path / 'bad.zip')
     assert not (tmp_path / 'bad.zip').exists()
+
+
+def test_signed_release_inventory_does_not_depend_on_current_builder_lock(sample, tmp_path):
+    from shared.package import PackageError, _files
+
+    source, _, lock = sample
+    payload = tmp_path / 'payload'
+    wh.build_wheelhouse(source, payload)
+    expected, _ = _files(payload)
+    lock.write_text('newer or unavailable builder lock')
+    with pytest.raises(PackageError):
+        _files(payload)
+    actual, _ = _files(payload, verify_crypto_block=False)
+    assert actual == expected

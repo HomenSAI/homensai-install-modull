@@ -14,7 +14,8 @@ import re
 import sys
 from typing import Any
 
-from shared.fresh_prepare import FreshConflict, FreshPrepareError, prepare_idempotent_native, status_fresh_native
+from shared.fresh_prepare import (FreshConflict, FreshPrepareError, prepare_idempotent_native,
+                                  status_fresh_native, verify_fresh_release)
 from shared.datahome import DataHomeError, checked_path
 from shared.host_target import HostTargetError, native_target
 from shared.i18n import LanguageError, available_languages, translate
@@ -25,7 +26,7 @@ from shared.preflight import MAX_BYTES as MAX_DISK_BYTES, NAMES as PATH_NAMES, P
 from shared.update_plan import UpdateError, UpdatePlan
 
 API_MAJOR = 1
-API_MINOR = 9
+API_MINOR = 10
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -137,7 +138,7 @@ def handle(request: Any) -> dict:
             operations = ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status"]
             mutating_operations = []
             if _signature_available():
-                operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "prepare-native-release"])
+                operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release"])
                 mutating_operations.append("prepare-native-release")
             result = {"api_major": API_MAJOR, "api_minor": API_MINOR,
                       "operations": operations,
@@ -225,7 +226,7 @@ def handle(request: Any) -> dict:
             result = {'transaction': state['transaction'], 'product_id': state['product_id'],
                       'version': state['version'], 'status': state['status'],
                       'process_target': state['process_target'], 'installation_complete': False}
-        elif operation == "fresh-status":
+        elif operation in ("fresh-status", "verify-native-release"):
             fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root"}
             if set(params) != fields or any(type(params[field]) is not str for field in fields):
                 raise InvalidRequest()
@@ -240,11 +241,14 @@ def handle(request: Any) -> dict:
             if len(key) != 32:
                 raise InvalidRequest()
             try:
-                result = status_fresh_native(params['package_path'], envelope, params['install_root'],
-                                             trusted_public_key=key,
-                                             expected_product_id=params['expected_product_id'],
-                                             expected_version=params['expected_version'])
+                verifier = status_fresh_native if operation == "fresh-status" else verify_fresh_release
+                result = verifier(params['package_path'], envelope, params['install_root'],
+                                  trusted_public_key=key,
+                                  expected_product_id=params['expected_product_id'],
+                                  expected_version=params['expected_version'])
             except FreshPrepareError:
+                if operation == "verify-native-release":
+                    return _error(request_id, "fresh_verify_failed", "Не удалось проверить подготовленный выпуск", language, "api.fresh_verify_failed")
                 return _error(request_id, "fresh_status_failed", "Не удалось прочитать состояние подготовки", language, "api.fresh_status_failed")
         elif operation in ("verify-package", "inspect-fresh-package", "inspect-native-fresh-package"):
             package_fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version"}

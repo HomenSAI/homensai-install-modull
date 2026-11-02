@@ -15,10 +15,11 @@ import stat
 import uuid
 
 from shared.adapters_fs import FilesystemPorts, ReleaseSource, _tree
+from shared.archive import ArchiveError
 from shared.datahome import DataHomeError, checked_path, contains, resolve_datahome
 from shared.host_target import HostTargetError, native_target
 from shared.manifest import ManifestError, check_target
-from shared.package import PackageError
+from shared.package import PackageError, _files
 from shared.package_prepare import prepare_native_signed_package
 from shared.package_signing import verify_signed_package
 from shared.preflight import MAX_BYTES, NAMES, PreflightError, _nearest_directory, preflight_fresh
@@ -171,6 +172,57 @@ def status_fresh_native(package_path, envelope, install_root, *, trusted_public_
     except (PackageError, DataHomeError, HostTargetError, ManifestError, UpdateError,
             OSError, ValueError, KeyError, TypeError, RecursionError):
         raise FreshPrepareError('Не удалось прочитать состояние подготовки') from None
+
+
+def verify_fresh_release(package_path, envelope, install_root, *, trusted_public_key,
+                         expected_product_id, expected_version):
+    """Сверить файлы и указатель с пакетом; не проверяет работу приложения."""
+    try:
+        root = checked_path(install_root)
+        if root == Path(root.anchor) or not root.is_dir():
+            raise FreshPrepareError('Корень недоступен')
+        metadata = verify_signed_package(package_path, envelope, trusted_public_key=trusted_public_key,
+                                         expected_product_id=expected_product_id,
+                                         expected_version=expected_version)
+        manifest, target = metadata['manifest'], native_target()
+        if manifest['schema_version'] != 2 or check_target(manifest, target)['status'] != 'supported':
+            raise FreshPrepareError('Платформа не подтверждена')
+        home, _, control, marker = _layout(manifest, root)
+        plan = _plan(root, metadata, trusted_public_key, target)
+        state = _read_state(marker, plan, expected_product_id, expected_version, statuses=('prepared',))
+        ports = FilesystemPorts(manifest, root, work_dir=control / 'work', payloads={},
+                                effects=None, password_provider=lambda: None)
+        pointer = checked_path(ports.pointer)
+        info = pointer.lstat()
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > 8192:
+            raise FreshPrepareError('Указатель выпуска недоступен')
+        with pointer.open('rb') as stream:
+            raw_pointer = stream.read(8193)
+        if json.loads(raw_pointer.decode('utf-8'), object_pairs_hook=_object) != {'release': expected_version}:
+            raise FreshPrepareError('Указатель выпуска не совпадает')
+        release = ports.release_path(expected_version)
+        # The signed inventory is authoritative for this release, including
+        # older crypto versions; today's builder lock is not its policy.
+        entries, signatures = _files(release, verify_crypto_block=False)
+        if entries != metadata['files']:
+            raise FreshPrepareError('Файлы выпуска не совпадают')
+        expected_dirs = {''}
+        for item in metadata['files']:
+            parts = item['path'].split('/')
+            expected_dirs.update('/'.join(parts[:i]) for i in range(1, len(parts)))
+        if {name for name, signature in signatures.items() if stat.S_ISDIR(signature[2])} != expected_dirs:
+            raise FreshPrepareError('Каталоги выпуска не совпадают')
+        with pointer.open('rb') as stream:
+            final_pointer = stream.read(8193)
+        if (_read_state(marker, plan, expected_product_id, expected_version, statuses=('prepared',)) != state
+                or final_pointer != raw_pointer):
+            raise FreshPrepareError('Состояние изменилось во время проверки')
+        return {'transaction': state['transaction'], 'product_id': state['product_id'],
+                'version': state['version'], 'release_files_match': True,
+                'installation_complete': False, 'process_target': target}
+    except (PackageError, ArchiveError, DataHomeError, HostTargetError, ManifestError, UpdateError,
+            OSError, UnicodeError, ValueError, KeyError, TypeError, RecursionError):
+        raise FreshPrepareError('Не удалось проверить подготовленный выпуск') from None
 
 
 def _check_lock(path):

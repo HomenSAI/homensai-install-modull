@@ -52,11 +52,13 @@ def test_stop_in_reverse_then_recheck_all_and_start_forward():
     events = []
     subject, _ = group(events)
     assert all(item['active_state'] == 'inactive' for item in subject.command('stop', execute=True))
-    assert events == [('stop', 'scheduler'), ('stop', 'bot'), ('stop', 'web'),
+    assert events == [('inspect', 'web'), ('inspect', 'bot'), ('inspect', 'scheduler'),
+                      ('stop', 'scheduler'), ('stop', 'bot'), ('stop', 'web'),
                       ('confirm', 'web'), ('confirm', 'bot'), ('confirm', 'scheduler')]
     events.clear()
     assert all(item['active_state'] == 'active' for item in subject.command('start', execute=True))
-    assert events == [('start', 'web'), ('start', 'bot'), ('start', 'scheduler'),
+    assert events == [('inspect', 'web'), ('inspect', 'bot'), ('inspect', 'scheduler'),
+                      ('start', 'web'), ('start', 'bot'), ('start', 'scheduler'),
                       ('inspect', 'web'), ('inspect', 'bot'), ('inspect', 'scheduler')]
 
 
@@ -65,8 +67,26 @@ def test_failed_stop_stops_no_more_and_returns_safe_error():
     subject, _ = group(events, fail='stop')
     with pytest.raises(SystemdGroupError) as error:
         subject.command('stop', execute=True)
-    assert events == [('stop', 'scheduler'), ('stop', 'bot')]
+    assert events == [('inspect', 'web'), ('inspect', 'bot'), ('inspect', 'scheduler'),
+                      ('stop', 'scheduler'), ('stop', 'bot')]
     assert 'SECRET-SENTINEL' not in str(error.value)
+
+
+@pytest.mark.parametrize('action', ['start', 'stop'])
+@pytest.mark.parametrize('reason', ['untrusted', 'transition'])
+def test_group_preflight_rejects_invalid_component_before_any_action(action, reason):
+    events = []
+    subject, adapters = group(events)
+    def invalid():
+        events.append(('inspect', 'scheduler'))
+        if reason == 'untrusted':
+            raise RuntimeError('SECRET-SENTINEL')
+        return {'unit': adapters['scheduler'].unit, 'active_state': 'activating'}
+    adapters['scheduler'].inspect = invalid
+    with pytest.raises(SystemdGroupError) as error:
+        subject.command(action, execute=True)
+    assert 'SECRET-SENTINEL' not in str(error.value)
+    assert not any(event[0] in ('start', 'stop') for event in events)
 
 
 def test_race_during_final_check_refuses_success():

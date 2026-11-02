@@ -39,6 +39,12 @@ class SystemdUserGroup:
         if not execute:
             return [self.adapters[name].command(action) for name in order]
         try:
+            # Предварительная проверка всей группы не устраняет гонки, но не
+            # начинает менять остальные службы при уже известной проблеме.
+            for name in self.order:
+                status = self.adapters[name].inspect()
+                if status['active_state'] not in ('active', 'inactive'):
+                    raise SystemdGroupError('Состояние компонента неустойчиво')
             for name in order:
                 self.adapters[name].command(action, execute=True)
             results = []

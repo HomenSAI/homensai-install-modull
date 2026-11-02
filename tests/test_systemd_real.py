@@ -105,7 +105,7 @@ def test_transient_user_service_can_stop_and_start():
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Реальный пользовательский systemd проверяется только явно')
 def test_group_start_and_stop_with_real_user_manager():
-    from shared.systemd_group import SystemdUserGroup
+    from shared.systemd_group import SystemdGroupError, SystemdUserGroup
     manifest = load_manifest(ROOT / 'examples/rent.manifest.json')
     manifest['product_id'] = 'homensai-test-' + uuid.uuid4().hex[:16]
     names = ('web', 'bot', 'scheduler')
@@ -133,6 +133,17 @@ def test_group_start_and_stop_with_real_user_manager():
                                                 fragment_path=str(fragment),
                                                 fragment_sha256=hashlib.sha256(fragment.read_bytes()).hexdigest())
         group = SystemdUserGroup(manifest, modes=('autonomous',), adapters=adapters)
+        bad = dict(adapters)
+        bot = adapters['bot']
+        bad['bot'] = SystemdUserAdapter(manifest, modes=('autonomous',), component='bot',
+                                        fragment_path=str(bot.path), fragment_sha256='0' * 64)
+        with pytest.raises(SystemdGroupError):
+            SystemdUserGroup(manifest, modes=('autonomous',), adapters=bad).command('stop', execute=True)
+        for unit in units:
+            result = subprocess.run(base + ['is-active', '--quiet', '--', unit], env=env,
+                                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                    stderr=subprocess.DEVNULL, timeout=15)
+            assert result.returncode == 0
         assert [x['active_state'] for x in group.command('stop', execute=True)] == ['inactive'] * 3
         assert [x['active_state'] for x in group.command('start', execute=True)] == ['active'] * 3
     finally:

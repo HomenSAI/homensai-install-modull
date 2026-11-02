@@ -10,6 +10,7 @@ from pathlib import Path
 import sqlite3
 import subprocess
 import sys
+import time
 import zipfile
 
 import pytest
@@ -69,12 +70,89 @@ class Effects:
         self.calls.append("post_update")
 
 
-@pytest.mark.parametrize("signed_release,encrypted,fail_health,corrupt", [
-    (False, False, False, False), (False, False, True, False),
-    (True, False, False, False), (True, False, True, False),
-    (True, True, False, False), (True, True, True, False), (True, True, True, True),
+class LiveEffects(Effects):
+    """Только тестовый адаптер: управляет дочерними процессами этого теста."""
+    def __init__(self, home, tmp_path, *, fail_health):
+        super().__init__(home, fail_health=fail_health)
+        self.tmp_path = tmp_path
+        self.processes = []
+        self.log = None
+        self.port = None
+        self.release = None
+
+    def close(self):
+        for process in reversed(self.processes):
+            if process.poll() is None:
+                process.terminate()
+            try:
+                process.wait(timeout=8)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=8)
+        self.processes.clear()
+        if self.log is not None:
+            self.log.close()
+            self.log = None
+
+    def stop(self, key, components):
+        super().stop(key, components)
+        self.close()
+
+    def start(self, key, components, pre_start):
+        super().start(key, components, pre_start)
+        if self.processes:
+            raise RuntimeError('test processes are already running')
+        self.release = self.ports.current_release()
+        executable = self.ports.release_path(self.release) / 'main.py'
+        data = str(self.home.roots['data'])
+        self.log = (self.tmp_path / 'synthetic-service.log').open('w+', encoding='utf-8')
+        failure = 'health' if self.fail_health and key.endswith('/start') else 'none'
+        server = subprocess.Popen([sys.executable, '-B', str(executable), 'serve', '--data-dir', data,
+                                   '--port', '0', '--fail', failure], stdout=self.log, stderr=subprocess.DEVNULL)
+        self.processes.append(server)
+        worker = subprocess.Popen([sys.executable, '-B', str(executable), 'worker', '--data-dir', data],
+                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.processes.append(worker)
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            self.log.seek(0)
+            line = self.log.readline()
+            if line:
+                self.port = json.loads(line)['port']
+                return
+            if any(process.poll() is not None for process in self.processes):
+                raise RuntimeError('test process exited during start')
+            time.sleep(0.05)
+        raise RuntimeError('test server did not report its port')
+
+    def health(self, key, url, timeout, checks):
+        self.calls.append(key.split('/')[-1])
+        code = ("import sys; from shared.health import check_local_health; "
+                "check_local_health(int(sys.argv[1]),product_id='homensai-test-demo',version=sys.argv[2])")
+        result = subprocess.run([sys.executable, '-B', '-c', code, str(self.port), self.release],
+                                capture_output=True, timeout=8)
+        if result.returncode != 0:
+            raise RuntimeError('test health check failed')
+        heartbeat = self.home.roots['data'] / 'worker-heartbeat.json'
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            if heartbeat.exists():
+                value = json.loads(heartbeat.read_text(encoding='utf-8'))
+                if value['pid'] == self.processes[1].pid and value['release'] == self.release:
+                    return
+            if any(process.poll() is not None for process in self.processes):
+                raise RuntimeError('test process exited during health check')
+            time.sleep(0.05)
+        raise RuntimeError('test worker did not report heartbeat')
+
+
+@pytest.mark.parametrize("signed_release,encrypted,fail_health,corrupt,live", [
+    (False, False, False, False, False), (False, False, True, False, False),
+    (True, False, False, False, False), (True, False, True, False, False),
+    (True, True, False, False, False), (True, True, True, False, False), (True, True, True, True, False),
+    (True, True, False, False, True), (True, True, True, False, True),
 ])
-def test_real_demo_migration_update_and_rollback(tmp_path, signed_release, encrypted, fail_health, corrupt):
+def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_release, encrypted, fail_health, corrupt, live):
     source = tmp_path / "source"
     subprocess.run([sys.executable, "-B", str(DEMO / "build_releases.py"), str(source)],
                    capture_output=True, text=True, timeout=15, check=True)
@@ -140,7 +218,10 @@ def test_real_demo_migration_update_and_rollback(tmp_path, signed_release, encry
     home = resolve_datahome(manifest, installation)
     for directory in (home.app, home.releases, *home.roots.values()):
         directory.mkdir(parents=True, exist_ok=True)
-    effects = Effects(home, fail_health=fail_health, corrupt_archive=corrupt)
+    effects = (LiveEffects(home, tmp_path, fail_health=fail_health) if live
+               else Effects(home, fail_health=fail_health, corrupt_archive=corrupt))
+    if live:
+        request.addfinalizer(effects.close)
     password = "synthetic-test-password-not-a-secret"
     password_provider = (lambda: password) if encrypted else None
     ports = FilesystemPorts(manifest, installation, work_dir=tmp_path / "work",
@@ -154,6 +235,9 @@ def test_real_demo_migration_update_and_rollback(tmp_path, signed_release, encry
     invoke(ports.release_path("1") / "main.py", home.roots["data"])
     settings = home.roots["data"] / "settings.json"
     settings.write_text('{"display_name":"Example","locale":"de"}\n', encoding="utf-8")
+    if live:
+        effects.start('0' * 32 + '/initial_start', (), ())
+        effects.health('0' * 32 + '/initial_health', '', 10, ())
 
     update = UpdatePlan(manifest, installation, ports, release="2", modes=("platform",),
                         migration_ids=("schema-2",))
@@ -169,6 +253,10 @@ def test_real_demo_migration_update_and_rollback(tmp_path, signed_release, encry
     result = update.run()
     assert result["outcome"] == ("rolled_back" if fail_health else "updated")
     assert ports.current_release() == ("1" if fail_health else "2")
+    if live:
+        assert effects.release == ('1' if fail_health else '2')
+        assert all(process.poll() is None for process in effects.processes)
+        assert 'stop' in effects.calls and ('rollback_health' in effects.calls) == fail_health
     expected = ["synthetic-schema-1"] + ([] if fail_health else ["synthetic-schema-2"])
     assert entries(home.roots["data"] / "demo.sqlite3") == expected
     assert json.loads(settings.read_text(encoding="utf-8"))["locale"] == "de"

@@ -1,16 +1,19 @@
-"""Файловая транзакция с настоящей синтетической миграцией SQLite.
+"""Транзакция с синтетической SQLite и тестовыми адаптерами исполнения.
 
-Службы и health подменены; это не приёмка платформенного установщика.
+Opt-in сценарий использует настоящие временные user-systemd службы; порты
+хуков и миграций тестовые, crash-resume не проверяется. Это не приёмка.
 """
 
 from hashlib import sha256
 from contextlib import contextmanager
 import json
+import os
 from pathlib import Path
 import sqlite3
 import subprocess
 import sys
 import time
+import uuid
 import zipfile
 
 import pytest
@@ -146,11 +149,114 @@ class LiveEffects(Effects):
         raise RuntimeError('test worker did not report heartbeat')
 
 
+class SystemdEffects(Effects):
+    """Тестовый мост: не реализует durable-идемпотентность производственных портов."""
+    def __init__(self, home, tmp_path, *, fail_health, manifest):
+        super().__init__(home, fail_health=fail_health)
+        self.tmp_path, self.manifest = tmp_path, manifest
+        self.log = tmp_path / 'systemd-web.log'
+        self.created = []
+        self.group = None
+        runtime = '/run/user/' + str(os.getuid())
+        self.env = {'PATH': '/usr/bin:/bin', 'LC_ALL': 'C', 'SYSTEMD_PAGER': 'cat',
+                    'XDG_RUNTIME_DIR': runtime, 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=' + runtime + '/bus'}
+        self.base = ['/usr/bin/systemctl', '--user', '--no-pager', '--no-ask-password']
+
+    def launch(self):
+        from shared.systemd_group import SystemdUserGroup
+        from shared.systemd_user import SystemdUserAdapter
+        launcher = self.tmp_path / 'test-launcher.py'
+        launcher.write_text(
+            'import json, os, pathlib, sys\n'
+            'root, pointer, data, action = sys.argv[1:]\n'
+            'version = json.loads(pathlib.Path(pointer).read_text())["release"]\n'
+            'script = pathlib.Path(root) / ("app-" + version) / "main.py"\n'
+            'args = [sys.executable, "-B", str(script), action, "--data-dir", data]\n'
+            'if action == "serve": args += ["--port", "0"]\n'
+            'os.execv(sys.executable, args)\n', encoding='utf-8')
+        units = [self.manifest['product_id'] + '-' + n + '.service' for n in ('web', 'bot')]
+        holder = self.manifest['product_id'] + '-holder.service'
+        extra_env = ['--setenv=' + name + '=' + os.environ[name]
+                     for name in ('PYTHONHOME', 'LD_LIBRARY_PATH') if name in os.environ]
+        for unit, action in zip([*units, holder], ['serve', 'worker', 'holder']):
+            extra = (['--property=StandardOutput=file:' + str(self.log)] if action == 'serve' else
+                     ['--property=Wants=' + ' '.join(units)] if action == 'holder' else [])
+            command = (['/usr/bin/sleep', '90'] if action == 'holder' else
+                       [sys.executable, '-B', str(launcher), str(self.home.releases),
+                        str(self.ports.pointer), str(self.home.roots['data']), action])
+            result = subprocess.run(['/usr/bin/systemd-run', '--user', '--unit=' + unit,
+                                     '--property=RuntimeMaxSec=90s', *extra_env, *extra, '--', *command],
+                                    env=self.env, stdin=subprocess.DEVNULL, capture_output=True, timeout=15)
+            if result.returncode:
+                raise RuntimeError('Не удалось создать тестовую службу')
+            self.created.append(unit)
+        adapters = {}
+        for name, unit in zip(('web', 'bot'), units):
+            fragment = Path(subprocess.run(self.base + ['show', '--property=FragmentPath', '--value', '--', unit],
+                                           env=self.env, stdin=subprocess.DEVNULL, capture_output=True,
+                                           timeout=15, check=True).stdout.decode().strip())
+            adapters[name] = SystemdUserAdapter(self.manifest, modes=('autonomous',), component=name,
+                                                fragment_path=str(fragment),
+                                                fragment_sha256=sha256(fragment.read_bytes()).hexdigest())
+        self.group = SystemdUserGroup(self.manifest, modes=('autonomous',), adapters=adapters)
+
+    def close(self):
+        for unit in reversed(self.created):
+            for action in ('stop', 'reset-failed'):
+                subprocess.run(self.base + [action, '--', unit], env=self.env, stdin=subprocess.DEVNULL,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, check=False)
+
+    def stop(self, key, components):
+        super().stop(key, components)
+        assert components == ('bot', 'web')
+        self.group.command('stop', execute=True)
+
+    def start(self, key, components, pre_start):
+        super().start(key, components, pre_start)
+        assert components == ('web', 'bot')
+        self.log.write_text('', encoding='utf-8')
+        self.group.command('start', execute=True)
+
+    def health(self, key, url, timeout, checks):
+        phase = key.split('/')[-1]
+        self.calls.append(phase)
+        if phase == 'health' and self.fail_health:
+            raise RuntimeError('synthetic health failure')
+        release = self.ports.current_release()
+        deadline = time.monotonic() + min(timeout, 10)
+        while time.monotonic() < deadline:
+            try:
+                port = json.loads(self.log.read_text().splitlines()[-1])['port']
+                heartbeat = json.loads((self.home.roots['data'] / 'worker-heartbeat.json').read_text())
+                pid = int(subprocess.run(self.base + ['show', '--property=MainPID', '--value', '--',
+                                                    self.manifest['product_id'] + '-bot.service'],
+                                         env=self.env, stdin=subprocess.DEVNULL, capture_output=True,
+                                         timeout=5, check=True).stdout)
+                if heartbeat['release'] != release or heartbeat['pid'] != pid or pid == 0:
+                    time.sleep(0.05)
+                    continue
+                code = ("import sys; from shared.health import check_local_health; "
+                        "check_local_health(int(sys.argv[1]),product_id='homensai-test-demo',version=sys.argv[2])")
+                result = subprocess.run([sys.executable, '-B', '-c', code, str(port), release],
+                                        capture_output=True, timeout=5)
+                if result.returncode == 0:
+                    self.release = release
+                    return
+            except (OSError, ValueError, KeyError, IndexError, subprocess.SubprocessError):
+                pass
+            time.sleep(0.05)
+        raise RuntimeError('test systemd product health failure')
+
+
 @pytest.mark.parametrize("signed_release,encrypted,fail_health,corrupt,live", [
     (False, False, False, False, False), (False, False, True, False, False),
     (True, False, False, False, False), (True, False, True, False, False),
     (True, True, False, False, False), (True, True, True, False, False), (True, True, True, True, False),
     (True, True, False, False, True), (True, True, True, False, True),
+    pytest.param(True, True, False, False, 'systemd', marks=pytest.mark.skipif(
+        os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix', reason='opt-in systemd')),
+    pytest.param(True, True, True, False, 'systemd', marks=pytest.mark.skipif(
+        os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix', reason='opt-in systemd')),
 ])
 def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_release, encrypted, fail_health, corrupt, live):
     source = tmp_path / "source"
@@ -173,6 +279,10 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_relea
     manifest = load_manifest(ROOT / "examples/rent.manifest.json")
     manifest["product_name"] = "Синтетический тест обновления"
     manifest["product_id"] = "homensai-test-demo"
+    if live == 'systemd':
+        manifest['product_id'] = 'homensai-test-' + uuid.uuid4().hex[:16]
+        manifest['components'] = [c for c in manifest['components'] if c['name'] != 'scheduler']
+        manifest['modes'][0]['components'] = ['web', 'bot']
     manifest["runtime"]["lock_files"] = {
         name: {"file": "locks/" + name + ".lock", "sha256": sha256(synthetic["locks/" + name + ".lock"]).hexdigest()}
         for name in ("windows", "linux")}
@@ -218,7 +328,8 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_relea
     home = resolve_datahome(manifest, installation)
     for directory in (home.app, home.releases, *home.roots.values()):
         directory.mkdir(parents=True, exist_ok=True)
-    effects = (LiveEffects(home, tmp_path, fail_health=fail_health) if live
+    effects = (SystemdEffects(home, tmp_path, fail_health=fail_health, manifest=manifest) if live == 'systemd'
+               else LiveEffects(home, tmp_path, fail_health=fail_health) if live
                else Effects(home, fail_health=fail_health, corrupt_archive=corrupt))
     if live:
         request.addfinalizer(effects.close)
@@ -235,11 +346,14 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_relea
     invoke(ports.release_path("1") / "main.py", home.roots["data"])
     settings = home.roots["data"] / "settings.json"
     settings.write_text('{"display_name":"Example","locale":"de"}\n', encoding="utf-8")
-    if live:
+    if live == 'systemd':
+        effects.launch()
+        effects.health('0' * 32 + '/initial_health', '', 10, ())
+    elif live:
         effects.start('0' * 32 + '/initial_start', (), ())
         effects.health('0' * 32 + '/initial_health', '', 10, ())
 
-    update = UpdatePlan(manifest, installation, ports, release="2", modes=("platform",),
+    update = UpdatePlan(manifest, installation, ports, release="2", modes=("autonomous" if live == 'systemd' else "platform",),
                         migration_ids=("schema-2",))
     if corrupt:
         with pytest.raises(UpdateError):
@@ -255,7 +369,8 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_relea
     assert ports.current_release() == ("1" if fail_health else "2")
     if live:
         assert effects.release == ('1' if fail_health else '2')
-        assert all(process.poll() is None for process in effects.processes)
+        if live != 'systemd':
+            assert all(process.poll() is None for process in effects.processes)
         assert 'stop' in effects.calls and ('rollback_health' in effects.calls) == fail_health
     expected = ["synthetic-schema-1"] + ([] if fail_health else ["synthetic-schema-2"])
     assert entries(home.roots["data"] / "demo.sqlite3") == expected

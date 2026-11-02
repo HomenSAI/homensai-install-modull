@@ -3,8 +3,9 @@ import json
 from importlib import resources
 
 from .client import InstallerClient, InstallerClientError
+from .writer_guard import CooperativeWriterLock, WriterGuardError
 
-__version__ = '0.2.0'
+__version__ = '0.3.0'
 CONTRACT_API_MAJOR = 1
 CONTRACT_API_MINOR = 43
 
@@ -17,5 +18,6 @@ def contract_schema(kind: str) -> dict:
     return json.loads(data)
 
 
-__all__ = ['InstallerClient', 'InstallerClientError', 'CONTRACT_API_MAJOR', 'CONTRACT_API_MINOR',
+__all__ = ['InstallerClient', 'InstallerClientError', 'CooperativeWriterLock', 'WriterGuardError',
+           'CONTRACT_API_MAJOR', 'CONTRACT_API_MINOR',
            'contract_schema', '__version__']

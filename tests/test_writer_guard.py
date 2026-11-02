@@ -8,9 +8,21 @@ import time
 
 import pytest
 
-from shared.writer_guard import CooperativeWriterLock, WriterGuardError
+from homensai_installer_client import CooperativeWriterLock, WriterGuardError
 
 pytestmark = pytest.mark.skipif(not sys.platform.startswith('linux'), reason='Requires Linux flock')
+
+
+def test_installer_and_client_use_the_same_lock_type():
+    from shared.writer_guard import CooperativeWriterLock as InstallerLock
+    assert InstallerLock is CooperativeWriterLock
+
+
+@pytest.mark.parametrize('path', ['relative/lock', '/tmp/../escape', '/tmp/invalid.', '/tmp/a\\b',
+                                   '/tmp/control\nchar', '/tmp/name:stream', '//server/share'])
+def test_lock_rejects_ambiguous_or_nonlocal_paths(path):
+    with pytest.raises(WriterGuardError):
+        CooperativeWriterLock(path)
 
 
 def test_real_writer_and_backup_exclude_each_other(tmp_path):
@@ -113,12 +125,8 @@ def test_demo_worker_quiesces_before_real_archive(tmp_path):
         root.mkdir(parents=True)
     home = DataHome('homensai-test-demo', tmp_path / 'app', tmp_path / 'releases', roots)
     archive = tmp_path / 'synthetic.zip'
-    code = ('import sys\nfrom shared.writer_guard import CooperativeWriterLock\n'
-            'from examples.demo_product.main import main\n'
-            'lock, data = sys.argv[1:]\n'
-            'with CooperativeWriterLock(lock).hold(exclusive=False):\n'
-            ' sys.argv=["demo", "worker", "--data-dir", data]\n main()\n')
-    worker = subprocess.Popen([sys.executable, '-B', '-c', code, str(guard.path), str(roots['data'])],
+    worker = subprocess.Popen([sys.executable, '-B', '-m', 'examples.demo_product.main', 'worker',
+                               '--data-dir', str(roots['data']), '--writer-lock', str(guard.path)],
                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     try:
         deadline = time.monotonic() + 10
@@ -143,3 +151,57 @@ def test_demo_worker_quiesces_before_real_archive(tmp_path):
             worker.kill()
             worker.wait(timeout=10)
         worker.stderr.close()
+
+
+@pytest.mark.parametrize('action', ['migrate', 'serve', 'worker'])
+def test_demo_writer_refuses_to_start_during_backup(tmp_path, action):
+    private = tmp_path / 'private'
+    private.mkdir(mode=0o700)
+    guard = CooperativeWriterLock(str(private / 'writers.lock'))
+    data = tmp_path / 'data'
+    with guard.hold(exclusive=True):
+        result = subprocess.run([sys.executable, '-B', '-m', 'examples.demo_product.main', action,
+                                 '--data-dir', str(data), '--writer-lock', str(guard.path)],
+                                capture_output=True, timeout=10)
+        assert result.returncode != 0 and not data.exists()
+
+
+def test_all_cooperating_demo_writers_must_stop_before_backup(tmp_path):
+    private = tmp_path / 'private'
+    private.mkdir(mode=0o700)
+    guard = CooperativeWriterLock(str(private / 'writers.lock'))
+    data = tmp_path / 'data'
+    base = [sys.executable, '-B', '-m', 'examples.demo_product.main']
+    processes = []
+    try:
+        for action in ('serve', 'worker'):
+            processes.append(subprocess.Popen(base + [action, '--data-dir', str(data),
+                                                       '--writer-lock', str(guard.path)],
+                                              stdout=subprocess.DEVNULL, stderr=subprocess.PIPE))
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            if (data / 'demo.sqlite3').exists() and (data / 'worker-heartbeat.json').exists():
+                break
+            if any(process.poll() is not None for process in processes):
+                pytest.fail('demo writer exited before readiness')
+            time.sleep(0.05)
+        else:
+            pytest.fail('demo writers did not become ready')
+        with pytest.raises(WriterGuardError):
+            with guard.hold(exclusive=True):
+                pass
+        processes[1].terminate()
+        assert processes[1].wait(timeout=10) == 0
+        with pytest.raises(WriterGuardError):
+            with guard.hold(exclusive=True):
+                pass
+        processes[0].terminate()
+        assert processes[0].wait(timeout=10) == 0
+        with guard.hold(exclusive=True):
+            pass
+    finally:
+        for process in processes:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=10)
+            process.stderr.close()

@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import argparse
-from contextlib import closing
+from contextlib import closing, nullcontext
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
@@ -98,6 +98,7 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--listen", choices=("127.0.0.1", "0.0.0.0"), default="127.0.0.1",
                         help="0.0.0.0 только для изолированной контейнерной сети")
+    parser.add_argument("--writer-lock", type=Path, help="абсолютный путь общего замка писателей Linux")
     args = parser.parse_args()
     release_file = Path(__file__).with_name("release.json")
     if release_file.exists():
@@ -117,14 +118,19 @@ def main() -> int:
         def stop_process(signum, frame):
             raise SystemExit(0)
         signal.signal(signal.SIGTERM, stop_process)
-    if args.action == "migrate":
-        if args.release == "1" and args.migration == "schema-2":
-            parser.error("Миграция schema-2 недоступна в версии 1")
-        migrate(args.data_dir, args.migration, args.fail)
-    elif args.action == "serve":
-        serve(args.data_dir, args.release, args.port, args.fail, listen=args.listen)
-    else:
-        worker(args.data_dir, args.release, args.fail)
+    lease = nullcontext()
+    if args.writer_lock is not None:
+        from homensai_installer_client import CooperativeWriterLock
+        lease = CooperativeWriterLock(str(args.writer_lock)).hold(exclusive=False)
+    with lease:
+        if args.action == "migrate":
+            if args.release == "1" and args.migration == "schema-2":
+                parser.error("Миграция schema-2 недоступна в версии 1")
+            migrate(args.data_dir, args.migration, args.fail)
+        elif args.action == "serve":
+            serve(args.data_dir, args.release, args.port, args.fail, listen=args.listen)
+        else:
+            worker(args.data_dir, args.release, args.fail)
     return 0
 
 

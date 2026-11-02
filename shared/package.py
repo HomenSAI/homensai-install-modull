@@ -151,6 +151,38 @@ def _sha256(stream) -> str:
     return _digest(stream)[1]
 
 
+def _verify_runtime_inventory(archive, files):
+    """Сверить распознанные блоки runtime в ZIP без извлечения файлов."""
+    from shared.runtime_block import MAX_LOCK, PROVENANCE, RECIPE, _parse, _recipe
+
+    inventory = {item['path']: item for item in files}
+    markers = [name for name in inventory if name.rsplit('/', 1)[-1].casefold() == PROVENANCE.casefold()]
+    if len(markers) > 32:
+        raise PackageError('Слишком много блоков runtime')
+    for marker in markers:
+        if marker.rsplit('/', 1)[-1] != PROVENANCE:
+            raise PackageError('Недопустимое имя описания runtime')
+        entry = inventory[marker]
+        if entry['size'] > MAX_LOCK:
+            raise PackageError('Описание runtime слишком велико')
+        try:
+            data = archive.read('payload/' + marker)
+            definition = _parse(data)
+            recipe = _recipe(definition)
+        except Exception:
+            raise PackageError('Описание runtime не подтверждено') from None
+        parent = marker.rpartition('/')[0]
+        prefix = parent + '/' if parent else ''
+        expected = {prefix + item['path']: {**item, 'path': prefix + item['path']}
+                    for item in definition['files']}
+        expected[prefix + RECIPE] = {'path': prefix + RECIPE, 'size': len(recipe),
+                                     'sha256': hashlib.sha256(recipe).hexdigest()}
+        expected[marker] = entry
+        actual = {name: item for name, item in inventory.items() if name.startswith(prefix)}
+        if actual != expected:
+            raise PackageError('Состав runtime не соответствует описанию')
+
+
 def verify_package(path: str | Path, *, expected_sha256: str) -> dict:
     """Проверить доверенный внешний hash и весь ZIP до любого извлечения."""
     if type(expected_sha256) is not str or _HASH.fullmatch(expected_sha256) is None:
@@ -197,6 +229,7 @@ def verify_package(path: str | Path, *, expected_sha256: str) -> dict:
                         size, digest = _digest(member)
                     if size != item["size"] or not hmac.compare_digest(digest, item["sha256"]):
                         raise PackageError("Содержимое файла пакета повреждено")
+                _verify_runtime_inventory(archive, metadata['files'])
             if not hmac.compare_digest(_sha256(stream), expected_sha256):
                 raise PackageError("Пакет изменился во время проверки")
             after = os.fstat(stream.fileno())

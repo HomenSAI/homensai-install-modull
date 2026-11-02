@@ -1,7 +1,9 @@
 """Синтетический runtime-блок, доверие к заявленному источнику не предполагается."""
 import hashlib
+import base64
 import json
 from pathlib import Path
+import zipfile
 
 import pytest
 
@@ -127,6 +129,53 @@ def test_package_inventory_rechecks_runtime_block(candidate, tmp_path):
     (block / 'licenses/LICENSE').write_text('tampered')
     with pytest.raises(PackageError, match='runtime'):
         _files(payload)
+
+
+@pytest.mark.parametrize('mutation', ['license', 'missing', 'extra', 'recipe', 'bad_provenance'])
+def test_zip_rejects_inconsistent_runtime_even_when_signed(candidate, tmp_path, mutation):
+    ed = pytest.importorskip('cryptography.hazmat.primitives.asymmetric.ed25519')
+    serialization = pytest.importorskip('cryptography.hazmat.primitives.serialization')
+    from shared.archive import _info
+    from shared.manifest import load_manifest
+    from shared.package import PackageError, verify_package
+    from shared.package_signing import _canonical, verify_signed_package
+
+    source, lock_path, _ = candidate
+    block = tmp_path / 'runtime-linux'
+    build_runtime_block(source, lock_path, block)
+    members = {'runtime-linux/' + p.relative_to(block).as_posix(): p.read_bytes()
+               for p in block.rglob('*') if p.is_file()}
+    if mutation == 'license':
+        members['runtime-linux/licenses/LICENSE'] = b'changed but rehashed'
+    elif mutation == 'missing':
+        del members['runtime-linux/licenses/LICENSE']
+    elif mutation == 'extra':
+        members['runtime-linux/unlisted'] = b'extra but rehashed'
+    elif mutation == 'recipe':
+        members['runtime-linux/runtime-v1.json'] = b'{}'
+    else:
+        members['runtime-linux/runtime-provenance-v1.json'] = b'{}'
+    product = load_manifest(ROOT / 'examples/jobpilot.manifest.json')
+    metadata = {'format': 1, 'product_id': product['product_id'], 'version': '1', 'manifest': product,
+                'files': [{'path': name, 'size': len(body), 'sha256': hashlib.sha256(body).hexdigest()}
+                          for name, body in sorted(members.items())]}
+    package = tmp_path / 'forged.zip'
+    with zipfile.ZipFile(package, 'w') as archive:
+        archive.writestr(_info('package.json'), json.dumps(metadata).encode())
+        for name, body in sorted(members.items()):
+            archive.writestr(_info('payload/' + name), body)
+    digest = hashlib.sha256(package.read_bytes()).hexdigest()
+    with pytest.raises(PackageError, match='runtime'):
+        verify_package(package, expected_sha256=digest)
+    private = ed.Ed25519PrivateKey.generate()
+    public = private.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    claims = {'format': 1, 'algorithm': 'Ed25519', 'product_id': product['product_id'],
+              'version': '1', 'sha256': digest}
+    signature = base64.b64encode(private.sign(_canonical(claims))).decode('ascii')
+    envelope = json.dumps({**claims, 'signature': signature}).encode()
+    with pytest.raises(PackageError, match='runtime'):
+        verify_signed_package(package, envelope, trusted_public_key=public,
+                              expected_product_id=product['product_id'], expected_version='1')
 
 
 def test_built_block_can_be_signed_and_prepared(candidate, tmp_path, monkeypatch):

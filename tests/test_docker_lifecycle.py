@@ -17,7 +17,7 @@ from test_docker_recipe import signed_plan
 from test_docker_prepare import preparation
 from test_docker_images import image_check, inspect_query
 from shared import api, docker_images, docker_lifecycle
-from shared.docker_lifecycle import DockerLifecycleError, _status_records, _verify_runtime, control_signed_compose, status_signed_compose
+from shared.docker_lifecycle import DockerLifecycleError, _status_records, _verify_environment, _verify_runtime, control_signed_compose, status_signed_compose
 from shared.effect_receipt import read_effect_receipt
 from shared.i18n import translate
 from examples.demo_product.installer_client import InstallerClient
@@ -50,6 +50,7 @@ class FakeDaemon:
         self.bad_image = False
         self.bad_hash = False
         self.unsafe_runtime = False
+        self.unsafe_environment = False
 
     def __call__(self, argv, *, timeout, env):
         assert env['DOCKER_CONFIG'] == env['HOME'] and 'SYNTHETIC_DOCKER_SECRET' not in env
@@ -57,7 +58,8 @@ class FakeDaemon:
         args = argv[5:]
         project, services = self.compose['name'], self.compose['services']
         if args[:2] == ['image', 'inspect']:
-            output = json.dumps('sha256:' + 'd' * 64 if args[3] in ('{{json .Id}}', '{{json .ID}}') else [args[-1]])
+            output = json.dumps('sha256:' + 'd' * 64 if args[3] in ('{{json .Id}}', '{{json .ID}}')
+                                else [] if args[3] == '{{json .Config.Env}}' else [args[-1]])
         elif args == ['compose', 'version', '--short']:
             output = 'v2.30.3\n'
         elif args == ['compose', 'up', '--help']:
@@ -97,6 +99,8 @@ class FakeDaemon:
             views = runtime_views(project, services[name])
             if self.unsafe_runtime:
                 views[1]['Privileged'] = True
+            if self.unsafe_environment:
+                views[0]['Env'] = ['PYTHONPATH=/data/injected']
             index = ('{{json .Config}}', '{{json .HostConfig}}', '{{json .Mounts}}',
                      '{{json .NetworkSettings.Networks}}').index(args[2])
             output = json.dumps(views[index])
@@ -155,7 +159,7 @@ def test_runtime_rejects_unsafe_or_unexpected_settings(change):
     service = {'user': '10001:10001', 'command': ['python', '-c', 'print("$$HOME")'],
                'ports': ['127.0.0.1:43817:8080']}
     config, host, mounts, networks = deepcopy(runtime_views('project', service))
-    _verify_runtime(config, host, mounts, networks, service, 'project')
+    _verify_runtime(config, host, mounts, networks, service, 'project', [])
     if change == 'command': config['Cmd'] = ['sh']
     elif change == 'user': config['User'] = '0:0'
     elif change == 'entrypoint': config['Entrypoint'] = ['/bin/sh']
@@ -175,7 +179,33 @@ def test_runtime_rejects_unsafe_or_unexpected_settings(change):
     elif change == 'public_port': host['PortBindings']['8080/tcp'][0]['HostIp'] = '0.0.0.0'
     else: host['PortBindings']['9000/tcp'] = [{'HostIp': '0.0.0.0', 'HostPort': '9000'}]
     with pytest.raises(DockerLifecycleError):
-        _verify_runtime(config, host, mounts, networks, service, 'project')
+        _verify_runtime(config, host, mounts, networks, service, 'project', [])
+
+
+def test_environment_accepts_image_defaults_and_documented_engine_additions():
+    base = ['PATH=/bin:/usr/bin', 'LANG=C.UTF-8', 'FEATURE=a=b']
+    _verify_environment(base, base)
+    _verify_environment(base, ['PATH=/usr/local/bin:/bin:/usr/bin', 'TERM=xterm',
+                               'container=podman', 'LANG=C.UTF-8', 'FEATURE=a=b'])
+    _verify_environment(None, ['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'])
+    _verify_environment(base, [*base, 'HOSTNAME=123456789abc'], hostname='123456789abc')
+    with pytest.raises(DockerLifecycleError):
+        _verify_environment(base, [*base, 'HOSTNAME=attacker'], hostname='123456789abc')
+
+
+@pytest.mark.parametrize('container_env', [
+    ['PATH=/bin', 'PYTHONPATH=/data'],
+    ['PATH=/bin', 'PATH=/evil'],
+    ['PATH=/evil'],
+    ['PATH=/bin', 'TERM=evil'],
+    ['PATH=/bin', 'container=docker'],
+    ['PATH=/bin', 'LD_PRELOAD=/data/evil.so'],
+    ['PATH=/bin', 'NOT-VALID=value'],
+    ['PATH=/bin', 'MISSING-EQUALS'],
+])
+def test_environment_rejects_injection_duplicates_and_changed_defaults(container_env):
+    with pytest.raises(DockerLifecycleError):
+        _verify_environment(['PATH=/bin'], container_env)
 
 
 def test_signed_start_stop_and_retries_do_not_repeat_actions(lifecycle):
@@ -344,6 +374,15 @@ def test_wrong_configuration_hash_never_confirms_start(lifecycle):
 def test_privileged_container_is_not_confirmed_even_with_valid_compose_label(lifecycle):
     package, envelope, options, daemon = lifecycle
     daemon.unsafe_runtime = True
+    with pytest.raises(DockerLifecycleError):
+        control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
+    marker = Path(options['work_dir']) / ('compose-lifecycle-' + options['instance_id'] + '.json')
+    assert read_effect_receipt(marker)['status'] == 'start_pending'
+
+
+def test_injected_environment_is_not_confirmed_even_with_valid_compose_label(lifecycle):
+    package, envelope, options, daemon = lifecycle
+    daemon.unsafe_environment = True
     with pytest.raises(DockerLifecycleError):
         control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
     marker = Path(options['work_dir']) / ('compose-lifecycle-' + options['instance_id'] + '.json')
@@ -544,7 +583,7 @@ compose = json.loads(pathlib.Path(COMPOSE_PATH).read_text())
 args = sys.argv[5:]
 project, services = compose['name'], compose['services']
 if args[:2] == ['image', 'inspect']:
-    output = json.dumps('sha256:' + 'd' * 64 if args[3] in ('{{json .Id}}', '{{json .ID}}') else [args[-1]])
+    output = json.dumps('sha256:' + 'd' * 64 if args[3] in ('{{json .Id}}', '{{json .ID}}') else [] if args[3] == '{{json .Config.Env}}' else [args[-1]])
 elif args == ['compose', 'version', '--short']:
     output = 'v2.30.3'
 elif args == ['compose', 'up', '--help']:

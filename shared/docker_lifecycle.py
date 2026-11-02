@@ -112,10 +112,50 @@ def _status_records(output, project, services, *, stopped=False):
     return found
 
 
-def _verify_runtime(config, host, mounts, networks, service, project):
+def _environment_map(values):
+    if values is None:
+        return {}
+    if type(values) is not list or len(values) > 256:
+        raise DockerLifecycleError('Недопустимое окружение')
+    result = {}
+    for item in values:
+        if type(item) is not str or len(item) > 8192 or '=' not in item:
+            raise DockerLifecycleError('Недопустимое окружение')
+        key, value = item.split('=', 1)
+        if re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', key) is None or key in result:
+            raise DockerLifecycleError('Недопустимое окружение')
+        result[key] = value
+    return result
+
+
+def _verify_environment(image_env, container_env, *, hostname=None):
+    base, actual = _environment_map(image_env), _environment_map(container_env)
+    default_path = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+    extras = {'TERM': 'xterm', 'container': 'podman'}
+    for key, value in base.items():
+        if key == 'PATH':
+            if actual.get(key) not in (value, '/usr/local/bin:' + value):
+                raise DockerLifecycleError('Окружение контейнера не соответствует образу')
+        elif actual.get(key) != value:
+            raise DockerLifecycleError('Окружение контейнера не соответствует образу')
+    for key in set(actual) - set(base):
+        if key == 'HOSTNAME' and hostname is not None and actual[key] == hostname:
+            continue
+        if key == 'PATH' and actual[key] in (default_path, '/usr/local/bin:' + default_path):
+            continue
+        if key not in extras or actual[key] != extras[key]:
+            raise DockerLifecycleError('Лишние переменные окружения')
+
+
+def _verify_runtime(config, host, mounts, networks, service, project, image_env, container_id=None):
     """Compare selected daemon-reported settings with the signed Compose model."""
     if any(type(value) is not dict for value in (config, host, networks)) or type(mounts) is not list:
         raise DockerLifecycleError('Некорректные настройки контейнера')
+    hostname = None
+    if (type(container_id) is str and re.fullmatch(r'[a-f0-9]{12,64}', container_id) is not None
+            and config.get('Hostname') == container_id[:12]):
+        hostname = container_id[:12]
+    _verify_environment(image_env, config.get('Env'), hostname=hostname)
     expected_command = [arg.replace('$$', '$') for arg in service['command']]
     security = host.get('SecurityOpt')
     safe_security = {'no-new-privileges', 'no-new-privileges:true', 'no-new-privileges=true'}
@@ -285,7 +325,9 @@ def control_signed_compose(package_path: str, envelope: bytes, *, trusted_public
                         for field in ('Config', 'HostConfig', 'Mounts', 'NetworkSettings.Networks'):
                             output = run(['inspect', '--format', '{{json .' + field + '}}', container_id])
                             views.append(json.loads(output, object_pairs_hook=_object, parse_constant=_reject_constant))
-                        _verify_runtime(*views, services[name], project)
+                        output = run(['image', 'inspect', '--format', '{{json .Config.Env}}', services[name]['image']])
+                        image_env = json.loads(output, object_pairs_hook=_object, parse_constant=_reject_constant)
+                        _verify_runtime(*views, services[name], project, image_env, container_id)
                     if _status_records(run(prefix + ['ps', '--all', '--format', 'json']),
                                        project, services, stopped=stopped) != rows:
                         raise DockerLifecycleError('Состав контейнеров изменился')

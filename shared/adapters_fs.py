@@ -228,6 +228,14 @@ class FilesystemPorts:
         self._record(key, value)
 
     def backup(self, key: str, purpose: str, command: tuple[str, ...]) -> None:
+        guarded = getattr(self.effects, 'guarded_backup', None)
+        if guarded is not None:
+            if not callable(guarded):
+                raise UpdateError('Недопустимая проверка остановки')
+            return guarded(key, purpose, command, self._backup)
+        return self._backup(key, purpose, command)
+
+    def _backup(self, key: str, purpose: str, command: tuple[str, ...]) -> None:
         expected = key.split("/", 1)[-1].replace("before_rollback", "before-rollback")
         if purpose != expected:
             raise UpdateError("Назначение копии не соответствует ключу")

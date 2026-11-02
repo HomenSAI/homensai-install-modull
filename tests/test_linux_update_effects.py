@@ -10,7 +10,7 @@ from shared.systemd_group import SystemdUserGroup
 from shared.systemd_lifecycle_port import SystemdLifecyclePort
 from shared.systemd_user import SystemdUserAdapter
 from shared.update_health_port import LocalUpdateHealthPort
-from shared.update_plan import UpdateError, UpdatePlan, _ACTIVE_EFFECT
+from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan, _ACTIVE_EFFECT
 
 
 class FakeAdapter(SystemdUserAdapter):
@@ -97,3 +97,104 @@ def test_mixed_transaction_ports_and_post_hooks_rejected(setup, tmp_path):
     plan.manifest['hooks']['post_update'] = [['arbitrary']]
     with pytest.raises(UpdateError):
         LinuxSignedUpdateEffects(effects.lifecycle, effects.migration, effects.health_port)
+
+
+def _prepare_archive(setup):
+    plan, ports, _, state, adapters = setup
+    transaction = state['transaction']
+    token = _ACTIVE_EFFECT.set((plan, transaction, 'stop'))
+    try:
+        ports.stop(transaction + '/stop', tuple(reversed(plan.components)))
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+    state['index'] = plan.forward.index('archive')
+    plan._save(state)
+    return plan, ports, state, adapters
+
+
+def test_backup_requires_stopped_group_and_confirms_it_after_snapshot(setup, monkeypatch):
+    plan, ports, state, adapters = _prepare_archive(setup)
+    key = state['transaction'] + '/archive'
+    calls = []
+    def fake_backup(*args):
+        calls.append(args)
+        ports.archive_path(key).write_bytes(b'synthetic archive')
+    monkeypatch.setattr(ports, '_backup', fake_backup)
+    token = _ACTIVE_EFFECT.set((plan, state['transaction'], 'archive'))
+    try:
+        ports.backup(key, 'archive', ())
+        assert calls == [(key, 'archive', ())]
+        from shared.effect_receipt import read_effect_receipt
+        assert read_effect_receipt(ports._path(key, '.quiescence.json'))['status'] == 'done'
+        adapters[plan.components[0]].active = True
+        with pytest.raises(EffectIndeterminate):
+            ports.backup(key, 'archive', ())
+        assert len(calls) == 1
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+
+
+def test_restart_during_backup_leaves_pending_and_never_reuses_snapshot(setup, monkeypatch):
+    plan, ports, state, adapters = _prepare_archive(setup)
+    key = state['transaction'] + '/archive'
+    calls = []
+    def restart(*args):
+        calls.append(args)
+        ports.archive_path(key).write_bytes(b'untrusted snapshot')
+        adapters[plan.components[0]].active = True
+    monkeypatch.setattr(ports, '_backup', restart)
+    token = _ACTIVE_EFFECT.set((plan, state['transaction'], 'archive'))
+    try:
+        with pytest.raises(EffectIndeterminate):
+            ports.backup(key, 'archive', ())
+        adapters[plan.components[0]].active = False
+        with pytest.raises(EffectIndeterminate):
+            ports.backup(key, 'archive', ())
+        from shared.effect_receipt import read_effect_receipt
+        assert read_effect_receipt(ports._path(key, '.quiescence.json'))['status'] == 'pending'
+        assert len(calls) == 1
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+
+
+def test_unrecorded_stop_and_existing_untracked_archive_are_rejected(setup, monkeypatch):
+    plan, ports, state, _ = _prepare_archive(setup)
+    key = state['transaction'] + '/archive'
+    monkeypatch.setattr(ports, '_backup', lambda *args: pytest.fail('Unexpected backup'))
+    token = _ACTIVE_EFFECT.set((plan, state['transaction'], 'archive'))
+    try:
+        stop = ports._path(state['transaction'] + '/stop', '.service.json')
+        saved = stop.read_bytes()
+        stop.unlink()
+        with pytest.raises(EffectIndeterminate):
+            ports.backup(key, 'archive', ())
+        stop.write_bytes(saved)
+        ports.archive_path(key).write_bytes(b'untracked')
+        with pytest.raises(EffectIndeterminate):
+            ports.backup(key, 'archive', ())
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+
+
+def test_rollback_backup_requires_rollback_stop_receipt(setup, monkeypatch):
+    plan, ports, _, state, _ = setup
+    state.update(direction='rollback', index=0, failed_phase='health', archive_ready=True)
+    plan._save(state)
+    transaction = state['transaction']
+    token = _ACTIVE_EFFECT.set((plan, transaction, 'rollback_stop'))
+    try:
+        ports.stop(transaction + '/rollback_stop', tuple(reversed(plan.components)))
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+    state['index'] = plan.rollback.index('before_rollback')
+    plan._save(state)
+    key = transaction + '/before_rollback'
+    monkeypatch.setattr(ports, '_backup', lambda *args: ports.archive_path(key).write_bytes(b'test'))
+    token = _ACTIVE_EFFECT.set((plan, transaction, 'before_rollback'))
+    try:
+        ports.backup(key, 'before-rollback', ())
+        from shared.effect_receipt import read_effect_receipt
+        receipt = read_effect_receipt(ports._path(key, '.quiescence.json'))
+        assert receipt['stop_key'] == transaction + '/rollback_stop' and receipt['status'] == 'done'
+    finally:
+        _ACTIVE_EFFECT.reset(token)

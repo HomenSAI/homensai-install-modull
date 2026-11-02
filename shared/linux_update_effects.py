@@ -2,10 +2,16 @@
 """Связка ограниченных портов обновления для Linux user-systemd."""
 from __future__ import annotations
 
+import re
+
+from shared.datahome import checked_path
+from shared.effect_receipt import read_effect_receipt
 from shared.signed_migration_port import SignedMigrationPort
 from shared.systemd_lifecycle_port import SystemdLifecyclePort
 from shared.update_health_port import LocalUpdateHealthPort
-from shared.update_plan import UpdateError, _ACTIVE_EFFECT
+from shared.update_plan import EffectIndeterminate, UpdateError, _ACTIVE_EFFECT, _atomic_write
+
+_BACKUP_KEY = re.compile(r'([a-f0-9]{32})/(archive|backup:(?:0|[1-9][0-9]{0,5})|before_rollback)\Z')
 
 
 class LinuxSignedUpdateEffects:
@@ -36,6 +42,60 @@ class LinuxSignedUpdateEffects:
 
     def health(self, key, url, timeout, checks):
         return self.health_port.health(key, url, timeout, checks)
+
+    def guarded_backup(self, key, purpose, command, backup):
+        """Проверить остановку группы вокруг снимка; pending не повторяется."""
+        match = _BACKUP_KEY.fullmatch(key) if type(key) is str else None
+        if (match is None or type(command) is not tuple or not callable(backup)
+                or purpose != match.group(2).replace('before_rollback', 'before-rollback')):
+            raise UpdateError('Недопустимый запрос копии')
+        transaction, phase = match.groups()
+        active = _ACTIVE_EFFECT.get()
+        if active != (self.plan, transaction, phase):
+            raise UpdateError('Копия не соответствует активному плану')
+        direction = 'rollback' if phase == 'before_rollback' else 'forward'
+        stop_phase = 'rollback_stop' if direction == 'rollback' else 'stop'
+        ports = self.lifecycle.ports
+        binding = {'version': 1, 'plan': self.plan.digest, 'key': key,
+                   'stop_key': transaction + '/' + stop_phase,
+                   'installation_sha256': self.lifecycle.install_hash,
+                   'units_sha256': self.lifecycle.units_hash}
+        stop_binding = {'version': 1, 'plan': self.plan.digest, 'key': binding['stop_key'],
+                        'action': 'stop', 'installation_sha256': self.lifecycle.install_hash,
+                        'units_sha256': self.lifecycle.units_hash, 'status': 'done'}
+        def confirm_stopped():
+            state = self.plan.status()
+            phases = self.plan.rollback if direction == 'rollback' else self.plan.forward
+            if (state is None or state['transaction'] != transaction or state['direction'] != direction
+                    or state['outcome'] != 'running' or state.get('indeterminate') is not True
+                    or phases[state['index']] != phase or self.lifecycle._units_hash() != self.lifecycle.units_hash
+                    or read_effect_receipt(ports._path(binding['stop_key'], '.service.json')) != stop_binding):
+                raise EffectIndeterminate('Остановка перед копией не подтверждена')
+            self.lifecycle._check_state('stop')
+        try:
+            checked_path(ports.work).mkdir(parents=True, exist_ok=True)
+            marker = ports._path(key, '.quiescence.json')
+            record = read_effect_receipt(marker)
+            done = {**binding, 'status': 'done'}
+            if record is not None and record != done:
+                raise EffectIndeterminate('Предыдущая копия требует проверки')
+            if (record is None and ports.archive_path(key).exists()) or (record == done and not ports.archive_path(key).exists()):
+                raise EffectIndeterminate('Копия не соответствует отметке')
+            confirm_stopped()
+            if record is None:
+                _atomic_write(marker, {**binding, 'status': 'pending'})
+            backup(key, purpose, command)
+            confirm_stopped()
+            if record is None:
+                if read_effect_receipt(marker) != {**binding, 'status': 'pending'}:
+                    raise EffectIndeterminate('Отметка копии изменилась')
+                _atomic_write(marker, done)
+            if read_effect_receipt(marker) != done:
+                raise EffectIndeterminate('Копия не подтверждена')
+        except EffectIndeterminate:
+            raise
+        except Exception:
+            raise EffectIndeterminate('Согласованность копии не подтверждена') from None
 
     def post_update(self, key, hooks):
         active = _ACTIVE_EFFECT.get()

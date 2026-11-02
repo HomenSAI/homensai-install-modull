@@ -333,6 +333,11 @@ class SystemdEffects(Effects):
         if self.composite is not None:
             return self.composite.post_update(key, hooks)
 
+    def guarded_backup(self, key, purpose, command, backup):
+        if self.composite is not None:
+            return self.composite.guarded_backup(key, purpose, command, backup)
+        return backup(key, purpose, command)
+
 
 @pytest.mark.parametrize('action', ['start', 'stop'])
 def test_systemd_group_failure_has_indeterminate_effect(tmp_path, action):
@@ -413,7 +418,7 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
                 raise
         monkeypatch.setattr(socket, 'create_connection', loopback_only)
         manifest['web']['healthz'] = '/health'
-        manifest['update']['health_wait'] = 2
+        manifest['update']['health_wait'] = 10 if live == 'systemd' else 2
         manifest['hooks']['health_checks'] = []
     if live == 'systemd':
         manifest['product_id'] = systemd_product
@@ -560,7 +565,7 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
                                                       group=effects.group, reconcile_key=key)
         effects.composite.lifecycle = effects.lifecycle_port
         result = update.run(resume_indeterminate=True)
-        assert result['outcome'] == 'updated' and ports.current_release() == '2'
+        assert result['outcome'] == 'updated' and ports.current_release() == '2', result
         assert read_effect_receipt(ports._path(key, '.service.json'))['status'] == 'done'
         assert commands.count('stop') == 1 and commands.count('start') == 1
         assert entries(home.roots['data'] / 'demo.sqlite3') == ['synthetic-schema-1', 'synthetic-schema-2']

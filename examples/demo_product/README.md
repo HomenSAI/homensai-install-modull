@@ -92,11 +92,16 @@ HTTP-ответа конкретному процессу или здоровь�
 `installer_client.py` — пример подключения отдельного продукта к локальному
 JSON/CLI API. Нужен доверенный Python 3.14 с доступным `shared.api` в текущем
 каталоге или установленном окружении; сам установщик этот пример не поставляет.
+Если продукт работает из другого каталога, параметр `api_root` задаёт абсолютный
+путь к доверенному каталогу установщика, содержащему `shared`; дочерний процесс
+запускается именно в нём. Это не проверка подлинности каталога или Python — их
+происхождение, права и целостность должен обеспечить интегратор. Без `api_root`
+сохраняется прежнее поведение и используется текущий каталог процесса.
 
 ```python
 from examples.demo_product.installer_client import InstallerClient
 
-client = InstallerClient()
+client = InstallerClient(api_root='/absolute/path/to/trusted/installer')
 info = client.capabilities()
 result = client.call('validate', {'manifest': manifest}, min_minor=0, language='en')
 # После того как доверенный адаптер запустил продукт и получил его порт:

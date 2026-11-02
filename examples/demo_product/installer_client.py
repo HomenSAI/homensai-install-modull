@@ -1,8 +1,9 @@
 # HomenS.AI · © 2026 Serhii Khomenko
 """Пример локального клиента установщика для независимого тестового продукта.
 
-Требуется доверенный Python с установленным модулем shared.api; вызовы идут
-через JSON stdin/stdout без shell. Это пример, а не опубликованный SDK.
+Требуется доверенный Python и каталог с модулем shared.api; его можно явно
+передать как api_root. Вызовы идут через JSON stdin/stdout без shell. Это
+пример, а не опубликованный SDK.
 """
 from __future__ import annotations
 
@@ -37,10 +38,10 @@ def _unique(pairs):
     return value
 
 
-def _run_bounded(argv, *, input: bytes, timeout: float, env: dict):
+def _run_bounded(argv, *, input: bytes, timeout: float, env: dict, cwd: str | None = None):
     """Ограничить ответ при чтении; stderr не накапливается и не раскрывается."""
     process = subprocess.Popen(argv, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                               stderr=subprocess.DEVNULL, env=env, start_new_session=(os.name == 'posix'))
+                               stderr=subprocess.DEVNULL, env=env, cwd=cwd, start_new_session=(os.name == 'posix'))
     output = bytearray()
     overflow, failed = threading.Event(), threading.Event()
 
@@ -134,12 +135,16 @@ def _run_bounded(argv, *, input: bytes, timeout: float, env: dict):
 class InstallerClient:
     """Пример согласования возможностей и вызова одного локального API."""
 
-    def __init__(self, *, python_executable: str = sys.executable, timeout: float = 30):
+    def __init__(self, *, python_executable: str = sys.executable, timeout: float = 30,
+                 api_root: str | None = None):
         if (type(python_executable) is not str or not os.path.isabs(python_executable)
-                or type(timeout) not in (int, float) or not 0 < timeout <= 600):
+                or type(timeout) not in (int, float) or not 0 < timeout <= 600
+                or (api_root is not None and (type(api_root) is not str
+                    or not os.path.isabs(api_root) or not os.path.isdir(api_root)))):
             raise ValueError('invalid client configuration')
         self._python = python_executable
         self._timeout = timeout
+        self._api_root = api_root
 
     def _call(self, operation: str, params: dict, language: str | None, *, secret_env_name=None) -> dict:
         request_id = uuid.uuid4().hex
@@ -161,7 +166,7 @@ class InstallerClient:
                     raise InstallerClientError('secret_unavailable', 'Required installer secret is unavailable')
                 env[secret_env_name] = value
             completed = _run_bounded([self._python, '-B', '-m', 'shared.api'], input=body,
-                                     timeout=self._timeout, env=env)
+                                     timeout=self._timeout, env=env, cwd=self._api_root)
             if len(completed.stdout) > _MAX_BYTES:
                 raise ValueError('response too large')
             response = json.loads(completed.stdout.decode('utf-8'), object_pairs_hook=_unique,

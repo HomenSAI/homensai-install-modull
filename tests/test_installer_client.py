@@ -26,6 +26,26 @@ def test_real_client_negotiates_and_validates_product_manifest():
     assert str(exc.value) == 'Manifest does not meet the contract'
 
 
+def test_client_uses_explicit_installer_root_from_independent_product(tmp_path, monkeypatch):
+    # A product may contain its own package named shared; it must not shadow the installer.
+    impostor = tmp_path / 'shared'
+    impostor.mkdir()
+    (impostor / '__init__.py').write_text('', encoding='utf-8')
+    marker = tmp_path / 'wrong-api-executed'
+    (impostor / 'api.py').write_text('from pathlib import Path\nPath(' + repr(str(marker)) + ').write_text("bad")\n',
+                                     encoding='utf-8')
+    monkeypatch.chdir(tmp_path)
+    client = InstallerClient(api_root=str(ROOT), timeout=30)
+    assert client.capabilities()['api_major'] == 1
+    assert not marker.exists()
+
+
+def test_client_rejects_invalid_installer_root(tmp_path):
+    for invalid in ('relative/path', str(tmp_path / 'missing'), 42):
+        with pytest.raises(ValueError):
+            InstallerClient(api_root=invalid)
+
+
 def test_real_client_can_preview_update_without_creating_installation(tmp_path):
     client = InstallerClient(timeout=30)
     manifest = json.loads((ROOT / 'examples/rent.manifest.json').read_text())

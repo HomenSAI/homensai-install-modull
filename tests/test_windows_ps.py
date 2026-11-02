@@ -116,9 +116,14 @@ def test_winsw_verified_before_copy_registration_and_every_use(manifest):
     assert text.index("[IO.File]::Copy") < text.index("Invoke-Wrapper $id 'install'")
     wrapper = text[text.index("function Invoke-Wrapper"):text.index("function Stop-Components")]
     assert wrapper.index("Assert-Pin $exe") < wrapper.index("& $exe $Action")
+    assert wrapper.index("$ConfigHashes.ContainsKey($Id)") < wrapper.index("& $exe $Action")
+    assert wrapper.index("Get-FileHash -LiteralPath $config -Algorithm SHA256") < wrapper.index("& $exe $Action")
+    assert wrapper.index("$configHash -ine $ConfigHashes[$Id]") < wrapper.index("& $exe $Action")
     assert "Get-FileHash -LiteralPath $Path -Algorithm SHA256" in text
     for name in ("web", "bot", "scheduler"):
         xml = ET.fromstring(outputs["homensai-rent-demo-" + name + ".xml"])
+        digest = hashlib.sha256(outputs["homensai-rent-demo-" + name + ".xml"].encode('utf-8')).hexdigest()
+        assert "'homensai-rent-demo-" + name + "' = '" + digest + "'" in text
         assert xml.findtext("startmode") == "Automatic"
         assert xml.findtext("delayedAutoStart") == "true"
         assert xml.findtext("workingdirectory") == ROOT + "\\demo-layout\\app"

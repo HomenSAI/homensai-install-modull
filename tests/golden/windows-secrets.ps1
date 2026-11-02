@@ -77,7 +77,11 @@ function Assert-Pin([string]$Path) {
 function Invoke-Wrapper([string]$Id, [string]$Action) {
     $exe = Join-Path $Services ($Id + '.exe')
     Assert-Pin $exe
-    Assert-SafePath (Join-Path $Services ($Id + '.xml'))
+    $config = Join-Path $Services ($Id + '.xml')
+    Assert-SafePath $config
+    if (-not $ConfigHashes.ContainsKey($Id)) { throw 'Unknown service configuration.' }
+    $configHash = (Get-FileHash -LiteralPath $config -Algorithm SHA256).Hash
+    if ($configHash -ine $ConfigHashes[$Id]) { throw 'Service configuration mismatch.' }
     & $exe $Action > $null 2>&1
     if ($LASTEXITCODE -ne 0) { throw 'WinSW failed.' }
 }
@@ -104,6 +108,11 @@ $ScopeName = 'LocalMachine'
 $Directories = @('C:\Windows Demo\Owner''s $data; &(literal)`\demo-layout\app', 'C:\Windows Demo\Owner''s $data; &(literal)`\demo-layout\releases', 'C:\Windows Demo\Owner''s $data; &(literal)`\demo-layout\data', 'C:\Windows Demo\Owner''s $data; &(literal)`\demo-layout\backup', 'C:\Windows Demo\Owner''s $data; &(literal)`\demo-layout\services', 'C:\Windows Demo\Owner''s $data; &(literal)`\demo-layout\config', 'C:\Windows Demo\Owner''s $data; &(literal)`\demo-layout\runtime')
 $StartOrder = @('homensai-rent-demo-web', 'homensai-rent-demo-bot', 'homensai-rent-demo-scheduler')
 $StopOrder = @('homensai-rent-demo-scheduler', 'homensai-rent-demo-bot', 'homensai-rent-demo-web')
+$ConfigHashes = @{
+    'homensai-rent-demo-bot' = '669f2142eef078f11ffda582164956017aab7e6c8bd93760f0b79aff69da7ab5'
+    'homensai-rent-demo-scheduler' = '2ead165e5f7ec6caab5971058ad2181ce8878a1babae1b9f56b226925a2da12a'
+    'homensai-rent-demo-web' = 'a2db99b85b0e0c5ce78785a37e5bbbff3ce57d99a6861d3fe9ff4db4ba0e7c55'
+}
 $SecretNames = @('BACKUP_PASSWORD', 'BOT_TOKEN', 'ENCRYPTION_KEY')
 Add-Type -AssemblyName System.Security
 $Scope = [Security.Cryptography.DataProtectionScope]::LocalMachine

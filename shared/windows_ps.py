@@ -8,6 +8,7 @@ v2, явный mode, проверенные байты WinSW. Rollback треб�
 from __future__ import annotations
 
 import base64
+import hashlib
 from itertools import combinations
 import ntpath
 from pathlib import PureWindowsPath
@@ -124,7 +125,11 @@ function Assert-Pin([string]$Path) {
 function Invoke-Wrapper([string]$Id, [string]$Action) {
     $exe = Join-Path $Services ($Id + '.exe')
     Assert-Pin $exe
-    Assert-SafePath (Join-Path $Services ($Id + '.xml'))
+    $config = Join-Path $Services ($Id + '.xml')
+    Assert-SafePath $config
+    if (-not $ConfigHashes.ContainsKey($Id)) { throw 'Unknown service configuration.' }
+    $configHash = (Get-FileHash -LiteralPath $config -Algorithm SHA256).Hash
+    if ($configHash -ine $ConfigHashes[$Id]) { throw 'Service configuration mismatch.' }
     & $exe $Action > $null 2>&1
     if ($LASTEXITCODE -ne 0) { throw 'WinSW failed.' }
 }
@@ -252,6 +257,11 @@ def render_windows(manifest: dict, *, install_root: str, modes: tuple[str, ...],
     constants += "$Directories = " + array(paths.values()) + "\n"
     constants += "$StartOrder = " + array(ids) + "\n"
     constants += "$StopOrder = " + array(reversed(ids)) + "\n"
+    constants += "$ConfigHashes = @{\n"
+    for filename, content in sorted(xml.items()):
+        constants += "    " + _quote(filename.removesuffix('.xml')) + " = " + _quote(
+            hashlib.sha256(content.encode('utf-8')).hexdigest()) + "\n"
+    constants += "}\n"
     constants += "$SecretNames = " + array(secret_names) + "\n"
     constants += "Add-Type -AssemblyName System.Security\n"
     constants += "$Scope = [Security.Cryptography.DataProtectionScope]::" + dpapi_scope + "\n"

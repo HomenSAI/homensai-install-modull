@@ -4,10 +4,13 @@
 не меняет unit-файлы пользователя и очищает только созданную временную службу.
 """
 import hashlib
+import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
+import time
 import uuid
 
 import pytest
@@ -132,6 +135,85 @@ def test_group_start_and_stop_with_real_user_manager():
         group = SystemdUserGroup(manifest, modes=('autonomous',), adapters=adapters)
         assert [x['active_state'] for x in group.command('stop', execute=True)] == ['inactive'] * 3
         assert [x['active_state'] for x in group.command('start', execute=True)] == ['active'] * 3
+    finally:
+        for name in reversed(created):
+            subprocess.run(base + ['stop', '--', name], env=env, stdin=subprocess.DEVNULL,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, check=False)
+            subprocess.run(base + ['reset-failed', '--', name], env=env, stdin=subprocess.DEVNULL,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, check=False)
+
+
+@pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix',
+                    reason='Реальный пользовательский systemd проверяется только явно')
+def test_demo_product_runs_under_real_user_manager(tmp_path):
+    """Проверка тестового продукта, не регистрация настоящих служб установщиком."""
+    from shared.systemd_group import SystemdUserGroup
+
+    manifest = load_manifest(ROOT / 'examples/rent.manifest.json')
+    manifest['product_id'] = 'homensai-test-' + uuid.uuid4().hex[:16]
+    manifest['components'] = [c for c in manifest['components'] if c['name'] != 'scheduler']
+    manifest['modes'][0]['components'] = ['web', 'bot']
+    units = [manifest['product_id'] + '-' + name + '.service' for name in ('web', 'bot')]
+    holder = manifest['product_id'] + '-holder.service'
+    runtime = '/run/user/' + str(os.getuid())
+    env = {'PATH': '/usr/bin:/bin', 'LC_ALL': 'C', 'SYSTEMD_PAGER': 'cat',
+           'XDG_RUNTIME_DIR': runtime, 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=' + runtime + '/bus'}
+    base = ['/usr/bin/systemctl', '--user', '--no-pager', '--no-ask-password']
+    data, log = tmp_path / 'data', tmp_path / 'web.log'
+    script = ROOT / 'examples/demo_product/main.py'
+    created = []
+
+    def wait_ready(old_pid=None):
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            try:
+                heartbeat = json.loads((data / 'worker-heartbeat.json').read_text())
+                port = json.loads(log.read_text().splitlines()[-1])['port']
+                if heartbeat['release'] != '1' or heartbeat['pid'] == old_pid:
+                    time.sleep(0.05)
+                    continue
+                code = ("import sys; from shared.health import check_local_health; "
+                        "check_local_health(int(sys.argv[1]),product_id='homensai-test-demo',version='1')")
+                check = subprocess.run([sys.executable, '-B', '-c', code, str(port)],
+                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+                if check.returncode == 0:
+                    return heartbeat['pid']
+            except (OSError, ValueError, IndexError, KeyError):
+                pass
+            time.sleep(0.05)
+        pytest.fail('Тестовый продукт не подтвердил здоровье и heartbeat')
+
+    try:
+        # RuntimeMaxSec ограничивает жизнь тестовых служб даже при аварии теста.
+        shared = ['--property=RuntimeMaxSec=60s']
+        for name in ('PYTHONHOME', 'LD_LIBRARY_PATH'):
+            if name in os.environ:
+                shared.append('--setenv=' + name + '=' + os.environ[name])
+        commands = [
+            (units[0], ['--property=StandardOutput=file:' + str(log)],
+             [sys.executable, '-B', str(script), 'serve', '--data-dir', str(data), '--port', '0']),
+            (units[1], [], [sys.executable, '-B', str(script), 'worker', '--data-dir', str(data)]),
+            (holder, ['--property=Wants=' + ' '.join(units)], ['/usr/bin/sleep', '60']),
+        ]
+        for unit, extra, command in commands:
+            result = subprocess.run(['/usr/bin/systemd-run', '--user', '--unit=' + unit,
+                                     *shared, *extra, '--', *command], env=env,
+                                    stdin=subprocess.DEVNULL, capture_output=True, timeout=15)
+            assert result.returncode == 0, 'Не удалось запустить временную тестовую службу'
+            created.append(unit)
+        adapters = {}
+        for name, unit in zip(('web', 'bot'), units):
+            result = subprocess.run(base + ['show', '--property=FragmentPath', '--value', '--', unit],
+                                    env=env, stdin=subprocess.DEVNULL, capture_output=True, timeout=15, check=True)
+            fragment = Path(result.stdout.decode().strip())
+            adapters[name] = SystemdUserAdapter(manifest, modes=('autonomous',), component=name,
+                                                fragment_path=str(fragment),
+                                                fragment_sha256=hashlib.sha256(fragment.read_bytes()).hexdigest())
+        group = SystemdUserGroup(manifest, modes=('autonomous',), adapters=adapters)
+        first_pid = wait_ready()
+        assert [s['active_state'] for s in group.command('stop', execute=True)] == ['inactive'] * 2
+        assert [s['active_state'] for s in group.command('start', execute=True)] == ['active'] * 2
+        assert wait_ready(first_pid) != first_pid
     finally:
         for name in reversed(created):
             subprocess.run(base + ['stop', '--', name], env=env, stdin=subprocess.DEVNULL,

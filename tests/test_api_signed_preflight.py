@@ -904,7 +904,8 @@ def test_independent_product_client_recovers_from_lost_prepare_response(tmp_path
     preparation = {**shared, 'required_bytes': {name: 0 for name in NAMES}, 'reserve_bytes': 0,
                    'idempotency_key': 'd' * 32}
     client = InstallerClient(timeout=60)
-    original = subprocess.run
+    from examples.demo_product.installer_client import _run_bounded
+    original = _run_bounded
     calls = []
 
     def lose_response(argv, **kwargs):
@@ -917,7 +918,7 @@ def test_independent_product_client_recovers_from_lost_prepare_response(tmp_path
         return response
 
     with monkeypatch.context() as patch:
-        patch.setattr('examples.demo_product.installer_client.subprocess.run', lose_response)
+        patch.setattr('examples.demo_product.installer_client._run_bounded', lose_response)
         with pytest.raises(InstallerClientError) as exc:
             client.call('prepare-native-release', preparation, min_minor=8, language='en')
         assert exc.value.code == 'transport_error'

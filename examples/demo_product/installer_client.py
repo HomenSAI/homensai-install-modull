@@ -9,8 +9,10 @@ from __future__ import annotations
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
+import threading
 import uuid
 
 _MAX_BYTES = 1024 * 1024
@@ -33,6 +35,100 @@ def _unique(pairs):
             raise ValueError('duplicate key')
         value[key] = item
     return value
+
+
+def _run_bounded(argv, *, input: bytes, timeout: float, env: dict):
+    """Ограничить ответ при чтении; stderr не накапливается и не раскрывается."""
+    process = subprocess.Popen(argv, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                               stderr=subprocess.DEVNULL, env=env, start_new_session=(os.name == 'posix'))
+    output = bytearray()
+    overflow, failed = threading.Event(), threading.Event()
+
+    def stop():
+        try:
+            if os.name == 'posix':
+                os.killpg(process.pid, signal.SIGKILL)
+            elif process.poll() is None:
+                process.kill()
+        except ProcessLookupError:
+            pass
+        except OSError:
+            failed.set()
+
+    def read_response():
+        try:
+            while chunk := os.read(process.stdout.fileno(), 8192):
+                if len(output) + len(chunk) > _MAX_BYTES:
+                    overflow.set()
+                    stop()
+                    return
+                output.extend(chunk)
+        except (OSError, ValueError):
+            failed.set()
+
+    def write_request():
+        try:
+            view = memoryview(input)
+            while view:
+                count = os.write(process.stdin.fileno(), view)
+                if count <= 0:
+                    raise OSError('write failed')
+                view = view[count:]
+        except (OSError, ValueError):
+            failed.set()
+        finally:
+            try:
+                process.stdin.close()
+            except (OSError, ValueError):
+                failed.set()
+
+    reader = threading.Thread(target=read_response, daemon=True)
+    writer = threading.Thread(target=write_request, daemon=True)
+    try:
+        reader.start()
+        writer.start()
+        try:
+            process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            stop()
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                raise ValueError('process did not terminate') from None
+            raise subprocess.TimeoutExpired(argv, timeout) from None
+        writer.join(timeout=1)
+        reader.join(timeout=1)
+        if writer.is_alive() or reader.is_alive():
+            stop()
+            writer.join(timeout=1)
+            reader.join(timeout=1)
+            raise ValueError('process pipes remain open')
+        lingering = False
+        if os.name == 'posix':
+            try:
+                os.killpg(process.pid, 0)
+            except ProcessLookupError:
+                pass
+            except OSError:
+                failed.set()
+            else:
+                lingering = True
+                stop()
+        if failed.is_set() or overflow.is_set() or lingering:
+            raise ValueError('process output not confirmed')
+        return subprocess.CompletedProcess(argv, process.returncode, stdout=bytes(output))
+    finally:
+        if process.poll() is None:
+            stop()
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                pass
+        for thread in (writer, reader):
+            if thread.ident is not None and thread.is_alive():
+                thread.join(timeout=1)
+        if not reader.is_alive():
+            process.stdout.close()
 
 
 class InstallerClient:
@@ -64,9 +160,8 @@ class InstallerClient:
                 if value is None or not value or len(value) > 8192:
                     raise InstallerClientError('secret_unavailable', 'Required installer secret is unavailable')
                 env[secret_env_name] = value
-            completed = subprocess.run([self._python, '-B', '-m', 'shared.api'], input=body,
-                                       capture_output=True, shell=False, timeout=self._timeout,
-                                       check=False, env=env)
+            completed = _run_bounded([self._python, '-B', '-m', 'shared.api'], input=body,
+                                     timeout=self._timeout, env=env)
             if len(completed.stdout) > _MAX_BYTES:
                 raise ValueError('response too large')
             response = json.loads(completed.stdout.decode('utf-8'), object_pairs_hook=_unique,
@@ -88,7 +183,7 @@ class InstallerClient:
             raise InstallerClientError(error['code'], error['message'])
         except InstallerClientError:
             raise
-        except (OSError, subprocess.SubprocessError, UnicodeError, ValueError, TypeError, RecursionError):
+        except (OSError, subprocess.SubprocessError, UnicodeError, ValueError, TypeError, RecursionError, RuntimeError):
             raise InstallerClientError('transport_error', 'Installer API communication failed') from None
 
     def capabilities(self) -> dict:

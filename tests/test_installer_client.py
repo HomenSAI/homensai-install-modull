@@ -1,7 +1,9 @@
 """Тестовый продукт вызывает публичный CLI установщика, без реальных установок."""
 import json
+import os
 from pathlib import Path
 import subprocess
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -74,12 +76,12 @@ def test_client_does_not_pass_secrets_or_use_shell(monkeypatch):
             result = {'product_id': 'demo'}
         return SimpleNamespace(returncode=0, stdout=json.dumps({'api_major': 1, 'request_id': request['request_id'],
                                                                  'ok': True, 'result': result}).encode(), stderr=b'')
-    monkeypatch.setattr('examples.demo_product.installer_client.subprocess.run', run)
+    monkeypatch.setattr('examples.demo_product.installer_client._run_bounded', run)
     assert InstallerClient().call('validate', {'manifest': {}}, language='en') == {'product_id': 'demo'}
     assert len(seen) == 2
     for argv, kwargs in seen:
         assert argv[1:] == ['-B', '-m', 'shared.api']
-        assert kwargs['shell'] is False and 'SYNTHETIC_SECRET' not in kwargs['env']
+        assert 'SYNTHETIC_SECRET' not in kwargs['env']
         assert b'sensitive' not in kwargs['input']
 
 
@@ -94,7 +96,7 @@ def test_client_passes_only_explicit_archive_secret_to_operation(monkeypatch):
                   if request['operation'] == 'capabilities' else {'archive_imported': True})
         body = {'api_major': 1, 'request_id': request['request_id'], 'ok': True, 'result': result}
         return SimpleNamespace(returncode=0, stdout=json.dumps(body).encode(), stderr=b'')
-    monkeypatch.setattr('examples.demo_product.installer_client.subprocess.run', run)
+    monkeypatch.setattr('examples.demo_product.installer_client._run_bounded', run)
     client = InstallerClient()
     result = client.call('import-update-archive', {'password_env': 'HOMENSAI_SECRET_BACKUP'},
                          min_minor=27, secret_env_name='HOMENSAI_SECRET_BACKUP')
@@ -115,7 +117,7 @@ def test_client_passes_only_explicit_archive_secret_to_operation(monkeypatch):
 
 @pytest.mark.parametrize('response', [b'{}', b'{"api_major":1,"api_major":1}', b'bad', b'x' * (1024 * 1024 + 1)])
 def test_invalid_response_does_not_disclose_stderr(monkeypatch, response):
-    monkeypatch.setattr('examples.demo_product.installer_client.subprocess.run',
+    monkeypatch.setattr('examples.demo_product.installer_client._run_bounded',
                         lambda *a, **kw: SimpleNamespace(returncode=0, stdout=response, stderr=b'SECRET-SENTINEL'))
     with pytest.raises(InstallerClientError) as exc:
         InstallerClient().capabilities()
@@ -127,7 +129,7 @@ def test_timeout_does_not_retry_or_disclose_error(monkeypatch):
     def fail(*a, **kw):
         calls.append(1)
         raise subprocess.TimeoutExpired('SECRET-SENTINEL', 1)
-    monkeypatch.setattr('examples.demo_product.installer_client.subprocess.run', fail)
+    monkeypatch.setattr('examples.demo_product.installer_client._run_bounded', fail)
     with pytest.raises(InstallerClientError) as exc:
         InstallerClient().call('prepare-native-release', {})
     assert exc.value.code == 'transport_error' and 'SECRET-SENTINEL' not in str(exc.value)
@@ -145,7 +147,7 @@ def test_uncertain_mutating_call_is_not_retried(monkeypatch):
                                    'operations': ['prepare-native-release'], 'languages': ['en']}}
             return SimpleNamespace(returncode=0, stdout=json.dumps(response).encode(), stderr=b'')
         raise subprocess.TimeoutExpired('synthetic', 1)
-    monkeypatch.setattr('examples.demo_product.installer_client.subprocess.run', run)
+    monkeypatch.setattr('examples.demo_product.installer_client._run_bounded', run)
     with pytest.raises(InstallerClientError) as exc:
         InstallerClient().call('prepare-native-release', {'idempotency_key': 'a' * 32}, min_minor=8)
     assert exc.value.code == 'transport_error'
@@ -154,8 +156,65 @@ def test_uncertain_mutating_call_is_not_retried(monkeypatch):
 
 def test_wrong_response_request_id_is_rejected(monkeypatch):
     response = {'api_major': 1, 'request_id': 'unrelated', 'ok': True, 'result': {}}
-    monkeypatch.setattr('examples.demo_product.installer_client.subprocess.run',
+    monkeypatch.setattr('examples.demo_product.installer_client._run_bounded',
                         lambda *a, **kw: SimpleNamespace(returncode=0, stdout=json.dumps(response).encode(), stderr=b''))
     with pytest.raises(InstallerClientError) as exc:
         InstallerClient().capabilities()
     assert exc.value.code == 'transport_error'
+
+
+@pytest.mark.skipif(os.name != 'posix', reason='Проверка использует исполняемый POSIX-скрипт')
+def test_client_stops_oversized_output_during_read(tmp_path):
+    executable = tmp_path / 'fake-python'
+    executable.write_text('#!/usr/bin/python3\nimport os, time\nos.read(0, 8192)\n'
+                          'while True:\n os.write(1, b"X" * 8192)\n', encoding='utf-8')
+    executable.chmod(0o700)
+    started = time.monotonic()
+    with pytest.raises(InstallerClientError) as error:
+        InstallerClient(python_executable=str(executable), timeout=15).capabilities()
+    assert error.value.code == 'transport_error' and time.monotonic() - started < 20
+
+
+@pytest.mark.skipif(os.name != 'posix', reason='Проверка использует исполняемый POSIX-скрипт')
+def test_client_discards_large_stderr_without_blocking(tmp_path):
+    executable = tmp_path / 'fake-python'
+    executable.write_text(
+        '#!/usr/bin/python3\nimport json, os, sys\nrequest=json.load(sys.stdin)\n'
+        'for _ in range(1024): os.write(2, b"SECRET" * 1024)\n'
+        'print(json.dumps({"api_major":1,"request_id":request["request_id"],"ok":True,'
+        '"result":{"api_major":1,"api_minor":1,"operations":[],"languages":[]}}))\n',
+        encoding='utf-8')
+    executable.chmod(0o700)
+    assert InstallerClient(python_executable=str(executable), timeout=10).capabilities()['api_minor'] == 1
+
+
+@pytest.mark.skipif(os.name != 'posix', reason='Группа процессов POSIX')
+def test_client_stops_descendant_holding_output_after_parent_exits(tmp_path):
+    executable, marker = tmp_path / 'fake-python', tmp_path / 'late-write'
+    executable.write_text(
+        '#!/usr/bin/python3\nimport json, os, sys, time\n'
+        'request = json.load(sys.stdin)\n'
+        'if os.fork() == 0:\n time.sleep(2.5)\n open(' + repr(str(marker)) + ', "w").write("late")\n os._exit(0)\n'
+        'print(json.dumps({"api_major": 1, "request_id": request["request_id"], '
+        '"ok": True, "result": {"api_major": 1, "api_minor": 1, "operations": [], "languages": []}}))\n',
+        encoding='utf-8')
+    executable.chmod(0o700)
+    with pytest.raises(InstallerClientError) as error:
+        InstallerClient(python_executable=str(executable), timeout=10).capabilities()
+    assert error.value.code == 'transport_error'
+    time.sleep(3)
+    assert not marker.exists()
+
+
+@pytest.mark.skipif(os.name != 'posix', reason='Группа процессов POSIX')
+def test_real_timeout_stops_child_before_late_side_effect(tmp_path):
+    executable, marker = tmp_path / 'fake-python', tmp_path / 'late-write'
+    executable.write_text('#!/usr/bin/python3\nimport os, time\nos.read(0, 8192)\n'
+                          'time.sleep(2)\nopen(' + repr(str(marker)) + ', "w").write("late")\n',
+                          encoding='utf-8')
+    executable.chmod(0o700)
+    with pytest.raises(InstallerClientError) as error:
+        InstallerClient(python_executable=str(executable), timeout=0.2).capabilities()
+    assert error.value.code == 'transport_error'
+    time.sleep(2.5)
+    assert not marker.exists()

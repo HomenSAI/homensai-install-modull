@@ -22,7 +22,7 @@ from shared.package import PackageError
 from shared.package_signing import verify_signed_package
 from shared.services import component_order
 from shared.systemd_user import SystemdUserError, _PROPERTIES, _run, _trusted_file
-from shared.update_plan import UpdateError, _object
+from shared.update_plan import UpdateError, _atomic_write, _object
 
 _MAX_UNIT = 1024 * 1024
 
@@ -106,6 +106,65 @@ def _write_exclusive(directory_fd, name, data):
         os.fsync(output.fileno())
 
 
+def _publication_receipt(path):
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | getattr(os, 'O_NONBLOCK', 0))
+    except FileNotFoundError:
+        return None
+    with os.fdopen(descriptor, 'rb') as stream:
+        info = os.fstat(stream.fileno())
+        current = path.lstat()
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1
+                or info.st_mode & 0o022 or info.st_size > 8192
+                or (info.st_dev, info.st_ino) != (current.st_dev, current.st_ino)):
+            raise UnitPublicationError('Недопустимая отметка публикации')
+        raw = stream.read(8193)
+    if len(raw) > 8192:
+        raise UnitPublicationError('Недопустимая отметка публикации')
+    value = json.loads(raw.decode('utf-8'), object_pairs_hook=_object)
+    if (type(value) is not dict or set(value) != {'version', 'operation_id', 'binding', 'status'}
+            or type(value['version']) is not int or value['version'] != 1
+            or type(value['operation_id']) is not str or re.fullmatch(r'[a-f0-9]{32}', value['operation_id']) is None
+            or type(value['binding']) is not str or re.fullmatch(r'[a-f0-9]{64}', value['binding']) is None
+            or value['status'] not in ('pending', 'done')):
+        raise UnitPublicationError('Недопустимая отметка публикации')
+    return value
+
+
+def _new_publication_receipt(path, value):
+    data = (json.dumps(value, sort_keys=True, separators=(',', ':')) + '\n').encode('ascii')
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, 'wb') as output:
+        output.write(data)
+        output.flush()
+        os.fsync(output.fileno())
+    directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
+
+
+def _require_absent(path):
+    try:
+        path.lstat()
+    except FileNotFoundError:
+        return
+    raise UnitPublicationError('Обнаружено существующее состояние')
+
+
+def _confirm_published(runner, directory, units, product_id, timeout):
+    base = ['/usr/bin/systemctl', '--user', '--no-pager', '--no-ask-password']
+    paths = runner(base + ['show', '--property=UnitPath', '--value'],
+                   timeout=timeout, env=_manager_environment())
+    if type(paths) is not str or len(paths) > 16384 or str(directory) not in paths.split():
+        raise UnitPublicationError('Каталог не принадлежит менеджеру')
+    _require_absent(directory / ('.' + product_id + '.homensai-units.pending'))
+    for name, digest, _ in units:
+        _require_absent(directory / (name + '.d'))
+        _trusted_file(directory / name, digest)
+
+
 @contextmanager
 def _existing_lock(path):
     """Захватить существующий протокол flock, не стирая признак прежнего crash."""
@@ -170,7 +229,7 @@ def _publish_files(directory, names, units, public, product_id, version, verify_
 
 def publish_signed_user_units(package_path, envelope, install_root, *, trusted_public_key,
                               expected_product_id, expected_version, modes, unit_dir,
-                              execute=False, runner=None, timeout=30):
+                              execute=False, operation_id=None, runner=None, timeout=30):
     """Опубликовать подписанные units в каталоге user-manager без перезаписи.
 
     Пакет содержит systemd-user/<product>-<component>.service. Dry-run ничего
@@ -180,7 +239,9 @@ def publish_signed_user_units(package_path, envelope, install_root, *, trusted_p
     """
     if (type(execute) is not bool or type(modes) is not tuple or not modes
             or type(timeout) not in (int, float) or not 0 < timeout <= 120
-            or (runner is not None and not callable(runner))):
+            or (runner is not None and not callable(runner))
+            or (operation_id is not None and (type(operation_id) is not str
+                or re.fullmatch(r'[a-f0-9]{32}', operation_id) is None))):
         raise UnitPublicationError('Недопустимые параметры публикации')
     try:
         options = dict(trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
@@ -221,15 +282,55 @@ def publish_signed_user_units(package_path, envelope, install_root, *, trusted_p
             with _existing_lock(service_lock):
                 verify_again()
                 update_state = checked_path(home.roots['services'] / manifest['update']['state_file'].replace('\\', '/'))
-                if update_state.exists():
-                    raise UnitPublicationError('Состояние обновления требует отдельной проверки')
+                _require_absent(update_state)
                 directory = _unit_directory(unit_dir)
                 runner = _run if runner is None else runner
+                receipt = None
+                if operation_id is None:
+                    prior = checked_path(checked_path(install_root) / '.homensai-control/user-systemd-publication.json')
+                    if _publication_receipt(prior) is not None:
+                        raise UnitPublicationError('Требуется исходный ключ операции публикации')
+                if operation_id is not None:
+                    root = checked_path(install_root)
+                    control = checked_path(root / '.homensai-control')
+                    for path in (root, control):
+                        info = path.lstat()
+                        if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+                            raise UnitPublicationError('Каталог управления не защищён')
+                    context = {'product_id': expected_product_id, 'version': expected_version,
+                               'transaction': verified['transaction'], 'units': public['units'],
+                               'modes': modes, 'install_sha256': hashlib.sha256(str(root).encode()).hexdigest(),
+                               'directory_sha256': hashlib.sha256(str(directory).encode()).hexdigest(),
+                               'publisher_sha256': hashlib.sha256(trusted_public_key).hexdigest()}
+                    binding = hashlib.sha256(json.dumps(context, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+                    receipt = checked_path(control / 'user-systemd-publication.json')
+                    pending = {'version': 1, 'operation_id': operation_id, 'binding': binding, 'status': 'pending'}
+                    done = {**pending, 'status': 'done'}
+                    old = _publication_receipt(receipt)
+                    if old == done:
+                        try:
+                            _confirm_published(runner, directory, units, expected_product_id, timeout)
+                        except Exception:
+                            raise UnitPublicationError('Публикация не подтверждена') from None
+                        verify_again()
+                        if _publication_receipt(receipt) != done:
+                            raise UnitPublicationError('Отметка публикации изменилась')
+                        return public
+                    if old is not None:
+                        raise UnitPublicationError('Публикация требует восстановления')
                 try:
                     _confirm_manager(runner, directory, names, timeout)
                 except Exception:
                     raise UnitPublicationError('Менеджер служб не подтвердил публикацию') from None
+                if receipt is not None:
+                    _new_publication_receipt(receipt, pending)
                 _publish_files(directory, names, units, public, expected_product_id, expected_version, verify_again)
+                if receipt is not None:
+                    if _publication_receipt(receipt) != pending:
+                        raise UnitPublicationError('Отметка публикации изменилась')
+                    _atomic_write(receipt, done)
+                    if _publication_receipt(receipt) != done:
+                        raise UnitPublicationError('Отметка публикации не подтверждена')
         return public
     except (OSError, ValueError, TypeError, KeyError, RecursionError, DataHomeError,
             ManifestError, PackageError, FreshPrepareError, SystemdUserError, UpdateError):

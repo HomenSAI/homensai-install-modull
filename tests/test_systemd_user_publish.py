@@ -298,6 +298,81 @@ def test_existing_update_state_prevents_publication(signed_units, local_director
     assert not list(destination.iterdir())
 
 
+def test_dangling_update_state_link_prevents_publication(signed_units, local_directory):
+    root, destination = signed_units[2], signed_units[-2]
+    state = root / 'services/update.json'
+    state.symlink_to(root / 'missing')
+    with pytest.raises(pub.UnitPublicationError):
+        call(signed_units, execute=True, runner=runner_for(destination), operation_id='a' * 32)
+    assert state.is_symlink() and not list(destination.iterdir())
+
+
+def test_idempotent_publication_rechecks_without_writing(signed_units, local_directory):
+    destination, units = signed_units[-2:]
+    result = call(signed_units, execute=True, runner=runner_for(destination), operation_id='a' * 32)
+    receipt = signed_units[2] / '.homensai-control/user-systemd-publication.json'
+    assert json.loads(receipt.read_text())['status'] == 'done'
+    before = {name: ((destination / name).stat().st_ino, (destination / name).stat().st_mtime_ns)
+              for name in units}
+    assert call(signed_units, execute=True, runner=runner_for(destination), operation_id='a' * 32) == result
+    assert before == {name: ((destination / name).stat().st_ino, (destination / name).stat().st_mtime_ns)
+                      for name in units}
+    with pytest.raises(pub.UnitPublicationError):
+        call(signed_units, execute=True, runner=runner_for(destination), operation_id='b' * 32)
+    with pytest.raises(pub.UnitPublicationError):
+        call(signed_units, execute=True, runner=runner_for(destination))
+    (destination / next(iter(units))).write_text('tampered')
+    with pytest.raises(pub.UnitPublicationError):
+        call(signed_units, execute=True, runner=runner_for(destination), operation_id='a' * 32)
+    assert json.loads(receipt.read_text())['status'] == 'done'
+
+
+def test_interrupted_idempotent_publication_blocks_all_retries_and_load(signed_units, local_directory, monkeypatch):
+    import shared.systemd_user_load as loader
+    from shared.systemd_user_load import UnitLoadError
+    destination = signed_units[-2]
+    original = pub._write_exclusive
+    writes = []
+    def interrupted(fd, name, data):
+        writes.append(name)
+        if len(writes) == 2:
+            raise OSError('synthetic interruption')
+        original(fd, name, data)
+    monkeypatch.setattr(pub, '_write_exclusive', interrupted)
+    with pytest.raises(pub.UnitPublicationError):
+        call(signed_units, execute=True, runner=runner_for(destination), operation_id='a' * 32)
+    receipt = signed_units[2] / '.homensai-control/user-systemd-publication.json'
+    before = receipt.read_bytes()
+    assert json.loads(before)['status'] == 'pending'
+    monkeypatch.setattr(pub, '_write_exclusive', original)
+    for operation in ('a' * 32, 'b' * 32, None):
+        with pytest.raises(pub.UnitPublicationError):
+            call(signed_units, execute=True, runner=runner_for(destination), operation_id=operation)
+    assert receipt.read_bytes() == before
+    monkeypatch.setattr(loader, '_unit_directory', lambda path: Path(path))
+    monkeypatch.setattr(loader, '_trusted_file', pub._trusted_file)
+    def forbidden(*args, **kwargs):
+        pytest.fail('Pending publication must not call the manager')
+    with pytest.raises(UnitLoadError):
+        load_call(signed_units, execute=True, runner=forbidden)
+    assert receipt.read_bytes() == before
+
+
+def test_lost_completion_record_is_not_assumed_success(signed_units, local_directory, monkeypatch):
+    destination, units = signed_units[-2:]
+    def lost_completion(*args, **kwargs):
+        raise OSError('synthetic crash after file publication')
+    monkeypatch.setattr(pub, '_atomic_write', lost_completion)
+    with pytest.raises(pub.UnitPublicationError):
+        call(signed_units, execute=True, runner=runner_for(destination), operation_id='c' * 32)
+    receipt = signed_units[2] / '.homensai-control/user-systemd-publication.json'
+    assert json.loads(receipt.read_text())['status'] == 'pending'
+    assert {p.name for p in destination.iterdir()} == set(units)
+    with pytest.raises(pub.UnitPublicationError):
+        call(signed_units, execute=True, runner=runner_for(destination), operation_id='c' * 32)
+    assert json.loads(receipt.read_text())['status'] == 'pending'
+
+
 class FakeReloadManager:
     def __init__(self, directory, *, active=False, dropin=False, lose_response=False):
         self.directory = directory
@@ -605,8 +680,15 @@ def test_isolated_manager_reloads_signed_units_without_start(signed_units, exerc
 
     try:
         published = pub.publish_signed_user_units(package, envelope, str(root), **options,
-                      modes=('autonomous',), unit_dir=str(destination), execute=True)
+                      modes=('autonomous',), unit_dir=str(destination), execute=True,
+                      operation_id='a' * 32, runner=actual_runner)
         assert published['state'] == 'published' and published['services_started'] is False
+        before = {p.name: (p.stat().st_ino, p.stat().st_mtime_ns) for p in expected}
+        repeated = pub.publish_signed_user_units(package, envelope, str(root), **options,
+                     modes=('autonomous',), unit_dir=str(destination), execute=True,
+                     operation_id='a' * 32, runner=actual_runner)
+        assert repeated == published
+        assert before == {p.name: (p.stat().st_ino, p.stat().st_mtime_ns) for p in expected}
         loaded = load_signed_user_units(package, envelope, str(root), **options,
                      modes=('autonomous',), unit_dir=str(destination), execute=True, runner=actual_runner)
         assert loaded['state'] == 'loaded' and loaded['services_started'] is False

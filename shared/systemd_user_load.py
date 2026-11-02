@@ -19,7 +19,7 @@ from shared.package_signing import verify_signed_package
 from shared.services import component_order
 from shared.systemd_user import SystemdUserAdapter, SystemdUserError, _PROPERTIES, _run, _trusted_file
 from shared.systemd_user_publish import (UnitPublicationError, _existing_lock, _manager_environment,
-                                         _unit_directory, publish_signed_user_units)
+                                         _publication_receipt, _unit_directory, publish_signed_user_units)
 from shared.update_plan import UpdateError, _atomic_write, _object
 
 
@@ -153,6 +153,9 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
                 if (verify_signed_package(package_path, envelope, **options) != metadata
                         or verify_fresh_release(package_path, envelope, install_root, **options) != verified):
                     raise UnitLoadError('Выпуск изменился')
+                publication = _publication_receipt(control / 'user-systemd-publication.json')
+                if publication is not None and publication['status'] != 'done':
+                    raise UnitLoadError('Публикация служб не подтверждена')
                 update_state = checked_path(home.roots['services'] / manifest['update']['state_file'].replace('\\', '/'))
                 if not _absent(update_state):
                     raise UnitLoadError('Состояние обновления требует проверки')

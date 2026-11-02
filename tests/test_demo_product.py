@@ -9,6 +9,7 @@ import sys
 import time
 
 import pytest
+from examples.demo_product import main as demo_main
 
 DEMO = Path(__file__).resolve().parents[1] / "examples/demo_product/main.py"
 
@@ -57,6 +58,29 @@ def test_start_failure(tmp_path, action):
     assert not (tmp_path / "demo.sqlite3").exists()
 
 
+@pytest.mark.parametrize('address', ['127.0.0.1', '0.0.0.0'])
+def test_server_uses_explicit_listen_address_without_opening_a_socket(tmp_path, monkeypatch, address):
+    seen = []
+    class FakeServer:
+        server_port = 8080
+        def __init__(self, binding, handler):
+            seen.append(binding)
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+        def serve_forever(self, **kwargs):
+            pass
+    monkeypatch.setattr(demo_main, 'ThreadingHTTPServer', FakeServer)
+    demo_main.serve(tmp_path, '1', 8080, 'none', listen=address)
+    assert seen == [(address, 8080)]
+
+
+def test_server_rejects_unexpected_listen_address(tmp_path):
+    assert run(tmp_path, 'serve', '--listen', 'example.com').returncode != 0
+    assert not (tmp_path / 'demo.sqlite3').exists()
+
+
 @pytest.mark.parametrize("failure,status", [("none", 200), ("health", 503)])
 def test_server_health(tmp_path, failure, status):
     # Клиент находится в отдельном процессе и подключается только к loopback.
@@ -98,6 +122,8 @@ def test_server_health(tmp_path, failure, status):
         finally:
             process.terminate()
             process.wait(timeout=10)
+            if os.name == 'posix':
+                assert process.returncode == 0
 
 
 def test_worker_writes_heartbeat(tmp_path):
@@ -112,6 +138,8 @@ def test_worker_writes_heartbeat(tmp_path):
     finally:
         process.terminate()
         process.wait(timeout=10)
+        if os.name == 'posix':
+            assert process.returncode == 0
 
 
 @pytest.mark.skipif(os.name != 'posix', reason='Сигнал SIGTERM проверяется на POSIX')

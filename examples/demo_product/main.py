@@ -46,7 +46,7 @@ def migrate(data_dir: Path, migration: str, failure: str) -> None:
         raise RuntimeError("Синтетический отказ после фиксации")
 
 
-def serve(data_dir: Path, release: str, port: int, failure: str) -> None:
+def serve(data_dir: Path, release: str, port: int, failure: str, *, listen: str = "127.0.0.1") -> None:
     if failure == "start":
         raise RuntimeError("Синтетический отказ запуска")
     if failure == "stop":
@@ -68,7 +68,7 @@ def serve(data_dir: Path, release: str, port: int, failure: str) -> None:
         def log_message(self, format, *args):
             return
 
-    with ThreadingHTTPServer(("127.0.0.1", port), Handler) as server:
+    with ThreadingHTTPServer((listen, port), Handler) as server:
         print(json.dumps({"port": server.server_port, "release": release}), flush=True)
         server.serve_forever(poll_interval=0.1)
 
@@ -96,6 +96,8 @@ def main() -> int:
     parser.add_argument("--migration", choices=("schema-1", "schema-2"), default="schema-1")
     parser.add_argument("--fail", choices=("none", "before", "during", "after", "start", "health", "stop"), default="none")
     parser.add_argument("--port", type=int, default=0)
+    parser.add_argument("--listen", choices=("127.0.0.1", "0.0.0.0"), default="127.0.0.1",
+                        help="0.0.0.0 только для изолированной контейнерной сети")
     args = parser.parse_args()
     release_file = Path(__file__).with_name("release.json")
     if release_file.exists():
@@ -110,12 +112,17 @@ def main() -> int:
         args.release = meta["release"]
     else:
         args.release = args.release or "1"
+    if os.name == "posix" and args.action in ("serve", "worker") and args.fail != "stop":
+        # PID 1 in a container needs an explicit handler for graceful SIGTERM.
+        def stop_process(signum, frame):
+            raise SystemExit(0)
+        signal.signal(signal.SIGTERM, stop_process)
     if args.action == "migrate":
         if args.release == "1" and args.migration == "schema-2":
             parser.error("Миграция schema-2 недоступна в версии 1")
         migrate(args.data_dir, args.migration, args.fail)
     elif args.action == "serve":
-        serve(args.data_dir, args.release, args.port, args.fail)
+        serve(args.data_dir, args.release, args.port, args.fail, listen=args.listen)
     else:
         worker(args.data_dir, args.release, args.fail)
     return 0

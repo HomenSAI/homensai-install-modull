@@ -6,6 +6,7 @@ Opt-in сценарий использует настоящие временны
 
 from hashlib import sha256
 from contextlib import contextmanager
+from copy import deepcopy
 import json
 import os
 from pathlib import Path
@@ -481,7 +482,14 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
         from shared.fresh_prepare import prepare_fresh_native
         from shared.preflight import NAMES
         package_one = tmp_path / "release-1.zip"
-        build_package(manifest, "1", source / "app-1", package_one)
+        old_manifest = deepcopy(manifest)
+        if live == 'systemd':
+            old_manifest['product_name'] += ' (previous)'
+            old_manifest['migrations']['cmd'] = ['python', 'main.py', 'older-migration']
+            old_linux_lock = source / 'app-1' / 'locks/linux.lock'
+            old_linux_lock.write_bytes(b'previous synthetic linux lock')
+            old_manifest['runtime']['lock_files']['linux']['sha256'] = sha256(old_linux_lock.read_bytes()).hexdigest()
+        build_package(old_manifest, "1", source / "app-1", package_one)
         envelope_one = sign_package(package_one, private_key=private,
                                     expected_product_id=manifest["product_id"], expected_version="1")
         fresh = prepare_fresh_native(package_one, envelope_one, installation,

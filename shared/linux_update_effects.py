@@ -19,6 +19,17 @@ from shared.update_plan import EffectIndeterminate, UpdateError, _ACTIVE_EFFECT,
 _BACKUP_KEY = re.compile(r'([a-f0-9]{32})/(archive|backup:(?:0|[1-9][0-9]{0,5})|before_rollback)\Z')
 
 
+def _previous_manifest_compatible(previous, current):
+    """Разрешить различия только в выпускных полях, сохраняя контракт служб и данных."""
+    variable = {'product_name', 'migrations', 'compatibility', 'runtime'}
+    if ({key: value for key, value in previous.items() if key not in variable}
+            != {key: value for key, value in current.items() if key not in variable}):
+        return False
+    excluded = {'lock_files', 'vendor_wheels'}
+    return ({key: value for key, value in previous['runtime'].items() if key not in excluded}
+            == {key: value for key, value in current['runtime'].items() if key not in excluded})
+
+
 @dataclass(frozen=True)
 class PreviousSignedRelease:
     """Независимо доверенные пакет, подпись и ключ предыдущего выпуска."""
@@ -102,7 +113,9 @@ class LinuxSignedUpdateEffects:
         metadata = verify_signed_package(evidence.package_path, evidence.envelope,
             trusted_public_key=evidence.public_key, expected_product_id=self.plan.manifest['product_id'],
             expected_version=version)
-        if (metadata['manifest'] != self.plan.manifest
+        compatible = (_previous_manifest_compatible(metadata['manifest'], self.plan.manifest) if previous
+                      else metadata['manifest'] == self.plan.manifest)
+        if (not compatible
                 or check_target(metadata['manifest'], native_target())['status'] != 'supported'):
             raise UpdateError('Подписанный выпуск не соответствует плану или среде')
         files = {item['path']: item['sha256'] for item in metadata['files']}

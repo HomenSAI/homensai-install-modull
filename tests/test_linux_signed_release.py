@@ -1,5 +1,6 @@
 """Проверка подписи выпуска при обновлении без миграций; фиктивные службы."""
 import hashlib
+from copy import deepcopy
 from pathlib import Path
 import shutil
 
@@ -8,10 +9,11 @@ import pytest
 from test_linux_update_effects import FakeAdapter
 from shared.adapters_fs import FilesystemPorts, ReleaseSource
 from shared.host_target import HostTargetError, native_target
-from shared.linux_update_effects import LinuxSignedUpdateEffects, PreviousSignedRelease
+from shared.linux_update_effects import (LinuxSignedUpdateEffects, PreviousSignedRelease,
+                                         _previous_manifest_compatible)
 from shared.manifest import load_manifest
 from shared.package import build_package
-from shared.package_signing import sign_package
+from shared.package_signing import sign_package, verify_signed_package
 from shared.signed_migration_port import SignedMigrationPort
 from shared.systemd_group import SystemdUserGroup
 from shared.systemd_lifecycle_port import SystemdLifecyclePort
@@ -48,8 +50,16 @@ def signed(tmp_path):
     public = private.public_key().public_bytes(ser.Encoding.Raw, ser.PublicFormat.Raw)
     envelope = sign_package(package, private_key=private, expected_product_id=manifest['product_id'],
                             expected_version='2')
+    old_source = tmp_path / 'old-payload'
+    shutil.copytree(payload, old_source)
+    (old_source / 'app.py').write_bytes(b'older synthetic signed application')
+    (old_source / 'locks/linux.lock').write_bytes(b'older linux lock')
+    old_manifest = deepcopy(manifest)
+    old_manifest['product_name'] = 'Previous synthetic release'
+    old_manifest['runtime']['lock_files']['linux']['sha256'] = hashlib.sha256(b'older linux lock').hexdigest()
+    old_manifest['migrations']['cmd'] = ['python', 'old_migrate.py']
     old_package = tmp_path / 'old-signed.zip'
-    build_package(manifest, '1', payload, old_package)
+    build_package(old_manifest, '1', old_source, old_package)
     old_envelope = sign_package(old_package, private_key=private, expected_product_id=manifest['product_id'],
                                 expected_version='1')
     root = tmp_path / 'installation'
@@ -70,7 +80,7 @@ def signed(tmp_path):
     ports.effects = LinuxSignedUpdateEffects(lifecycle, migration, LocalUpdateHealthPort(plan, ports),
                                              previous_release=previous)
     plan.state_path.parent.mkdir(parents=True)
-    shutil.copytree(payload, ports.release_path('1'))
+    shutil.copytree(old_source, ports.release_path('1'))
     state = {'version': 1, 'transaction': 'a' * 32, 'plan': plan.digest, 'old_release': '1', 'release': '2',
              'direction': 'forward', 'index': 0, 'failed_phase': None, 'archive_ready': True,
              'outcome': 'running', 'indeterminate': True}
@@ -230,3 +240,47 @@ def test_previous_release_is_rechecked_after_restore(signed, monkeypatch):
     finally:
         _ACTIVE_EFFECT.reset(token)
     assert len(calls) == 1 and not ports.pointer.exists()
+
+
+@pytest.mark.parametrize('changed', ['paths', 'service_command', 'web'])
+def test_signed_old_manifest_with_incompatible_contract_is_rejected(signed, tmp_path, changed):
+    ed = pytest.importorskip('cryptography.hazmat.primitives.asymmetric.ed25519')
+    ser = pytest.importorskip('cryptography.hazmat.primitives.serialization')
+    plan, ports, state, adapters, _ = signed
+    old = ports.effects.previous_release
+    metadata = verify_signed_package(old.package_path, old.envelope, trusted_public_key=old.public_key,
+                                     expected_product_id=plan.manifest['product_id'], expected_version='1')
+    manifest = deepcopy(metadata['manifest'])
+    if changed == 'paths':
+        manifest['paths']['data'] = 'different-data'
+    elif changed == 'service_command':
+        manifest['components'][0]['cmd'] = ['python', 'different.py']
+    elif changed == 'web':
+        manifest['web']['port'] = 8821
+    assert not _previous_manifest_compatible(manifest, plan.manifest)
+    package = tmp_path / ('incompatible-' + changed + '.zip')
+    build_package(manifest, '1', ports.release_path('1'), package)
+    private = ed.Ed25519PrivateKey.generate()
+    public = private.public_key().public_bytes(ser.Encoding.Raw, ser.PublicFormat.Raw)
+    envelope = sign_package(package, private_key=private, expected_product_id=manifest['product_id'],
+                            expected_version='1')
+    ports.effects.previous_release = PreviousSignedRelease(str(package), envelope, public)
+    state.update(direction='forward', index=0, failed_phase=None, archive_ready=False, indeterminate=True)
+    plan._save(state)
+    token = _ACTIVE_EFFECT.set((plan, state['transaction'], 'stop'))
+    try:
+        with pytest.raises(EffectIndeterminate):
+            ports.stop(state['transaction'] + '/stop', tuple(reversed(plan.components)))
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+    assert not any(adapter.active for adapter in adapters.values())
+
+
+def test_runtime_interpreter_policy_remains_equal(signed):
+    plan, _, _, _, _ = signed
+    manifest = deepcopy(plan.manifest)
+    manifest['runtime']['python'] = '3.15'
+    assert not _previous_manifest_compatible(manifest, plan.manifest)
+    manifest = deepcopy(plan.manifest)
+    manifest['runtime']['offline'] = False
+    assert not _previous_manifest_compatible(manifest, plan.manifest)

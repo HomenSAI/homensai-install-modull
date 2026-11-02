@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import socket
 import stat
 import uuid
 
@@ -18,6 +19,7 @@ from shared.runtime_native import NativeRuntimeError, RECIPE_PATH, prepare_signe
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGET = {'os': 'linux', 'architecture': 'x86_64', 'execution': 'native'}
+_SOCKET = socket.socket
 
 
 @pytest.fixture
@@ -207,7 +209,7 @@ def test_runtime_api_plans_prepares_and_verifies_without_reexecution(runtime_rel
 
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Нужен одноразовый тестовый контейнер Python 3.14')
-def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch):
+def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=False):
     import base64
     import pwd
     import shutil
@@ -240,6 +242,8 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch):
         capture_output=True, text=True, timeout=10, check=True)
     port = int(probe.stdout.strip())
     manifest['web']['port'] = port
+    if controller:
+        manifest['web']['healthz'] = '/health'
     for component in manifest['components']:
         if component['name'] == 'web':
             component['cmd'] = ['@runtime/bin/python', '-I', '-B', '@release/demo/main.py', 'serve',
@@ -293,6 +297,76 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch):
     options = {'trusted_public_key': public, 'expected_product_id': manifest['product_id'], 'expected_version': '1'}
     envelope = sign_package(package, private_key=private, expected_product_id=manifest['product_id'], expected_version='1')
     install = tmp_path / 'real runtime with spaces'
+    if controller:
+        from shared.fresh_controller import run_portable_linux_install
+        from shared.systemd_portable import plan_portable_signed_user_units
+        def loopback_only(address, timeout, source_address=None):
+            if address != ('127.0.0.1', port) or source_address is not None:
+                raise AssertionError('Разрешён только loopback тестового продукта')
+            connection = _SOCKET(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                connection.settimeout(timeout)
+                connection.connect(address)
+                return connection
+            except BaseException:
+                connection.close()
+                raise
+        monkeypatch.setattr(socket, 'create_connection', loopback_only)
+        destination = Path(identity.pw_dir) / '.config/systemd/user'
+        names = [manifest['product_id'] + '-' + component + '.service' for component in ('web', 'bot')]
+        paths = [destination / name for name in names]
+        work = tmp_path / 'workflow'
+        work.mkdir(mode=0o700)
+        env = {'PATH': '/usr/bin:/bin', 'LC_ALL': 'C', 'SYSTEMD_PAGER': 'cat',
+               'XDG_RUNTIME_DIR': '/run/user/' + str(os.getuid()),
+               'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/' + str(os.getuid()) + '/bus'}
+        args = dict(package_path=str(package), envelope=envelope, trusted_public_key=public,
+                    product_id=manifest['product_id'], version='1', install_root=str(install),
+                    unit_dir=str(destination), work_dir=str(work), modes=('autonomous',),
+                    required_bytes={name: 0 for name in NAMES}, reserve_bytes=0, workflow_key='f' * 32,
+                    keys=dict(zip(('release', 'runtime', 'publish', 'load', 'start'),
+                                  (key * 32 for key in '1abcd'))))
+        try:
+            import shared.api as api_module
+            class Interrupted(BaseException):
+                pass
+            original_handle = api_module.handle
+            def interrupt_after_runtime(request):
+                result = original_handle(request)
+                if request['operation'] == 'prepare-linux-runtime' and result.get('ok'):
+                    raise Interrupted()
+                return result
+            with monkeypatch.context() as patch:
+                patch.setattr(api_module, 'handle', interrupt_after_runtime)
+                with pytest.raises(Interrupted):
+                    run_portable_linux_install(**args)
+            marker_file = work / ('install-' + args['workflow_key'] + '.json')
+            assert json.loads(marker_file.read_text())['index'] == 1
+            result = run_portable_linux_install(**args)
+            assert result['state'] == 'recorded_complete' and result['health_verified_at_execution'] is True
+            assert result['installation_complete'] is False and result['process_identity_verified'] is False
+            assert run_portable_linux_install(**args) == result
+            heartbeat_path = install / 'data/worker-heartbeat.json'
+            deadline = time.monotonic() + 15
+            while not heartbeat_path.exists() and time.monotonic() < deadline:
+                time.sleep(0.1)
+            heartbeat = json.loads(heartbeat_path.read_text())
+            assert heartbeat['release'] == '1'
+            plan = plan_portable_signed_user_units(package, envelope, str(install), **options, modes=('autonomous',))
+            expected_units = {name: text.encode('utf-8') for name, text in plan['unit_texts'].items()}
+        finally:
+            subprocess.run(['/usr/bin/systemctl', '--user', 'stop', '--', *names], env=env,
+                           stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=False)
+            for path in paths:
+                if path.exists():
+                    info = path.lstat()
+                    assert stat.S_ISREG(info.st_mode) and info.st_uid == os.getuid() and info.st_nlink == 1
+                    if 'expected_units' in locals():
+                        assert path.read_bytes() == expected_units[path.name]
+                    path.unlink()
+            subprocess.run(['/usr/bin/systemctl', '--user', 'daemon-reload'], env=env,
+                           stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
+        return
     prepare_fresh_native(package, envelope, install, **options,
                          required_bytes={name: 0 for name in NAMES}, reserve_bytes=0)
     client = InstallerClient(timeout=300)
@@ -442,3 +516,9 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch):
             marker.unlink()
         subprocess.run(['/usr/bin/systemctl', '--user', 'daemon-reload'], env=env,
                        stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
+
+
+@pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
+                    reason='Нужен одноразовый тестовый контейнер Python 3.14')
+def test_fresh_controller_runs_real_portable_product(tmp_path, monkeypatch):
+    test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True)

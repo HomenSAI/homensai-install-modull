@@ -33,6 +33,9 @@ API 1.27 добавляет локальный импорт копии в checkp
 API 1.28 добавляет ограниченную проверку Docker `check-docker-engine`.
 API 1.29 добавляет подготовку подписанного Linux-выпуска `prepare-signed-linux-update`.
 API 1.30 добавляет проверку начатого подписанного обновления `inspect-signed-linux-update`.
+Ограниченный Python-контроллер первой Linux-установки поверх этих операций
+описан в [FRESH-CONTROLLER.md](FRESH-CONTROLLER.md); отдельной операции API
+для него пока нет.
 Полная установка и обновление через API пока недоступны.
 
 `start-portable-linux` принимает поля `check-portable-linux-start` и отдельный

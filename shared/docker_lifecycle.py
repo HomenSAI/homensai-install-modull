@@ -189,9 +189,32 @@ def control_signed_compose(package_path: str, envelope: bytes, *, trusted_public
                 def verify_containers(*, stopped):
                     rows = _status_records(run(prefix + ['ps', '--all', '--format', 'json']),
                                            project, services, stopped=stopped)
+                    def image_id(value):
+                        if type(value) is not str:
+                            raise DockerLifecycleError('Некорректный идентификатор образа')
+                        value = value.removeprefix('sha256:')
+                        if re.fullmatch(r'[a-f0-9]{64}', value) is None:
+                            raise DockerLifecycleError('Некорректный идентификатор образа')
+                        return value
+                    def resolve_image(reference):
+                        digests = json.loads(run(['image', 'inspect', '--format', '{{json .RepoDigests}}', reference]),
+                                             object_pairs_hook=_object, parse_constant=_reject_constant)
+                        if (type(digests) is not list or not 1 <= len(digests) <= 128
+                                or any(type(value) is not str or len(value) > 326 for value in digests)
+                                or reference not in digests):
+                            raise DockerLifecycleError('Подписанная ссылка образа не подтверждена')
+                        try:
+                            raw = run(['image', 'inspect', '--format', '{{json .Id}}', reference])
+                        except DockerLifecycleError:
+                            # Podman CLI names this field ID; the Docker API uses Id.
+                            raw = run(['image', 'inspect', '--format', '{{json .ID}}', reference])
+                        return image_id(json.loads(raw, object_pairs_hook=_object, parse_constant=_reject_constant))
                     for name, container_id in rows.items():
-                        text = run(['inspect', '--format', '{{json .Config.Image}}', container_id])
-                        if json.loads(text, object_pairs_hook=_object, parse_constant=_reject_constant) != services[name]['image']:
+                        reference = services[name]['image']
+                        expected = resolve_image(reference)
+                        text = run(['inspect', '--format', '{{json .Image}}', container_id])
+                        actual = image_id(json.loads(text, object_pairs_hook=_object, parse_constant=_reject_constant))
+                        if actual != expected or resolve_image(reference) != expected:
                             raise DockerLifecycleError('Образ контейнера не соответствует плану')
                 if record is None:
                     help_text = run(['compose', 'up', '--help'])

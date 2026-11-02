@@ -42,7 +42,7 @@ class FakeDaemon:
         args = argv[5:]
         project, services = self.compose['name'], self.compose['services']
         if args[:2] == ['image', 'inspect']:
-            output = json.dumps([args[-1]])
+            output = json.dumps('sha256:' + 'd' * 64 if args[3] in ('{{json .Id}}', '{{json .ID}}') else [args[-1]])
         elif args == ['compose', 'version', '--short']:
             output = 'v2.30.3\n'
         elif args == ['compose', 'up', '--help']:
@@ -70,10 +70,8 @@ class FakeDaemon:
                     'Service': name, 'State': self.state}) for index, name in enumerate(services))
             else:
                 raise AssertionError('неизвестная команда Compose')
-        elif args[:3] == ['inspect', '--format', '{{json .Config.Image}}']:
-            index = int(args[-1], 16) - 1
-            name = list(services)[index]
-            output = json.dumps('wrong-image' if self.bad_image else services[name]['image'])
+        elif args[:3] == ['inspect', '--format', '{{json .Image}}']:
+            output = json.dumps('sha256:' + ('e' if self.bad_image else 'd') * 64)
         else:
             raise AssertionError('неизвестная команда Docker')
         return subprocess.CompletedProcess(argv, 0, stdout=output)
@@ -217,13 +215,13 @@ def test_wrong_container_image_does_not_confirm_start(lifecycle):
     assert read_effect_receipt(marker)['status'] == 'start_pending'
 
 
-def test_daemon_returning_tag_instead_of_digest_does_not_confirm_start(lifecycle, monkeypatch):
+def test_mismatched_container_image_id_does_not_confirm_start_or_retry(lifecycle, monkeypatch):
     package, envelope, options, daemon = lifecycle
     calls = []
     def tagged_image(argv, *, timeout, env):
         calls.append(argv)
-        if argv[5:8] == ['inspect', '--format', '{{json .Config.Image}}']:
-            return subprocess.CompletedProcess(argv, 0, stdout=json.dumps('docker.io/library/alpine:3.22'))
+        if argv[5:8] == ['inspect', '--format', '{{json .Image}}']:
+            return subprocess.CompletedProcess(argv, 0, stdout=json.dumps('sha256:' + 'e' * 64))
         return daemon(argv, timeout=timeout, env=env)
     monkeypatch.setattr(docker_lifecycle, '_bounded_run', tagged_image)
     with pytest.raises(DockerLifecycleError):
@@ -234,6 +232,51 @@ def test_daemon_returning_tag_instead_of_digest_does_not_confirm_start(lifecycle
     with pytest.raises(DockerLifecycleError):
         control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
     assert len(calls) == count  # A retry must not contact the daemon or start containers again.
+
+
+def test_daemon_uppercase_image_id_and_unprefixed_hash_are_accepted(lifecycle, monkeypatch):
+    package, envelope, options, daemon = lifecycle
+    calls = []
+    def podman_style(argv, *, timeout, env):
+        args = argv[5:]
+        calls.append(args)
+        if args[:4] == ['image', 'inspect', '--format', '{{json .Id}}']:
+            return subprocess.CompletedProcess(argv, 125, stdout='')
+        if args[:4] == ['image', 'inspect', '--format', '{{json .ID}}']:
+            return subprocess.CompletedProcess(argv, 0, stdout=json.dumps('d' * 64))
+        if args[:3] == ['inspect', '--format', '{{json .Image}}']:
+            return subprocess.CompletedProcess(argv, 0, stdout=json.dumps('d' * 64))
+        return daemon(argv, timeout=timeout, env=env)
+    monkeypatch.setattr(docker_lifecycle, '_bounded_run', podman_style)
+    result = control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
+    assert result['state'] == 'running'
+    assert any('{{json .ID}}' in args for args in calls)
+
+
+@pytest.mark.parametrize('failure', ['digest_disappears', 'image_id_changes', 'malformed_id'])
+def test_changed_daemon_image_binding_never_confirms_start(lifecycle, monkeypatch, failure):
+    package, envelope, options, daemon = lifecycle
+    seen = {'digest': 0, 'id': 0}
+    def unstable(argv, *, timeout, env):
+        args = argv[5:]
+        if args[:2] == ['image', 'inspect'] and args[3] == '{{json .RepoDigests}}':
+            seen['digest'] += 1
+            # The first digest check happens during the image preflight.
+            if failure == 'digest_disappears' and seen['digest'] > 3:
+                return subprocess.CompletedProcess(argv, 0, stdout='[]')
+        if args[:2] == ['image', 'inspect'] and args[3] == '{{json .Id}}':
+            seen['id'] += 1
+            if failure == 'malformed_id':
+                return subprocess.CompletedProcess(argv, 0, stdout=json.dumps('wrong-id'))
+            if failure == 'image_id_changes' and seen['id'] > 1:
+                return subprocess.CompletedProcess(argv, 0, stdout=json.dumps('sha256:' + 'e' * 64))
+        return daemon(argv, timeout=timeout, env=env)
+    monkeypatch.setattr(docker_lifecycle, '_bounded_run', unstable)
+    monkeypatch.setattr(docker_images, '_bounded_run', unstable)
+    with pytest.raises(DockerLifecycleError):
+        control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
+    marker = Path(options['work_dir']) / ('compose-lifecycle-' + options['instance_id'] + '.json')
+    assert read_effect_receipt(marker)['status'] == 'start_pending'
 
 
 def test_unknown_stop_result_stays_pending_and_does_not_repeat(lifecycle):
@@ -355,7 +398,7 @@ compose = json.loads(pathlib.Path(COMPOSE_PATH).read_text())
 args = sys.argv[5:]
 project, services = compose['name'], compose['services']
 if args[:2] == ['image', 'inspect']:
-    output = json.dumps([args[-1]])
+    output = json.dumps('sha256:' + 'd' * 64 if args[3] in ('{{json .Id}}', '{{json .ID}}') else [args[-1]])
 elif args == ['compose', 'version', '--short']:
     output = 'v2.30.3'
 elif args == ['compose', 'up', '--help']:
@@ -375,9 +418,8 @@ elif args[:4] == ['compose', '-p', project, '-f']:
             'Service': name, 'State': state.read_text()}) for i, name in enumerate(services))
     else:
         raise SystemExit(2)
-elif args[:3] == ['inspect', '--format', '{{json .Config.Image}}']:
-    name = list(services)[int(args[-1], 16)-1]
-    output = json.dumps(services[name]['image'])
+elif args[:3] == ['inspect', '--format', '{{json .Image}}']:
+    output = json.dumps('sha256:' + 'd' * 64)
 else:
     raise SystemExit(2)
 sys.stdout.write(output + ('\\n' if output else ''))

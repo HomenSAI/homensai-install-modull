@@ -31,9 +31,89 @@ def test_capabilities_only_advertises_read_only_operations(monkeypatch):
     monkeypatch.setattr("shared.api._signature_available", lambda: False)
     response = handle(request())
     assert response["ok"] is True
-    assert response["result"]["operations"] == ["capabilities", "validate", "preflight-fresh", "check-target"]
+    assert response["result"]["operations"] == ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status"]
     assert response["result"]["execution_modes"] == []
     assert response["result"]["manifest_versions"] == [1, 2]
+
+
+@pytest.mark.parametrize('guarded', [False, True])
+def test_update_status_reads_matching_state_without_effects(tmp_path, monkeypatch, guarded):
+    from shared.update_plan import UpdatePlan
+    manifest = json.loads((ROOT / 'examples/rent.manifest.json').read_text(encoding='utf-8'))
+    params = {'manifest': manifest, 'install_root': str(tmp_path / 'install'), 'release': 'new',
+              'modes': ['autonomous'], 'migration_ids': ['manifest'], 'guard_effects': guarded}
+    plan = UpdatePlan(manifest, Path(params['install_root']), object(), release='new',
+                      modes=('autonomous',), guard_effects=guarded)
+    monkeypatch.setattr(UpdatePlan, 'run', lambda *args, **kwargs: pytest.fail('status ran update'))
+    assert handle(request('update-plan-status', params))['result'] == {'state': None}
+    assert not Path(params['install_root']).exists()
+    state = {'version': 1, 'transaction': 'a' * 32, 'plan': plan.digest, 'old_release': 'old',
+             'release': 'new', 'direction': 'forward', 'index': 0, 'failed_phase': None,
+             'archive_ready': False, 'outcome': 'running', 'indeterminate': True}
+    plan.state_path.parent.mkdir(parents=True)
+    plan.state_path.write_text(json.dumps(state), encoding='utf-8')
+    before = plan.state_path.read_bytes()
+    query = request('update-plan-status', params)
+    assert handle(query)['result'] == {'state': state}
+    result = cli(json.dumps(query).encode())
+    assert result.returncode == 0 and json.loads(result.stdout)['result'] == {'state': state}
+    assert plan.state_path.read_bytes() == before and not plan.lock_path.exists()
+    params['guard_effects'] = not guarded
+    response = handle(request('update-plan-status', params, language='en'))
+    assert response['error']['code'] == 'update_status_failed'
+    assert response['error']['message'] == 'Could not read update state'
+    assert str(tmp_path) not in json.dumps(response)
+
+
+@pytest.mark.parametrize('field,value', [('modes', []), ('modes', [True]),
+    ('guard_effects', 1), ('migration_ids', [None]), ('install_root', '')])
+def test_update_status_rejects_bad_parameter_types(field, value, tmp_path):
+    manifest = json.loads((ROOT / 'examples/rent.manifest.json').read_text(encoding='utf-8'))
+    params = {'manifest': manifest, 'install_root': str(tmp_path / 'install'), 'release': 'new',
+              'modes': ['autonomous'], 'migration_ids': [], 'guard_effects': True}
+    params[field] = value
+    assert handle(request('update-plan-status', params))['error']['code'] == 'invalid_request'
+    assert not (tmp_path / 'install').exists()
+
+
+def test_update_status_request_schema_accepts_and_rejects_guard_type(tmp_path):
+    jsonschema = pytest.importorskip('jsonschema')
+    schema = json.loads((ROOT / 'shared/api-v1-request.schema.json').read_text(encoding='utf-8'))
+    jsonschema.Draft202012Validator.check_schema(schema)
+    manifest = json.loads((ROOT / 'examples/rent.manifest.json').read_text(encoding='utf-8'))
+    params = {'manifest': manifest, 'install_root': str(tmp_path / 'install'), 'release': 'new',
+              'modes': ['autonomous'], 'migration_ids': [], 'guard_effects': True}
+    validator = jsonschema.Draft202012Validator(schema)
+    query = request('update-plan-status', params)
+    assert validator.is_valid(query) and handle(query)['ok'] is True
+    query['params']['guard_effects'] = 1
+    assert not validator.is_valid(query) and handle(query)['error']['code'] == 'invalid_request'
+
+
+def test_update_status_rejects_oversized_checkpoint_without_echo(tmp_path):
+    from shared.update_plan import MAX_STATE_BYTES, UpdatePlan
+    manifest = json.loads((ROOT / 'examples/rent.manifest.json').read_text(encoding='utf-8'))
+    params = {'manifest': manifest, 'install_root': str(tmp_path / 'install'), 'release': 'new',
+              'modes': ['autonomous'], 'migration_ids': ['manifest'], 'guard_effects': False}
+    plan = UpdatePlan(manifest, Path(params['install_root']), object(), release='new', modes=('autonomous',))
+    plan.state_path.parent.mkdir(parents=True)
+    plan.state_path.write_bytes(b'SECRET-SENTINEL' * (MAX_STATE_BYTES // 15 + 1))
+    response = handle(request('update-plan-status', params))
+    assert response['error']['code'] == 'update_status_failed'
+    assert 'SECRET-SENTINEL' not in json.dumps(response)
+
+
+@pytest.mark.skipif(not hasattr(__import__('os'), 'mkfifo'), reason='FIFO недоступен')
+def test_update_status_refuses_fifo_without_blocking(tmp_path):
+    import os
+    from shared.update_plan import UpdatePlan
+    manifest = json.loads((ROOT / 'examples/rent.manifest.json').read_text(encoding='utf-8'))
+    params = {'manifest': manifest, 'install_root': str(tmp_path / 'install'), 'release': 'new',
+              'modes': ['autonomous'], 'migration_ids': ['manifest'], 'guard_effects': False}
+    plan = UpdatePlan(manifest, Path(params['install_root']), object(), release='new', modes=('autonomous',))
+    plan.state_path.parent.mkdir(parents=True)
+    os.mkfifo(plan.state_path)
+    assert handle(request('update-plan-status', params))['error']['code'] == 'update_status_failed'
 
 
 def test_missing_signature_dependency_does_not_advertise_or_fallback(monkeypatch):

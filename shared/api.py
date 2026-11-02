@@ -15,15 +15,17 @@ import sys
 from typing import Any
 
 from shared.fresh_prepare import FreshConflict, FreshPrepareError, prepare_idempotent_native, status_fresh_native
+from shared.datahome import DataHomeError, checked_path
 from shared.host_target import HostTargetError, native_target
 from shared.i18n import LanguageError, available_languages, translate
 from shared.manifest import ManifestError, check_target, validate_manifest
 from shared.package import PackageError
 from shared.package_signing import MAX_ENVELOPE, _crypto, verify_signed_package
 from shared.preflight import MAX_BYTES as MAX_DISK_BYTES, NAMES as PATH_NAMES, PreflightError, preflight_fresh
+from shared.update_plan import UpdateError, UpdatePlan
 
 API_MAJOR = 1
-API_MINOR = 8
+API_MINOR = 9
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -132,7 +134,7 @@ def handle(request: Any) -> dict:
         if operation == "capabilities":
             if params:
                 raise InvalidRequest()
-            operations = ["capabilities", "validate", "preflight-fresh", "check-target"]
+            operations = ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status"]
             mutating_operations = []
             if _signature_available():
                 operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "prepare-native-release"])
@@ -170,6 +172,22 @@ def handle(request: Any) -> dict:
                                          reserve_bytes=params["reserve_bytes"])
             except PreflightError:
                 return _error(request_id, "preflight_failed", "Предварительная проверка не пройдена", language, "api.preflight_failed")
+        elif operation == "update-plan-status":
+            fields = {"manifest", "install_root", "release", "modes", "migration_ids", "guard_effects"}
+            if (set(params) != fields or type(params['manifest']) is not dict
+                    or type(params['install_root']) is not str or not params['install_root']
+                    or type(params['release']) is not str or type(params['guard_effects']) is not bool
+                    or type(params['modes']) is not list or not params['modes']
+                    or type(params['migration_ids']) is not list
+                    or any(type(item) is not str for item in params['modes'] + params['migration_ids'])):
+                raise InvalidRequest()
+            try:
+                plan = UpdatePlan(params['manifest'], checked_path(params['install_root']), object(),
+                                  release=params['release'], modes=tuple(params['modes']),
+                                  migration_ids=tuple(params['migration_ids']), guard_effects=params['guard_effects'])
+                result = {'state': plan.status()}
+            except (DataHomeError, ManifestError, UpdateError, OSError, RecursionError):
+                return _error(request_id, "update_status_failed", "Не удалось прочитать состояние обновления", language, "api.update_status_failed")
         elif operation == "prepare-native-release":
             fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version",
                       "install_root", "required_bytes", "reserve_bytes", "idempotency_key"}
@@ -316,7 +334,7 @@ def main() -> int:
     sys.stdout.write(json.dumps(response, ensure_ascii=True, separators=(",", ":")) + "\n")
     if response["ok"]:
         return 0
-    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_prepare_failed") else 2
+    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_prepare_failed", "update_status_failed") else 2
 
 
 if __name__ == "__main__":

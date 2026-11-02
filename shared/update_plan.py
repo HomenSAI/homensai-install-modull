@@ -14,12 +14,15 @@ import json
 import os
 from pathlib import Path
 import re
+import stat
 from typing import Any, Iterator, Protocol
 import uuid
 
 from shared.datahome import checked_path, contains, resolve_datahome
 from shared.manifest import validate_manifest
 from shared.services import component_order
+
+MAX_STATE_BYTES = 16 * 1024
 
 
 class UpdateError(RuntimeError):
@@ -210,8 +213,15 @@ class UpdatePlan:
 
     def _load(self):
         try:
-            with self.state_path.open(encoding="utf-8") as stream:
-                value = json.load(stream, object_pairs_hook=_object)
+            flags = os.O_RDONLY | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_BINARY', 0)
+            descriptor = os.open(self.state_path, flags)
+            with os.fdopen(descriptor, "rb") as stream:
+                if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                    raise UpdateError("Состояние должно быть обычным файлом")
+                raw = stream.read(MAX_STATE_BYTES + 1)
+            if len(raw) > MAX_STATE_BYTES:
+                raise UpdateError("Состояние превышает допустимый размер")
+            value = json.loads(raw.decode("utf-8"), object_pairs_hook=_object)
         except FileNotFoundError:
             return None
         except (OSError, ValueError, UnicodeError, RecursionError):

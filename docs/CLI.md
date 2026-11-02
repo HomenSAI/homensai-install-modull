@@ -140,6 +140,8 @@ python -m shared.ctl --manifest examples/rent.manifest.json update-plan-status -
 миграций. По умолчанию единственная миграция `manifest`; повторяйте
 `--migration-id NAME` для исходного списка либо задайте `--no-migrations` для
 пустого списка. Неверный digest плана и нарушенные инварианты state дают код 1.
+Для плана, созданного с `guard_effects=True`, укажите `--guard-effects`;
+признак `indeterminate: true` в результате означает неопределённый исход шага.
 Чтение видит предыдущую или следующую атомарно сохранённую версию checkpoint,
 не захватывает operation.lock и не разрешает конкурирующее управление.
 

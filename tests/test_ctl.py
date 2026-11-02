@@ -320,6 +320,20 @@ def test_status_absent_has_no_side_effects(tmp_path, capsys, rent, monkeypatch):
     assert not root.exists()
 
 
+def test_status_guarded_checkpoint_requires_matching_flag(tmp_path, capsys, rent):
+    path, manifest = rent
+    plan = UpdatePlan(manifest, tmp_path, ctl.UnimplementedUpdatePorts(), release='new',
+                      modes=('autonomous',), guard_effects=True)
+    state = checkpoint(plan)
+    state['indeterminate'] = True
+    plan.state_path.parent.mkdir(parents=True)
+    plan.state_path.write_text(json.dumps(state), encoding='utf-8')
+    before = plan.state_path.read_bytes()
+    assert status(capsys, path, tmp_path, extra=('--guard-effects',)) == {'state': state}
+    status(capsys, path, tmp_path, code=1)
+    assert plan.state_path.read_bytes() == before and not plan.lock_path.exists()
+
+
 @pytest.mark.parametrize("direction,index,archive_ready,outcome,failed", [
     ("forward", 0, False, "running", None), ("forward", 2, True, "running", None),
     ("forward", 9, True, "updated", None),

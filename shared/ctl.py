@@ -136,6 +136,7 @@ def _parser() -> Parser:
         if name == "update-plan-status":
             command.add_argument("--release", required=True, help="Целевой публичный ID выпуска плана")
             command.add_argument("--mode", action="append", required=True, help="Исходный набор режимов")
+            command.add_argument("--guard-effects", action="store_true", help="План создан с предварительной отметкой")
             migrations = command.add_mutually_exclusive_group()
             migrations.add_argument("--migration-id", action="append", help="Исходный порядок миграций")
             migrations.add_argument("--no-migrations", action="store_true", help="План без миграций")
@@ -263,7 +264,8 @@ def _execute(manifest, args, *, password_provider=None) -> tuple[str, dict]:
     if name == "update-plan-status":
         ids = () if args.no_migrations else tuple(args.migration_id or ["manifest"])
         plan = UpdatePlan(manifest, checked_path(args.install_root), UnimplementedUpdatePorts(),
-                          release=args.release, modes=tuple(args.mode), migration_ids=ids)
+                          release=args.release, modes=tuple(args.mode), migration_ids=ids,
+                          guard_effects=args.guard_effects)
         state = plan.status()
         return ("Состояние обновления прочитано" if state else "Обновление ещё не начато"), {"state": state}
     provider = password_provider if password_provider is not None else archive_crypto.password_provider(

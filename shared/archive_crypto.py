@@ -16,8 +16,10 @@ import os
 from pathlib import Path
 import re
 import struct
+import sys
 import warnings
 import uuid
+import zipfile
 
 from shared import archive as plain
 from shared.crypto_policy import CryptoPolicyError, require_locked_crypto
@@ -158,39 +160,53 @@ def encrypt_archive(source: str | Path, destination: str | Path, *, password_pro
         if type(chunk_size) is not int or not MIN_CHUNK <= chunk_size <= MAX_CHUNK:
             raise ArchiveCryptoError("Недопустимый размер блока шифрования")
         source, destination = checked_path(source), _destination(destination)
-        manifest = plain.verify_archive(source)
         with plain._open_regular(source) as incoming:
-            size, digest = plain._digest(incoming)
-            salt, prefix = os.urandom(16), os.urandom(4)
-            raw = HEADER.pack(MAGIC, VERSION, 1, SCRYPT_N, SCRYPT_R, SCRYPT_P,
-                              salt, chunk_size, size, bytes.fromhex(digest), prefix)
-            incoming.seek(0)
-            # Ограничение количества блоков такое же, как у читателя.
-            header = read_header(io.BytesIO(raw))
-            password = _password(password_provider)
-            cipher = aesgcm(_key(lambda: password, salt))
-            count = max(1, (size + chunk_size - 1) // chunk_size)
-            plain._space(destination.parent, HEADER.size + size + count * TAG_SIZE)
-            with _temporary(destination.parent) as temporary:
-                with temporary.open("wb") as output:
-                    output.write(raw)
-                    actual = hashlib.sha256()
-                    for length, nonce, aad in _frames(header):
-                        block = incoming.read(length)
-                        if len(block) != length:
-                            raise ArchiveCryptoError("Архив изменился при шифровании")
-                        actual.update(block)
-                        output.write(cipher.encrypt(nonce, block, aad))
-                    if incoming.read(1) or actual.hexdigest() != digest:
-                        raise ArchiveCryptoError("Архив изменился при шифровании")
-                    output.flush()
-                    os.fsync(output.fileno())
-                # Полная обратная проверка, включая ZIP, до публикации.
-                verify_archive(temporary, password_provider=lambda: password,
-                               expected_product_id=manifest["product_id"])
-                os.link(temporary, destination)
-        return manifest
+            return _encrypt_stream(incoming, destination, password_provider=password_provider,
+                                   chunk_size=chunk_size, aesgcm=aesgcm)
     except (OSError, DataHomeError, OverflowError):
+        raise ArchiveCryptoError("Не удалось создать проверенный шифрованный архив") from None
+
+
+def _encrypt_stream(incoming, destination, *, password_provider, chunk_size, aesgcm):
+    """Проверить seekable ZIP и зашифровать его; поток принадлежит вызывающему."""
+    try:
+        incoming.seek(0)
+        with zipfile.ZipFile(incoming, 'r') as archive:
+            manifest = plain._verify(archive, None)
+        incoming.seek(0)
+        size, digest = plain._digest(incoming)
+        salt, prefix = os.urandom(16), os.urandom(4)
+        raw = HEADER.pack(MAGIC, VERSION, 1, SCRYPT_N, SCRYPT_R, SCRYPT_P,
+                          salt, chunk_size, size, bytes.fromhex(digest), prefix)
+        incoming.seek(0)
+        # Ограничение количества блоков такое же, как у читателя.
+        header = read_header(io.BytesIO(raw))
+        password = _password(password_provider)
+        cipher = aesgcm(_key(lambda: password, salt))
+        count = max(1, (size + chunk_size - 1) // chunk_size)
+        plain._space(destination.parent, HEADER.size + size + count * TAG_SIZE)
+        with _temporary(destination.parent) as temporary:
+            with temporary.open("wb") as output:
+                output.write(raw)
+                actual = hashlib.sha256()
+                for length, nonce, aad in _frames(header):
+                    block = incoming.read(length)
+                    if len(block) != length:
+                        raise ArchiveCryptoError("Архив изменился при шифровании")
+                    actual.update(block)
+                    output.write(cipher.encrypt(nonce, block, aad))
+                if incoming.read(1) or actual.hexdigest() != digest:
+                    raise ArchiveCryptoError("Архив изменился при шифровании")
+                output.flush()
+                os.fsync(output.fileno())
+            # Полная обратная проверка, включая ZIP, до публикации.
+            verify_archive(temporary, password_provider=lambda: password,
+                           expected_product_id=manifest["product_id"])
+            os.link(temporary, destination)
+        return manifest
+    except (OSError, DataHomeError, OverflowError, zipfile.BadZipFile, UnicodeError, ValueError, RecursionError) as error:
+        if isinstance(error, plain.ArchiveError):
+            raise
         raise ArchiveCryptoError("Не удалось создать проверенный шифрованный архив") from None
 
 
@@ -254,6 +270,19 @@ def build_encrypted_archive(home, destination: str | Path, *, password_provider)
         destination = _destination(destination)
         if any(contains(root, destination) for root in (home.app, home.releases, *home.roots.values())):
             raise ArchiveCryptoError("Архив должен быть вне app/releases и архивируемых корней")
+        if sys.platform.startswith('linux'):
+            # O_TMPFILE avoids even a short-lived name before unlink, including
+            # the crash window inside tempfile.TemporaryFile's fallback.
+            if not hasattr(os, 'O_TMPFILE'):
+                raise ArchiveCryptoError('Безымянный временный ZIP недоступен')
+            descriptor = os.open(destination.parent, os.O_TMPFILE | os.O_RDWR | getattr(os, 'O_CLOEXEC', 0), 0o600)
+            with os.fdopen(descriptor, 'w+b') as source:
+                if os.fstat(source.fileno()).st_nlink != 0:
+                    raise ArchiveCryptoError('Не удалось создать безымянный временный ZIP')
+                plain._write_archive(home, source, destination.parent)
+                source.seek(0)
+                return _encrypt_stream(source, destination, password_provider=password_provider,
+                                       chunk_size=CHUNK_SIZE, aesgcm=_aesgcm())
         # Отдельный каталог позволяет build_archive эксклюзивно опубликовать ZIP.
         directory = destination.parent / (".archive-build-" + uuid.uuid4().hex)
         # На Windows Python 3.13+ трактует 0700 как специальную DACL.

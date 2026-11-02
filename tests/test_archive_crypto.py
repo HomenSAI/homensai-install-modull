@@ -349,6 +349,15 @@ def test_build_randomization_no_overwrite_and_cleanup(aes, tmp_path, home):
     no_scratch(tmp_path)
 
 
+@pytest.mark.skipif(not __import__('sys').platform.startswith('linux'), reason='Linux O_TMPFILE')
+def test_encrypted_build_fails_closed_without_anonymous_temporary_files(aes, tmp_path, home, monkeypatch):
+    monkeypatch.delattr(crypto.os, 'O_TMPFILE', raising=False)
+    with pytest.raises(crypto.ArchiveCryptoError, match='Безымянный'):
+        crypto.build_encrypted_archive(home, tmp_path / 'encrypted', password_provider=lambda: PASSWORD)
+    assert not (tmp_path / 'encrypted').exists()
+    no_scratch(tmp_path)
+
+
 def test_restore_io_failure_cleans_plaintext(aes, tmp_path, home, monkeypatch):
     encrypted = tmp_path / "encrypted"
     crypto.build_encrypted_archive(home, encrypted, password_provider=lambda: PASSWORD)

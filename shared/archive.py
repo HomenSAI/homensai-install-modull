@@ -136,6 +136,40 @@ def _info(name: str, directory: bool = False) -> zipfile.ZipInfo:
     return info
 
 
+def _write_archive(home: DataHome, output, space_parent: Path) -> dict:
+    """Собрать проверенный ZIP в уже открытый seekable поток без публикации."""
+    check_invariants(home)
+    directories, files, signatures = _inventory(home)
+    manifest = {"format": 1, "product_id": home.product_id, "roots": sorted(home.roots),
+                "directories": directories, "files": files}
+    body = json.dumps(manifest, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    if len(body) > MAX_MANIFEST:
+        raise ArchiveError("Манифест архива превышает ограничение размера")
+    _validate_manifest(manifest)
+    _space(space_parent, sum(item["size"] for item in files) + len(body)
+           + sum(1024 + 4 * len(name.encode("utf-8")) for name in signatures))
+    with zipfile.ZipFile(output, "w", allowZip64=True) as archive:
+        by_name = {item["path"]: item for item in files}
+        for member in sorted(signatures):
+            if member not in by_name:
+                archive.writestr(_info(member, True), b"")
+                continue
+            relative = member.split("/")
+            path = home.roots[relative[1]].joinpath(*relative[2:])
+            if signatures[member] != _signature(path):
+                raise ArchiveError("Данные изменились перед архивированием")
+            with path.open("rb") as source, archive.open(_info(member), "w", force_zip64=True) as target:
+                size, digest = _digest(source, target)
+            if (size, digest) != (by_name[member]["size"], by_name[member]["sha256"]):
+                raise ArchiveError("Данные изменились при архивировании")
+        archive.writestr(_info(MANIFEST), body)
+    output.flush()
+    os.fsync(output.fileno())
+    if (directories, files, signatures) != _inventory(home):
+        raise ArchiveError("Дерево данных изменилось при архивировании")
+    return manifest
+
+
 def build_archive(home: DataHome, destination: str | Path) -> dict:
     """Полный архив всех корней; никаких исключений файлов и перезаписи результата.
 
@@ -151,37 +185,10 @@ def build_archive(home: DataHome, destination: str | Path) -> dict:
             raise ArchiveError("Архив должен быть вне app/releases и архивируемых корней")
         if destination.exists() or not destination.parent.is_dir():
             raise ArchiveError("Архив уже существует или отсутствует каталог назначения")
-        directories, files, signatures = _inventory(home)
-        manifest = {"format": 1, "product_id": home.product_id, "roots": sorted(home.roots),
-                    "directories": directories, "files": files}
-        body = json.dumps(manifest, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        if len(body) > MAX_MANIFEST:
-            raise ArchiveError("Манифест архива превышает ограничение размера")
-        _validate_manifest(manifest)
-        _space(destination.parent, sum(item["size"] for item in files) + len(body)
-               + sum(1024 + 4 * len(name.encode("utf-8")) for name in signatures))
         temporary = destination.parent / (".archive-" + uuid.uuid4().hex + ".tmp")
         with temporary.open("xb") as output:
             temporary_created = True
-            with zipfile.ZipFile(output, "w", allowZip64=True) as archive:
-                by_name = {item["path"]: item for item in files}
-                for member in sorted(signatures):
-                    if member not in by_name:
-                        archive.writestr(_info(member, True), b"")
-                        continue
-                    relative = member.split("/")
-                    path = home.roots[relative[1]].joinpath(*relative[2:])
-                    if signatures[member] != _signature(path):
-                        raise ArchiveError("Данные изменились перед архивированием")
-                    with path.open("rb") as source, archive.open(_info(member), "w", force_zip64=True) as target:
-                        size, digest = _digest(source, target)
-                    if (size, digest) != (by_name[member]["size"], by_name[member]["sha256"]):
-                        raise ArchiveError("Данные изменились при архивировании")
-                archive.writestr(_info(MANIFEST), body)
-            output.flush()
-            os.fsync(output.fileno())
-        if (directories, files, signatures) != _inventory(home):
-            raise ArchiveError("Дерево данных изменилось при архивировании")
+            manifest = _write_archive(home, output, destination.parent)
         verify_archive(temporary, expected_product_id=home.product_id)
         os.link(temporary, destination)  # Атомарно, без замены существующего файла.
         return manifest

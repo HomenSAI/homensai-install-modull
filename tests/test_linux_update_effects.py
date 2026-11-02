@@ -322,10 +322,10 @@ def test_sigkill_during_encryption_leaves_pending_and_releases_guard(setup, tmp_
     if pid == 0:
         os.close(read_fd)
         def stop_at_encryption(source, destination, **kwargs):
-            assert Path(source).is_file()
+            assert os.fstat(source.fileno()).st_nlink == 0
             os.write(write_fd, b'R')
             signal.pause()
-        archive_crypto.encrypt_archive = stop_at_encryption
+        archive_crypto._encrypt_stream = stop_at_encryption
         _ACTIVE_EFFECT.set((plan, state['transaction'], 'archive'))
         try:
             ports.backup(key, 'archive', ())
@@ -344,8 +344,7 @@ def test_sigkill_during_encryption_leaves_pending_and_releases_guard(setup, tmp_
         assert read_effect_receipt(ports._path(key, '.quiescence.json'))['status'] == 'pending'
         assert read_effect_receipt(ports.archive_path(key).with_suffix('.archive.json'))['status'] == 'pending'
         assert not ports.archive_path(key).exists()
-        # The synthetic plaintext ZIP demonstrates the unresolved crash-cleanup risk.
-        assert len(list(ports.work.glob('.archive-build-*/full.zip'))) == 1
+        assert not list(ports.work.glob('.archive-build-*'))
         with guard.hold(exclusive=True):
             pass
         monkeypatch.setattr(ports, '_backup', lambda *args: pytest.fail('interrupted backup was repeated'))

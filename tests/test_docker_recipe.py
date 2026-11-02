@@ -3,8 +3,10 @@ from copy import deepcopy
 import base64
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
+import uuid
 
 import pytest
 
@@ -78,6 +80,40 @@ def test_signed_recipe_builds_stable_multiple_service_plan_without_execution(sig
     assert windows['compose_json'] == result['compose_json'] and windows['host_verified'] is False
     other = plan_signed_compose(str(package), envelope, **{**options, 'instance_id': '2' * 32})
     assert json.loads(other['compose_json'])['name'] != compose['name']
+
+
+def test_real_compose_v2_accepts_signed_plan_offline(signed_plan, tmp_path):
+    """Optional compatibility check; this does not start a daemon or containers."""
+    binary = os.environ.get('HOMENSAI_TEST_COMPOSE_V2')
+    expected = os.environ.get('HOMENSAI_TEST_COMPOSE_SHA256')
+    if not binary and not expected:
+        pytest.skip('Set HOMENSAI_TEST_COMPOSE_V2 and HOMENSAI_TEST_COMPOSE_SHA256')
+    assert binary and expected and len(expected) == 64
+    executable = Path(binary)
+    assert executable.is_absolute() and executable.is_file() and not executable.is_symlink()
+    assert hashlib.sha256(executable.read_bytes()).hexdigest() == expected
+    manifest, recipe, build = signed_plan
+    package, envelope, options = build(recipe)
+    result = plan_signed_compose(str(package), envelope, **options)
+    compose_file = tmp_path / 'compose.json'
+    compose_file.write_text(result['compose_json'], encoding='ascii')
+    env = {'PATH': os.defpath, 'HOME': str(tmp_path), 'DOCKER_CONFIG': str(tmp_path / 'config'),
+           'DOCKER_HOST': 'unix:///tmp/hsi-test-' + uuid.uuid4().hex + '.sock',
+           'COMPOSE_DISABLE_ENV_FILE': '1'}
+    version = subprocess.run([str(executable), 'version', '--short'], env=env, cwd=tmp_path,
+                             capture_output=True, text=True, timeout=20, check=True)
+    assert version.stdout.strip().startswith('2.') or version.stdout.strip().startswith('v2.')
+    parsed = subprocess.run([str(executable), '-f', str(compose_file), 'config', '--format', 'json'],
+                            env=env, cwd=tmp_path, capture_output=True, text=True, timeout=20, check=True)
+    normalized = json.loads(parsed.stdout)
+    assert normalized['name'] == manifest['product_id'] + '-' + '1' * 32
+    assert set(normalized['services']) == set(result['components'])
+    # Compose re-escapes the literal dollar when rendering its normalized model.
+    assert normalized['services']['bot']['command'][-1] == 'print("$$HOME")'
+    for service in normalized['services'].values():
+        assert service['image'].endswith('@sha256:' + 'a' * 64)
+        assert service['pull_policy'] == 'never' and service['entrypoint'] == []
+        assert service['read_only'] is True and 'ALL' in service['cap_drop']
 
 
 @pytest.mark.parametrize('change', ['tag', 'digest', 'component', 'port', 'duplicate', 'bool'])

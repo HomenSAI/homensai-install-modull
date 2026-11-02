@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import socket
 import subprocess
 import sys
 import time
@@ -26,6 +27,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdateIndetermi
 
 ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / "examples/demo_product"
+_SOCKET = socket.socket
 
 
 def invoke(executable, data, *args):
@@ -102,6 +104,8 @@ class LiveEffects(Effects):
         self.log = None
         self.port = None
         self.release = None
+        self.manifest_port = 0
+        self.health_port = None
 
     def close(self):
         for process in reversed(self.processes):
@@ -131,7 +135,7 @@ class LiveEffects(Effects):
         self.log = (self.tmp_path / 'synthetic-service.log').open('w+', encoding='utf-8')
         failure = 'health' if self.fail_health and key.endswith('/start') else 'none'
         server = subprocess.Popen([sys.executable, '-B', str(executable), 'serve', '--data-dir', data,
-                                   '--port', '0', '--fail', failure], stdout=self.log, stderr=subprocess.DEVNULL)
+                                   '--port', str(self.manifest_port), '--fail', failure], stdout=self.log, stderr=subprocess.DEVNULL)
         self.processes.append(server)
         worker = subprocess.Popen([sys.executable, '-B', str(executable), 'worker', '--data-dir', data],
                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -150,6 +154,8 @@ class LiveEffects(Effects):
 
     def health(self, key, url, timeout, checks):
         self.calls.append(key.split('/')[-1])
+        if self.health_port is not None:
+            self.health_port.health(key, url, timeout, checks)
         code = ("import sys; from shared.health import check_local_health; "
                 "check_local_health(int(sys.argv[1]),product_id='homensai-test-demo',version=sys.argv[2])")
         result = subprocess.run([sys.executable, '-B', '-c', code, str(self.port), self.release],
@@ -334,6 +340,25 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
     manifest = load_manifest(ROOT / "examples/rent.manifest.json")
     manifest["product_name"] = "Синтетический тест обновления"
     manifest["product_id"] = "homensai-test-demo"
+    if live is True:
+        with _SOCKET() as probe:
+            probe.bind(('127.0.0.1', 0))
+            manifest['web']['port'] = probe.getsockname()[1]
+        def loopback_only(address, timeout, source_address=None):
+            if address != ('127.0.0.1', manifest['web']['port']) or source_address is not None:
+                raise AssertionError('Тест допускает только loopback тестового продукта')
+            connection = _SOCKET(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                connection.settimeout(timeout)
+                connection.connect(address)
+                return connection
+            except BaseException:
+                connection.close()
+                raise
+        monkeypatch.setattr(socket, 'create_connection', loopback_only)
+        manifest['web']['healthz'] = '/health'
+        manifest['update']['health_wait'] = 2
+        manifest['hooks']['health_checks'] = []
     if live == 'systemd':
         manifest['product_id'] = 'homensai-test-' + uuid.uuid4().hex[:16]
         manifest['components'] = [c for c in manifest['components'] if c['name'] != 'scheduler']
@@ -402,6 +427,8 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
                             payloads=payloads, effects=effects, allow_unencrypted=not encrypted,
                             password_provider=password_provider)
     effects.ports = ports
+    if live is True:
+        effects.manifest_port = manifest['web']['port']
     if not signed_release:
         with operation_lock(home.roots["services"] / "operation.lock"):
             ports.stage_release("0" * 32 + "/stage", "1")
@@ -418,6 +445,9 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
 
     update = UpdatePlan(manifest, installation, ports, release="2", modes=("autonomous" if live == 'systemd' else "platform",),
                         migration_ids=("schema-2",), guard_effects=signed_release)
+    if live is True:
+        from shared.update_health_port import LocalUpdateHealthPort
+        effects.health_port = LocalUpdateHealthPort(update, ports)
     if signed_release and encrypted:
         from shared.signed_migration_port import SignedMigrationPort
         interpreter = Path(sys.executable).resolve()

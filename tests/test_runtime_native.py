@@ -377,7 +377,12 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path):
         else:
             pytest.fail('Подписанный продукт не подтвердил ответ и heartbeat')
         assert result['process_identity_verified'] is False
-        assert all(item['active_state'] == 'inactive' for item in group.command('stop', execute=True))
+        interpreter.chmod(0o600)  # Остановка доступна при повреждённом runtime.
+        stop_request = {**readiness, 'start_key': 'd' * 32, 'idempotency_key': 'e' * 32}
+        assert validator.is_valid({**request, 'operation': 'stop-portable-linux', 'params': stop_request})
+        stopped = client.call('stop-portable-linux', stop_request, min_minor=21)
+        assert stopped['state'] == 'stopped' and stopped['all_writers_stopped'] is False
+        assert client.call('stop-portable-linux', stop_request, min_minor=21) == stopped
         with pytest.raises(InstallerClientError):
             client.call('start-portable-linux', start_request, min_minor=20)
     finally:

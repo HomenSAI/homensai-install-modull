@@ -63,18 +63,24 @@ def test_failed_start_leaves_pending_and_refuses_retry(scenario, monkeypatch):
 
 def test_parallel_requests_issue_at_most_one_start(scenario, monkeypatch):
     root, args, calls, group = scenario
-    barrier = threading.Barrier(2)
-    def build(*a, **kw):
-        barrier.wait(timeout=10)
-        return group
-    monkeypatch.setattr(start, 'portable_signed_runtime_user_group', build)
+    entered, release = threading.Event(), threading.Event()
+    def execute(action, *, execute=False):
+        calls.append((action, execute))
+        entered.set()
+        assert release.wait(timeout=10)
+    monkeypatch.setattr(group, 'command', execute)
     def invoke():
         try:
             return start.start_portable_fresh('package', b'envelope', str(root), **args)['state']
         except start.FreshStartError:
             return 'refused'
     with ThreadPoolExecutor(max_workers=2) as pool:
-        result = list(pool.map(lambda _: invoke(), range(2)))
+        first = pool.submit(invoke)
+        assert entered.wait(timeout=10)
+        second = pool.submit(invoke)
+        assert second.result(timeout=10) == 'refused'
+        release.set()
+        result = [first.result(timeout=10), 'refused']
     assert sorted(result) == ['refused', 'started']
     assert calls == [('start', True)]
 
@@ -85,3 +91,56 @@ def test_duplicate_operation_keys_are_refused(scenario):
         with pytest.raises(start.FreshStartError):
             start.start_portable_fresh('package', b'envelope', str(root), **{**args, 'operation_id': key * 32})
     assert not calls
+
+
+def test_stop_after_unknown_start_and_repeat_without_commands(scenario, monkeypatch):
+    root, args, calls, group = scenario
+    def fail(action, *, execute=False):
+        calls.append((action, execute))
+        raise RuntimeError('unknown')
+    monkeypatch.setattr(group, 'command', fail)
+    with pytest.raises(start.FreshStartError):
+        start.start_portable_fresh('package', b'envelope', str(root), **args)
+    monkeypatch.setattr(group, 'command', lambda action, execute=False: calls.append((action, execute)))
+    stop_args = {**args, 'start_key': args['operation_id'], 'operation_id': 'e' * 32}
+    stopped = start.stop_portable_fresh('package', b'envelope', str(root), **stop_args)
+    assert stopped['state'] == 'stopped' and stopped['all_writers_stopped'] is False
+    assert start.stop_portable_fresh('package', b'envelope', str(root), **stop_args) == stopped
+    assert calls == [('start', True), ('stop', True)]
+
+
+def test_stop_rejected_while_start_is_executing(scenario, monkeypatch):
+    root, args, calls, group = scenario
+    entered, release = threading.Event(), threading.Event()
+    def execute(action, *, execute=False):
+        calls.append((action, execute))
+        entered.set()
+        assert release.wait(timeout=10)
+    monkeypatch.setattr(group, 'command', execute)
+    stop_args = {**args, 'start_key': args['operation_id'], 'operation_id': 'e' * 32}
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        running = pool.submit(start.start_portable_fresh, 'package', b'envelope', str(root), **args)
+        assert entered.wait(timeout=10)
+        with pytest.raises(start.FreshStartError):
+            start.stop_portable_fresh('package', b'envelope', str(root), **stop_args)
+        release.set()
+        assert running.result(timeout=10)['state'] == 'started'
+    assert calls == [('start', True)]
+
+
+def test_uncertain_stop_is_not_replayed(scenario, monkeypatch):
+    root, args, calls, group = scenario
+    start.start_portable_fresh('package', b'envelope', str(root), **args)
+    def fail(action, *, execute=False):
+        calls.append((action, execute))
+        raise RuntimeError('response lost')
+    monkeypatch.setattr(group, 'command', fail)
+    stop_args = {**args, 'start_key': args['operation_id'], 'operation_id': 'e' * 32}
+    for _ in range(2):
+        with pytest.raises(start.FreshStartError):
+            start.stop_portable_fresh('package', b'envelope', str(root), **stop_args)
+    assert calls == [('start', True), ('stop', True)]
+    record = json.loads((root / '.homensai-control/user-systemd-stop.json').read_text())
+    assert record['status'] == 'pending'
+    with pytest.raises(start.FreshStartError):
+        start.start_portable_fresh('package', b'envelope', str(root), **args)

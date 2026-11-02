@@ -105,11 +105,12 @@ def _before_reload(runner, directory, name, timeout):
 def _load_signed_user_units(package_path, envelope, install_root, *, trusted_public_key,
                             expected_product_id, expected_version, modes, unit_dir,
                             execute=False, inspect_pending=False, require_done=False, operation_id=None, portable=False,
-                            runner=None, timeout=30, require_active=False):
+                            runner=None, timeout=30, require_active=False, require_stable=False):
     if (type(execute) is not bool or type(portable) is not bool or type(modes) is not tuple or not modes
             or type(inspect_pending) is not bool or (inspect_pending and not execute)
             or type(require_done) is not bool or (require_done and (not execute or inspect_pending))
             or type(require_active) is not bool or (require_active and not require_done)
+            or type(require_stable) is not bool or (require_stable and (not require_done or require_active))
             or type(timeout) not in (int, float) or not 0 < timeout <= 120
             or (runner is not None and not callable(runner))
             or (operation_id is not None and (type(operation_id) is not str
@@ -211,7 +212,10 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
                                                  fragment_sha256=item['sha256'], runner=runner, timeout=timeout)
                     status = adapter.inspect()
                     if ((require_active and status['active_state'] != 'active') or
-                            (not require_active and (status['active_state'] != 'inactive' or status['sub_state'] != 'dead'))):
+                            (require_stable and not (status['active_state'] == 'active' or
+                              (status['active_state'] == 'inactive' and status['sub_state'] == 'dead'))) or
+                            (not require_active and not require_stable and
+                             (status['active_state'] != 'inactive' or status['sub_state'] != 'dead'))):
                         raise UnitLoadError('Служба активна или её состояние не подтверждено')
                 if (verify_signed_package(package_path, envelope, **options) != metadata
                         or verify_fresh_release(package_path, envelope, install_root, **options) != verified
@@ -274,7 +278,8 @@ def inspect_pending_portable_user_units(package_path, envelope, install_root, *,
 
 def signed_user_group(package_path, envelope, install_root, *, trusted_public_key,
                       expected_product_id, expected_version, modes, unit_dir,
-                      operation_id=None, portable=False, runner=None, timeout=30, _require_active=False):
+                      operation_id=None, portable=False, runner=None, timeout=30, _require_active=False,
+                      _require_stable=False):
     """Создать группу из подписанного выпуска после подтверждённой загрузки.
 
     Сам вызов не запускает службы и не вызывает daemon-reload. Статус менеджера
@@ -288,7 +293,7 @@ def signed_user_group(package_path, envelope, install_root, *, trusted_public_ke
         loaded = _load_signed_user_units(package_path, envelope, install_root, **options,
                     modes=modes, unit_dir=unit_dir, execute=True, require_done=True,
                     operation_id=operation_id, portable=portable, runner=runner, timeout=timeout,
-                    require_active=_require_active)
+                    require_active=_require_active, require_stable=_require_stable)
         metadata = verify_signed_package(package_path, envelope, **options)
         verified = verify_fresh_release(package_path, envelope, install_root, **options)
         manifest = metadata['manifest']
@@ -310,7 +315,10 @@ def signed_user_group(package_path, envelope, install_root, *, trusted_public_ke
         for adapter in adapters.values():
             status = adapter.inspect()
             if ((_require_active and status['active_state'] != 'active') or
-                    (not _require_active and (status['active_state'] != 'inactive' or status['sub_state'] != 'dead'))):
+                    (_require_stable and not (status['active_state'] == 'active' or
+                      (status['active_state'] == 'inactive' and status['sub_state'] == 'dead'))) or
+                    (not _require_active and not _require_stable and
+                     (status['active_state'] != 'inactive' or status['sub_state'] != 'dead'))):
                 raise UnitLoadError('Состояние службы изменилось')
         if (verify_signed_package(package_path, envelope, **options) != metadata
                 or verify_fresh_release(package_path, envelope, install_root, **options) != verified

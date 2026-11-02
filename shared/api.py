@@ -30,11 +30,11 @@ from shared.systemd_user_load import (UnitLoadError, load_signed_user_units, loa
                                       portable_signed_user_group)
 from shared.systemd_portable import PortableUnitError, publish_portable_signed_user_units
 from shared.runtime_native import NativeRuntimeError, prepare_signed_linux_runtime, verify_signed_linux_runtime
-from shared.systemd_fresh_start import FreshStartError, start_portable_fresh
+from shared.systemd_fresh_start import FreshStartError, start_portable_fresh, stop_portable_fresh
 from shared.update_plan import UpdateError, UpdatePlan
 
 API_MAJOR = 1
-API_MINOR = 20
+API_MINOR = 21
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -166,6 +166,8 @@ def handle(request: Any) -> dict:
                     mutating_operations.append("check-portable-linux-start")  # systemd show может загрузить unit
                     operations.append("start-portable-linux")
                     mutating_operations.append("start-portable-linux")
+                    operations.append("stop-portable-linux")
+                    mutating_operations.append("stop-portable-linux")
                     mutating_operations.append("prepare-linux-runtime")
             result = {"api_major": API_MAJOR, "api_minor": API_MINOR,
                       "operations": operations,
@@ -234,13 +236,16 @@ def handle(request: Any) -> dict:
                 result = {'state': plan.status()}
             except (DataHomeError, ManifestError, UpdateError, OSError, RecursionError):
                 return _error(request_id, "update_status_failed", "Не удалось прочитать состояние обновления", language, "api.update_status_failed")
-        elif operation in ('check-portable-linux-start', 'start-portable-linux'):
+        elif operation in ('check-portable-linux-start', 'start-portable-linux', 'stop-portable-linux'):
             fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id',
                       'expected_version', 'install_root', 'modes', 'unit_dir', 'load_key',
                       'runtime_key', 'reserve_bytes'}
             starting = operation == 'start-portable-linux'
-            if starting:
+            stopping = operation == 'stop-portable-linux'
+            if starting or stopping:
                 fields.add('idempotency_key')
+            if stopping:
+                fields.add('start_key')
             strings = fields - {'modes', 'reserve_bytes'}
             if (set(params) != fields or any(type(params[name]) is not str or not params[name] for name in strings)
                     or type(params['modes']) is not list or not params['modes']
@@ -250,8 +255,10 @@ def handle(request: Any) -> dict:
                     or re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', params['expected_version']) is None
                     or any(re.fullmatch(r'[a-f0-9]{32}', params[name]) is None for name in ('load_key', 'runtime_key'))
                     or params['load_key'] == params['runtime_key']
-                    or (starting and (re.fullmatch(r'[a-f0-9]{32}', params['idempotency_key']) is None
-                                     or params['idempotency_key'] in (params['load_key'], params['runtime_key'])))):
+                    or ((starting or stopping) and (re.fullmatch(r'[a-f0-9]{32}', params['idempotency_key']) is None
+                                     or params['idempotency_key'] in (params['load_key'], params['runtime_key'])))
+                    or (stopping and (re.fullmatch(r'[a-f0-9]{32}', params['start_key']) is None
+                        or len({params['start_key'], params['idempotency_key'], params['load_key'], params['runtime_key']}) != 4))):
                 raise InvalidRequest()
             if not _signature_available() or not _systemd_plan_available():
                 return _error(request_id, 'unsupported_operation', 'Операция API не поддерживается', language, 'api.unsupported_operation')
@@ -262,7 +269,12 @@ def handle(request: Any) -> dict:
             options = {'trusted_public_key': key, 'expected_product_id': params['expected_product_id'],
                        'expected_version': params['expected_version']}
             try:
-                if starting:
+                if stopping:
+                    result = stop_portable_fresh(params['package_path'], envelope, params['install_root'],
+                            **options, modes=tuple(params['modes']), unit_dir=params['unit_dir'],
+                            load_key=params['load_key'], runtime_key=params['runtime_key'], start_key=params['start_key'],
+                            reserve_bytes=params['reserve_bytes'], operation_id=params['idempotency_key'])
+                elif starting:
                     result = start_portable_fresh(params['package_path'], envelope, params['install_root'],
                             **options, modes=tuple(params['modes']), unit_dir=params['unit_dir'],
                             load_key=params['load_key'], runtime_key=params['runtime_key'],
@@ -277,6 +289,9 @@ def handle(request: Any) -> dict:
                               'runtime_file_count': runtime['file_count'], 'services_started': False,
                               'installation_complete': False, 'python_compatibility_verified': False}
             except (UnitLoadError, NativeRuntimeError, FreshStartError):
+                if stopping:
+                    return _error(request_id, 'linux_stop_failed', 'Не удалось подтвердить остановку служб',
+                                  language, 'api.linux_stop_failed')
                 if starting:
                     return _error(request_id, 'linux_start_failed', 'Не удалось подтвердить запуск служб',
                                   language, 'api.linux_start_failed')
@@ -527,7 +542,7 @@ def main() -> int:
     sys.stdout.write(json.dumps(response, ensure_ascii=True, separators=(",", ":")) + "\n")
     if response["ok"]:
         return 0
-    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_verify_failed", "fresh_prepare_failed", "update_status_failed", "health_check_failed", "systemd_plan_failed", "systemd_publish_failed", "systemd_load_failed", "linux_runtime_failed", "linux_start_check_failed", "linux_start_failed") else 2
+    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_verify_failed", "fresh_prepare_failed", "update_status_failed", "health_check_failed", "systemd_plan_failed", "systemd_publish_failed", "systemd_load_failed", "linux_runtime_failed", "linux_start_check_failed", "linux_start_failed", "linux_stop_failed") else 2
 
 
 if __name__ == "__main__":

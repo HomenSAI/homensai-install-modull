@@ -25,5 +25,6 @@
   "api.systemd_load_failed": "Das Laden der Dienste konnte nicht bestätigt werden",
   "api.linux_runtime_failed": "Die Linux-Laufzeitumgebung konnte nicht bestätigt werden",
   "api.linux_start_check_failed": "Die Bereitschaft der Dienste konnte nicht geprüft werden",
-  "api.linux_start_failed": "Der Start der Dienste konnte nicht bestätigt werden"
+  "api.linux_start_failed": "Der Start der Dienste konnte nicht bestätigt werden",
+  "api.linux_stop_failed": "Das Stoppen der Dienste konnte nicht bestätigt werden"
 }

@@ -7,6 +7,7 @@ import json
 import os
 import re
 import stat
+from contextlib import contextmanager
 
 from shared.datahome import checked_path
 from shared.runtime_native import verify_signed_linux_runtime
@@ -19,7 +20,107 @@ class FreshStartError(RuntimeError):
     """Результат запуска не подтверждён; повтор действия может быть небезопасен."""
 
 
-def start_portable_fresh(package_path, envelope, install_root, *, trusted_public_key,
+@contextmanager
+def _lifecycle_lock(install_root):
+    import fcntl
+    root = checked_path(install_root)
+    control = checked_path(root / '.homensai-control')
+    for path in (root, control):
+        info = path.lstat()
+        if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+            raise FreshStartError('Каталог управления не подтверждён')
+    path = checked_path(control / 'user-systemd-lifecycle.lock')
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | getattr(os, 'O_NONBLOCK', 0), 0o600)
+    acquired = False
+    try:
+        info, current = os.fstat(fd), path.lstat()
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077
+                or info.st_nlink != 1 or info.st_size != 0
+                or (info.st_dev, info.st_ino) != (current.st_dev, current.st_ino)):
+            raise FreshStartError('Блокировка служб не подтверждена')
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        acquired = True
+        yield
+    finally:
+        if acquired:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
+
+
+def _binding(root, directory, envelope, trusted_public_key, expected_product_id,
+             expected_version, modes, load_key, runtime_key, reserve_bytes):
+    context = {'product_id': expected_product_id, 'version': expected_version,
+               'envelope_sha256': hashlib.sha256(envelope).hexdigest(),
+               'publisher_sha256': hashlib.sha256(trusted_public_key).hexdigest(),
+               'install_root': str(root), 'unit_dir': str(directory), 'modes': modes,
+               'load_key': load_key, 'runtime_key': runtime_key, 'reserve_bytes': reserve_bytes}
+    return hashlib.sha256(json.dumps(context, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
+def start_portable_fresh(package_path, envelope, install_root, **options):
+    """Запуск с общей блокировкой start/stop для этой установки."""
+    try:
+        with _lifecycle_lock(install_root):
+            return _start_portable_fresh(package_path, envelope, install_root, **options)
+    except FreshStartError:
+        raise
+    except Exception:
+        raise FreshStartError('Не удалось подтвердить запуск служб') from None
+
+
+def stop_portable_fresh(package_path, envelope, install_root, *, trusted_public_key,
+                        expected_product_id, expected_version, modes, unit_dir,
+                        load_key, runtime_key, start_key, reserve_bytes, operation_id, runner=None):
+    """Остановить стабильные units с отдельной отметкой, в том числе после pending start."""
+    try:
+        if (any(type(key) is not str or re.fullmatch(r'[a-f0-9]{32}', key) is None
+                for key in (load_key, runtime_key, start_key, operation_id))
+                or len({load_key, runtime_key, start_key, operation_id}) != 4
+                or type(reserve_bytes) is not int or not 0 <= reserve_bytes <= 2**63 - 1
+                or type(envelope) is not bytes or type(trusted_public_key) is not bytes
+                or len(trusted_public_key) != 32 or type(modes) is not tuple or not modes):
+            raise FreshStartError('Недопустимые параметры остановки')
+        with _lifecycle_lock(install_root):
+            root, directory = checked_path(install_root), checked_path(unit_dir)
+            control = checked_path(root / '.homensai-control')
+            publication = _publication_receipt(control / 'user-systemd-publication.json')
+            if publication is None or publication['status'] != 'done' or publication['operation_id'] == operation_id:
+                raise FreshStartError('Публикация не подтверждена')
+            digest = _binding(root, directory, envelope, trusted_public_key, expected_product_id,
+                              expected_version, modes, load_key, runtime_key, reserve_bytes)
+            start_receipt = _publication_receipt(control / 'user-systemd-start.json')
+            if (start_receipt is None or start_receipt['operation_id'] != start_key
+                    or start_receipt['binding'] != digest):
+                raise FreshStartError('Запуск не соответствует запросу')
+            stop_binding = hashlib.sha256((digest + start_key).encode('ascii')).hexdigest()
+            pending = {'version': 1, 'operation_id': operation_id, 'binding': stop_binding, 'status': 'pending'}
+            done = {**pending, 'status': 'done'}
+            receipt = checked_path(control / 'user-systemd-stop.json')
+            old = _publication_receipt(receipt)
+            if old is not None and old != done:
+                raise FreshStartError('Предыдущая остановка требует проверки')
+            options = dict(trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
+                           expected_version=expected_version)
+            group = signed_user_group(package_path, envelope, str(root), **options, modes=modes,
+                        unit_dir=str(directory), operation_id=load_key, portable=True, runner=runner,
+                        _require_stable=(old is None))
+            if old is None:
+                _new_publication_receipt(receipt, pending)
+                group.command('stop', execute=True)
+                if _publication_receipt(receipt) != pending:
+                    raise FreshStartError('Отметка остановки изменилась')
+                _atomic_write(receipt, done)
+            if _publication_receipt(receipt) != done:
+                raise FreshStartError('Остановка не подтверждена')
+            return {'state': 'stopped', 'services_stopped': True, 'installation_complete': False,
+                    'all_writers_stopped': False}
+    except FreshStartError:
+        raise
+    except Exception:
+        raise FreshStartError('Не удалось подтвердить остановку служб') from None
+
+
+def _start_portable_fresh(package_path, envelope, install_root, *, trusted_public_key,
                          expected_product_id, expected_version, modes, unit_dir,
                          load_key, runtime_key, reserve_bytes, operation_id, runner=None):
     """Однократно отправить start; pending никогда автоматически не повторяется."""
@@ -40,12 +141,10 @@ def start_portable_fresh(package_path, envelope, install_root, *, trusted_public
         publication = _publication_receipt(control / 'user-systemd-publication.json')
         if publication is None or publication['status'] != 'done' or publication['operation_id'] == operation_id:
             raise FreshStartError('Публикация не подтверждена')
-        binding = {'product_id': expected_product_id, 'version': expected_version,
-                   'envelope_sha256': hashlib.sha256(envelope).hexdigest(),
-                   'publisher_sha256': hashlib.sha256(trusted_public_key).hexdigest(),
-                   'install_root': str(root), 'unit_dir': str(directory), 'modes': modes,
-                   'load_key': load_key, 'runtime_key': runtime_key, 'reserve_bytes': reserve_bytes}
-        digest = hashlib.sha256(json.dumps(binding, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+        if _publication_receipt(control / 'user-systemd-stop.json') is not None:
+            raise FreshStartError('Остановка требует отдельного нового цикла')
+        digest = _binding(root, directory, envelope, trusted_public_key, expected_product_id,
+                          expected_version, modes, load_key, runtime_key, reserve_bytes)
         pending = {'version': 1, 'operation_id': operation_id, 'binding': digest, 'status': 'pending'}
         done = {**pending, 'status': 'done'}
         receipt = checked_path(control / 'user-systemd-start.json')

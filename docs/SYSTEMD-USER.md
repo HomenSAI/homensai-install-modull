@@ -59,7 +59,8 @@ runtime, безопасную доставку секретов или соот�
 API 1.17 предоставляет `plan-portable-systemd-user-units`,
 `publish-portable-systemd-user-units` и `load-portable-systemd-user-units`;
 контракт приведён в `API-DESIGN.md`. API 1.20 отдельно поддерживает ограниченный
-первый запуск с проверкой runtime и отметкой результата; сама публикация не
+первый запуск с проверкой runtime и отметкой результата, API 1.21 — остановку
+с отдельной отметкой; сама публикация не
 проверяет runtime и его возможные ссылки.
 
 `shared.systemd_user_load.load_portable_signed_user_units` экспериментально

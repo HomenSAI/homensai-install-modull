@@ -25,5 +25,6 @@
   "api.systemd_load_failed": "Не удалось подтвердить загрузку служб",
   "api.linux_runtime_failed": "Не удалось подтвердить Linux runtime",
   "api.linux_start_check_failed": "Не удалось проверить готовность служб",
-  "api.linux_start_failed": "Не удалось подтвердить запуск служб"
+  "api.linux_start_failed": "Не удалось подтвердить запуск служб",
+  "api.linux_stop_failed": "Не удалось подтвердить остановку служб"
 }

@@ -342,10 +342,17 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                     run_portable_linux_install(**args)
             marker_file = work / ('install-' + args['workflow_key'] + '.json')
             assert json.loads(marker_file.read_text())['index'] == 1
-            result = run_portable_linux_install(**args)
+            api_args = {name: value for name, value in args.items() if name not in ('product_id', 'version')}
+            api_args['expected_product_id'], api_args['expected_version'] = args['product_id'], args['version']
+            api_args['envelope'] = base64.b64encode(args['envelope']).decode('ascii')
+            api_args['trusted_public_key'] = base64.b64encode(args['trusted_public_key']).decode('ascii')
+            api_args['modes'] = list(args['modes'])
+            from examples.demo_product.installer_client import InstallerClient
+            client = InstallerClient(timeout=300)
+            result = client.call('install-portable-linux', api_args, min_minor=31, language='de')
             assert result['state'] == 'recorded_complete' and result['health_verified_at_execution'] is True
             assert result['installation_complete'] is False and result['process_identity_verified'] is False
-            assert run_portable_linux_install(**args) == result
+            assert client.call('install-portable-linux', api_args, min_minor=31, language='ru') == result
             heartbeat_path = install / 'data/worker-heartbeat.json'
             deadline = time.monotonic() + 15
             while not heartbeat_path.exists() and time.monotonic() < deadline:

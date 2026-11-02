@@ -32,5 +32,6 @@
   "api.update_archive_import_failed": "Could not confirm archive import",
   "api.docker_preflight_failed": "Could not check Docker",
   "api.update_prepare_failed": "Could not prepare the update",
-  "api.update_inspect_failed": "Could not inspect the update"
+  "api.update_inspect_failed": "Could not inspect the update",
+  "api.fresh_controller_failed": "Could not confirm the installation"
 }

@@ -94,20 +94,23 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
              'health_response_matches', True),
         ]
         binding_data = {'workflow_key': workflow_key, 'work': str(work), 'steps': steps,
-                        'metadata': metadata, 'language': language}
+                        'metadata': metadata}
         binding = hashlib.sha256(json.dumps(binding_data, sort_keys=True, ensure_ascii=True,
                                              separators=(',', ':'), allow_nan=False).encode('ascii')).hexdigest()
+        legacy_binding = hashlib.sha256(json.dumps({**binding_data, 'language': language}, sort_keys=True,
+            ensure_ascii=True, separators=(',', ':'), allow_nan=False).encode('ascii')).hexdigest()
         marker = checked_path(work / ('install-' + workflow_key + '.json'))
         lock = checked_path(work / ('install-' + workflow_key + '.lock'))
         from shared.api import handle
         with operation_lock(lock):
             state = read_effect_receipt(marker)
             if state is None:
-                state = {'version': 1, 'binding': binding, 'index': 0, 'status': 'pending'}
+                state = {'version': 2, 'binding': binding, 'index': 0, 'status': 'pending'}
                 _atomic_write(marker, state)
             if (set(state) != {'version', 'binding', 'index', 'status'}
-                    or type(state['version']) is not int or state['version'] != 1
-                    or state['binding'] != binding or type(state['index']) is not int
+                    or type(state['version']) is not int or state['version'] not in (1, 2)
+                    or state['binding'] != (legacy_binding if state['version'] == 1 else binding)
+                    or type(state['index']) is not int
                     or not 0 <= state['index'] <= len(steps)
                     or state['status'] != ('done' if state['index'] == len(steps) else 'pending')):
                 raise FreshControllerError()

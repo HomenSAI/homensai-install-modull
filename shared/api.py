@@ -39,7 +39,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 30
+API_MINOR = 31
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -175,6 +175,8 @@ def handle(request: Any) -> dict:
                 operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release"])
                 mutating_operations.append("prepare-native-release")
                 if _systemd_plan_available():
+                    operations.append('install-portable-linux')
+                    mutating_operations.append('install-portable-linux')
                     operations.extend(['prepare-signed-linux-update', 'inspect-signed-linux-update'])
                     # Проверка записывает служебные файлы блокировок, не изменяя продукт.
                     mutating_operations.extend(['prepare-signed-linux-update', 'inspect-signed-linux-update'])
@@ -505,6 +507,46 @@ def handle(request: Any) -> dict:
                 return _error(request_id, 'linux_runtime_failed', 'Не удалось подтвердить Linux runtime',
                               language, 'api.linux_runtime_failed')
             result['installation_complete'] = False
+        elif operation == 'install-portable-linux':
+            fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id', 'expected_version',
+                      'install_root', 'unit_dir', 'work_dir', 'modes', 'required_bytes', 'reserve_bytes',
+                      'workflow_key', 'keys'}
+            strings = fields - {'modes', 'required_bytes', 'reserve_bytes', 'keys'}
+            names = ('release', 'runtime', 'publish', 'load', 'start')
+            if (set(params) != fields or any(type(params[name]) is not str or not params[name] for name in strings)
+                    or type(params['modes']) is not list or not params['modes']
+                    or any(type(item) is not str or not item for item in params['modes'])
+                    or len(set(params['modes'])) != len(params['modes'])
+                    or type(params['required_bytes']) is not dict or set(params['required_bytes']) != set(PATH_NAMES)
+                    or any(type(value) is not int or not 0 <= value <= MAX_DISK_BYTES
+                           for value in params['required_bytes'].values())
+                    or type(params['reserve_bytes']) is not int or not 0 <= params['reserve_bytes'] <= MAX_DISK_BYTES
+                    or type(params['keys']) is not dict or set(params['keys']) != set(names)
+                    or any(type(value) is not str or re.fullmatch(r'[a-f0-9]{32}', value) is None
+                           for value in params['keys'].values())
+                    or re.fullmatch(r'[a-f0-9]{32}', params['workflow_key']) is None
+                    or len({params['workflow_key'], *params['keys'].values()}) != len(names) + 1
+                    or re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,62}', params['expected_product_id']) is None
+                    or re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', params['expected_version']) is None):
+                raise InvalidRequest()
+            if not _signature_available() or not _systemd_plan_available():
+                return _error(request_id, 'unsupported_operation', 'Операция API не поддерживается',
+                              language, 'api.unsupported_operation')
+            envelope = _base64(params['envelope'], MAX_ENVELOPE)
+            key = _base64(params['trusted_public_key'], 32)
+            if len(key) != 32:
+                raise InvalidRequest()
+            from shared.fresh_controller import FreshControllerError, run_portable_linux_install
+            try:
+                result = run_portable_linux_install(package_path=params['package_path'], envelope=envelope,
+                    trusted_public_key=key, product_id=params['expected_product_id'], version=params['expected_version'],
+                    install_root=params['install_root'], unit_dir=params['unit_dir'], work_dir=params['work_dir'],
+                    modes=tuple(params['modes']), required_bytes=params['required_bytes'],
+                    reserve_bytes=params['reserve_bytes'], workflow_key=params['workflow_key'], keys=params['keys'],
+                    language=language or 'en')
+            except FreshControllerError:
+                return _error(request_id, 'fresh_controller_failed', 'Не удалось подтвердить установку',
+                              language, 'api.fresh_controller_failed')
         elif operation == "prepare-native-release":
             fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version",
                       "install_root", "required_bytes", "reserve_bytes", "idempotency_key"}

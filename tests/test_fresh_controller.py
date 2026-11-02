@@ -47,14 +47,14 @@ def test_failed_phase_is_resumed_with_same_key_without_replaying_completed_steps
     marker = Path(workflow['work_dir']) / ('install-' + workflow['workflow_key'] + '.json')
     assert json.loads(marker.read_text())['index'] == 3
     fail.append(False)
-    result = run_portable_linux_install(**workflow)
+    result = run_portable_linux_install(**workflow, language='de')
     assert result['state'] == 'recorded_complete' and result['installation_complete'] is False
     assert result['current_health_verified'] is False and result['process_identity_verified'] is False
     assert [name for name, _ in calls] == ['prepare-native-release', 'prepare-linux-runtime',
         'publish-portable-systemd-user-units', 'load-portable-systemd-user-units',
         'load-portable-systemd-user-units', 'start-portable-linux', 'check-local-health']
     assert calls[3][1] == calls[4][1] == workflow['keys']['load']
-    assert run_portable_linux_install(**workflow) == result and len(calls) == 7
+    assert run_portable_linux_install(**workflow, language='ru') == result and len(calls) == 7
 
 
 def test_controller_rejects_changed_request_corrupt_journal_and_busy_lock(workflow, monkeypatch):
@@ -89,3 +89,29 @@ def test_controller_does_not_start_with_duplicate_keys_or_overlapping_workspace(
     with pytest.raises(FreshControllerError):
         run_portable_linux_install(**{**workflow, 'modes': ('unknown-mode',)})
     assert not list(Path(workflow['work_dir']).iterdir())
+
+
+def test_previous_version_one_journal_remains_supported(workflow, monkeypatch):
+    import hashlib
+    import shared.fresh_controller as module
+    real_sha, captured = hashlib.sha256, []
+    def sha(data=b'', *args, **kwargs):
+        result = real_sha(data, *args, **kwargs)
+        if isinstance(data, bytes) and b'"workflow_key"' in data and b'"language"' in data:
+            captured.append(result.hexdigest())
+        return result
+    monkeypatch.setattr(module.hashlib, 'sha256', sha)
+    monkeypatch.setattr(api, 'handle', lambda request: {'ok': False, 'error': {'code': 'fresh_prepare_failed'}})
+    with pytest.raises(FreshControllerError):
+        run_portable_linux_install(**workflow)
+    assert captured
+    marker = Path(workflow['work_dir']) / ('install-' + workflow['workflow_key'] + '.json')
+    state = json.loads(marker.read_text())
+    state.update(version=1, binding=captured[-1])
+    marker.write_text(json.dumps(state))
+    with pytest.raises(FreshControllerError) as error:
+        run_portable_linux_install(**workflow)
+    assert error.value.code == 'fresh_prepare_failed'
+    with pytest.raises(FreshControllerError) as conflict:
+        run_portable_linux_install(**workflow, language='de')
+    assert conflict.value.code == 'controller_failed'

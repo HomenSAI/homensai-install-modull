@@ -390,6 +390,42 @@ def test_lost_reload_response_preserves_pending_and_never_replays(published_unit
     assert receipt.read_bytes() == before and manager.calls.count(['daemon-reload']) == 1
 
 
+def group_call(data, **kwargs):
+    from shared.systemd_user_load import signed_user_group
+    package, envelope, root, options, destination, _ = data
+    return signed_user_group(package, envelope, str(root), **options,
+                             modes=('autonomous',), unit_dir=str(destination), **kwargs)
+
+
+@pytest.mark.parametrize('state', ['missing', 'pending'])
+def test_signed_group_requires_completed_reload_without_reloading(published_units, state):
+    from shared.systemd_user_load import UnitLoadError
+    manager = FakeReloadManager(published_units[-2], lose_response=state == 'pending')
+    if state == 'pending':
+        with pytest.raises(UnitLoadError):
+            load_call(published_units, execute=True, runner=manager)
+    before = list(manager.calls)
+    with pytest.raises(UnitLoadError):
+        group_call(published_units, runner=manager)
+    assert manager.calls == before
+
+
+def test_signed_group_binds_published_units_and_refuses_tampering(published_units):
+    from shared.systemd_user_load import UnitLoadError
+    manager = FakeReloadManager(published_units[-2])
+    load_call(published_units, execute=True, runner=manager)
+    group = group_call(published_units, runner=manager)
+    destination, units = published_units[-2:]
+    assert tuple(group.order) == ('web', 'bot', 'scheduler')
+    assert {adapter.path.name: adapter.digest for adapter in group.adapters.values()} == {
+        name: hashlib.sha256(body).hexdigest() for name, body in units.items()}
+    assert manager.calls.count(['daemon-reload']) == 1
+    (destination / next(iter(units))).write_text('tampered')
+    with pytest.raises(UnitLoadError):
+        group_call(published_units, runner=manager)
+    assert manager.calls.count(['daemon-reload']) == 1
+
+
 def test_changed_receipt_fails_without_reload(published_units):
     from shared.systemd_user_load import UnitLoadError
     receipt = published_units[2] / '.homensai-control/user-systemd-reload.json'
@@ -510,9 +546,7 @@ def test_inspect_pending_rejects_unbound_receipt_without_manager_call(published_
 def test_isolated_manager_reloads_signed_units_without_start(signed_units, exercise_lifecycle):
     import pwd
     import subprocess
-    from shared.systemd_group import SystemdUserGroup
-    from shared.systemd_user import SystemdUserAdapter
-    from shared.systemd_user_load import load_signed_user_units
+    from shared.systemd_user_load import load_signed_user_units, signed_user_group
 
     identity = pwd.getpwuid(os.getuid())
     if (os.getuid() == 0 or identity.pw_name != 'homenstest'
@@ -544,16 +578,9 @@ def test_isolated_manager_reloads_signed_units_without_start(signed_units, exerc
         assert calls.count(['daemon-reload']) == 1
         assert all(path.read_bytes() == units[path.name] for path in expected)
         if exercise_lifecycle:
-            manifest = load_manifest(ROOT / 'examples/rent.manifest.json')
-            manifest['product_id'] = options['expected_product_id']
-            adapters = {}
-            for component in ('web', 'bot', 'scheduler'):
-                unit = manifest['product_id'] + '-' + component + '.service'
-                adapters[component] = SystemdUserAdapter(
-                    manifest, modes=('autonomous',), component=component,
-                    fragment_path=str(destination / unit),
-                    fragment_sha256=hashlib.sha256(units[unit]).hexdigest())
-            group = SystemdUserGroup(manifest, modes=('autonomous',), adapters=adapters)
+            group = signed_user_group(package, envelope, str(root), **options,
+                                      modes=('autonomous',), unit_dir=str(destination), runner=actual_runner)
+            assert calls.count(['daemon-reload']) == 1
             assert [status['active_state'] for status in group.command('start', execute=True)] == ['active'] * 3
             assert [status['active_state'] for status in group.command('stop', execute=True)] == ['inactive'] * 3
     finally:

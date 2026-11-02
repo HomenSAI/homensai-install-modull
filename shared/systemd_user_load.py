@@ -102,9 +102,10 @@ def _before_reload(runner, directory, name, timeout):
 
 def _load_signed_user_units(package_path, envelope, install_root, *, trusted_public_key,
                             expected_product_id, expected_version, modes, unit_dir,
-                            execute=False, inspect_pending=False, runner=None, timeout=30):
+                            execute=False, inspect_pending=False, require_done=False, runner=None, timeout=30):
     if (type(execute) is not bool or type(modes) is not tuple or not modes
             or type(inspect_pending) is not bool or (inspect_pending and not execute)
+            or type(require_done) is not bool or (require_done and (not execute or inspect_pending))
             or type(timeout) not in (int, float) or not 0 < timeout <= 120
             or (runner is not None and not callable(runner))):
         raise UnitLoadError('Недопустимые параметры загрузки')
@@ -156,6 +157,8 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
                 if not _absent(update_state):
                     raise UnitLoadError('Состояние обновления требует проверки')
                 old = _read_receipt(receipt)
+                if require_done and old != done:
+                    raise UnitLoadError('Загрузка служб не подтверждена')
                 if (inspect_pending and old != pending) or (not inspect_pending and old not in (None, done)):
                     raise UnitLoadError('Результат предыдущей загрузки требует проверки')
                 paths = _manager_call(runner, ['show', '--property=UnitPath', '--value'], timeout)
@@ -217,3 +220,47 @@ def inspect_pending_user_units(package_path, envelope, install_root, *, trusted_
         trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
         expected_version=expected_version, modes=modes, unit_dir=unit_dir,
         execute=True, inspect_pending=True, runner=runner, timeout=timeout)
+
+
+def signed_user_group(package_path, envelope, install_root, *, trusted_public_key,
+                      expected_product_id, expected_version, modes, unit_dir,
+                      runner=None, timeout=30):
+    """Создать группу из подписанного выпуска после подтверждённой загрузки.
+
+    Сам вызов не запускает службы и не вызывает daemon-reload. Статус менеджера
+    может измениться после проверки; операции группы повторно проверяют units.
+    """
+    from shared.systemd_group import SystemdUserGroup, SystemdGroupError
+
+    options = dict(trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
+                   expected_version=expected_version)
+    try:
+        loaded = _load_signed_user_units(package_path, envelope, install_root, **options,
+                    modes=modes, unit_dir=unit_dir, execute=True, require_done=True,
+                    runner=runner, timeout=timeout)
+        metadata = verify_signed_package(package_path, envelope, **options)
+        verified = verify_fresh_release(package_path, envelope, install_root, **options)
+        manifest = metadata['manifest']
+        order = component_order(manifest, modes)
+        directory = _unit_directory(unit_dir)
+        inventory = {item['path']: item['sha256'] for item in metadata['files']}
+        units = loaded['units']
+        names = [expected_product_id + '-' + name + '.service' for name in order]
+        if ([item['name'] for item in units] != names or
+                any(inventory.get('systemd-user/' + item['name']) != item['sha256'] for item in units)):
+            raise UnitLoadError('Состав служб изменился')
+        adapters = {component: SystemdUserAdapter(manifest, modes=modes, component=component,
+                       fragment_path=str(directory / item['name']), fragment_sha256=item['sha256'],
+                       runner=runner, timeout=timeout) for component, item in zip(order, units)}
+        group = SystemdUserGroup(manifest, modes=modes, adapters=adapters)
+        for adapter in adapters.values():
+            status = adapter.inspect()
+            if status['active_state'] != 'inactive' or status['sub_state'] != 'dead':
+                raise UnitLoadError('Состояние службы изменилось')
+        if (verify_signed_package(package_path, envelope, **options) != metadata
+                or verify_fresh_release(package_path, envelope, install_root, **options) != verified):
+            raise UnitLoadError('Выпуск изменился')
+        return group
+    except (OSError, ValueError, TypeError, KeyError, RecursionError, DataHomeError, ManifestError,
+            PackageError, FreshPrepareError, SystemdUserError, SystemdGroupError, UnitPublicationError, UpdateError):
+        raise UnitLoadError('Не удалось подтвердить группу служб') from None

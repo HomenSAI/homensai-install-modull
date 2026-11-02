@@ -42,7 +42,7 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
 done
 if [ "$ready" != 1 ]; then cat /tmp/homensai-test-systemd.log; exit 1; fi
 cd /project
-python -m pytest -q -p no:cacheprovider tests/test_systemd_user_publish.py::test_isolated_manager_reloads_signed_units_without_start
+python -m pytest -q -p no:cacheprovider tests/test_systemd_user_publish.py
 '''
 
 

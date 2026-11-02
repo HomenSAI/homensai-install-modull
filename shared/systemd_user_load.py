@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import stat
 
 from shared.datahome import DataHomeError, checked_path, resolve_datahome
@@ -102,12 +103,15 @@ def _before_reload(runner, directory, name, timeout):
 
 def _load_signed_user_units(package_path, envelope, install_root, *, trusted_public_key,
                             expected_product_id, expected_version, modes, unit_dir,
-                            execute=False, inspect_pending=False, require_done=False, runner=None, timeout=30):
+                            execute=False, inspect_pending=False, require_done=False, operation_id=None,
+                            runner=None, timeout=30):
     if (type(execute) is not bool or type(modes) is not tuple or not modes
             or type(inspect_pending) is not bool or (inspect_pending and not execute)
             or type(require_done) is not bool or (require_done and (not execute or inspect_pending))
             or type(timeout) not in (int, float) or not 0 < timeout <= 120
-            or (runner is not None and not callable(runner))):
+            or (runner is not None and not callable(runner))
+            or (operation_id is not None and (type(operation_id) is not str
+                or re.fullmatch(r'[a-f0-9]{32}', operation_id) is None))):
         raise UnitLoadError('Недопустимые параметры загрузки')
     try:
         options = dict(trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
@@ -146,6 +150,9 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
                    'install_sha256': hashlib.sha256(str(root).encode()).hexdigest(),
                    'directory_sha256': hashlib.sha256(str(directory).encode()).hexdigest(),
                    'publisher_sha256': hashlib.sha256(trusted_public_key).hexdigest()}
+        if operation_id is not None:
+            context['operation_id'] = operation_id
+            context['modes'] = modes
         binding = hashlib.sha256(json.dumps(context, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
         pending, done = {'version': 1, 'binding': binding, 'status': 'pending'}, {'version': 1, 'binding': binding, 'status': 'done'}
         with _existing_lock(bootstrap):
@@ -156,6 +163,8 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
                 publication = _publication_receipt(control / 'user-systemd-publication.json')
                 if publication is not None and publication['status'] != 'done':
                     raise UnitLoadError('Публикация служб не подтверждена')
+                if publication is not None and operation_id is not None and publication['operation_id'] == operation_id:
+                    raise UnitLoadError('Ключ уже использован для публикации')
                 update_state = checked_path(home.roots['services'] / manifest['update']['state_file'].replace('\\', '/'))
                 if not _absent(update_state):
                     raise UnitLoadError('Состояние обновления требует проверки')
@@ -207,27 +216,27 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
 
 def load_signed_user_units(package_path, envelope, install_root, *, trusted_public_key,
                            expected_product_id, expected_version, modes, unit_dir,
-                           execute=False, runner=None, timeout=30):
+                           execute=False, operation_id=None, runner=None, timeout=30):
     """Загрузить ожидаемые units без запуска; pending автоматически не повторяется."""
     return _load_signed_user_units(package_path, envelope, install_root,
         trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
         expected_version=expected_version, modes=modes, unit_dir=unit_dir,
-        execute=execute, runner=runner, timeout=timeout)
+        execute=execute, operation_id=operation_id, runner=runner, timeout=timeout)
 
 
 def inspect_pending_user_units(package_path, envelope, install_root, *, trusted_public_key,
                                expected_product_id, expected_version, modes, unit_dir,
-                               runner=None, timeout=30):
+                               operation_id=None, runner=None, timeout=30):
     """Проверка pending без reload/start и записи отметки; show может загрузить unit."""
     return _load_signed_user_units(package_path, envelope, install_root,
         trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
         expected_version=expected_version, modes=modes, unit_dir=unit_dir,
-        execute=True, inspect_pending=True, runner=runner, timeout=timeout)
+        execute=True, inspect_pending=True, operation_id=operation_id, runner=runner, timeout=timeout)
 
 
 def signed_user_group(package_path, envelope, install_root, *, trusted_public_key,
                       expected_product_id, expected_version, modes, unit_dir,
-                      runner=None, timeout=30):
+                      operation_id=None, runner=None, timeout=30):
     """Создать группу из подписанного выпуска после подтверждённой загрузки.
 
     Сам вызов не запускает службы и не вызывает daemon-reload. Статус менеджера
@@ -240,7 +249,7 @@ def signed_user_group(package_path, envelope, install_root, *, trusted_public_ke
     try:
         loaded = _load_signed_user_units(package_path, envelope, install_root, **options,
                     modes=modes, unit_dir=unit_dir, execute=True, require_done=True,
-                    runner=runner, timeout=timeout)
+                    operation_id=operation_id, runner=runner, timeout=timeout)
         metadata = verify_signed_package(package_path, envelope, **options)
         verified = verify_fresh_release(package_path, envelope, install_root, **options)
         manifest = metadata['manifest']

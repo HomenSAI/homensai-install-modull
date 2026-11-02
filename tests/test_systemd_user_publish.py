@@ -551,6 +551,41 @@ def test_api_publish_has_key_bound_retry_and_schema(signed_units, local_director
     assert query['operation'] not in caps['operations'] and query['operation'] not in caps['mutating_operations']
 
 
+@pytest.mark.parametrize('lost_response', [False, True])
+def test_api_load_does_not_replay_reload(published_units, monkeypatch, lost_response):
+    import shared.systemd_user_load as loader
+    from shared.api import handle
+    manager = FakeReloadManager(published_units[-2], lose_response=lost_response)
+    monkeypatch.setattr(loader, '_run', manager)
+    query = api_publish_request(published_units, published_units[-2])
+    query['operation'] = 'load-systemd-user-units'
+    query['params']['idempotency_key'] = 'd' * 32
+    validator = pytest.importorskip('jsonschema').Draft202012Validator(
+        json.loads((ROOT / 'shared/api-v1-request.schema.json').read_text()))
+    assert validator.is_valid(query)
+    caps = handle({'api_major': 1, 'request_id': 'test', 'operation': 'capabilities', 'params': {}})['result']
+    assert caps['api_minor'] >= 15 and query['operation'] in caps['mutating_operations']
+    result = handle(query)
+    assert result['ok'] is not lost_response
+    if lost_response:
+        assert result['error']['code'] == 'systemd_load_failed'
+    else:
+        assert result['result']['state'] == 'loaded' and result['result']['installation_complete'] is False
+    assert manager.calls.count(['daemon-reload']) == 1
+    repeated = handle(query)
+    assert repeated == result
+    assert manager.calls.count(['daemon-reload']) == 1
+    query['params']['idempotency_key'] = 'e' * 32
+    query['language'] = 'de'
+    failure = handle(query)
+    assert failure['error']['code'] == 'systemd_load_failed'
+    assert failure['error']['message'] == 'Das Laden der Dienste konnte nicht bestätigt werden'
+    assert manager.calls.count(['daemon-reload']) == 1
+    with pytest.raises(loader.UnitLoadError):
+        load_call(published_units, execute=True, runner=manager)
+    assert manager.calls.count(['daemon-reload']) == 1
+
+
 @pytest.mark.parametrize('state', ['missing', 'pending'])
 def test_signed_group_requires_completed_reload_without_reloading(published_units, state):
     from shared.systemd_user_load import UnitLoadError
@@ -697,11 +732,12 @@ def test_inspect_pending_rejects_unbound_receipt_without_manager_call(published_
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Требуется явно созданный изолированный systemd-контейнер')
 @pytest.mark.parametrize('exercise_lifecycle', [False, True], ids=['reload-only', 'group-lifecycle'])
-def test_isolated_manager_reloads_signed_units_without_start(signed_units, exercise_lifecycle):
+def test_isolated_manager_reloads_signed_units_without_start(signed_units, exercise_lifecycle, monkeypatch):
     import pwd
     import subprocess
     import sys
     from shared.api import handle
+    import shared.systemd_user_load as loader
     from shared.systemd_user_load import load_signed_user_units, signed_user_group
 
     identity = pwd.getpwuid(os.getuid())
@@ -743,18 +779,35 @@ def test_isolated_manager_reloads_signed_units_without_start(signed_units, exerc
                          operation_id='a' * 32, runner=actual_runner)
         assert repeated == published
         assert before == {p.name: (p.stat().st_ino, p.stat().st_mtime_ns) for p in expected}
-        loaded = load_signed_user_units(package, envelope, str(root), **options,
-                     modes=('autonomous',), unit_dir=str(destination), execute=True, runner=actual_runner)
+        if exercise_lifecycle:
+            monkeypatch.setattr(loader, '_run', actual_runner)
+            query['operation'] = 'load-systemd-user-units'
+            conflict = handle(query)
+            assert conflict['error']['code'] == 'systemd_load_failed'
+            assert ['daemon-reload'] not in calls
+            query['params']['idempotency_key'] = 'd' * 32
+            load_response = handle(query)
+            assert load_response['ok'] and load_response['result']['installation_complete'] is False
+            loaded = {key: value for key, value in load_response['result'].items() if key != 'installation_complete'}
+        else:
+            loaded = load_signed_user_units(package, envelope, str(root), **options,
+                         modes=('autonomous',), unit_dir=str(destination), execute=True, runner=actual_runner)
         assert loaded['state'] == 'loaded' and loaded['services_started'] is False
         assert calls.count(['daemon-reload']) == 1
         assert json.loads((root / '.homensai-control/user-systemd-reload.json').read_text())['status'] == 'done'
-        assert load_signed_user_units(package, envelope, str(root), **options,
-                   modes=('autonomous',), unit_dir=str(destination), execute=True, runner=actual_runner) == loaded
+        if exercise_lifecycle:
+            cli = subprocess.run([sys.executable, '-B', '-m', 'shared.api'], cwd=ROOT,
+                                 input=json.dumps(query).encode(), capture_output=True, timeout=60, check=True)
+            assert json.loads(cli.stdout) == load_response
+        else:
+            assert load_signed_user_units(package, envelope, str(root), **options,
+                       modes=('autonomous',), unit_dir=str(destination), execute=True, runner=actual_runner) == loaded
         assert calls.count(['daemon-reload']) == 1
         assert all(path.read_bytes() == units[path.name] for path in expected)
         if exercise_lifecycle:
             group = signed_user_group(package, envelope, str(root), **options,
-                                      modes=('autonomous',), unit_dir=str(destination), runner=actual_runner)
+                                      modes=('autonomous',), unit_dir=str(destination),
+                                      operation_id='d' * 32, runner=actual_runner)
             assert calls.count(['daemon-reload']) == 1
             assert [status['active_state'] for status in group.command('start', execute=True)] == ['active'] * 3
             assert [status['active_state'] for status in group.command('stop', execute=True)] == ['inactive'] * 3

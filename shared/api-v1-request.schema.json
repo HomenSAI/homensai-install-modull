@@ -6,12 +6,19 @@
   "required": ["api_major", "operation", "request_id", "params"],
   "properties": {
     "api_major": {"type": "integer", "const": 1},
-    "operation": {"type": "string", "enum": ["capabilities", "validate"]},
+    "operation": {"type": "string", "enum": ["capabilities", "validate", "verify-package"]},
     "request_id": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
     "params": {"type": "object"}
   },
   "oneOf": [
     {"properties": {"operation": {"const": "capabilities"}, "params": {"type": "object", "maxProperties": 0}}},
-    {"properties": {"operation": {"const": "validate"}, "params": {"type": "object", "required": ["manifest"], "additionalProperties": false, "properties": {"manifest": {"type": "object"}}}}}
+    {"properties": {"operation": {"const": "validate"}, "params": {"type": "object", "required": ["manifest"], "additionalProperties": false, "properties": {"manifest": {"type": "object"}}}}},
+    {"properties": {"operation": {"const": "verify-package"}, "params": {"type": "object", "additionalProperties": false, "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version"], "properties": {
+      "package_path": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "envelope": {"type": "string", "minLength": 4, "maxLength": 5464},
+      "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44},
+      "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},
+      "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"}
+    }}}}
   ]
 }

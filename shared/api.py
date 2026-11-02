@@ -1,5 +1,5 @@
 # HomenS.AI · © 2026 Serhii Khomenko
-"""Экспериментальный локальный API v1: только capabilities и validate.
+"""Экспериментальный локальный API v1: проверка манифеста и подписи пакета.
 
 Это не установщик и не сетевой сервис. Новые операции нельзя объявлять до их
 реализации и проверки; значения входных данных не возвращаются в ошибках.
@@ -7,15 +7,19 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import re
 import sys
 from typing import Any
 
 from shared.manifest import ManifestError, validate_manifest
+from shared.package import PackageError
+from shared.package_signing import MAX_ENVELOPE, _crypto, verify_signed_package
 
 API_MAJOR = 1
-API_MINOR = 0
+API_MINOR = 1
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -63,6 +67,30 @@ def _error(request_id: str | None, code: str, message: str) -> dict:
             "error": {"code": code, "message": message, "retryable": False}}
 
 
+def _signature_available() -> bool:
+    try:
+        _, public_key, _, unsupported = _crypto()
+    except (PackageError, OSError):
+        return False
+    try:
+        public_key.from_public_bytes(b"\0" * 32)
+        return True
+    except (unsupported, ValueError, OSError):
+        return False
+
+
+def _base64(value: Any, max_decoded: int) -> bytes:
+    if type(value) is not str or not value or len(value) > ((max_decoded + 2) // 3) * 4:
+        raise InvalidRequest()
+    try:
+        decoded = base64.b64decode(value, validate=True)
+    except (binascii.Error, ValueError):
+        raise InvalidRequest() from None
+    if len(decoded) > max_decoded or base64.b64encode(decoded).decode("ascii") != value:
+        raise InvalidRequest()
+    return decoded
+
+
 def handle(request: Any) -> dict:
     """Обработать один объект без процессов, сети или изменения файлов."""
     request_id = None
@@ -84,8 +112,11 @@ def handle(request: Any) -> dict:
         if operation == "capabilities":
             if params:
                 raise InvalidRequest()
+            operations = ["capabilities", "validate"]
+            if _signature_available():
+                operations.append("verify-package")
             result = {"api_major": API_MAJOR, "api_minor": API_MINOR,
-                      "operations": ["capabilities", "validate"],
+                      "operations": operations,
                       "manifest_versions": [1, 2], "execution_modes": [],
                       "limits": {"request_bytes": MAX_BYTES, "depth": MAX_DEPTH,
                                  "nodes": MAX_NODES, "string_chars": MAX_STRING}}
@@ -97,6 +128,29 @@ def handle(request: Any) -> dict:
             except (ManifestError, RecursionError):
                 return _error(request_id, "invalid_request", "Манифест не соответствует контракту")
             result = {"product_id": manifest["product_id"], "schema_version": manifest["schema_version"]}
+        elif operation == "verify-package":
+            if set(params) != {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version"}:
+                raise InvalidRequest()
+            if any(type(params[field]) is not str for field in params):
+                raise InvalidRequest()
+            if not _signature_available():
+                return _error(request_id, "unsupported_operation", "Проверка подписи недоступна")
+            if (not params["package_path"]
+                    or re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,62}", params["expected_product_id"]) is None
+                    or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", params["expected_version"]) is None):
+                raise InvalidRequest()
+            envelope = _base64(params["envelope"], MAX_ENVELOPE)
+            key = _base64(params["trusted_public_key"], 32)
+            if len(key) != 32:
+                raise InvalidRequest()
+            try:
+                metadata = verify_signed_package(params["package_path"], envelope, trusted_public_key=key,
+                                                 expected_product_id=params["expected_product_id"],
+                                                 expected_version=params["expected_version"])
+            except PackageError:
+                return _error(request_id, "verification_failed", "Подпись или пакет не прошли проверку")
+            result = {"product_id": metadata["product_id"], "version": metadata["version"],
+                      "file_count": len(metadata["files"])}
         else:
             return _error(request_id, "unsupported_operation", "Операция API не поддерживается")
     except (InvalidRequest, RecursionError):
@@ -133,7 +187,7 @@ def main() -> int:
     sys.stdout.write(json.dumps(response, ensure_ascii=True, separators=(",", ":")) + "\n")
     if response["ok"]:
         return 0
-    return 2
+    return 1 if response["error"]["code"] == "verification_failed" else 2
 
 
 if __name__ == "__main__":

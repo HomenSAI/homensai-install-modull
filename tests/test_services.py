@@ -7,7 +7,8 @@ import xml.etree.ElementTree as ET
 import pytest
 
 from shared.manifest import ManifestError, load_manifest, validate_manifest
-from shared.services import component_order, render_fixed_user_services, render_services, verify_winsw
+from shared.services import (component_order, render_fixed_user_services,
+                             render_portable_user_services_v1, render_services, verify_winsw)
 
 
 PAYLOAD = b"synthetic-not-an-executable"
@@ -181,3 +182,39 @@ def test_fixed_user_units_reject_unsupported_inputs(manifest, condition):
         manifest['paths']['app'] = 'C:\\app'
     with pytest.raises(ManifestError):
         render_fixed_user_services(manifest, modes=('autonomous',), install_root=root)
+
+
+def test_portable_user_units_expand_whole_arguments_and_escape_specifiers(manifest):
+    manifest['secrets'] = []
+    manifest['paths'] = {name: name for name in manifest['paths']}
+    for component in manifest['components']:
+        component['cmd'] = ['@runtime/bin/python', '-B', '@release/demo/main.py',
+                            '--data-dir', '@data', 'literal%$"']
+    output = render_portable_user_services_v1(manifest, modes=('autonomous',),
+                                               install_root='/srv/два места%test', version='1')
+    web = output['homensai-rent-demo-web.service']
+    assert '"/srv/два места%%test/runtime/bin/python"' in web
+    assert '"/srv/два места%%test/releases/app-1/demo/main.py"' in web
+    assert '"/srv/два места%%test/data"' in web
+    assert '"literal%%$$\\""' in web
+    assert 'WorkingDirectory=/srv/два места%%test/app\n' in web
+
+
+@pytest.mark.parametrize('executable', ['python', '/usr/bin/python', '@data/bin/python', '@runtime',
+                                         '@runtime/../outside', '@runtime//python', '@unknown/bin/python'])
+def test_portable_user_units_reject_unbound_or_escaping_executable(manifest, executable):
+    manifest['secrets'] = []
+    for component in manifest['components']:
+        component['cmd'] = ['@runtime/bin/python']
+    manifest['components'][0]['cmd'] = [executable]
+    with pytest.raises(ManifestError):
+        render_portable_user_services_v1(manifest, modes=('autonomous',), install_root='/srv/demo', version='1')
+
+
+@pytest.mark.parametrize('argument', ['@data/../outside', '@release//other', '@unknown/file', '@runtime/'])
+def test_portable_user_units_reject_ambiguous_paths(manifest, argument):
+    manifest['secrets'] = []
+    for component in manifest['components']:
+        component['cmd'] = ['@runtime/bin/python', argument]
+    with pytest.raises(ManifestError):
+        render_portable_user_services_v1(manifest, modes=('autonomous',), install_root='/srv/demo', version='1')

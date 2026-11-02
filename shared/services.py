@@ -181,3 +181,54 @@ def render_fixed_user_services(manifest: dict[str, Any], *, modes: tuple[str, ..
                  if not line.startswith(('PassEnvironment=', 'WantedBy=')) and line != '[Install]']
         result[name] = '\n'.join(lines).rstrip() + '\n'
     return result
+
+
+def render_portable_user_services_v1(manifest: dict[str, Any], *, modes: tuple[str, ...],
+                                     install_root: str, version: str) -> dict[str, str]:
+    """Экспериментально разрешить подписанные обозначения путей в user-units.
+
+    Допустимы только целые аргументы вида @app, @data, @runtime, @release
+    и те же обозначения с безопасным относительным суффиксом. Executable
+    обязан быть файлом внутри @runtime/ или @release/. Литеральные аргументы
+    остаются буквальными; это не анализ поведения программы или проверка ФС.
+    """
+    manifest = validate_manifest(manifest)
+    if type(modes) is not tuple or not modes or any(type(mode) is not str for mode in modes):
+        raise ManifestError('systemd user: недопустимые режимы')
+    if (type(version) is not str or re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', version) is None
+            or version.endswith('.')):
+        raise ManifestError('systemd user: недопустимая версия')
+    if (type(install_root) is not str or not install_root.startswith('/') or install_root == '/'
+            or '\\' in install_root or '//' in install_root
+            or any(part in ('.', '..') for part in install_root.split('/'))):
+        raise ManifestError('systemd user: недопустимый корень')
+    root = PurePosixPath(install_root)
+    roots = {}
+    for key in ('app', 'data', 'runtime', 'releases'):
+        value = manifest['paths'][key]
+        if (value.startswith('/') or '\\' in value or ':' in value
+                or any(part in ('', '.', '..') for part in value.split('/'))):
+            raise ManifestError('systemd user: требуется безопасный относительный каталог')
+        roots[key] = root / value
+    roots['release'] = roots.pop('releases') / ('app-' + version)
+    order = component_order(manifest, modes)
+    for component in manifest['components']:
+        if component['name'] not in order:
+            continue
+        expanded = []
+        for index, argument in enumerate(component['cmd']):
+            if argument.startswith('@'):
+                marker, separator, suffix = argument.partition('/')
+                key = marker[1:]
+                if key not in roots or (separator and (not suffix or '\\' in suffix or ':' in suffix
+                        or any(part in ('', '.', '..') for part in suffix.split('/')))):
+                    raise ManifestError('systemd user: недопустимое обозначение пути')
+                if index == 0 and (key not in ('runtime', 'release') or not separator):
+                    raise ManifestError('systemd user: executable должен находиться в runtime или release')
+                expanded.append(str(roots[key] / suffix) if separator else str(roots[key]))
+            else:
+                if index == 0:
+                    raise ManifestError('systemd user: executable должен использовать обозначение пути')
+                expanded.append(argument)
+        component['cmd'] = expanded
+    return render_fixed_user_services(manifest, modes=modes, install_root=install_root)

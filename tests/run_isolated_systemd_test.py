@@ -42,7 +42,7 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
 done
 if [ "$ready" != 1 ]; then cat /tmp/homensai-test-systemd.log; exit 1; fi
 cd /project
-python -m pytest -q -p no:cacheprovider tests/test_isolated_signed_demo.py tests/test_services.py tests/test_linux_sh.py tests/test_systemd_user_publish.py tests/test_api.py tests/test_api_signed_preflight.py tests/test_i18n.py
+python -m pytest -q -p no:cacheprovider tests/test_isolated_signed_demo.py tests/test_services.py tests/test_linux_sh.py tests/test_systemd_portable.py tests/test_systemd_user_publish.py tests/test_api.py tests/test_api_signed_preflight.py tests/test_i18n.py
 '''
 
 

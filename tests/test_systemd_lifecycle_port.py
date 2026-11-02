@@ -96,6 +96,18 @@ def test_partial_stop_is_pending_and_never_retried(setup):
     assert len(events) == 2
 
 
+@pytest.mark.parametrize('raw', [b'null', b'false', b'[]', b'0', b'"pending"'])
+def test_corrupt_service_receipt_never_repeats_stop(setup, raw):
+    plan, ports, subject, _, events = setup
+    ports.work.mkdir(parents=True, exist_ok=True)
+    path = ports._path(TX + '/stop', '.service.json')
+    path.write_bytes(raw)
+    with pytest.raises(EffectIndeterminate):
+        invoke(plan, subject)
+    assert events == []
+    assert path.read_bytes() == raw
+
+
 def test_crash_before_done_keeps_pending(setup, monkeypatch):
     class Crash(BaseException):
         pass

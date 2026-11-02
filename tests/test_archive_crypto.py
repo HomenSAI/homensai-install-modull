@@ -510,6 +510,21 @@ def test_existing_encrypted_file_without_receipt_is_not_adopted(tmp_path, home):
     assert path.read_bytes() == crypto.MAGIC + b'untracked'
 
 
+@pytest.mark.parametrize('raw', [b'null', b'false', b'[]', b'0', b'"pending"'])
+def test_corrupt_archive_receipt_never_starts_backup(tmp_path, home, monkeypatch, raw):
+    ports = FilesystemPorts(load_manifest(EXAMPLE), tmp_path / 'installation', work_dir=tmp_path / 'work',
+                            payloads={}, effects=None, password_provider=lambda: PASSWORD)
+    key = 'e' * 32 + '/archive'
+    ports.work.mkdir()
+    path = ports.archive_path(key)
+    binding = path.with_suffix('.archive.json')
+    binding.write_bytes(raw)
+    monkeypatch.setattr(crypto, 'build_encrypted_archive', lambda *args, **kwargs: pytest.fail('backup repeated'))
+    with pytest.raises(EffectIndeterminate):
+        ports.backup(key, 'archive', ())
+    assert binding.read_bytes() == raw and not path.exists()
+
+
 @pytest.mark.parametrize('missing', [False, True])
 def test_recover_archive_binding_requires_independent_digest_and_matching_checkpoint(aes, tmp_path, home, missing):
     from shared.effect_receipt import read_effect_receipt
@@ -579,6 +594,10 @@ def test_recover_archive_binding_refuses_wrong_password_and_unrelated_receipt(ae
     with pytest.raises(EffectIndeterminate):
         ports.recover_archive_binding(plan, key, done['sha256'])
     assert read_effect_receipt(binding) == unrelated
+    binding.write_bytes(b'null')
+    with pytest.raises(EffectIndeterminate):
+        ports.recover_archive_binding(plan, key, done['sha256'])
+    assert binding.read_bytes() == b'null'
 
 
 @pytest.mark.parametrize('phase,direction', [('backup:0', 'forward'), ('before_rollback', 'rollback')])

@@ -157,6 +157,21 @@ def test_restart_during_backup_leaves_pending_and_never_reuses_snapshot(setup, m
         _ACTIVE_EFFECT.reset(token)
 
 
+def test_null_quiescence_receipt_cannot_authorize_another_snapshot(setup, monkeypatch):
+    plan, ports, state, _ = _prepare_archive(setup)
+    key = state['transaction'] + '/archive'
+    marker = ports._path(key, '.quiescence.json')
+    marker.write_bytes(b'null')
+    monkeypatch.setattr(ports, '_backup', lambda *args: pytest.fail('backup repeated'))
+    token = _ACTIVE_EFFECT.set((plan, state['transaction'], 'archive'))
+    try:
+        with pytest.raises(EffectIndeterminate):
+            ports.backup(key, 'archive', ())
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+    assert marker.read_bytes() == b'null'
+
+
 def test_unrecorded_stop_and_existing_untracked_archive_are_rejected(setup, monkeypatch):
     plan, ports, state, _ = _prepare_archive(setup)
     key = state['transaction'] + '/archive'

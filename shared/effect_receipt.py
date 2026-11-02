@@ -25,6 +25,11 @@ def read_effect_receipt(path):
             raw = stream.read(MAX_RECEIPT + 1)
         if len(raw) > MAX_RECEIPT:
             raise EffectIndeterminate('Недопустимая отметка операции')
-        return json.loads(raw.decode('utf-8'), object_pairs_hook=_object)
+        value = json.loads(raw.decode('utf-8'), object_pairs_hook=_object)
+        # None зарезервирован только для отсутствующего файла. JSON null и
+        # другие значения не должны давать разрешение повторить эффект.
+        if type(value) is not dict:
+            raise EffectIndeterminate('Недопустимая отметка операции')
+        return value
     except (OSError, ValueError, UnicodeError, RecursionError, UpdateError):
         raise EffectIndeterminate('Недоступна отметка операции') from None

@@ -1,7 +1,8 @@
 """Транзакция с синтетической SQLite и тестовыми адаптерами исполнения.
 
-Opt-in сценарий использует настоящие временные user-systemd службы; порты
-хуков и миграций тестовые, crash-resume не проверяется. Это не приёмка.
+Opt-in сценарий использует настоящие временные user-systemd службы и
+подписанную миграцию; отдельные сценарии применяют тестовые мосты и инъекции
+сбоев. Это не приёмка готового инсталлятора.
 """
 
 from hashlib import sha256
@@ -394,7 +395,7 @@ def test_systemd_group_failure_has_indeterminate_effect(tmp_path, action):
     pytest.param(True, True, 'old-tamper', False, 'systemd', marks=pytest.mark.skipif(
         os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix', reason='opt-in systemd')),
 ])
-def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch, signed_release, encrypted, fail_health, corrupt, live):
+def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch, signed_release, encrypted, fail_health, corrupt, live, assembled=False):
     source = tmp_path / "source"
     subprocess.run([sys.executable, "-B", str(DEMO / "build_releases.py"), str(source)],
                    capture_output=True, text=True, timeout=15, check=True)
@@ -554,6 +555,23 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
         effects.composite = LinuxSignedUpdateEffects(effects.lifecycle_port, effects.migration_port,
             LocalUpdateHealthPort(update, ports),
             previous_release=PreviousSignedRelease(str(package_one), envelope_one, public))
+    if assembled:
+        from shared.update_assembly import assemble_prepared_linux_update
+        work = tmp_path / 'assembled-work'
+        work.mkdir(mode=0o700)
+        interpreter = Path(sys.executable).resolve()
+        update = assemble_prepared_linux_update(
+            new_package=str(package), new_envelope=envelope, new_key=public,
+            old_package=str(package_one), old_envelope=envelope_one, old_key=public,
+            product_id=manifest['product_id'], old_version='1', new_version='2',
+            install_root=str(installation), work_dir=str(work), modes=('autonomous',),
+            migration_ids=('schema-2',), operation_id='c' * 32, group=effects.group,
+            password_provider=password_provider, interpreter=str(interpreter),
+            interpreter_sha256=sha256(interpreter.read_bytes()).hexdigest(), timeout=15)
+        ports = update.ports
+        effects.ports, effects.composite = ports, ports.effects
+        effects.lifecycle_port = effects.composite.lifecycle
+        ports.effects = effects  # Тестовый мост фиксирует события и делегирует настоящим портам.
     if fail_health == 'old-tamper':
         old_script = ports.release_path('1') / 'main.py'
         old_script.write_bytes(old_script.read_bytes() + b'\n# synthetic tampering\n')
@@ -698,7 +716,15 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
         assert "rollback_health" in effects.calls
     if encrypted:
         assert archive_crypto.is_encrypted(ports.archive_path(result["transaction"] + "/archive"))
-        assert not list((tmp_path / 'work').glob('*.zip'))
-        assert not list((tmp_path / 'work').glob('.archive-crypto-*'))
-        assert not list((tmp_path / 'work').glob('.archive-build-*'))
-        assert not list((tmp_path / 'work').glob('.restore-*'))
+        assert not list(ports.work.glob('*.zip'))
+        assert not list(ports.work.glob('.archive-crypto-*'))
+        assert not list(ports.work.glob('.archive-build-*'))
+        assert not list(ports.work.glob('.restore-*'))
+
+
+@pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix',
+                    reason='opt-in systemd')
+@pytest.mark.parametrize('fail_health', [False, True], ids=['update', 'rollback'])
+def test_systemd_assembled_update_runs_demo_product(tmp_path, request, monkeypatch, fail_health):
+    test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
+        True, True, fail_health, False, 'systemd', assembled=True)

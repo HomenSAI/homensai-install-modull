@@ -20,11 +20,12 @@ import tempfile
 from typing import Mapping, Protocol
 import uuid
 
-from shared.archive import _safe_name, build_archive, restore_archive, verify_archive
+from shared.archive import _open_regular, _safe_name, build_archive, restore_archive, verify_archive
 from shared import archive_crypto
 from shared.datahome import checked_path, contains, resolve_datahome
+from shared.effect_receipt import read_effect_receipt
 from shared.manifest import validate_manifest
-from shared.update_plan import UpdateError, _atomic_write, _identifier, operation_lock
+from shared.update_plan import EffectIndeterminate, UpdateError, _atomic_write, _identifier, operation_lock
 
 
 class InjectedEffects(Protocol):
@@ -144,13 +145,27 @@ class FilesystemPorts:
     def archive_path(self, key: str) -> Path:
         return self._path(key, ".hsac" if self.password_provider is not None else ".zip")
 
+    def _archive_binding(self, path: Path) -> dict:
+        path = checked_path(path)
+        record = read_effect_receipt(checked_path(path.with_suffix('.archive.json')))
+        if (type(record) is not dict or set(record) != {'version', 'key', 'product_id', 'sha256', 'status'}
+                or type(record['version']) is not int or record['version'] != 1
+                or type(record['key']) is not str or record['product_id'] != self.home.product_id
+                or record['status'] != 'done' or type(record['sha256']) is not str
+                or re.fullmatch(r'[a-f0-9]{64}', record['sha256']) is None
+                or self.archive_path(record['key']) != path):
+            raise EffectIndeterminate('Отметка архивной копии не подтверждена')
+        return record
+
     def _verify_archive(self, path):
         if self.password_provider is None:
             return verify_archive(path, expected_product_id=self.home.product_id)
+        binding = self._archive_binding(path)
         if not archive_crypto.is_encrypted(path):
             raise UpdateError("Ожидался шифрованный архив; обычный ZIP запрещён")
         return archive_crypto.verify_archive(path, password_provider=self.password_provider,
-                                             expected_product_id=self.home.product_id, require_encrypted=True)
+                                             expected_product_id=self.home.product_id, require_encrypted=True,
+                                             expected_ciphertext_sha256=binding['sha256'])
 
     def release_path(self, release: str) -> Path:
         if not _identifier(release):
@@ -241,12 +256,39 @@ class FilesystemPorts:
             raise UpdateError("Назначение копии не соответствует ключу")
         path = self.archive_path(key)
         checked_path(self.work).mkdir(parents=True, exist_ok=True)
+        if self.password_provider is not None:
+            binding_path = checked_path(path.with_suffix('.archive.json'))
+            existing = read_effect_receipt(binding_path)
+            if existing is not None:
+                try:
+                    self._verify_archive(path)
+                except Exception:
+                    raise EffectIndeterminate('Сохранённая копия не подтверждена') from None
+                return
+            if path.exists():
+                if not archive_crypto.is_encrypted(path):
+                    raise UpdateError('Ожидался шифрованный архив; обычный ZIP запрещён')
+                raise EffectIndeterminate('Архив без отметки операции требует проверки')
+            pending = {'version': 1, 'key': key, 'product_id': self.home.product_id,
+                       'sha256': None, 'status': 'pending'}
+            _atomic_write(binding_path, pending)
+            try:
+                archive_crypto.build_encrypted_archive(self.home, path, password_provider=self.password_provider)
+                with _open_regular(path) as stream:
+                    digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+                archive_crypto.verify_archive(path, password_provider=self.password_provider,
+                    expected_product_id=self.home.product_id, require_encrypted=True,
+                    expected_ciphertext_sha256=digest)
+                _sync_directory(self.work)
+                if read_effect_receipt(binding_path) != pending:
+                    raise EffectIndeterminate('Отметка архивной копии изменилась')
+                _atomic_write(binding_path, {**pending, 'sha256': digest, 'status': 'done'})
+                self._verify_archive(path)
+            except Exception:
+                raise EffectIndeterminate('Результат архивной копии требует проверки') from None
+            return
         if not path.exists():
-            if self.password_provider is None:
-                build_archive(self.home, path)
-            else:
-                archive_crypto.build_encrypted_archive(self.home, path,
-                                                        password_provider=self.password_provider)
+            build_archive(self.home, path)
         self._verify_archive(path)
         _sync_directory(self.work)
 
@@ -260,6 +302,7 @@ class FilesystemPorts:
         if self._receipt(key, value):
             return
         archive = self.archive_path(archive_key)
+        binding = self._archive_binding(archive) if self.password_provider is not None else None
         receipt = self._verify_archive(archive)
         if set(receipt["roots"]) != set(self.home.roots):
             raise UpdateError("Корни архива отличаются от установки")
@@ -271,7 +314,8 @@ class FilesystemPorts:
                 restore_archive(archive, scratch, expected_product_id=self.home.product_id)
             else:
                 archive_crypto.restore_archive(archive, scratch, password_provider=self.password_provider,
-                                                expected_product_id=self.home.product_id, require_encrypted=True)
+                                                expected_product_id=self.home.product_id, require_encrypted=True,
+                                                expected_ciphertext_sha256=binding['sha256'])
             for name, target in sorted(self.home.roots.items()):
                 preserved = set()
                 if name == "services":

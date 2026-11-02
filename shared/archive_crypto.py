@@ -196,18 +196,23 @@ def encrypt_archive(source: str | Path, destination: str | Path, *, password_pro
 
 @contextmanager
 def decrypted_archive(path: str | Path, *, password_provider,
-                      expected_product_id: str | None = None):
+                      expected_product_id: str | None = None,
+                      expected_ciphertext_sha256: str | None = None):
     """Временный полный ZIP доступен только после GCM/SHA-256/verify_archive.
 
     Временный plaintext удаляется при выходе, в том числе после ошибки restore.
     Каталог шифрованного архива должен быть доступен для временной записи.
     """
+    if (expected_ciphertext_sha256 is not None and (type(expected_ciphertext_sha256) is not str
+            or re.fullmatch(r'[a-f0-9]{64}', expected_ciphertext_sha256) is None)):
+        raise ArchiveCryptoError('Недопустимый хэш шифрованного архива')
     aesgcm = _aesgcm()
     try:
         from cryptography.exceptions import InvalidTag
         path = checked_path(path)
         with plain._open_regular(path) as incoming:
             header = read_header(incoming)
+            ciphertext_digest = hashlib.sha256(header['raw'])
             # Проверка точной длины до KDF/временной записи; нет доверия к size.
             count = max(1, (header["size"] + header["chunk_size"] - 1) // header["chunk_size"])
             if os.fstat(incoming.fileno()).st_size != HEADER.size + header["size"] + count * TAG_SIZE:
@@ -221,6 +226,7 @@ def decrypted_archive(path: str | Path, *, password_provider,
                         block = incoming.read(length + TAG_SIZE)
                         if len(block) != length + TAG_SIZE:
                             raise ArchiveCryptoError("Шифрованный архив обрезан")
+                        ciphertext_digest.update(block)
                         try:
                             decoded = cipher.decrypt(nonce, block, aad)
                         except InvalidTag:
@@ -229,6 +235,9 @@ def decrypted_archive(path: str | Path, *, password_provider,
                         output.write(decoded)
                     if incoming.read(1) or not hmac.compare_digest(digest.digest(), header["sha256"]):
                         raise ArchiveCryptoError("Не совпадает SHA-256 полного архива")
+                    if (expected_ciphertext_sha256 is not None and not hmac.compare_digest(
+                            ciphertext_digest.hexdigest(), expected_ciphertext_sha256)):
+                        raise ArchiveCryptoError('Шифрованный архив отличается от ожидаемого снимка')
                     output.flush()
                     os.fsync(output.fileno())
                 manifest = plain.verify_archive(temporary, expected_product_id=expected_product_id)
@@ -262,24 +271,28 @@ def build_encrypted_archive(home, destination: str | Path, *, password_provider)
 
 
 def verify_archive(path: str | Path, *, password_provider=None,
-                   expected_product_id: str | None = None, require_encrypted: bool = False) -> dict:
+                   expected_product_id: str | None = None, require_encrypted: bool = False,
+                   expected_ciphertext_sha256: str | None = None) -> dict:
     """Проверить архив; строгий режим не допускает перехода на обычный ZIP."""
-    if type(require_encrypted) is not bool:
+    if type(require_encrypted) is not bool or (expected_ciphertext_sha256 is not None and not require_encrypted):
         raise ArchiveCryptoError('Недопустимый режим проверки архива')
     if not require_encrypted and not is_encrypted(path):
         return plain.verify_archive(path, expected_product_id=expected_product_id)
     with decrypted_archive(path, password_provider=password_provider,
-                           expected_product_id=expected_product_id) as (_, manifest):
+                           expected_product_id=expected_product_id,
+                           expected_ciphertext_sha256=expected_ciphertext_sha256) as (_, manifest):
         return manifest
 
 
 def restore_archive(path: str | Path, target: str | Path, *, password_provider=None,
-                    expected_product_id: str | None = None, require_encrypted: bool = False) -> dict:
+                    expected_product_id: str | None = None, require_encrypted: bool = False,
+                    expected_ciphertext_sha256: str | None = None) -> dict:
     """В строгом режиме восстановить только после проверки шифрованной оболочки."""
-    if type(require_encrypted) is not bool:
+    if type(require_encrypted) is not bool or (expected_ciphertext_sha256 is not None and not require_encrypted):
         raise ArchiveCryptoError('Недопустимый режим восстановления архива')
     if not require_encrypted and not is_encrypted(path):
         return plain.restore_archive(path, target, expected_product_id=expected_product_id)
     with decrypted_archive(path, password_provider=password_provider,
-                           expected_product_id=expected_product_id) as (temporary, _):
+                           expected_product_id=expected_product_id,
+                           expected_ciphertext_sha256=expected_ciphertext_sha256) as (temporary, _):
         return plain.restore_archive(temporary, target, expected_product_id=expected_product_id)

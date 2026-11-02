@@ -14,7 +14,7 @@ from shared import archive as plain, archive_crypto as crypto, ctl
 from shared.adapters_fs import FilesystemPorts
 from shared.datahome import resolve_datahome
 from shared.manifest import load_manifest
-from shared.update_plan import UpdateError
+from shared.update_plan import EffectIndeterminate, UpdateError, _atomic_write
 
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples/rent.manifest.json"
@@ -421,6 +421,8 @@ def test_fs_verifier_rejects_plaintext_after_encryption_probe(aes, tmp_path, hom
     key = 'a' * 32 + '/archive'
     path = ports.archive_path(key)
     plain.build_archive(home, path)
+    _atomic_write(path.with_suffix('.archive.json'), {'version': 1, 'key': key, 'product_id': home.product_id,
+                  'sha256': hashlib.sha256(path.read_bytes()).hexdigest(), 'status': 'done'})
     monkeypatch.setattr(crypto, 'is_encrypted', lambda path: True)  # Файл подменён после первого опроса.
     with pytest.raises(plain.ArchiveError):
         ports._verify_archive(path)
@@ -451,6 +453,63 @@ def test_restore_rejects_plaintext_swap_after_verification(aes, tmp_path, home, 
     assert not ports._path(transaction + '/restore', '.json').exists()
 
 
+def test_restore_rejects_different_valid_encrypted_snapshot_after_check(aes, tmp_path, home, monkeypatch):
+    ports = FilesystemPorts(load_manifest(EXAMPLE), tmp_path / 'installation', work_dir=tmp_path / 'work',
+                            payloads={}, effects=None, password_provider=lambda: PASSWORD)
+    transaction = 'c' * 32
+    key = transaction + '/archive'
+    ports.backup(key, 'archive', ())
+    live = home.roots['data'] / 'sample.bin'
+    live.write_bytes(b'new synthetic data')
+    rollback_key = transaction + '/before_rollback'
+    ports.backup(rollback_key, 'before-rollback', ())
+    archive = ports.archive_path(key)
+    replacement = tmp_path / 'replacement.hsac'
+    replacement.write_bytes(ports.archive_path(rollback_key).read_bytes())
+    original = ports._verify_archive
+    def verify_and_swap(path):
+        receipt = original(path)
+        if path == archive:
+            os.replace(replacement, archive)
+        return receipt
+    monkeypatch.setattr(ports, '_verify_archive', verify_and_swap)
+    with pytest.raises(plain.ArchiveError):
+        ports.restore(transaction + '/restore', key, ())
+    assert live.read_bytes() == b'new synthetic data'
+    assert not ports._path(transaction + '/restore', '.json').exists()
+
+
+def test_interrupted_encrypted_backup_remains_pending_and_is_not_repeated(tmp_path, home, monkeypatch):
+    ports = FilesystemPorts(load_manifest(EXAMPLE), tmp_path / 'installation', work_dir=tmp_path / 'work',
+                            payloads={}, effects=None, password_provider=lambda: PASSWORD)
+    key = 'd' * 32 + '/archive'
+    calls = []
+    def interrupted(home, destination, **kwargs):
+        calls.append(1)
+        destination.write_bytes(b'partial')
+        raise OSError('simulated interruption')
+    monkeypatch.setattr(crypto, 'build_encrypted_archive', interrupted)
+    with pytest.raises(EffectIndeterminate):
+        ports.backup(key, 'archive', ())
+    with pytest.raises(EffectIndeterminate):
+        ports.backup(key, 'archive', ())
+    from shared.effect_receipt import read_effect_receipt
+    record = read_effect_receipt(ports.archive_path(key).with_suffix('.archive.json'))
+    assert record['status'] == 'pending' and record['sha256'] is None and calls == [1]
+
+
+def test_existing_encrypted_file_without_receipt_is_not_adopted(tmp_path, home):
+    ports = FilesystemPorts(load_manifest(EXAMPLE), tmp_path / 'installation', work_dir=tmp_path / 'work',
+                            payloads={}, effects=None, password_provider=lambda: PASSWORD)
+    key = 'e' * 32 + '/archive'
+    ports.work.mkdir()
+    path = ports.archive_path(key)
+    path.write_bytes(crypto.MAGIC + b'untracked')
+    with pytest.raises(EffectIndeterminate):
+        ports.backup(key, 'archive', ())
+    assert path.read_bytes() == crypto.MAGIC + b'untracked'
+
+
 def test_fs_ports_encrypted_backup_before_rollback_and_restore(aes, tmp_path, home):
     ports = FilesystemPorts(load_manifest(EXAMPLE), tmp_path / "installation", work_dir=tmp_path / "work",
                             payloads={}, effects=None, password_provider=lambda: PASSWORD)
@@ -462,7 +521,7 @@ def test_fs_ports_encrypted_backup_before_rollback_and_restore(aes, tmp_path, ho
     assert ports.archive_path(key).read_bytes() == before
     live = home.roots["data"] / "sample.bin"
     live.write_bytes(b"new synthetic data")
-    with pytest.raises(plain.ArchiveError):
+    with pytest.raises(EffectIndeterminate):
         ports.restore(transaction + "/restore", key, ())
     assert live.read_bytes() == b"new synthetic data"
     ports.backup(transaction + "/before_rollback", "before-rollback", ())

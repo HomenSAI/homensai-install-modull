@@ -1,0 +1,126 @@
+"""Ограниченная подготовка подписанного Linux-выпуска до начала обновления."""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import stat
+
+from shared.adapters_fs import FilesystemPorts, _tree
+from shared.datahome import checked_path, contains
+from shared.effect_receipt import read_effect_receipt
+from shared.fresh_prepare import verify_fresh_release
+from shared.host_target import native_target
+from shared.linux_update_effects import _previous_manifest_compatible
+from shared.manifest import check_target
+from shared.package_prepare import prepare_native_signed_package
+from shared.package_signing import verify_signed_package
+from shared.systemd_fresh_start import _lifecycle_lock
+from shared.update_plan import UpdatePlan, _atomic_write, operation_lock
+
+
+class UpdatePrepareError(RuntimeError):
+    """Подготовка не подтверждена; состояние может требовать ручной проверки."""
+
+
+def _expected_tree(metadata):
+    files = {item['path']: item['sha256'] for item in metadata['files']}
+    directories = {'.'}
+    for name in files:
+        parts = name.split('/')
+        directories.update('/'.join(parts[:index]) for index in range(1, len(parts)))
+    return directories, files
+
+
+def prepare_signed_linux_update(*, new_package: str, new_envelope: bytes, new_key: bytes,
+                                old_package: str, old_envelope: bytes, old_key: bytes,
+                                product_id: str, old_version: str, new_version: str,
+                                install_root: str, work_dir: str, modes: tuple[str, ...],
+                                migration_ids: tuple[str, ...], operation_id: str) -> dict:
+    """Проверить и подготовить payload; не останавливать службы и не запускать update.
+
+    Рабочий каталог должен быть создан интегратором и защищён. Прерванный
+    pending не повторяется автоматически; результат не подтверждает runtime,
+    службы, остановку писателей или безопасность подписанного кода.
+    """
+    if (any(type(value) is not str or not value for value in
+            (new_package, old_package, product_id, old_version, new_version, install_root, work_dir))
+            or any(type(value) is not bytes or not value for value in (new_envelope, old_envelope))
+            or any(type(value) is not bytes or len(value) != 32 for value in (new_key, old_key))
+            or type(operation_id) is not str or re.fullmatch(r'[a-f0-9]{32}', operation_id) is None
+            or type(modes) is not tuple or not modes or any(type(value) is not str for value in modes)
+            or type(migration_ids) is not tuple or any(type(value) is not str for value in migration_ids)
+            or old_version == new_version):
+        raise UpdatePrepareError('Недопустимые параметры подготовки')
+    try:
+        root, work = checked_path(install_root), checked_path(work_dir)
+        new_path, old_path = checked_path(new_package), checked_path(old_package)
+        if contains(root, work) or contains(work, root):
+            raise UpdatePrepareError('Рабочий каталог должен быть вне установки')
+        if native_target() != {'os': 'linux', 'architecture': 'x86_64', 'execution': 'native'}:
+            raise UpdatePrepareError('Требуется Linux x86-64')
+        info = work.lstat()
+        if (not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid()
+                or stat.S_IMODE(info.st_mode) != 0o700):
+            raise UpdatePrepareError('Рабочий каталог не защищён')
+        new_options = {'trusted_public_key': new_key, 'expected_product_id': product_id,
+                       'expected_version': new_version}
+        old_options = {'trusted_public_key': old_key, 'expected_product_id': product_id,
+                       'expected_version': old_version}
+        new_metadata = verify_signed_package(new_path, new_envelope, **new_options)
+        old_metadata = verify_signed_package(old_path, old_envelope, **old_options)
+        if (not _previous_manifest_compatible(old_metadata['manifest'], new_metadata['manifest'])
+                or check_target(new_metadata['manifest'], native_target())['status'] != 'supported'
+                or check_target(old_metadata['manifest'], native_target())['status'] != 'supported'):
+            raise UpdatePrepareError('Подписанные выпуски несовместимы')
+        ports = FilesystemPorts(new_metadata['manifest'], root, work_dir=work, payloads={},
+                                effects=None, password_provider=lambda: None)
+        plan = UpdatePlan(new_metadata['manifest'], root, ports, release=new_version,
+                          modes=modes, migration_ids=migration_ids, guard_effects=True)
+        old_verified = verify_fresh_release(old_path, old_envelope, str(root), **old_options)
+        context = {'root': str(root), 'work': str(work), 'old_path': str(old_path), 'new_path': str(new_path),
+                   'old_envelope': hashlib.sha256(old_envelope).hexdigest(),
+                   'new_envelope': hashlib.sha256(new_envelope).hexdigest(),
+                   'old_key': hashlib.sha256(old_key).hexdigest(), 'new_key': hashlib.sha256(new_key).hexdigest(),
+                   'old_transaction': old_verified['transaction'], 'old_metadata': old_metadata,
+                   'new_metadata': new_metadata, 'plan': plan.digest, 'operation_id': operation_id}
+        digest = hashlib.sha256(json.dumps(context, sort_keys=True, ensure_ascii=True,
+                                           separators=(',', ':')).encode('ascii')).hexdigest()
+        marker = checked_path(work / ('prepare-' + operation_id + '.json'))
+        destination = checked_path(work / ('payload-' + operation_id))
+        pending = {'version': 1, 'operation_id': operation_id, 'binding': digest, 'status': 'pending'}
+        done = {**pending, 'status': 'done'}
+        def verify_again():
+            if (verify_signed_package(new_path, new_envelope, **new_options) != new_metadata
+                    or verify_signed_package(old_path, old_envelope, **old_options) != old_metadata
+                    or verify_fresh_release(old_path, old_envelope, str(root), **old_options) != old_verified
+                    or plan.status() is not None):
+                raise UpdatePrepareError('Установка или пакеты изменились')
+        with _lifecycle_lock(str(root)):
+            with operation_lock(plan.lock_path):
+                verify_again()
+                record = read_effect_receipt(marker)
+                if record is not None and (type(record.get('version')) is not int or record != done):
+                    raise UpdatePrepareError('Предыдущая подготовка требует проверки')
+                if record is None:
+                    if destination.exists():
+                        raise UpdatePrepareError('Каталог без отметки нельзя заменить')
+                    _atomic_write(marker, pending)
+                    prepare_native_signed_package(new_path, new_envelope, destination, **new_options)
+                if _tree(destination) != _expected_tree(new_metadata):
+                    raise UpdatePrepareError('Подготовленный выпуск отличается от пакета')
+                verify_again()
+                expected_record = pending if record is None else done
+                if read_effect_receipt(marker) != expected_record:
+                    raise UpdatePrepareError('Отметка подготовки изменилась')
+                if record is None:
+                    _atomic_write(marker, done)
+                if read_effect_receipt(marker) != done:
+                    raise UpdatePrepareError('Подготовка не подтверждена')
+        return {'state': 'prepared', 'payload_name': destination.name, 'plan_sha256': plan.digest,
+                'file_count': len(new_metadata['files']), 'update_started': False,
+                'runtime_verified': False, 'services_verified': False}
+    except Exception:
+        raise UpdatePrepareError('Не удалось подтвердить подготовку обновления') from None

@@ -57,7 +57,7 @@ def main() -> int:
         session = SESSION
         if sys.argv[1:] == ['--run', '--runtime']:
             session = SESSION.rsplit('python -m pytest', 1)[0] + (
-                'python -m pytest -q -p no:cacheprovider tests/test_runtime_native.py tests/test_systemd_group.py\n')
+                'python -m pytest -q -p no:cacheprovider tests/test_runtime_native.py tests/test_systemd_group.py tests/test_api.py tests/test_api_signed_preflight.py tests/test_i18n.py\n')
         (harness / 'session.sh').write_text(session, encoding='utf-8')
         cidfile = harness / 'container.cid'
         command = ['podman', 'run', '--rm', '--cidfile', str(cidfile), '--systemd=always',

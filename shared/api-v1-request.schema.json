@@ -6,12 +6,18 @@
   "required": ["api_major", "operation", "request_id", "params"],
   "properties": {
     "api_major": {"type": "integer", "const": 1},
-    "operation": {"type": "string", "enum": ["capabilities", "validate", "preflight-fresh", "check-target", "check-local-health", "verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release", "update-plan-status", "plan-systemd-user-units", "publish-systemd-user-units", "load-systemd-user-units", "plan-portable-systemd-user-units", "publish-portable-systemd-user-units", "load-portable-systemd-user-units", "plan-linux-runtime", "prepare-linux-runtime", "verify-linux-runtime"]},
+    "operation": {"type": "string", "enum": ["capabilities", "validate", "preflight-fresh", "check-target", "check-local-health", "verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release", "update-plan-status", "plan-systemd-user-units", "publish-systemd-user-units", "load-systemd-user-units", "plan-portable-systemd-user-units", "publish-portable-systemd-user-units", "load-portable-systemd-user-units", "plan-linux-runtime", "prepare-linux-runtime", "verify-linux-runtime", "check-portable-linux-start"]},
     "request_id": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
     "language": {"type": "string", "pattern": "^[a-z]{2,3}(?![\\s\\S])"},
     "params": {"type": "object"}
   },
   "oneOf": [
+    {"properties": {"operation": {"const": "check-portable-linux-start"}, "params": {"type": "object", "additionalProperties": false, "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root", "modes", "unit_dir", "load_key", "runtime_key", "reserve_bytes"], "properties": {
+      "package_path": {"type": "string", "minLength": 1, "maxLength": 8192}, "envelope": {"type": "string", "minLength": 4, "maxLength": 5464}, "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44},
+      "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"}, "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+      "install_root": {"type": "string", "minLength": 1, "maxLength": 8192}, "modes": {"type": "array", "minItems": 1, "items": {"type": "string", "maxLength": 8192}}, "unit_dir": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "load_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}, "runtime_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}, "reserve_bytes": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}
+    }}}},
     {"properties": {"operation": {"const": "plan-linux-runtime"}, "params": {"type": "object", "additionalProperties": false, "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root", "reserve_bytes"], "properties": {
       "package_path": {"type": "string", "minLength": 1, "maxLength": 8192}, "envelope": {"type": "string", "minLength": 4, "maxLength": 5464}, "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44},
       "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"}, "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},

@@ -329,10 +329,25 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path):
         loaded = client.call('load-portable-systemd-user-units',
                              {**common, 'idempotency_key': 'c' * 32}, min_minor=17)
         assert loaded['state'] == 'loaded'
+        readiness = {**common, 'load_key': 'c' * 32, 'runtime_key': 'a' * 32, 'reserve_bytes': 0}
+        from shared.api import handle
+        request = {'api_major': 1, 'request_id': 'test', 'operation': 'check-portable-linux-start', 'params': readiness}
+        validator = pytest.importorskip('jsonschema').Draft202012Validator(
+            json.loads((ROOT / 'shared/api-v1-request.schema.json').read_text()))
+        assert validator.is_valid(request)
+        caps = handle({'api_major': 1, 'request_id': 'test', 'operation': 'capabilities', 'params': {}})['result']
+        assert request['operation'] in caps['mutating_operations']
+        checked = client.call('check-portable-linux-start', readiness, min_minor=19)
+        assert checked['state'] == 'checked' and checked['units'] == names
+        assert checked['services_started'] is False and checked['installation_complete'] is False
+        invalid = handle({**request, 'params': {**readiness, 'runtime_key': 'c' * 32}})
+        assert invalid['error']['code'] == 'invalid_request'
         group = portable_signed_runtime_user_group(package, envelope, str(install), **options,
                     modes=('autonomous',), unit_dir=str(destination), operation_id='c' * 32,
                     runtime_operation_id='a' * 32, runtime_reserve_bytes=0)
         interpreter.chmod(0o600)
+        with pytest.raises(InstallerClientError):
+            client.call('check-portable-linux-start', readiness, min_minor=19)
         with pytest.raises(SystemdGroupError):
             group.command('start', execute=True)
         for name in names:

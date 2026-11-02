@@ -3,6 +3,7 @@ import base64
 from copy import deepcopy
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -292,3 +293,101 @@ def test_fresh_detects_inconsistent_signed_snapshots(signed_request, monkeypatch
         fresh_prepare(query)
     assert json.loads((root / '.homensai-fresh.json').read_text())['status'] == 'preparing'
     assert not (root / 'services/active.json').exists()
+
+
+def fresh_resume(query):
+    from shared.fresh_prepare import resume_fresh_native
+    params = query['params']
+    return resume_fresh_native(params['package_path'], base64.b64decode(params['envelope']),
+        params['install_root'], trusted_public_key=base64.b64decode(params['trusted_public_key']),
+        expected_product_id=params['expected_product_id'], expected_version=params['expected_version'], reserve_bytes=0)
+
+
+@pytest.mark.parametrize('phase', ['stage', 'switch'])
+def test_fresh_resume_after_interruption(signed_request, monkeypatch, phase):
+    from shared.fresh_prepare import FreshPrepareError
+    query, _, _ = signed_request
+    monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    method = 'stage_release' if phase == 'stage' else 'switch_pointer'
+    def stop(*args, **kwargs):
+        raise SystemExit('simulated process interruption')
+    with monkeypatch.context() as patch:
+        patch.setattr('shared.fresh_prepare.FilesystemPorts.' + method, stop)
+        with pytest.raises(SystemExit):
+            fresh_prepare(query)
+    root = Path(query['params']['install_root'])
+    assert json.loads((root / '.homensai-fresh.json').read_text())['status'] == 'preparing'
+    result = fresh_resume(query)
+    assert result['status'] == 'prepared'
+    assert json.loads((root / 'services/active.json').read_text()) == {'release': '1'}
+    (root / 'data/keep').write_text('preserve')
+    with pytest.raises(FreshPrepareError):
+        fresh_resume(query)
+    assert (root / 'data/keep').read_text() == 'preserve'
+
+
+@pytest.mark.parametrize('change', ['data', 'prepared', 'release', 'old-marker', 'wrong-key', 'lock', 'hardlink'])
+def test_fresh_resume_refuses_foreign_or_altered_state(signed_request, monkeypatch, change):
+    from shared.fresh_prepare import FreshPrepareError
+    query, _, _ = signed_request
+    monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    def stop(*args, **kwargs):
+        raise SystemExit('simulated interruption')
+    with monkeypatch.context() as patch:
+        patch.setattr('shared.fresh_prepare.FilesystemPorts.stage_release', stop)
+        with pytest.raises(SystemExit):
+            fresh_prepare(query)
+    root = Path(query['params']['install_root'])
+    if change == 'data':
+        (root / 'data/user-file').write_text('keep')
+    elif change == 'prepared':
+        (root / '.homensai-control/prepared/locks/demo-linux.lock').write_text('tamper')
+    elif change == 'release':
+        (root / 'releases/unrelated').mkdir()
+        (root / 'releases/unrelated/keep').write_text('keep')
+    elif change == 'old-marker':
+        path = root / '.homensai-fresh.json'
+        state = json.loads(path.read_text())
+        state['format'] = 1
+        path.write_text(json.dumps(state))
+    elif change == 'wrong-key':
+        query['params']['trusted_public_key'] = base64.b64encode(b'x' * 32).decode()
+    elif change == 'lock':
+        (root / 'services/operation.lock').write_text('user data')
+    elif change == 'hardlink':
+        try:
+            os.link(root / '.homensai-fresh.json', root / 'marker-copy')
+        except (AttributeError, OSError, NotImplementedError):
+            pytest.skip('Жёсткие ссылки недоступны')
+    with pytest.raises(FreshPrepareError):
+        fresh_resume(query)
+    assert json.loads((root / '.homensai-fresh.json').read_text())['status'] == 'preparing'
+    if change == 'data':
+        assert (root / 'data/user-file').read_text() == 'keep'
+    if change == 'release':
+        assert (root / 'releases/unrelated/keep').read_text() == 'keep'
+    if change == 'lock':
+        assert (root / 'services/operation.lock').read_text() == 'user data'
+
+
+def test_fresh_resume_rechecks_free_space_before_staging(signed_request, monkeypatch):
+    from types import SimpleNamespace
+    from shared.fresh_prepare import FreshPrepareError
+    query, _, _ = signed_request
+    monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    def stop(*args, **kwargs):
+        raise SystemExit('simulated interruption')
+    with monkeypatch.context() as patch:
+        patch.setattr('shared.fresh_prepare.FilesystemPorts.stage_release', stop)
+        with pytest.raises(SystemExit):
+            fresh_prepare(query)
+    monkeypatch.setattr('shared.fresh_prepare.shutil.disk_usage', lambda _: SimpleNamespace(free=0))
+    with pytest.raises(FreshPrepareError):
+        fresh_resume(query)
+    root = Path(query['params']['install_root'])
+    assert not (root / 'services/active.json').exists()
+    assert not (root / 'releases/app-1').exists()
+    assert json.loads((root / '.homensai-fresh.json').read_text())['status'] == 'preparing'

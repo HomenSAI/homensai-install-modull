@@ -119,3 +119,16 @@ def test_reserved_marker_name_is_rejected(signed, tmp_path):
         preparation.prepare_signed_package(package, envelope, destination, trusted_public_key=signed[2],
                                            expected_product_id=manifest["product_id"], expected_version="1.0")
     assert not destination.exists()
+
+
+def test_native_preparation_refuses_legacy_manifest_without_compatibility(signed, tmp_path, monkeypatch):
+    package, envelope, public, _, manifest, _ = signed
+    monkeypatch.setattr(preparation, 'native_target', lambda: {
+        'os': 'linux', 'architecture': 'x86_64', 'execution': 'native'})
+    destination = tmp_path / 'prepared'
+    with pytest.raises(PackageError):
+        preparation.prepare_native_signed_package(package, envelope, destination,
+                                                  trusted_public_key=public,
+                                                  expected_product_id=manifest['product_id'],
+                                                  expected_version='1.0')
+    assert not destination.exists()

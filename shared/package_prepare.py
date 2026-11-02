@@ -17,6 +17,8 @@ import zipfile
 from shared.archive import ArchiveError, CHUNK, _digest, _signature, _space
 from shared.adapters_fs import _tree
 from shared.datahome import DataHomeError, checked_path
+from shared.host_target import HostTargetError, native_target
+from shared.manifest import ManifestError, check_target
 from shared.package import MAX_METADATA_BYTES, MAX_TOTAL_BYTES, PackageError
 from shared.package_signing import verify_signed_package
 from shared.update_plan import UpdateError
@@ -34,9 +36,9 @@ def _sync_directory(path: Path) -> None:
             os.close(fd)
 
 
-def prepare_signed_package(package_path: str | Path, envelope: bytes, destination: str | Path, *,
-                           trusted_public_key: bytes, expected_product_id: str,
-                           expected_version: str) -> dict:
+def _prepare_signed_package(package_path: str | Path, envelope: bytes, destination: str | Path, *,
+                            trusted_public_key: bytes, expected_product_id: str,
+                            expected_version: str, require_native: bool) -> dict:
     """Проверить, извлечь в изоляции и опубликовать только в новый каталог.
 
     При сбое после создания destination каталог может остаться частичным;
@@ -68,6 +70,14 @@ def prepare_signed_package(package_path: str | Path, envelope: bytes, destinatio
             kwargs = {"trusted_public_key": trusted_public_key, "expected_product_id": expected_product_id,
                       "expected_version": expected_version}
             metadata = verify_signed_package(snapshot, envelope, **kwargs)
+            target = None
+            if require_native:
+                try:
+                    target = native_target()
+                    if check_target(metadata["manifest"], target)["status"] != "supported":
+                        raise PackageError("Среда не подтверждена подписанным манифестом")
+                except (HostTargetError, ManifestError):
+                    raise PackageError("Среда не подтверждена подписанным манифестом") from None
             if any(item["path"].split("/")[0].casefold() == INCOMPLETE.casefold() for item in metadata["files"]):
                 raise PackageError("Payload содержит зарезервированное имя")
             staged.mkdir(mode=0o700)
@@ -119,10 +129,33 @@ def prepare_signed_package(package_path: str | Path, envelope: bytes, destinatio
             marker.unlink()
             _sync_directory(destination)
             _sync_directory(destination.parent)
-            return {"product_id": metadata["product_id"], "version": metadata["version"],
-                    "files": {item["path"]: item["sha256"] for item in metadata["files"]}}
+            result = {"product_id": metadata["product_id"], "version": metadata["version"],
+                      "files": {item["path"]: item["sha256"] for item in metadata["files"]}}
+            if target is not None:
+                result["process_target"] = target
+            return result
     except (OSError, ValueError, RuntimeError, EOFError, NotImplementedError,
             DataHomeError, ArchiveError, UpdateError, zipfile.BadZipFile) as error:
         if isinstance(error, PackageError):
             raise
         raise PackageError("Не удалось подготовить подписанный пакет") from None
+
+
+def prepare_signed_package(package_path: str | Path, envelope: bytes, destination: str | Path, *,
+                           trusted_public_key: bytes, expected_product_id: str,
+                           expected_version: str) -> dict:
+    """Подготовка без проверки совместимости; см. ограничения модуля."""
+    return _prepare_signed_package(package_path, envelope, destination,
+                                   trusted_public_key=trusted_public_key,
+                                   expected_product_id=expected_product_id,
+                                   expected_version=expected_version, require_native=False)
+
+
+def prepare_native_signed_package(package_path: str | Path, envelope: bytes, destination: str | Path, *,
+                                  trusted_public_key: bytes, expected_product_id: str,
+                                  expected_version: str) -> dict:
+    """Подготовка только после проверки нативной цели в подписанной копии."""
+    return _prepare_signed_package(package_path, envelope, destination,
+                                   trusted_public_key=trusted_public_key,
+                                   expected_product_id=expected_product_id,
+                                   expected_version=expected_version, require_native=True)

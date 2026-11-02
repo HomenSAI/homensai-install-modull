@@ -162,3 +162,45 @@ def test_native_inspection_current_process_and_cli(signed_request):
                          input=json.dumps(query).encode(), capture_output=True, timeout=30)
     assert cli.returncode == 0
     assert json.loads(cli.stdout)['result']['process_target'] == target
+
+
+def prepare_native(query, destination):
+    from shared.package_prepare import prepare_native_signed_package
+    params = query['params']
+    return prepare_native_signed_package(params['package_path'], base64.b64decode(params['envelope']), destination,
+        trusted_public_key=base64.b64decode(params['trusted_public_key']),
+        expected_product_id=params['expected_product_id'], expected_version=params['expected_version'])
+
+
+def test_preparation_checks_signed_target_before_publication(signed_request, tmp_path, monkeypatch):
+    from shared.package import PackageError
+    query, _, _ = signed_request
+    destination = tmp_path / 'prepared-release'
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: {
+        'os': 'windows', 'architecture': 'x86_64', 'execution': 'native'})
+    with pytest.raises(PackageError):
+        prepare_native(query, destination)
+    assert not destination.exists()
+    assert not list(tmp_path.glob('.homensai-prepare-*'))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    result = prepare_native(query, destination)
+    assert result['process_target'] == TARGET
+    assert result['files'] and destination.exists()
+
+
+def test_preparation_rejects_unknown_host_and_wrong_key(signed_request, tmp_path, monkeypatch):
+    from shared.host_target import HostTargetError
+    from shared.package import PackageError
+    query, _, _ = signed_request
+    def unknown():
+        raise HostTargetError('SECRET-SENTINEL')
+    monkeypatch.setattr('shared.package_prepare.native_target', unknown)
+    destination = tmp_path / 'prepared-release'
+    with pytest.raises(PackageError) as error:
+        prepare_native(query, destination)
+    assert 'SECRET-SENTINEL' not in str(error.value)
+    assert not destination.exists()
+    query['params']['trusted_public_key'] = base64.b64encode(b'x' * 32).decode()
+    with pytest.raises(PackageError):
+        prepare_native(query, destination)
+    assert not destination.exists()

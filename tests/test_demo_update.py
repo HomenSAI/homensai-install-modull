@@ -88,12 +88,18 @@ def test_real_demo_migration_update_and_rollback(tmp_path, fail_health, signed_r
         for name in ("windows", "linux")}
     wheel = "vendor/demo-0-py3-none-any.whl"
     manifest["runtime"]["vendor_wheels"] = [{"file": wheel, "sha256": sha256(synthetic[wheel]).hexdigest()}]
+    if signed_release:
+        from shared.host_target import HostTargetError, native_target
+        try:
+            manifest["compatibility"] = {"targets": [native_target()]}
+        except HostTargetError:
+            pytest.skip("Среда процесса не входит в нативный профиль")
     validate_manifest(manifest)
     if signed_release:
         ed = pytest.importorskip("cryptography.hazmat.primitives.asymmetric.ed25519")
         ser = pytest.importorskip("cryptography.hazmat.primitives.serialization")
         from shared.package import build_package
-        from shared.package_prepare import prepare_signed_package
+        from shared.package_prepare import prepare_native_signed_package
         from shared.package_signing import sign_package
         private = ed.Ed25519PrivateKey.generate()
         public = private.public_key().public_bytes(ser.Encoding.Raw, ser.PublicFormat.Raw)
@@ -102,8 +108,9 @@ def test_real_demo_migration_update_and_rollback(tmp_path, fail_health, signed_r
         envelope = sign_package(package, private_key=private,
                                 expected_product_id=manifest["product_id"], expected_version="2")
         prepared = tmp_path / "verified-release-2"
-        receipt = prepare_signed_package(package, envelope, prepared, trusted_public_key=public,
-                                         expected_product_id=manifest["product_id"], expected_version="2")
+        receipt = prepare_native_signed_package(package, envelope, prepared, trusted_public_key=public,
+                                                expected_product_id=manifest["product_id"], expected_version="2")
+        assert receipt["process_target"] == manifest["compatibility"]["targets"][0]
         payloads["2"] = ReleaseSource(prepared, receipt["files"])
     installation = tmp_path / "installation"
     home = resolve_datahome(manifest, installation)

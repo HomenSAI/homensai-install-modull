@@ -354,6 +354,14 @@ class FilesystemPorts:
         _sync_directory(self.work)
 
     def restore(self, key: str, archive_key: str, command: tuple[str, ...]) -> None:
+        guarded = getattr(self.effects, 'guarded_restore', None)
+        if guarded is not None:
+            if not callable(guarded):
+                raise UpdateError('Недопустимая проверка восстановления')
+            return guarded(key, archive_key, command, self._restore)
+        return self._restore(key, archive_key, command)
+
+    def _restore(self, key: str, archive_key: str, command: tuple[str, ...]) -> None:
         transaction = key.split("/", 1)[0]
         if key != transaction + "/restore" or archive_key != transaction + "/archive":
             raise UpdateError("Недопустимые ключи восстановления")

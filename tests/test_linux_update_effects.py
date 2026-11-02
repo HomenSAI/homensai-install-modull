@@ -32,7 +32,7 @@ class FakeAdapter(SystemdUserAdapter):
 
 
 @pytest.fixture
-def setup(tmp_path):
+def setup(tmp_path, monkeypatch):
     manifest = load_manifest(Path(__file__).resolve().parents[1] / 'examples/rent.manifest.json')
     for name in ('pre_start', 'health_checks', 'post_update'):
         manifest['hooks'][name] = []
@@ -48,6 +48,8 @@ def setup(tmp_path):
                                     interpreter_sha256='a' * 64, timeout=10)
     health = LocalUpdateHealthPort(plan, ports)
     effects = LinuxSignedUpdateEffects(lifecycle, migration, health)
+    # Изолированные тесты журналов служб; подпись отдельно проверяется в test_linux_signed_release.
+    monkeypatch.setattr(effects, '_verify_previous', lambda: None)
     ports.effects = effects
     plan.state_path.parent.mkdir(parents=True)
     state = {'version': 1, 'transaction': 'a' * 32, 'plan': plan.digest, 'old_release': '1', 'release': '2',

@@ -1,13 +1,14 @@
 """Проверка подписи выпуска при обновлении без миграций; фиктивные службы."""
 import hashlib
 from pathlib import Path
+import shutil
 
 import pytest
 
 from test_linux_update_effects import FakeAdapter
 from shared.adapters_fs import FilesystemPorts, ReleaseSource
 from shared.host_target import HostTargetError, native_target
-from shared.linux_update_effects import LinuxSignedUpdateEffects
+from shared.linux_update_effects import LinuxSignedUpdateEffects, PreviousSignedRelease
 from shared.manifest import load_manifest
 from shared.package import build_package
 from shared.package_signing import sign_package
@@ -47,6 +48,10 @@ def signed(tmp_path):
     public = private.public_key().public_bytes(ser.Encoding.Raw, ser.PublicFormat.Raw)
     envelope = sign_package(package, private_key=private, expected_product_id=manifest['product_id'],
                             expected_version='2')
+    old_package = tmp_path / 'old-signed.zip'
+    build_package(manifest, '1', payload, old_package)
+    old_envelope = sign_package(old_package, private_key=private, expected_product_id=manifest['product_id'],
+                                expected_version='1')
     root = tmp_path / 'installation'
     ports = FilesystemPorts(manifest, root, work_dir=tmp_path / 'work',
                             payloads={'2': ReleaseSource(payload, hashes)}, effects=object(),
@@ -61,8 +66,11 @@ def signed(tmp_path):
     migration = SignedMigrationPort(plan, ports, install_root=str(root), package_path=str(package),
         envelope=envelope, trusted_public_key=public, interpreter='/test/python',
         interpreter_sha256='a' * 64, timeout=10)
-    ports.effects = LinuxSignedUpdateEffects(lifecycle, migration, LocalUpdateHealthPort(plan, ports))
+    previous = PreviousSignedRelease(str(old_package), old_envelope, public)
+    ports.effects = LinuxSignedUpdateEffects(lifecycle, migration, LocalUpdateHealthPort(plan, ports),
+                                             previous_release=previous)
     plan.state_path.parent.mkdir(parents=True)
+    shutil.copytree(payload, ports.release_path('1'))
     state = {'version': 1, 'transaction': 'a' * 32, 'plan': plan.digest, 'old_release': '1', 'release': '2',
              'direction': 'forward', 'index': 0, 'failed_phase': None, 'archive_ready': True,
              'outcome': 'running', 'indeterminate': True}
@@ -139,7 +147,6 @@ def test_rollback_pointer_back_uses_recorded_old_release(signed):
     plan, ports, state, _, _ = signed
     invoke(signed, 'stage')
     invoke(signed, 'switch')
-    ports.release_path('1').mkdir(parents=True)
     state.update(direction='rollback', index=plan.rollback.index('pointer_back'),
                  failed_phase='health', archive_ready=True, indeterminate=True)
     plan._save(state)
@@ -164,3 +171,62 @@ def test_substitution_during_switch_is_indeterminate_after_pointer_write(signed,
         invoke(signed, 'switch')
     assert ports.current_release() == plan.release
     assert not any(adapter.active for adapter in adapters.values())
+
+
+@pytest.mark.parametrize('phase', ['stop', 'restore', 'pointer_back', 'rollback_start'])
+@pytest.mark.parametrize('damage', ['missing_evidence', 'wrong_key', 'wrong_version', 'modified_release'])
+def test_untrusted_old_release_blocks_forward_stop_and_rollback(signed, monkeypatch, phase, damage):
+    plan, ports, state, adapters, _ = signed
+    if damage == 'missing_evidence':
+        ports.effects.previous_release = None
+    elif damage == 'wrong_key':
+        old = ports.effects.previous_release
+        ports.effects.previous_release = PreviousSignedRelease(old.package_path, old.envelope, b'\0' * 32)
+    elif damage == 'wrong_version':
+        new = ports.effects.migration
+        ports.effects.previous_release = PreviousSignedRelease(new.package_path, new.envelope, new.public_key)
+    else:
+        (ports.release_path('1') / 'app.py').write_bytes(b'modified old release')
+    forward = phase == 'stop'
+    state.update(direction='forward' if forward else 'rollback',
+                 index=(plan.forward if forward else plan.rollback).index(phase),
+                 failed_phase=None if forward else 'health', archive_ready=not forward, indeterminate=True)
+    plan._save(state)
+    calls = []
+    monkeypatch.setattr(ports, '_restore', lambda *args: calls.append(args))
+    key = state['transaction'] + '/' + phase
+    token = _ACTIVE_EFFECT.set((plan, state['transaction'], phase))
+    try:
+        with pytest.raises(EffectIndeterminate):
+            if phase == 'stop':
+                ports.stop(key, tuple(reversed(plan.components)))
+            elif phase == 'restore':
+                ports.restore(key, state['transaction'] + '/archive', ())
+            elif phase == 'pointer_back':
+                ports.switch_pointer(key, '1')
+            else:
+                ports.start(key, plan.components, ())
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+    assert not calls and not ports.pointer.exists()
+    assert not any(adapter.active for adapter in adapters.values())
+
+
+def test_previous_release_is_rechecked_after_restore(signed, monkeypatch):
+    plan, ports, state, _, _ = signed
+    state.update(direction='rollback', index=plan.rollback.index('restore'), failed_phase='health',
+                 archive_ready=True, indeterminate=True)
+    plan._save(state)
+    calls = []
+    def restore_and_tamper(*args):
+        calls.append(args)
+        (ports.release_path('1') / 'app.py').write_bytes(b'changed during restore')
+    monkeypatch.setattr(ports, '_restore', restore_and_tamper)
+    key = state['transaction'] + '/restore'
+    token = _ACTIVE_EFFECT.set((plan, state['transaction'], 'restore'))
+    try:
+        with pytest.raises(EffectIndeterminate):
+            ports.restore(key, state['transaction'] + '/archive', ())
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+    assert len(calls) == 1 and not ports.pointer.exists()

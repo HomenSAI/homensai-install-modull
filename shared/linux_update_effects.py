@@ -2,6 +2,7 @@
 """Связка ограниченных портов обновления для Linux user-systemd."""
 from __future__ import annotations
 
+from dataclasses import dataclass
 import re
 
 from shared.datahome import checked_path
@@ -18,24 +19,49 @@ from shared.update_plan import EffectIndeterminate, UpdateError, _ACTIVE_EFFECT,
 _BACKUP_KEY = re.compile(r'([a-f0-9]{32})/(archive|backup:(?:0|[1-9][0-9]{0,5})|before_rollback)\Z')
 
 
+@dataclass(frozen=True)
+class PreviousSignedRelease:
+    """Независимо доверенные пакет, подпись и ключ предыдущего выпуска."""
+    package_path: str
+    envelope: bytes
+    public_key: bytes
+
+    def __post_init__(self):
+        if (type(self.package_path) is not str or not self.package_path
+                or type(self.envelope) is not bytes or not self.envelope
+                or type(self.public_key) is not bytes or len(self.public_key) != 32):
+            raise UpdateError('Недопустимые сведения о прежнем выпуске')
+
+
 class LinuxSignedUpdateEffects:
     """Связать уже настроенные порты одной транзакции, не создавая доверие к ним.
 
     Вызывающий код отвечает за доверенный выпуск, группу, runtime и остановку
     всех остальных писателей. Произвольные hooks не поддерживаются.
     """
-    def __init__(self, lifecycle, migration, health):
+    def __init__(self, lifecycle, migration, health, *, previous_release=None):
         if (not isinstance(lifecycle, SystemdLifecyclePort)
                 or not isinstance(migration, SignedMigrationPort)
                 or not isinstance(health, LocalUpdateHealthPort)
                 or lifecycle.plan is not migration.plan or lifecycle.plan is not health.plan
                 or lifecycle.ports is not migration.ports or lifecycle.ports is not health.ports
-                or lifecycle.plan.manifest['hooks']['post_update']):
+                or lifecycle.plan.manifest['hooks']['post_update']
+                or (previous_release is not None and type(previous_release) is not PreviousSignedRelease)):
             raise UpdateError('Несовместимые порты обновления')
         self.plan = lifecycle.plan
         self.lifecycle, self.migration, self.health_port = lifecycle, migration, health
+        self.previous_release = previous_release
 
     def stop(self, key, components):
+        if type(key) is str and key.endswith('/stop'):
+            self._active_phase(key, 'stop', 'forward')
+            try:
+                self._verify_previous()
+                self.lifecycle.stop(key, components)
+                self._verify_previous()
+            except Exception:
+                raise EffectIndeterminate('Прежний выпуск или остановка не подтверждены') from None
+            return
         return self.lifecycle.stop(key, components)
 
     def start(self, key, components, pre_start):
@@ -48,7 +74,13 @@ class LinuxSignedUpdateEffects:
             except Exception:
                 raise EffectIndeterminate('Подписанный выпуск или запуск не подтверждён') from None
             return
-        return self.lifecycle.start(key, components, pre_start)
+        self._active_phase(key, 'rollback_start', 'rollback')
+        try:
+            self._verify_previous()
+            self.lifecycle.start(key, components, pre_start)
+            self._verify_previous()
+        except Exception:
+            raise EffectIndeterminate('Прежний выпуск или запуск не подтверждены') from None
 
     def _active_phase(self, key, phase, direction):
         active = _ACTIVE_EFFECT.get()
@@ -61,11 +93,15 @@ class LinuxSignedUpdateEffects:
                 or state['index'] >= len(phases) or phases[state['index']] != phase):
             raise UpdateError('Действие не соответствует активному плану')
 
-    def _verify_release(self, directory):
-        migration = self.migration
-        metadata = verify_signed_package(migration.package_path, migration.envelope,
-            trusted_public_key=migration.public_key, expected_product_id=self.plan.manifest['product_id'],
-            expected_version=self.plan.release)
+    def _verify_release(self, directory, *, previous=False):
+        evidence = self.previous_release if previous else self.migration
+        state = self.plan.status() if previous else None
+        if evidence is None or (previous and state is None):
+            raise UpdateError('Нет доверенных сведений о прежнем выпуске')
+        version = state['old_release'] if previous else self.plan.release
+        metadata = verify_signed_package(evidence.package_path, evidence.envelope,
+            trusted_public_key=evidence.public_key, expected_product_id=self.plan.manifest['product_id'],
+            expected_version=version)
         if (metadata['manifest'] != self.plan.manifest
                 or check_target(metadata['manifest'], native_target())['status'] != 'supported'):
             raise UpdateError('Подписанный выпуск не соответствует плану или среде')
@@ -76,6 +112,12 @@ class LinuxSignedUpdateEffects:
             directories.update('/'.join(parts[:index]) for index in range(1, len(parts)))
         if _tree(directory) != (directories, files):
             raise UpdateError('Состав выпуска не соответствует подписанному пакету')
+
+    def _verify_previous(self):
+        state = self.plan.status()
+        if state is None:
+            raise UpdateError('Нет состояния предыдущего выпуска')
+        self._verify_release(self.lifecycle.ports.release_path(state['old_release']), previous=True)
 
     def guarded_stage_release(self, key, release, stage):
         self._active_phase(key, 'stage', 'forward')
@@ -94,7 +136,13 @@ class LinuxSignedUpdateEffects:
             self._active_phase(key, 'pointer_back', 'rollback')
             if not callable(switch) or release != self.plan.status()['old_release']:
                 raise UpdateError('Откат не соответствует плану')
-            return switch(key, release)
+            try:
+                self._verify_previous()
+                switch(key, release)
+                self._verify_previous()
+            except Exception:
+                raise EffectIndeterminate('Прежний выпуск или переключение не подтверждены') from None
+            return
         self._active_phase(key, 'switch', 'forward')
         if release != self.plan.release or not callable(switch):
             raise UpdateError('Выпуск не соответствует плану')
@@ -104,6 +152,17 @@ class LinuxSignedUpdateEffects:
             self._verify_release(self.lifecycle.ports.release_path(release))
         except Exception:
             raise EffectIndeterminate('Переключённый выпуск не подтверждён') from None
+
+    def guarded_restore(self, key, archive_key, command, restore):
+        self._active_phase(key, 'restore', 'rollback')
+        if not callable(restore) or archive_key != key.split('/', 1)[0] + '/archive':
+            raise UpdateError('Восстановление не соответствует плану')
+        try:
+            self._verify_previous()
+            restore(key, archive_key, command)
+            self._verify_previous()
+        except Exception:
+            raise EffectIndeterminate('Прежний выпуск или восстановление не подтверждены') from None
 
     def migrate(self, key, migration, command):
         return self.migration.migrate(key, migration, command)

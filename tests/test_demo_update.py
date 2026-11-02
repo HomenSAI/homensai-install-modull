@@ -348,6 +348,11 @@ class SystemdEffects(Effects):
             return self.composite.guarded_switch_pointer(key, release, switch)
         return switch(key, release)
 
+    def guarded_restore(self, key, archive_key, command, restore):
+        if self.composite is not None:
+            return self.composite.guarded_restore(key, archive_key, command, restore)
+        return restore(key, archive_key, command)
+
 
 @pytest.mark.parametrize('action', ['start', 'stop'])
 def test_systemd_group_failure_has_indeterminate_effect(tmp_path, action):
@@ -381,6 +386,8 @@ def test_systemd_group_failure_has_indeterminate_effect(tmp_path, action):
     pytest.param(True, True, 'migration', False, 'systemd', marks=pytest.mark.skipif(
         os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix', reason='opt-in systemd')),
     pytest.param(True, True, 'stop-crash', False, 'systemd', marks=pytest.mark.skipif(
+        os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix', reason='opt-in systemd')),
+    pytest.param(True, True, 'old-tamper', False, 'systemd', marks=pytest.mark.skipif(
         os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix', reason='opt-in systemd')),
 ])
 def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch, signed_release, encrypted, fail_health, corrupt, live):
@@ -531,10 +538,23 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
     if live == 'systemd':
         from shared.systemd_lifecycle_port import SystemdLifecyclePort
         from shared.update_health_port import LocalUpdateHealthPort
-        from shared.linux_update_effects import LinuxSignedUpdateEffects
+        from shared.linux_update_effects import LinuxSignedUpdateEffects, PreviousSignedRelease
         effects.lifecycle_port = SystemdLifecyclePort(update, ports, install_root=str(installation), group=effects.group)
         effects.composite = LinuxSignedUpdateEffects(effects.lifecycle_port, effects.migration_port,
-                                                   LocalUpdateHealthPort(update, ports))
+            LocalUpdateHealthPort(update, ports),
+            previous_release=PreviousSignedRelease(str(package_one), envelope_one, public))
+    if fail_health == 'old-tamper':
+        old_script = ports.release_path('1') / 'main.py'
+        old_script.write_bytes(old_script.read_bytes() + b'\n# synthetic tampering\n')
+        with pytest.raises(UpdateIndeterminate):
+            update.run()
+        state = update.status()
+        assert state['direction'] == 'forward' and state['indeterminate'] is True
+        assert update.forward[state['index']] == 'stop' and state['archive_ready'] is False
+        assert all(adapter.inspect()['active_state'] == 'active' for adapter in effects.group.adapters.values())
+        assert not ports.archive_path(state['transaction'] + '/archive').exists()
+        assert ports.current_release() == '1'
+        return
     if fail_health == 'stop':
         with pytest.raises(UpdateIndeterminate):
             update.run()

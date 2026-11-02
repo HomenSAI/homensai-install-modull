@@ -380,7 +380,7 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_relea
         effects.health('0' * 32 + '/initial_health', '', 10, ())
 
     update = UpdatePlan(manifest, installation, ports, release="2", modes=("autonomous" if live == 'systemd' else "platform",),
-                        migration_ids=("schema-2",))
+                        migration_ids=("schema-2",), guard_effects=live == 'systemd')
     if corrupt:
         with pytest.raises(UpdateError):
             update.run()

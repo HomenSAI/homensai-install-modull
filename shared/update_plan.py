@@ -170,14 +170,16 @@ class UpdatePlan:
 
     def __init__(self, manifest: dict[str, Any], install_root: Path,
                  ports: UpdatePorts, *, release: str, modes: tuple[str, ...],
-                 migration_ids: tuple[str, ...] = ("manifest",)):
+                 migration_ids: tuple[str, ...] = ("manifest",),
+                 guard_effects: bool = False):
         self.manifest = validate_manifest(manifest)
         self.components = component_order(self.manifest, modes)
-        if (not _identifier(release) or type(migration_ids) is not tuple
+        if (not _identifier(release) or type(guard_effects) is not bool or type(migration_ids) is not tuple
                 or not all(_identifier(item) for item in migration_ids)
                 or len(set(migration_ids)) != len(migration_ids)):
             raise UpdateError("Недопустимые публичные идентификаторы плана")
         self.release, self.migrations, self.ports = release, migration_ids, ports
+        self.guard_effects = guard_effects
         home = resolve_datahome(self.manifest, install_root)
         services = home.roots["services"]
         self.state_path = checked_path(services / self.manifest["update"]["state_file"].replace("\\", "/"))
@@ -194,6 +196,8 @@ class UpdatePlan:
                          "rollback_start", "rollback_health"]
         public_plan = {"manifest": self.manifest, "release": release,
                        "modes": sorted(modes), "migrations": migration_ids}
+        if guard_effects:
+            public_plan["guard_effects"] = True
         self.digest = hashlib.sha256(json.dumps(public_plan, sort_keys=True,
                                                ensure_ascii=True).encode()).hexdigest()
 
@@ -201,9 +205,8 @@ class UpdatePlan:
         try:
             _atomic_write(self.state_path, state)
         except OSError:
-            # Запись checkpoint не считается ошибкой продукта: эффект мог уже
-            # завершиться. Следующий run повторит тот же key, не начнёт rollback.
-            raise UpdateError("Не удалось атомарно сохранить состояние; повторите run") from None
+            # Эффект мог завершиться; checkpoint мог сохраниться или нет.
+            raise UpdateError("Не удалось сохранить состояние; проверьте его перед повтором") from None
 
     def _load(self):
         try:
@@ -293,6 +296,8 @@ class UpdatePlan:
         проверки вызывающим требуется явный resume_indeterminate=True. Повтор
         безопасен, только если порт разрешил неопределённость и выполняет
         обязательства идемпотентности по тому же key.
+        guard_effects записывает отметку до эффекта и оставляет её до checkpoint
+        результата; после аварии требует проверки даже если эффект не начинался.
         Обычная ошибка внешнего шага переключает durable направление на rollback.
         """
         if type(resume_indeterminate) is not bool:
@@ -315,11 +320,12 @@ class UpdatePlan:
             if state.get("indeterminate") is True:
                 if not resume_indeterminate:
                     raise UpdateIndeterminate("Исход шага не подтверждён; требуется проверка перед повтором")
-                del state["indeterminate"]
-                self._save(state)
             while state["outcome"] == "running":
                 phases = self.forward if state["direction"] == "forward" else self.rollback
                 phase = phases[state["index"]]
+                if self.guard_effects and state.get("indeterminate") is not True:
+                    state["indeterminate"] = True
+                    self._save(state)
                 try:
                     self._execute(state, phase)
                 except EffectIndeterminate:
@@ -328,10 +334,14 @@ class UpdatePlan:
                     raise UpdateIndeterminate("Исход шага не подтверждён; требуется проверка перед повтором") from None
                 except Exception:
                     if state["direction"] == "rollback":
+                        if state.get("indeterminate") is True:
+                            raise UpdateIndeterminate("Откат приостановлен; требуется проверка перед повтором") from None
                         raise UpdateError("Откат приостановлен; повторите run после устранения причины") from None
+                    state.pop("indeterminate", None)
                     state.update(direction="rollback", index=0, failed_phase=phase)
                     self._save(state)
                     continue
+                state.pop("indeterminate", None)
                 state["index"] += 1
                 if phase == "archive":
                     state["archive_ready"] = True

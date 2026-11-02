@@ -98,9 +98,9 @@ def manifest():
     return load_manifest(Path(__file__).resolve().parents[1] / "examples/rent.manifest.json")
 
 
-def plan(root, manifest, ports):
+def plan(root, manifest, ports, *, guard_effects=False):
     return UpdatePlan(manifest, root, ports, release="new", modes=("autonomous",),
-                      migration_ids=("schema-1", "schema-2"))
+                      migration_ids=("schema-1", "schema-2"), guard_effects=guard_effects)
 
 
 def phases(ports):
@@ -215,6 +215,79 @@ def test_unknown_rollback_effect_stays_on_phase(tmp_path, manifest, phase):
     result = plan(tmp_path, manifest, FakePorts(tmp_path)).run(resume_indeterminate=True)
     assert result['outcome'] == 'rolled_back'
     assert phases(ports)[-6:] == ROLLBACK
+
+
+@pytest.mark.parametrize('phase', FORWARD)
+@pytest.mark.parametrize('after', [False, True])
+def test_guarded_update_crash_requires_explicit_reconciliation(tmp_path, manifest, phase, after):
+    crashing = FakePorts(tmp_path, crash=phase, after=after)
+    with pytest.raises(Crash):
+        plan(tmp_path, manifest, crashing, guard_effects=True).run()
+    resumed = FakePorts(tmp_path)
+    update = plan(tmp_path, manifest, resumed, guard_effects=True)
+    assert update.status()['indeterminate'] is True
+    before = resumed.data
+    with pytest.raises(UpdateIndeterminate):
+        update.run()
+    assert resumed.data == before
+    assert update.run(resume_indeterminate=True)['outcome'] == 'updated'
+    assert phases(resumed) == FORWARD
+
+
+@pytest.mark.parametrize('phase', ROLLBACK)
+@pytest.mark.parametrize('after', [False, True])
+def test_guarded_rollback_crash_requires_explicit_reconciliation(tmp_path, manifest, phase, after):
+    with pytest.raises(Crash):
+        plan(tmp_path, manifest, FakePorts(tmp_path, fail='health', crash=phase, after=after),
+             guard_effects=True).run()
+    resumed = FakePorts(tmp_path)
+    update = plan(tmp_path, manifest, resumed, guard_effects=True)
+    state = update.status()
+    assert state['direction'] == 'rollback' and state['indeterminate'] is True
+    with pytest.raises(UpdateIndeterminate):
+        update.run()
+    assert update.run(resume_indeterminate=True)['outcome'] == 'rolled_back'
+    assert phases(resumed)[-6:] == ROLLBACK
+
+
+def test_crash_during_explicit_retry_keeps_pending_marker(tmp_path, manifest):
+    with pytest.raises(Crash):
+        plan(tmp_path, manifest, FakePorts(tmp_path, crash='stage'), guard_effects=True).run()
+    # После повторного прерывания отметка остаётся, даже если выключить guard
+    # нельзя: переключение режима меняет digest и проверяется ниже.
+    with pytest.raises(Crash):
+        plan(tmp_path, manifest, FakePorts(tmp_path, crash='stage', after=True), guard_effects=True).run(resume_indeterminate=True)
+    update = plan(tmp_path, manifest, FakePorts(tmp_path), guard_effects=True)
+    assert update.status()['indeterminate'] is True
+    with pytest.raises(UpdateIndeterminate):
+        update.run()
+    with pytest.raises(UpdateError):
+        plan(tmp_path, manifest, FakePorts(tmp_path), guard_effects=False).run()
+    assert update.run(resume_indeterminate=True)['outcome'] == 'updated'
+
+
+@pytest.mark.parametrize('after', [False, True])
+def test_guard_checkpoint_crash_never_starts_effect(tmp_path, manifest, monkeypatch, after):
+    ports = FakePorts(tmp_path)
+    update = plan(tmp_path, manifest, ports, guard_effects=True)
+    original = module._atomic_write
+    def interrupted(path, state):
+        if state.get('indeterminate') is True:
+            if after:
+                original(path, state)
+            raise Crash()
+        original(path, state)
+    with monkeypatch.context() as patch:
+        patch.setattr(module, '_atomic_write', interrupted)
+        with pytest.raises(Crash):
+            update.run()
+    assert not phases(ports)
+    state = update.status()
+    assert state.get('indeterminate', False) is after
+    if after:
+        with pytest.raises(UpdateIndeterminate):
+            update.run()
+    assert update.run(resume_indeterminate=after)['outcome'] == 'updated'
 
 
 @pytest.mark.parametrize("phase", ROLLBACK)

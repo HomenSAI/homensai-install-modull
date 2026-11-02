@@ -222,7 +222,7 @@ def control_signed_compose(package_path: str, envelope: bytes, *, trusted_public
                             raise DockerLifecycleError('Образ контейнера не соответствует плану')
                     return rows
 
-                def verify_reconciliation(*, stopped):
+                def verify_state(*, stopped):
                     # Compose config hashes are evidence of the signed service model,
                     # not proof against a malicious daemon or forged labels.
                     hashes = {}
@@ -264,26 +264,26 @@ def control_signed_compose(package_path: str, envelope: bytes, *, trusted_public
                               'stop_key': None, 'status': 'start_pending'}
                     _atomic_write(marker, record)
                     run(prefix + ['up', '--detach', '--no-build', '--no-recreate', '--pull', 'never'])
-                    verify_containers(stopped=False)
+                    verify_state(stopped=False)
                     if read_effect_receipt(marker) != record:
                         raise DockerLifecycleError('Журнал изменился')
                     record = {**record, 'status': 'running'}
                     _atomic_write(marker, record)
                 elif action == 'stop' and record['status'] == 'running':
-                    verify_containers(stopped=None)
+                    verify_state(stopped=None)
                     if read_effect_receipt(marker) != record:
                         raise DockerLifecycleError('Журнал изменился')
                     record = {**record, 'stop_key': action_id, 'status': 'stop_pending'}
                     _atomic_write(marker, record)
                     run(prefix + ['stop', '--timeout', '10'])
-                    verify_containers(stopped=True)
+                    verify_state(stopped=True)
                     if read_effect_receipt(marker) != record:
                         raise DockerLifecycleError('Журнал изменился')
                     record = {**record, 'status': 'stopped'}
                     _atomic_write(marker, record)
                 elif action in ('reconcile-start', 'reconcile-stop'):
                     final = 'running' if action == 'reconcile-start' else 'stopped'
-                    verify_reconciliation(stopped=(action == 'reconcile-stop'))
+                    verify_state(stopped=(action == 'reconcile-stop'))
                     if (read_effect_receipt(marker) != record
                             or prepare_signed_compose(package_path, envelope, **prep) != verified):
                         raise DockerLifecycleError('Данные изменились')
@@ -291,7 +291,7 @@ def control_signed_compose(package_path: str, envelope: bytes, *, trusted_public
                         record = {**record, 'status': final}
                         _atomic_write(marker, record)
                 else:
-                    verify_containers(stopped=(action == 'stop'))
+                    verify_state(stopped=(action == 'stop'))
                 if (read_effect_receipt(marker) != record
                         or prepare_signed_compose(package_path, envelope, **prep) != verified):
                     raise DockerLifecycleError('Данные изменились')

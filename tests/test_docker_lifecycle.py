@@ -278,6 +278,26 @@ def test_wrong_container_image_does_not_confirm_start(lifecycle):
     assert read_effect_receipt(marker)['status'] == 'start_pending'
 
 
+def test_wrong_configuration_hash_never_confirms_start(lifecycle):
+    package, envelope, options, daemon = lifecycle
+    daemon.bad_hash = True
+    with pytest.raises(DockerLifecycleError):
+        control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
+    marker = Path(options['work_dir']) / ('compose-lifecycle-' + options['instance_id'] + '.json')
+    assert read_effect_receipt(marker)['status'] == 'start_pending'
+
+
+def test_changed_configuration_blocks_stop_before_command(lifecycle):
+    package, envelope, options, daemon = lifecycle
+    control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
+    daemon.bad_hash = True
+    with pytest.raises(DockerLifecycleError):
+        control_signed_compose(package, envelope, **options, action='stop', action_id='c' * 32)
+    assert not actions(daemon, 'stop')
+    marker = Path(options['work_dir']) / ('compose-lifecycle-' + options['instance_id'] + '.json')
+    assert read_effect_receipt(marker)['status'] == 'running'
+
+
 def test_mismatched_container_image_id_does_not_confirm_start_or_retry(lifecycle, monkeypatch):
     package, envelope, options, daemon = lifecycle
     calls = []
@@ -479,10 +499,14 @@ elif args[:4] == ['compose', '-p', project, '-f']:
     elif tail == ['ps', '--all', '--format', 'json']:
         output = '\\n'.join(json.dumps({'ID': format(i+1, '064x'), 'Project': project,
             'Service': name, 'State': state.read_text()}) for i, name in enumerate(services))
+    elif tail == ['config', '--hash', '*']:
+        output = '\\n'.join(name + ' ' + 'f' * 64 for name in services)
     else:
         raise SystemExit(2)
 elif args[:3] == ['inspect', '--format', '{{json .Image}}']:
     output = json.dumps('sha256:' + 'd' * 64)
+elif args[:3] == ['inspect', '--format', '{{json (index .Config.Labels "com.docker.compose.config-hash")}}']:
+    output = json.dumps('f' * 64)
 else:
     raise SystemExit(2)
 sys.stdout.write(output + ('\\n' if output else ''))

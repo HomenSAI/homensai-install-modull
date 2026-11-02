@@ -170,7 +170,9 @@ def test_wrong_container_image_does_not_confirm_start(lifecycle):
 
 def test_daemon_returning_tag_instead_of_digest_does_not_confirm_start(lifecycle, monkeypatch):
     package, envelope, options, daemon = lifecycle
+    calls = []
     def tagged_image(argv, *, timeout, env):
+        calls.append(argv)
         if argv[5:8] == ['inspect', '--format', '{{json .Config.Image}}']:
             return subprocess.CompletedProcess(argv, 0, stdout=json.dumps('docker.io/library/alpine:3.22'))
         return daemon(argv, timeout=timeout, env=env)
@@ -179,6 +181,10 @@ def test_daemon_returning_tag_instead_of_digest_does_not_confirm_start(lifecycle
         control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
     marker = Path(options['work_dir']) / ('compose-lifecycle-' + options['instance_id'] + '.json')
     assert read_effect_receipt(marker)['status'] == 'start_pending'
+    count = len(calls)
+    with pytest.raises(DockerLifecycleError):
+        control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
+    assert len(calls) == count  # A retry must not contact the daemon or start containers again.
 
 
 def test_unknown_stop_result_stays_pending_and_does_not_repeat(lifecycle):

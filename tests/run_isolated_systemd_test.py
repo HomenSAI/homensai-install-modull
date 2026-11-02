@@ -19,7 +19,7 @@ SETUP = '''#!/bin/sh
 set -eu
 apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends systemd dbus >/dev/null
-python -m pip install -q pytest
+python -m pip install -q pytest jsonschema
 python -m pip install -q -r /project/requirements-crypto.txt
 useradd -m -u 1000 homenstest
 mkdir -p /run/systemd/system /run/user/1000 /sys/fs/cgroup/homensai-test /home/homenstest/.config/systemd/user
@@ -42,7 +42,7 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
 done
 if [ "$ready" != 1 ]; then cat /tmp/homensai-test-systemd.log; exit 1; fi
 cd /project
-python -m pytest -q -p no:cacheprovider tests/test_systemd_user_publish.py
+python -m pytest -q -p no:cacheprovider tests/test_systemd_user_publish.py tests/test_api.py tests/test_api_signed_preflight.py tests/test_i18n.py
 '''
 
 

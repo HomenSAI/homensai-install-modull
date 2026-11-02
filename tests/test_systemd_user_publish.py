@@ -397,6 +397,45 @@ def group_call(data, **kwargs):
                              modes=('autonomous',), unit_dir=str(destination), **kwargs)
 
 
+def test_api_plans_signed_units_without_manager_or_writes(signed_units, monkeypatch):
+    import base64
+    import subprocess
+    import sys
+    from shared.api import handle
+
+    package, envelope, root, options, destination, units = signed_units
+    query = {'api_major': 1, 'request_id': 'test', 'operation': 'plan-systemd-user-units',
+             'params': {'package_path': str(package), 'envelope': base64.b64encode(envelope).decode(),
+                        'trusted_public_key': base64.b64encode(options['trusted_public_key']).decode(),
+                        'expected_product_id': options['expected_product_id'], 'expected_version': '1',
+                        'install_root': str(root), 'modes': ['autonomous']}}
+    monkeypatch.setattr(pub, '_run', lambda *args, **kwargs: pytest.fail('Must not invoke systemd'))
+    capabilities = handle({'api_major': 1, 'request_id': 'test', 'operation': 'capabilities', 'params': {}})['result']
+    assert capabilities['api_minor'] >= 13 and query['operation'] in capabilities['operations']
+    assert query['operation'] not in capabilities['mutating_operations']
+    result = handle(query)
+    assert result['ok'] and result['result']['state'] == 'planned'
+    assert result['result']['manager_checked'] is False and result['result']['publication_readiness_verified'] is False
+    assert {item['name']: item['sha256'] for item in result['result']['units']} == {
+        name: hashlib.sha256(body).hexdigest() for name, body in units.items()}
+    assert not list(destination.iterdir())
+    validator = pytest.importorskip('jsonschema').Draft202012Validator(
+        json.loads((ROOT / 'shared/api-v1-request.schema.json').read_text()))
+    assert not list(validator.iter_errors(query))
+    cli = subprocess.run([sys.executable, '-B', '-m', 'shared.api'], input=json.dumps(query).encode(),
+                         cwd=ROOT, capture_output=True, timeout=30, check=True)
+    assert json.loads(cli.stdout) == result
+    query['params']['trusted_public_key'] = base64.b64encode(b'x' * 32).decode()
+    query['language'] = 'de'
+    failure = handle(query)
+    assert failure['error']['code'] == 'systemd_plan_failed'
+    assert failure['error']['message'] == 'Die Dienstdateien konnten nicht geprüft werden'
+    assert not list(destination.iterdir())
+    monkeypatch.setattr('shared.api._systemd_plan_available', lambda: False)
+    assert query['operation'] not in handle({'api_major': 1, 'request_id': 'test', 'operation': 'capabilities', 'params': {}})['result']['operations']
+    assert handle(query)['error']['code'] == 'unsupported_operation'
+
+
 @pytest.mark.parametrize('state', ['missing', 'pending'])
 def test_signed_group_requires_completed_reload_without_reloading(published_units, state):
     from shared.systemd_user_load import UnitLoadError

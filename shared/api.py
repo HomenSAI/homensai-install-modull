@@ -25,10 +25,11 @@ from shared.manifest import ManifestError, check_target, validate_manifest
 from shared.package import PackageError
 from shared.package_signing import MAX_ENVELOPE, _crypto, verify_signed_package
 from shared.preflight import MAX_BYTES as MAX_DISK_BYTES, NAMES as PATH_NAMES, PreflightError, preflight_fresh
+from shared.systemd_user_publish import UnitPublicationError, publish_signed_user_units
 from shared.update_plan import UpdateError, UpdatePlan
 
 API_MAJOR = 1
-API_MINOR = 12
+API_MINOR = 13
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -95,6 +96,13 @@ def _signature_available() -> bool:
         return False
 
 
+def _systemd_plan_available() -> bool:
+    try:
+        return native_target() == {'os': 'linux', 'architecture': 'x86_64', 'execution': 'native'}
+    except HostTargetError:
+        return False
+
+
 def _base64(value: Any, max_decoded: int) -> bytes:
     if type(value) is not str or not value or len(value) > ((max_decoded + 2) // 3) * 4:
         raise InvalidRequest()
@@ -142,6 +150,8 @@ def handle(request: Any) -> dict:
             if _signature_available():
                 operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release"])
                 mutating_operations.append("prepare-native-release")
+                if _systemd_plan_available():
+                    operations.append("plan-systemd-user-units")
             result = {"api_major": API_MAJOR, "api_minor": API_MINOR,
                       "operations": operations,
                       "mutating_operations": mutating_operations,
@@ -246,6 +256,32 @@ def handle(request: Any) -> dict:
             result = {'transaction': state['transaction'], 'product_id': state['product_id'],
                       'version': state['version'], 'status': state['status'],
                       'process_target': state['process_target'], 'installation_complete': False}
+        elif operation == "plan-systemd-user-units":
+            fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id",
+                      "expected_version", "install_root", "modes"}
+            strings = fields - {"modes"}
+            if (set(params) != fields or any(type(params[field]) is not str for field in strings)
+                    or type(params['modes']) is not list or not params['modes']
+                    or any(type(mode) is not str for mode in params['modes'])):
+                raise InvalidRequest()
+            if not _signature_available() or not _systemd_plan_available():
+                return _error(request_id, "unsupported_operation", "Операция API не поддерживается", language, "api.unsupported_operation")
+            if (not params['package_path'] or not params['install_root']
+                    or re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,62}", params['expected_product_id']) is None
+                    or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", params['expected_version']) is None):
+                raise InvalidRequest()
+            envelope = _base64(params['envelope'], MAX_ENVELOPE)
+            key = _base64(params['trusted_public_key'], 32)
+            if len(key) != 32:
+                raise InvalidRequest()
+            try:
+                plan = publish_signed_user_units(params['package_path'], envelope, params['install_root'],
+                    trusted_public_key=key, expected_product_id=params['expected_product_id'],
+                    expected_version=params['expected_version'], modes=tuple(params['modes']), unit_dir='')
+            except UnitPublicationError:
+                return _error(request_id, 'systemd_plan_failed', 'Не удалось проверить состав служб',
+                              language, 'api.systemd_plan_failed')
+            result = {**plan, 'manager_checked': False, 'publication_readiness_verified': False}
         elif operation in ("fresh-status", "verify-native-release"):
             fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root"}
             if set(params) != fields or any(type(params[field]) is not str for field in fields):
@@ -367,7 +403,7 @@ def main() -> int:
     sys.stdout.write(json.dumps(response, ensure_ascii=True, separators=(",", ":")) + "\n")
     if response["ok"]:
         return 0
-    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_verify_failed", "fresh_prepare_failed", "update_status_failed", "health_check_failed") else 2
+    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_verify_failed", "fresh_prepare_failed", "update_status_failed", "health_check_failed", "systemd_plan_failed") else 2
 
 
 if __name__ == "__main__":

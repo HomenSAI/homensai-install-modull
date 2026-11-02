@@ -19,5 +19,6 @@
   "api.health_check_failed": "Could not confirm product health",
   "api.fresh_prepare_failed": "Could not prepare the release",
   "api.operation_conflict": "Request does not match the operation",
-  "api.update_status_failed": "Could not read update state"
+  "api.update_status_failed": "Could not read update state",
+  "api.systemd_plan_failed": "Could not verify the service units"
 }

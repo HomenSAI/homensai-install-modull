@@ -13,8 +13,22 @@
 `prepare-native-release`; API 1.9 добавляет чтение `update-plan-status`,
 API 1.10 — проверку файлов подготовленного выпуска `verify-native-release`,
 API 1.11 — нижнюю оценку места для подготовки подписанного нативного выпуска,
-API 1.12 — локальную проверку ответа продукта `check-local-health`.
+API 1.12 — локальную проверку ответа продукта `check-local-health`,
+API 1.13 — предварительный просмотр подписанных Linux user-units
+`plan-systemd-user-units`.
 Полная установка и обновление через API пока недоступны.
+
+`plan-systemd-user-units` принимает `package_path`, `envelope`,
+`trusted_public_key`, `expected_product_id`, `expected_version`, `install_root`
+и непустой массив `modes`. Пакет и подготовленный выпуск проверяются; ответ
+содержит имена и SHA-256 выбранных unit-файлов, `state: planned`, а также
+`services_started: false`, `manager_checked: false` и
+`publication_readiness_verified: false`.
+Запрос не обращается к systemd и не публикует, не загружает и не запускает
+службы. Он не проверяет каталог назначения или доступность менеджера и не
+является разрешением на запуск. Возможность объявляется на нативном Linux
+x86-64 при наличии криптографической зависимости. Ошибка проверки возвращает
+`systemd_plan_failed`; сообщения доступны на русском, английском и немецком.
 
 ## Границы и транспорт
 

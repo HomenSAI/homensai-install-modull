@@ -19,5 +19,6 @@
   "api.health_check_failed": "Der Produktzustand konnte nicht bestätigt werden",
   "api.fresh_prepare_failed": "Die Version konnte nicht vorbereitet werden",
   "api.operation_conflict": "Die Anfrage stimmt nicht mit dem Vorgang überein",
-  "api.update_status_failed": "Der Aktualisierungsstatus konnte nicht gelesen werden"
+  "api.update_status_failed": "Der Aktualisierungsstatus konnte nicht gelesen werden",
+  "api.systemd_plan_failed": "Die Dienstdateien konnten nicht geprüft werden"
 }

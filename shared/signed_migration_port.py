@@ -7,20 +7,17 @@
 from __future__ import annotations
 
 import hashlib
-import json
-import os
 import re
-import stat
 
 from shared import archive_crypto
 from shared.adapters_fs import FilesystemPorts
+from shared.effect_receipt import read_effect_receipt
 from shared.native_migration import run_signed_native_migration
 from shared.update_plan import (EffectIndeterminate, UpdateError, UpdatePlan,
-                                _ACTIVE_EFFECT, _atomic_write, _object)
+                                _ACTIVE_EFFECT, _atomic_write)
 
 _KEY = re.compile(r'([a-f0-9]{32})/migrate:(0|[1-9][0-9]{0,5})\Z')
 _HASH = re.compile(r'[a-f0-9]{64}\Z')
-_MAX_RECEIPT = 8192
 
 
 class SignedMigrationPort:
@@ -50,25 +47,7 @@ class SignedMigrationPort:
         self.package_path, self.envelope, self.public_key = package_path, envelope, trusted_public_key
         self.interpreter, self.interpreter_sha256, self.timeout = interpreter, interpreter_sha256, timeout
 
-    def _read(self, path):
-        flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_BINARY', 0)
-        try:
-            descriptor = os.open(path, flags)
-        except FileNotFoundError:
-            return None
-        except OSError:
-            raise EffectIndeterminate('Недоступна отметка миграции') from None
-        try:
-            with os.fdopen(descriptor, 'rb') as stream:
-                info = os.fstat(stream.fileno())
-                if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
-                    raise EffectIndeterminate('Недопустимая отметка миграции')
-                raw = stream.read(_MAX_RECEIPT + 1)
-            if len(raw) > _MAX_RECEIPT:
-                raise EffectIndeterminate('Недопустимая отметка миграции')
-            return json.loads(raw.decode('utf-8'), object_pairs_hook=_object)
-        except (OSError, ValueError, UnicodeError, RecursionError, UpdateError):
-            raise EffectIndeterminate('Недоступна отметка миграции') from None
+    _read = staticmethod(read_effect_receipt)
 
     def migrate(self, key: str, migration: str, command: tuple[str, ...]) -> None:
         match = _KEY.fullmatch(key) if type(key) is str else None

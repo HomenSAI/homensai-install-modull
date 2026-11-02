@@ -177,6 +177,7 @@ class SystemdEffects(Effects):
         self.log = tmp_path / 'systemd-web.log'
         self.created = []
         self.group = None
+        self.lifecycle_port = None
         runtime = '/run/user/' + str(os.getuid())
         self.env = {'PATH': '/usr/bin:/bin', 'LC_ALL': 'C', 'SYSTEMD_PAGER': 'cat',
                     'XDG_RUNTIME_DIR': runtime, 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=' + runtime + '/bus'}
@@ -230,6 +231,8 @@ class SystemdEffects(Effects):
         from shared.systemd_group import SystemdGroupError
         super().stop(key, components)
         assert components == ('bot', 'web')
+        if self.lifecycle_port is not None:
+            return self.lifecycle_port.stop(key, components)
         try:
             self.group.command('stop', execute=True)
         except SystemdGroupError:
@@ -240,6 +243,8 @@ class SystemdEffects(Effects):
         super().start(key, components, pre_start)
         assert components == ('web', 'bot')
         self.log.write_text('', encoding='utf-8')
+        if self.lifecycle_port is not None:
+            return self.lifecycle_port.start(key, components, pre_start)
         try:
             self.group.command('start', execute=True)
         except SystemdGroupError:
@@ -331,6 +336,7 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
         manifest['product_id'] = 'homensai-test-' + uuid.uuid4().hex[:16]
         manifest['components'] = [c for c in manifest['components'] if c['name'] != 'scheduler']
         manifest['modes'][0]['components'] = ['web', 'bot']
+        manifest['hooks']['pre_start'] = []
     manifest["runtime"]["lock_files"] = {
         name: {"file": "locks/" + name + ".lock", "sha256": sha256(synthetic["locks/" + name + ".lock"]).hexdigest()}
         for name in ("windows", "linux")}
@@ -418,13 +424,19 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
                                                      trusted_public_key=public, interpreter=str(interpreter),
                                                      interpreter_sha256=sha256(interpreter.read_bytes()).hexdigest(),
                                                      timeout=15)
+    if live == 'systemd':
+        from shared.systemd_lifecycle_port import SystemdLifecyclePort
+        effects.lifecycle_port = SystemdLifecyclePort(update, ports, install_root=str(installation), group=effects.group)
     if fail_health == 'migration':
         from shared.api import handle
+        from shared.effect_receipt import read_effect_receipt
         with pytest.raises(UpdateIndeterminate):
             update.run()
         state = update.status()
         assert state['direction'] == 'forward' and state['indeterminate'] is True
         assert update.forward[state['index']] == 'migrate:0'
+        assert read_effect_receipt(ports._path(state['transaction'] + '/stop', '.service.json'))['status'] == 'done'
+        assert read_effect_receipt(ports._path(state['transaction'] + '/migrate:0', '.migration.json'))['status'] == 'pending'
         assert ports.current_release() == '1'
         assert entries(home.roots['data'] / 'demo.sqlite3') == ['synthetic-schema-1']
         assert all(adapter.confirm_stopped()['active_state'] == 'inactive'
@@ -465,6 +477,11 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
         if live != 'systemd':
             assert all(process.poll() is None for process in effects.processes)
         assert 'stop' in effects.calls and ('rollback_health' in effects.calls) == fail_health
+    if live == 'systemd':
+        from shared.effect_receipt import read_effect_receipt
+        phases = ['stop', 'start'] + (['rollback_stop', 'rollback_start'] if fail_health else [])
+        assert all(read_effect_receipt(ports._path(result['transaction'] + '/' + phase, '.service.json'))['status'] == 'done'
+                   for phase in phases)
     expected = ["synthetic-schema-1"] + ([] if fail_health else ["synthetic-schema-2"])
     assert entries(home.roots["data"] / "demo.sqlite3") == expected
     assert json.loads(settings.read_text(encoding="utf-8"))["locale"] == "de"

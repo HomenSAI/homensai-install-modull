@@ -15,6 +15,7 @@ import re
 import stat
 
 from shared.archive import ArchiveError, _signature
+from shared.crypto_policy import CryptoPolicyError, require_locked_crypto
 from shared.datahome import DataHomeError, checked_path
 from shared.package import (MAX_METADATA_BYTES, MAX_TOTAL_BYTES, PackageError, _HASH,
                             _VERSION, _object, _reject_constant, _sha256, verify_package)
@@ -26,10 +27,11 @@ _PRODUCT = re.compile(r"[a-z0-9][a-z0-9_-]{0,62}\Z")
 
 def _crypto():
     try:
+        require_locked_crypto()
         from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
-    except ImportError:
-        raise PackageError("Проверка подписи недоступна: требуется cryptography") from None
+    except (ImportError, CryptoPolicyError):
+        raise PackageError("Проверка подписи недоступна: требуется закреплённый cryptography") from None
     return Ed25519PrivateKey, Ed25519PublicKey, InvalidSignature, UnsupportedAlgorithm
 
 

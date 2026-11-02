@@ -20,6 +20,7 @@ import warnings
 import uuid
 
 from shared import archive as plain
+from shared.crypto_policy import CryptoPolicyError, require_locked_crypto
 from shared.datahome import checked_path, check_invariants, contains, DataHomeError
 
 
@@ -43,11 +44,12 @@ class CryptoUnavailableError(ArchiveCryptoError):
 
 def _aesgcm():
     try:
+        require_locked_crypto()
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-    except ImportError:
+    except (ImportError, CryptoPolicyError):
         raise CryptoUnavailableError(
-            "Шифрование недоступно: установите необязательный пакет cryptography "
-            "из requirements-crypto.txt после заполнения владельцем хэшей"
+            "Шифрование недоступно: установите закреплённые криптозависимости "
+            "cryptography из requirements-crypto.txt"
         ) from None
     return AESGCM
 

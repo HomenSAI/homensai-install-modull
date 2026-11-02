@@ -108,6 +108,120 @@ def _licenses(data: bytes, package: str, names: tuple[str, ...]) -> dict[str, by
         return result
 
 
+def verify_archived_wheelhouse(archive, files, marker: str) -> None:
+    """Проверить внутреннюю согласованность блока в ZIP без lock сборщика."""
+    parent = marker.rpartition('/')[0]
+    prefix = parent + '/' if parent else ''
+    inventory = {item['path']: item for item in files}
+
+    def read(name, limit):
+        item = inventory.get(prefix + name)
+        if item is None or item['size'] > limit:
+            raise WheelhouseError('Недопустимый файл криптоблока')
+        return archive.read('payload/' + prefix + name)
+
+    raw = read(_METADATA, 1024 * 1024)
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise WheelhouseError('Повтор поля криптоблока')
+            result[key] = value
+        return result
+    metadata = json.loads(raw.decode('utf-8'), object_pairs_hook=unique)
+    if (type(metadata) is not dict or set(metadata) != {'lock_files', 'vendor_wheels', 'license_files'}
+            or raw != (json.dumps(metadata, ensure_ascii=True, sort_keys=True, indent=2) + '\n').encode()
+            or type(metadata['lock_files']) is not dict or set(metadata['lock_files']) != {'linux', 'windows'}
+            or type(metadata['vendor_wheels']) is not list or not 1 <= len(metadata['vendor_wheels']) <= 128
+            or type(metadata['license_files']) is not list or not 1 <= len(metadata['license_files']) <= 1024):
+        raise WheelhouseError('Недопустимое описание криптоблока')
+    expected = {_METADATA}
+    def entry(value, path):
+        if (type(value) is not dict or set(value) != {'file', 'sha256'}
+                or value['file'] != path or type(value['sha256']) is not str
+                or re.fullmatch(r'[a-f0-9]{64}', value['sha256']) is None
+                or path in expected):
+            raise WheelhouseError('Недопустимая запись криптоблока')
+        expected.add(path)
+        item = inventory.get(prefix + path)
+        if item is None or item['sha256'] != value['sha256']:
+            raise WheelhouseError('Хэш криптоблока не совпадает')
+
+    lock = None
+    for system in ('linux', 'windows'):
+        path = f'locks/{system}.lock'
+        entry(metadata['lock_files'][system], path)
+        data = read(path, 1024 * 1024)
+        if lock is not None and lock != data:
+            raise WheelhouseError('Lock криптоблока не совпадают')
+        lock = data
+    wheels = {}
+    for item in metadata['vendor_wheels']:
+        if type(item) is not dict or type(item.get('file')) is not str:
+            raise WheelhouseError('Недопустимый wheel')
+        path = item['file']
+        match = re.fullmatch(r'vendor/([A-Za-z0-9_]+)-([0-9]+(?:\.[0-9]+)*)-[A-Za-z0-9_.]+-[A-Za-z0-9_.]+-[A-Za-z0-9_.]+\.whl', path)
+        if not match:
+            raise WheelhouseError('Недопустимое имя wheel')
+        entry(item, path)
+        if inventory[prefix + path]['size'] > _MAX_WHEEL:
+            raise WheelhouseError('Wheel слишком велик')
+        wheels[path[7:]] = (match.group(1), match.group(2))
+    locks = {}
+    lines = [line.strip() for line in lock.decode('utf-8').splitlines()
+             if line.strip() and not line.lstrip().startswith('#')]
+    if lines[:2] != ['--require-hashes', '--only-binary=:all:']:
+        raise WheelhouseError('Недопустимый lock криптоблока')
+    current, continued = None, False
+    for line in lines[2:]:
+        match = re.fullmatch(r'([a-z]+)==([0-9.]+)\s*\\', line)
+        if match:
+            if continued or match.group(1) in locks:
+                raise WheelhouseError('Недопустимый lock криптоблока')
+            current = match.group(1)
+            locks[current] = (match.group(2), [])
+            continued = True
+            continue
+        match = re.fullmatch(r'--hash=sha256:([a-f0-9]{64})(\s*\\)?', line)
+        if not match or not continued or current is None:
+            raise WheelhouseError('Недопустимый lock криптоблока')
+        locks[current][1].append(match.group(1))
+        continued = bool(match.group(2))
+    wheel_locks = {}
+    for item in metadata['vendor_wheels']:
+        name, version = wheels[item['file'][7:]]
+        if name in wheel_locks and wheel_locks[name][0] != version:
+            raise WheelhouseError('Версии wheel не совпадают')
+        wheel_locks.setdefault(name, (version, []))[1].append(item['sha256'])
+    if continued or set(locks) != set(wheel_locks) or any(
+            locks[name][0] != wheel_locks[name][0] or sorted(locks[name][1]) != sorted(wheel_locks[name][1])
+            for name in locks):
+        raise WheelhouseError('Lock и wheels не совпадают')
+    licenses = {}
+    for item in metadata['license_files']:
+        if type(item) is not dict or type(item.get('file')) is not str:
+            raise WheelhouseError('Недопустимая лицензия')
+        path = item['file']
+        parts = path.split('/')
+        if len(parts) != 3 or parts[0] != 'licenses' or parts[1] not in wheels or not re.fullmatch(r'[A-Za-z0-9_.-]+', parts[2]):
+            raise WheelhouseError('Недопустимый путь лицензии')
+        entry(item, path)
+        licenses.setdefault(parts[1], {})[parts[2]] = read(path, _MAX_LICENSE)
+    if set(licenses) != set(wheels):
+        raise WheelhouseError('Не хватает лицензии wheel')
+    for filename, (name, version) in wheels.items():
+        data = read('vendor/' + filename, _MAX_WHEEL)
+        with zipfile.ZipFile(io.BytesIO(data)) as wheel:
+            for license_name, contents in licenses[filename].items():
+                member = f'{name}-{version}.dist-info/licenses/{license_name}'
+                matches = [info for info in wheel.infolist() if info.filename == member]
+                if (len(matches) != 1 or matches[0].is_dir() or matches[0].file_size > _MAX_LICENSE
+                        or wheel.read(matches[0]) != contents):
+                    raise WheelhouseError('Лицензия wheel не совпадает')
+    if {name[len(prefix):] for name in inventory if name.startswith(prefix)} != expected:
+        raise WheelhouseError('Состав криптоблока не совпадает')
+
+
 def _write(path: Path, data: bytes) -> None:
     with path.open('xb') as stream:
         stream.write(data)

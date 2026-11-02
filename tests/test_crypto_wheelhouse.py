@@ -194,3 +194,70 @@ def test_signed_release_inventory_does_not_depend_on_current_builder_lock(sample
         _files(payload)
     actual, _ = _files(payload, verify_crypto_block=False)
     assert actual == expected
+
+
+@pytest.mark.parametrize('mutation', ['license', 'missing', 'extra', 'lock', 'wheel'])
+def test_signed_zip_rejects_inconsistent_crypto_block(sample, tmp_path, mutation):
+    import base64
+    from shared.archive import _info
+    from shared.package import PackageError, verify_package
+    from shared.package_signing import _canonical, verify_signed_package
+    ed = pytest.importorskip('cryptography.hazmat.primitives.asymmetric.ed25519')
+    serialization = pytest.importorskip('cryptography.hazmat.primitives.serialization')
+
+    source, filename, _ = sample
+    block = tmp_path / 'block'
+    wh.build_wheelhouse(source, block)
+    members = {'crypto/' + p.relative_to(block).as_posix(): p.read_bytes()
+               for p in block.rglob('*') if p.is_file()}
+    metadata = json.loads(members['crypto/crypto-wheelhouse.json'])
+    if mutation == 'license':
+        path = f'crypto/licenses/{filename}/LICENSE'
+        members[path] = b'changed and rehashed'
+        for item in metadata['license_files']:
+            if 'crypto/' + item['file'] == path:
+                item['sha256'] = hashlib.sha256(members[path]).hexdigest()
+    elif mutation == 'missing':
+        del members[f'crypto/licenses/{filename}/LICENSE']
+    elif mutation == 'extra':
+        members['crypto/unlisted'] = b'extra'
+    elif mutation == 'lock':
+        members['crypto/locks/linux.lock'] += b'# changed\n'
+        metadata['lock_files']['linux']['sha256'] = hashlib.sha256(members['crypto/locks/linux.lock']).hexdigest()
+    else:
+        members[f'crypto/vendor/{filename}'] = b'not a wheel'
+        metadata['vendor_wheels'][0]['sha256'] = hashlib.sha256(b'not a wheel').hexdigest()
+    members['crypto/crypto-wheelhouse.json'] = (json.dumps(metadata, ensure_ascii=True, sort_keys=True, indent=2) + '\n').encode()
+    manifest = json.loads((wh.Path(wh.__file__).resolve().parent.parent / 'examples' / 'jobpilot.manifest.json').read_text())
+    package_metadata = {'format': 1, 'product_id': manifest['product_id'], 'version': '1', 'manifest': manifest,
+                        'files': [{'path': name, 'size': len(body), 'sha256': hashlib.sha256(body).hexdigest()}
+                                  for name, body in sorted(members.items())]}
+    package = tmp_path / 'forged.zip'
+    with zipfile.ZipFile(package, 'w') as archive:
+        archive.writestr(_info('package.json'), json.dumps(package_metadata).encode())
+        for name, body in sorted(members.items()):
+            archive.writestr(_info('payload/' + name), body)
+    digest = hashlib.sha256(package.read_bytes()).hexdigest()
+    with pytest.raises(PackageError, match='Криптоблок'):
+        verify_package(package, expected_sha256=digest)
+    private = ed.Ed25519PrivateKey.generate()
+    public = private.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    claims = {'format': 1, 'algorithm': 'Ed25519', 'product_id': manifest['product_id'], 'version': '1', 'sha256': digest}
+    envelope = json.dumps({**claims, 'signature': base64.b64encode(private.sign(_canonical(claims))).decode()}).encode()
+    with pytest.raises(PackageError, match='Криптоблок'):
+        verify_signed_package(package, envelope, trusted_public_key=public,
+                              expected_product_id=manifest['product_id'], expected_version='1')
+
+
+def test_archived_block_does_not_depend_on_builder_lock(sample, tmp_path, monkeypatch):
+    from shared.package import build_package, verify_package
+    source, _, lock = sample
+    payload = tmp_path / 'payload'
+    wh.build_wheelhouse(source, payload)
+    manifest = json.loads((wh.Path(wh.__file__).resolve().parent.parent / 'examples' / 'jobpilot.manifest.json').read_text())
+    package = tmp_path / 'package.zip'
+    built = build_package(manifest, '1', payload, package)
+    lock.write_text('later changed lock')
+    monkeypatch.setattr(wh, '_ARTIFACTS', {})
+    monkeypatch.setattr(wh, 'LOCKED_VERSIONS', {})
+    assert verify_package(package, expected_sha256=built['sha256'])['product_id'] == manifest['product_id']

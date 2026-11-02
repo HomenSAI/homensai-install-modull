@@ -19,7 +19,7 @@ import zipfile
 
 from shared.archive import ArchiveError, _digest, _info, _safe_name, _signature, _space
 from shared.datahome import DataHomeError, checked_path, contains
-from shared.crypto_wheelhouse import WheelhouseError, verify_wheelhouse
+from shared.crypto_wheelhouse import WheelhouseError, verify_archived_wheelhouse, verify_wheelhouse
 from shared.manifest import ManifestError, validate_manifest
 from shared.package_markers import CRYPTO_INCOMPLETE, RUNTIME_INCOMPLETE
 
@@ -183,6 +183,20 @@ def _verify_runtime_inventory(archive, files):
             raise PackageError('Состав runtime не соответствует описанию')
 
 
+def _verify_crypto_inventory(archive, files):
+    markers = [item['path'] for item in files
+               if item['path'].rsplit('/', 1)[-1].casefold() == 'crypto-wheelhouse.json']
+    if len(markers) > 32:
+        raise PackageError('Слишком много криптоблоков')
+    for marker in markers:
+        if marker.rsplit('/', 1)[-1] != 'crypto-wheelhouse.json':
+            raise PackageError('Недопустимое имя криптоблока')
+        try:
+            verify_archived_wheelhouse(archive, files, marker)
+        except Exception:
+            raise PackageError('Криптоблок не прошёл проверку') from None
+
+
 def verify_package(path: str | Path, *, expected_sha256: str) -> dict:
     """Проверить доверенный внешний hash и весь ZIP до любого извлечения."""
     if type(expected_sha256) is not str or _HASH.fullmatch(expected_sha256) is None:
@@ -230,6 +244,7 @@ def verify_package(path: str | Path, *, expected_sha256: str) -> dict:
                     if size != item["size"] or not hmac.compare_digest(digest, item["sha256"]):
                         raise PackageError("Содержимое файла пакета повреждено")
                 _verify_runtime_inventory(archive, metadata['files'])
+                _verify_crypto_inventory(archive, metadata['files'])
             if not hmac.compare_digest(_sha256(stream), expected_sha256):
                 raise PackageError("Пакет изменился во время проверки")
             after = os.fstat(stream.fileno())

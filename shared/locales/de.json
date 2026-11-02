@@ -33,5 +33,6 @@
   "api.docker_preflight_failed": "Docker konnte nicht geprüft werden",
   "api.update_prepare_failed": "Das Update konnte nicht vorbereitet werden",
   "api.update_inspect_failed": "Das Update konnte nicht überprüft werden",
-  "api.fresh_controller_failed": "Die Installation konnte nicht bestätigt werden"
+  "api.fresh_controller_failed": "Die Installation konnte nicht bestätigt werden",
+  "api.docker_plan_failed": "Der Docker-Plan konnte nicht überprüft werden"
 }

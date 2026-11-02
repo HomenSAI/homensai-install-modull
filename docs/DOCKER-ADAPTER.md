@@ -54,7 +54,64 @@ python -m shared.ctl docker-check --executable /absolute/path/docker \
 процессов, сети и записи. **Реальный Docker в этом шаге не запускался;
 install/update/restore/rollback и Docker/native-приёмка не выполнены.**
 
-## API
+## Подписанный план нескольких компонентов v2
+
+`shared.docker_recipe.plan_signed_compose` и API 1.33 `plan-signed-compose`
+строят план из подписанного пакета с манифестом v2. Для выбранной цели
+`{os: linux|windows, architecture: x86_64, execution: docker}` требуется явное
+совпадение с `compatibility.targets`. Это проверка декларации, а не хоста,
+архитектуры образа или установленного Docker.
+
+В пакет включается `homensai/docker/recipe-v1.json` размером не более 64 КиБ:
+
+```json
+{
+  "format": 1,
+  "images": {
+    "web": "registry.example/product/web@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "worker": "registry.example/product/worker@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "web_component": "web",
+  "container_port": 8080
+}
+```
+
+`images` должен содержать ровно все имена компонентов подписанного манифеста;
+ссылки ограничены поддерживаемым подмножеством имён и обязательным SHA-256
+digest. Выбранные режимы должны включать `web_component`. Этот формат не
+поддерживает разные web-компоненты для разных режимов, сервисные секреты и
+hooks `pre_start`, `health_checks`, `post_update`: такие запросы отклоняются.
+Команды берутся из подписанного манифеста; символ `$` экранируется для Compose.
+План возвращается как детерминированный `compose_json` и его SHA-256; файлы
+не создаются, процессы, образы и контейнеры не запускаются.
+Интегратор передаёт и сохраняет отдельный `instance_id` — 32 строчных hex
+символа. Имя Compose-проекта состоит из `product_id` и `instance_id`, поэтому
+разные значения дают разные имена проектов и именованных томов. Повторное
+использование одного ID не обеспечивает изоляцию и должно контролироваться
+интегратором; само планирование ничего не резервирует в Docker.
+Разные ID не устраняют конфликт одного и того же порта: одновременно
+работающим установкам нужны разные порты в подписанных манифестах.
+
+План использует независимые сервисы в порядке зависимостей, `pull_policy: never`,
+пустой entrypoint, аргументы без неявного shell, UID 10001, read-only корень,
+общий именованный том `/data`, удаление capabilities и `no-new-privileges`.
+Порт из манифеста публикуется на `127.0.0.1` и направляется на `container_port`.
+Внутри контейнера программа должна слушать доступный сетевой интерфейс, а том
+должен быть подготовлен для нужных прав. Внешняя сеть контейнеров не отключена.
+Зависимости задают порядок старта, но не подтверждают готовность сервисов.
+Подпись пакета не доказывает безопасность кода или наличие, происхождение и
+платформенную совместимость образов; `host_verified`, `images_verified`,
+`containers_started` и `installation_complete` остаются `false`.
+
+Семантика [Compose JSON](https://docs.docker.com/compose/support-and-feedback/faq/),
+[`pull_policy`, entrypoint и command](https://docs.docker.com/reference/compose-file/services/),
+[экранирования `$`](https://docs.docker.com/reference/compose-file/interpolation/)
+и [публикации на loopback](https://docs.docker.com/engine/network/port-publishing/)
+опирается на документацию Docker. Реальный Docker Compose v2 и этот план ещё
+нужно проверить в целевых средах; запуск, обновление и резервное копирование
+нескольких контейнеров здесь не реализованы.
+
+## API v1 для прежнего Docker-адаптера
 
 ```python
 from shared.adapters_docker import DockerComposeAdapter

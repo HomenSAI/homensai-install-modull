@@ -21,6 +21,7 @@ from shared.fresh_prepare import (FreshConflict, FreshPrepareError, prepare_idem
                                   _check_fresh_storage, _layout)
 from shared.datahome import DataHomeError, checked_path
 from shared.docker_preflight import DockerPreflightError, check_docker
+from shared.docker_recipe import DockerRecipeError, plan_signed_compose
 from shared.host_target import HostTargetError, native_target
 from shared.health import HealthError, check_local_health
 from shared.i18n import LanguageError, available_languages, translate
@@ -39,7 +40,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 32
+API_MINOR = 33
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -173,6 +174,7 @@ def handle(request: Any) -> dict:
                 mutating_operations.append('import-update-archive')
             if _signature_available():
                 operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release"])
+                operations.append('plan-signed-compose')
                 mutating_operations.append("prepare-native-release")
                 if _systemd_plan_available():
                     operations.extend(['install-portable-linux', 'inspect-portable-linux-install'])
@@ -290,6 +292,35 @@ def handle(request: Any) -> dict:
                 if operation == 'plan-update':
                     return _error(request_id, 'update_plan_failed', 'Не удалось составить план обновления', language, 'api.update_plan_failed')
                 return _error(request_id, "update_status_failed", "Не удалось прочитать состояние обновления", language, "api.update_status_failed")
+        elif operation == 'plan-signed-compose':
+            fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id',
+                      'expected_version', 'target', 'modes', 'instance_id'}
+            strings = fields - {'target', 'modes'}
+            if (set(params) != fields or any(type(params[name]) is not str or not params[name] for name in strings)
+                    or type(params['target']) is not dict or set(params['target']) != {'os', 'architecture', 'execution'}
+                    or params['target']['os'] not in ('windows', 'linux')
+                    or params['target']['architecture'] != 'x86_64' or params['target']['execution'] != 'docker'
+                    or type(params['modes']) is not list
+                    or not params['modes'] or any(type(value) is not str or not value for value in params['modes'])
+                    or len(set(params['modes'])) != len(params['modes'])
+                    or re.fullmatch(r'[a-f0-9]{32}', params['instance_id']) is None
+                    or re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,62}', params['expected_product_id']) is None
+                    or re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', params['expected_version']) is None):
+                raise InvalidRequest()
+            if not _signature_available():
+                return _error(request_id, 'unsupported_operation', 'Проверка подписи недоступна',
+                              language, 'api.signature_unavailable')
+            envelope = _base64(params['envelope'], MAX_ENVELOPE)
+            key = _base64(params['trusted_public_key'], 32)
+            if len(key) != 32:
+                raise InvalidRequest()
+            try:
+                result = plan_signed_compose(params['package_path'], envelope, trusted_public_key=key,
+                    expected_product_id=params['expected_product_id'], expected_version=params['expected_version'],
+                    target=params['target'], modes=tuple(params['modes']), instance_id=params['instance_id'])
+            except DockerRecipeError:
+                return _error(request_id, 'docker_plan_failed', 'Не удалось проверить Docker-план',
+                              language, 'api.docker_plan_failed')
         elif operation in ('prepare-signed-linux-update', 'inspect-signed-linux-update'):
             fields = {'new_package', 'new_envelope', 'new_key', 'old_package', 'old_envelope', 'old_key',
                       'product_id', 'old_version', 'new_version', 'install_root', 'work_dir', 'modes',

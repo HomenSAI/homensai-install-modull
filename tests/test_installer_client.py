@@ -36,6 +36,26 @@ def test_real_client_can_preview_update_without_creating_installation(tmp_path):
     assert not Path(params['install_root']).exists()
 
 
+def test_real_client_can_inspect_interrupted_update_without_resuming(tmp_path):
+    from shared.update_plan import UpdatePlan
+    client = InstallerClient(timeout=30)
+    manifest = json.loads((ROOT / 'examples/rent.manifest.json').read_text())
+    params = {'manifest': manifest, 'install_root': str(tmp_path / 'installation'), 'release': '2',
+              'modes': ['autonomous'], 'migration_ids': ['schema-2'], 'guard_effects': True}
+    plan = UpdatePlan(manifest, Path(params['install_root']), object(), release='2',
+                      modes=('autonomous',), migration_ids=('schema-2',), guard_effects=True)
+    plan.state_path.parent.mkdir(parents=True)
+    state = {'version': 1, 'transaction': 'b' * 32, 'plan': plan.digest, 'old_release': '1',
+             'release': '2', 'direction': 'forward', 'index': plan.forward.index('archive'),
+             'failed_phase': None, 'archive_ready': False, 'outcome': 'running', 'indeterminate': True}
+    plan._save(state)
+    result = client.call('inspect-update-recovery', params, min_minor=26, language='de')
+    assert result['operation_key'] == 'b' * 32 + '/archive'
+    assert result['archive_binding_review_candidate'] is True
+    assert result['effects_verified'] is False and result['resume_authorized'] is False
+    assert plan.status() == state and not plan.lock_path.exists()
+
+
 def test_missing_capability_stops_before_action():
     client = InstallerClient(timeout=30)
     with pytest.raises(InstallerClientError) as exc:

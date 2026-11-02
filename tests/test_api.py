@@ -31,7 +31,7 @@ def test_capabilities_only_advertises_read_only_operations(monkeypatch):
     monkeypatch.setattr("shared.api._signature_available", lambda: False)
     response = handle(request())
     assert response["ok"] is True
-    assert response["result"]["operations"] == ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status", "plan-update", "check-local-health"]
+    assert response["result"]["operations"] == ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status", "plan-update", "inspect-update-recovery", "check-local-health"]
     assert response["result"]["execution_modes"] == []
     assert response["result"]["manifest_versions"] == [1, 2]
 
@@ -134,6 +134,87 @@ def test_update_preview_request_schema_and_cli(tmp_path):
     assert validator.is_valid(query)
     output = cli(json.dumps(query).encode())
     assert output.returncode == 0 and json.loads(output.stdout) == handle(query)
+    query['params']['guard_effects'] = 1
+    assert not validator.is_valid(query) and handle(query)['error']['code'] == 'invalid_request'
+
+
+def test_recovery_inspection_is_read_only_and_does_not_authorize_resume(tmp_path, monkeypatch):
+    from shared.update_plan import UpdatePlan
+    manifest = json.loads((ROOT / 'examples/rent.manifest.json').read_text(encoding='utf-8'))
+    params = {'manifest': manifest, 'install_root': str(tmp_path / 'install'), 'release': 'new',
+              'modes': ['autonomous'], 'migration_ids': ['migration'], 'guard_effects': True}
+    plan = UpdatePlan(manifest, Path(params['install_root']), object(), release='new',
+                      modes=('autonomous',), migration_ids=('migration',), guard_effects=True)
+    query = request('inspect-update-recovery', params)
+    caps = handle(request())['result']
+    assert caps['api_minor'] >= 26 and query['operation'] in caps['operations']
+    assert query['operation'] not in caps['mutating_operations']
+    monkeypatch.setattr(UpdatePlan, 'run', lambda *args, **kwargs: pytest.fail('inspection executed plan'))
+    result = handle(query)['result']
+    assert result == {'plan_sha256': plan.digest, 'outcome': None, 'direction': None, 'phase': None,
+                      'operation_key': None, 'indeterminate': False, 'archive_binding_review_candidate': False,
+                      'effects_verified': False, 'resume_authorized': False}
+    assert not Path(params['install_root']).exists()
+    plan.state_path.parent.mkdir(parents=True)
+    state = {'version': 1, 'transaction': 'a' * 32, 'plan': plan.digest, 'old_release': 'old',
+             'release': 'new', 'direction': 'forward', 'index': 1, 'failed_phase': None,
+             'archive_ready': False, 'outcome': 'running', 'indeterminate': True}
+    for direction, phase, uncertain, candidate in [
+        ('forward', 'archive', True, True), ('forward', 'backup:0', True, True),
+        ('forward', 'stage', True, False), ('forward', 'archive', False, False),
+        ('rollback', 'before_rollback', True, True), ('rollback', 'restore', True, False),
+    ]:
+        phases = plan.forward if direction == 'forward' else plan.rollback
+        state.update(direction=direction, index=phases.index(phase),
+                     failed_phase=None if direction == 'forward' else 'health',
+                     archive_ready=(phase != 'archive') if direction == 'forward' else True)
+        if uncertain:
+            state['indeterminate'] = True
+        else:
+            state.pop('indeterminate', None)
+        plan._save(state)
+        before = plan.state_path.read_bytes()
+        result = handle(query)['result']
+        assert result['phase'] == phase and result['operation_key'] == 'a' * 32 + '/' + phase
+        assert result['indeterminate'] is uncertain and result['archive_binding_review_candidate'] is candidate
+        assert result['effects_verified'] is False and result['resume_authorized'] is False
+        assert plan.state_path.read_bytes() == before and not plan.lock_path.exists()
+    state.update(direction='forward', index=len(plan.forward), failed_phase=None,
+                 archive_ready=True, outcome='updated')
+    state.pop('indeterminate', None)
+    plan._save(state)
+    result = handle(query)['result']
+    assert result['outcome'] == 'updated' and result['phase'] is None and result['operation_key'] is None
+    assert result['archive_binding_review_candidate'] is False and result['resume_authorized'] is False
+    unguarded = UpdatePlan(manifest, Path(params['install_root']), object(), release='new',
+                           modes=('autonomous',), migration_ids=('migration',), guard_effects=False)
+    state.update(plan=unguarded.digest, direction='forward', index=unguarded.forward.index('archive'),
+                 archive_ready=False, outcome='running', indeterminate=True)
+    unguarded._save(state)
+    params['guard_effects'] = False
+    result = handle(query)['result']
+    assert result['indeterminate'] is True and result['archive_binding_review_candidate'] is False
+
+
+def test_recovery_inspection_schema_cli_and_invalid_checkpoint(tmp_path):
+    from shared.update_plan import UpdatePlan
+    jsonschema = pytest.importorskip('jsonschema')
+    schema = json.loads((ROOT / 'shared/api-v1-request.schema.json').read_text(encoding='utf-8'))
+    manifest = json.loads((ROOT / 'examples/rent.manifest.json').read_text(encoding='utf-8'))
+    params = {'manifest': manifest, 'install_root': str(tmp_path / 'install'), 'release': 'new',
+              'modes': ['autonomous'], 'migration_ids': [], 'guard_effects': True}
+    query = request('inspect-update-recovery', params, language='de')
+    validator = jsonschema.Draft202012Validator(schema)
+    assert validator.is_valid(query)
+    output = cli(json.dumps(query).encode())
+    assert output.returncode == 0 and json.loads(output.stdout) == handle(query)
+    plan = UpdatePlan(manifest, Path(params['install_root']), object(), release='new',
+                      modes=('autonomous',), migration_ids=(), guard_effects=True)
+    plan.state_path.parent.mkdir(parents=True)
+    plan.state_path.write_text('SECRET-SENTINEL', encoding='utf-8')
+    response = handle(query)
+    assert response['error']['code'] == 'update_status_failed'
+    assert 'SECRET-SENTINEL' not in json.dumps(response) and str(tmp_path) not in json.dumps(response)
     query['params']['guard_effects'] = 1
     assert not validator.is_valid(query) and handle(query)['error']['code'] == 'invalid_request'
 

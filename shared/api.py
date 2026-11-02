@@ -35,7 +35,7 @@ from shared.systemd_cycle import cycle_portable
 from shared.update_plan import UpdateError, UpdatePlan
 
 API_MAJOR = 1
-API_MINOR = 25
+API_MINOR = 26
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -151,7 +151,7 @@ def handle(request: Any) -> dict:
         if operation == "capabilities":
             if params:
                 raise InvalidRequest()
-            operations = ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status", "plan-update", "check-local-health"]
+            operations = ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status", "plan-update", "inspect-update-recovery", "check-local-health"]
             mutating_operations = []
             if _signature_available():
                 operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release"])
@@ -227,7 +227,7 @@ def handle(request: Any) -> dict:
                                          reserve_bytes=params["reserve_bytes"])
             except PreflightError:
                 return _error(request_id, "preflight_failed", "Предварительная проверка не пройдена", language, "api.preflight_failed")
-        elif operation in ("update-plan-status", "plan-update"):
+        elif operation in ("update-plan-status", "plan-update", "inspect-update-recovery"):
             fields = {"manifest", "install_root", "release", "modes", "migration_ids", "guard_effects"}
             if (set(params) != fields or type(params['manifest']) is not dict
                     or type(params['install_root']) is not str or not params['install_root']
@@ -245,8 +245,24 @@ def handle(request: Any) -> dict:
                               'forward': list(plan.forward), 'rollback': list(plan.rollback),
                               'guard_effects': plan.guard_effects, 'execution_supported': False,
                               'readiness_verified': False}
-                else:
+                elif operation == 'update-plan-status':
                     result = {'state': plan.status()}
+                else:
+                    state = plan.status()
+                    running = state is not None and state['outcome'] == 'running'
+                    direction = state['direction'] if state is not None else None
+                    phases = plan.forward if direction == 'forward' else plan.rollback
+                    phase = phases[state['index']] if running else None
+                    uncertain = running and state.get('indeterminate') is True
+                    result = {'plan_sha256': plan.digest,
+                              'outcome': state['outcome'] if state is not None else None,
+                              'direction': direction, 'phase': phase,
+                              'operation_key': state['transaction'] + '/' + phase if running else None,
+                              'indeterminate': uncertain,
+                              'archive_binding_review_candidate': bool(
+                                  plan.guard_effects and uncertain and
+                                  (phase in ('archive', 'before_rollback') or phase.startswith('backup:'))),
+                              'effects_verified': False, 'resume_authorized': False}
             except (DataHomeError, ManifestError, UpdateError, OSError, RecursionError):
                 if operation == 'plan-update':
                     return _error(request_id, 'update_plan_failed', 'Не удалось составить план обновления', language, 'api.update_plan_failed')

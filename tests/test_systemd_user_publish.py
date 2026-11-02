@@ -85,7 +85,8 @@ def local_directory(monkeypatch):
     # only the host-owned-directory policy, not signing, hashes or file writes.
     monkeypatch.setattr(pub, '_unit_directory', lambda path: Path(path))
     def trusted(path, expected):
-        assert path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == expected
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+            raise pub.SystemdUserError('synthetic untrusted file')
     monkeypatch.setattr(pub, '_trusted_file', trusted)
 
 
@@ -295,3 +296,134 @@ def test_existing_update_state_prevents_publication(signed_units, local_director
         call(signed_units, execute=True, runner=runner_for(destination))
     assert state.read_text() == 'preserve unknown update state'
     assert not list(destination.iterdir())
+
+
+class FakeReloadManager:
+    def __init__(self, directory, *, active=False, dropin=False, lose_response=False):
+        self.directory = directory
+        self.active = active
+        self.dropin = dropin
+        self.lose_response = lose_response
+        self.reloaded = False
+        self.calls = []
+
+    def __call__(self, argv, *, timeout, env):
+        assert argv[:4] == ['/usr/bin/systemctl', '--user', '--no-pager', '--no-ask-password']
+        self.calls.append(argv[4:])
+        if argv[4:] == ['daemon-reload']:
+            self.reloaded = True
+            if self.lose_response:
+                raise TimeoutError('synthetic lost response')
+            return ''
+        if '--value' in argv:
+            return str(self.directory) + '\n'
+        name = argv[-1]
+        active = 'active' if self.active else 'inactive'
+        sub = 'running' if self.active else 'dead'
+        dropins = '/untrusted.conf' if self.dropin else ''
+        dirty = 'no' if self.reloaded else 'yes'
+        return (f'Id={name}\nLoadState=loaded\nActiveState={active}\nSubState={sub}\n'
+                f'FragmentPath={self.directory / name}\nDropInPaths={dropins}\nNeedDaemonReload={dirty}\n')
+
+
+@pytest.fixture
+def published_units(signed_units, local_directory, monkeypatch):
+    import shared.systemd_user_load as loader
+    import shared.systemd_user as adapter
+    destination = signed_units[-2]
+    call(signed_units, execute=True, runner=runner_for(destination))
+    monkeypatch.setattr(loader, '_unit_directory', lambda path: Path(path))
+    monkeypatch.setattr(loader, '_trusted_file', pub._trusted_file)
+    monkeypatch.setattr(adapter, '_trusted_file', pub._trusted_file)
+    return signed_units
+
+
+def load_call(data, **kwargs):
+    from shared.systemd_user_load import load_signed_user_units
+    package, envelope, root, options, destination, _ = data
+    return load_signed_user_units(package, envelope, str(root), **options,
+                                  modes=('autonomous',), unit_dir=str(destination), **kwargs)
+
+
+def test_signed_user_units_load_once_and_repeat_only_observes(published_units):
+    destination = published_units[-2]
+    manager = FakeReloadManager(destination)
+    plan = load_call(published_units, runner=manager)
+    assert plan['state'] == 'planned' and not manager.calls
+    receipt = published_units[2] / '.homensai-control/user-systemd-reload.json'
+    assert not receipt.exists()
+    result = load_call(published_units, execute=True, runner=manager)
+    assert result['state'] == 'loaded' and result['services_started'] is False
+    assert json.loads(receipt.read_text())['status'] == 'done'
+    assert manager.calls.count(['daemon-reload']) == 1
+    assert load_call(published_units, execute=True, runner=manager) == result
+    assert manager.calls.count(['daemon-reload']) == 1
+    assert all(call[0] in ('show', 'daemon-reload') for call in manager.calls)
+
+
+@pytest.mark.parametrize('condition', ['active', 'dropin', 'marker', 'modified_unit'])
+def test_user_units_load_rejects_unsafe_state_before_reload(published_units, condition):
+    from shared.systemd_user_load import UnitLoadError
+    destination, units = published_units[-2:]
+    manager = FakeReloadManager(destination, active=condition == 'active', dropin=condition == 'dropin')
+    if condition == 'marker':
+        (destination / ('.' + published_units[3]['expected_product_id'] + '.homensai-units.pending')).write_text('pending')
+    elif condition == 'modified_unit':
+        (destination / next(iter(units))).write_text('tampered')
+    with pytest.raises(UnitLoadError):
+        load_call(published_units, execute=True, runner=manager)
+    assert ['daemon-reload'] not in manager.calls
+    assert not (published_units[2] / '.homensai-control/user-systemd-reload.json').exists()
+
+
+def test_lost_reload_response_preserves_pending_and_never_replays(published_units):
+    from shared.systemd_user_load import UnitLoadError
+    manager = FakeReloadManager(published_units[-2], lose_response=True)
+    with pytest.raises(UnitLoadError):
+        load_call(published_units, execute=True, runner=manager)
+    receipt = published_units[2] / '.homensai-control/user-systemd-reload.json'
+    before = receipt.read_bytes()
+    assert json.loads(before)['status'] == 'pending'
+    assert manager.calls.count(['daemon-reload']) == 1
+    with pytest.raises(UnitLoadError):
+        load_call(published_units, execute=True, runner=manager)
+    assert receipt.read_bytes() == before and manager.calls.count(['daemon-reload']) == 1
+
+
+def test_changed_receipt_fails_without_reload(published_units):
+    from shared.systemd_user_load import UnitLoadError
+    receipt = published_units[2] / '.homensai-control/user-systemd-reload.json'
+    receipt.write_text('{"version":true,"binding":"' + '0' * 64 + '","status":"done"}')
+    manager = FakeReloadManager(published_units[-2])
+    with pytest.raises(UnitLoadError):
+        load_call(published_units, execute=True, runner=manager)
+    assert ['daemon-reload'] not in manager.calls
+
+
+def test_user_units_load_refuses_stale_lock_without_changing_it(published_units):
+    from shared.systemd_user_load import UnitLoadError
+    root, destination = published_units[2], published_units[-2]
+    lock = root / 'services/operation.lock'
+    before = b'\0' + json.dumps({'version': 1, 'status': 'held', 'pid': 12345}).encode()
+    lock.write_bytes(before)
+    manager = FakeReloadManager(destination)
+    with pytest.raises(UnitLoadError):
+        load_call(published_units, execute=True, runner=manager)
+    assert lock.read_bytes() == before and not manager.calls
+    assert not (root / '.homensai-control/user-systemd-reload.json').exists()
+
+
+def test_reload_followed_by_unexpected_active_unit_leaves_pending(published_units):
+    from shared.systemd_user_load import UnitLoadError
+    manager = FakeReloadManager(published_units[-2])
+    original = manager.__call__
+    def turns_active(argv, *, timeout, env):
+        result = original(argv, timeout=timeout, env=env)
+        if argv[4:] == ['daemon-reload']:
+            manager.active = True
+        return result
+    with pytest.raises(UnitLoadError):
+        load_call(published_units, execute=True, runner=turns_active)
+    receipt = published_units[2] / '.homensai-control/user-systemd-reload.json'
+    assert json.loads(receipt.read_text())['status'] == 'pending'
+    assert manager.calls.count(['daemon-reload']) == 1

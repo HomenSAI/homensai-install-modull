@@ -114,6 +114,100 @@ def test_crash_before_done_keeps_pending(setup, monkeypatch):
     assert len(events) == 3
 
 
+def test_reconcile_stopped_group_without_repeating_commands(setup, tmp_path, monkeypatch):
+    class Crash(BaseException):
+        pass
+    plan, ports, subject, _, events = setup
+    original = module._atomic_write
+    def crash(path, value):
+        if value['status'] == 'done':
+            raise Crash()
+        original(path, value)
+    with monkeypatch.context() as patch:
+        patch.setattr(module, '_atomic_write', crash)
+        with pytest.raises(Crash):
+            invoke(plan, subject)
+    reconciler = SystemdLifecyclePort(plan, ports, install_root=str(tmp_path / 'installation'),
+                                      group=subject.group, reconcile_key=TX + '/stop')
+    invoke(plan, reconciler)
+    assert module.read_effect_receipt(ports._path(TX + '/stop', '.service.json'))['status'] == 'done'
+    assert events == [('stop', 'scheduler'), ('stop', 'bot'), ('stop', 'web')]
+    assert reconciler.reconcile_key is None
+
+
+def test_reconcile_partial_stop_and_wrong_key_never_issue_commands(setup, tmp_path):
+    plan, ports, subject, adapters, events = setup
+    adapters['bot'].fail = True
+    with pytest.raises(EffectIndeterminate):
+        invoke(plan, subject)
+    adapters['bot'].fail = False
+    for selected in ('b' * 32 + '/stop', TX + '/stop'):
+        reconciler = SystemdLifecyclePort(plan, ports, install_root=str(tmp_path / 'installation'),
+                                          group=subject.group, reconcile_key=selected)
+        with pytest.raises(EffectIndeterminate):
+            invoke(plan, reconciler)
+    assert events == [('stop', 'scheduler'), ('stop', 'bot')]
+    assert module.read_effect_receipt(ports._path(TX + '/stop', '.service.json'))['status'] == 'pending'
+
+
+def test_unknown_start_cannot_be_reconciled_from_active_state_alone(setup, tmp_path, monkeypatch):
+    class Crash(BaseException):
+        pass
+    plan, ports, subject, adapters, events = setup
+    for adapter in adapters.values():
+        adapter.active = False
+    state = plan.status()
+    state.update(index=plan.forward.index('start'), archive_ready=True)
+    plan._save(state)
+    original = module._atomic_write
+    def crash(path, value):
+        if value['status'] == 'done':
+            raise Crash()
+        original(path, value)
+    with monkeypatch.context() as patch:
+        patch.setattr(module, '_atomic_write', crash)
+        with pytest.raises(Crash):
+            invoke(plan, subject, 'start')
+    with pytest.raises(UpdateError):
+        SystemdLifecyclePort(plan, ports, install_root=str(tmp_path / 'installation'),
+                             group=subject.group, reconcile_key=TX + '/start')
+    with pytest.raises(EffectIndeterminate):
+        invoke(plan, subject, 'start')
+    assert module.read_effect_receipt(ports._path(TX + '/start', '.service.json'))['status'] == 'pending'
+    assert events == [('start', 'web'), ('start', 'bot'), ('start', 'scheduler')]
+
+
+def test_reconcile_detects_state_change_after_receipt(setup, tmp_path, monkeypatch):
+    class Crash(BaseException):
+        pass
+    plan, ports, subject, adapters, events = setup
+    original = module._atomic_write
+    def crash(path, value):
+        if value['status'] == 'done':
+            raise Crash()
+        original(path, value)
+    with monkeypatch.context() as patch:
+        patch.setattr(module, '_atomic_write', crash)
+        with pytest.raises(Crash):
+            invoke(plan, subject)
+    checks = []
+    confirm = adapters['web'].confirm_stopped
+    def changed():
+        checks.append(True)
+        if len(checks) == 2:
+            adapters['web'].active = True
+        return confirm()
+    adapters['web'].confirm_stopped = changed
+    reconciler = SystemdLifecyclePort(plan, ports, install_root=str(tmp_path / 'installation'),
+                                      group=subject.group, reconcile_key=TX + '/stop')
+    with pytest.raises(EffectIndeterminate):
+        invoke(plan, reconciler)
+    assert module.read_effect_receipt(ports._path(TX + '/stop', '.service.json'))['status'] == 'done'
+    with pytest.raises(EffectIndeterminate):
+        invoke(plan, reconciler)
+    assert len(events) == 3
+
+
 def test_wrong_context_and_changed_unit_are_refused(setup):
     plan, _, subject, adapters, events = setup
     with pytest.raises(UpdateError):

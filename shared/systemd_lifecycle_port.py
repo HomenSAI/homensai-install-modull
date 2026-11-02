@@ -22,16 +22,21 @@ class SystemdLifecyclePort:
     pre-start хуков и автоматического разрешения pending; источники доверенных
     путей/хэшей и все процессы вне группы контролирует вызывающая сторона.
     """
-    def __init__(self, plan: UpdatePlan, ports: FilesystemPorts, *, install_root: str, group: SystemdUserGroup):
+    def __init__(self, plan: UpdatePlan, ports: FilesystemPorts, *, install_root: str,
+                 group: SystemdUserGroup, reconcile_key: str | None = None):
         if (not isinstance(plan, UpdatePlan) or not isinstance(ports, FilesystemPorts)
                 or not isinstance(group, SystemdUserGroup) or plan.ports is not ports or not plan.guard_effects
                 or ports.manifest != plan.manifest or ports.state != plan.state_path
                 or type(install_root) is not str or plan.manifest['hooks']['pre_start']
+                or (reconcile_key is not None and (type(reconcile_key) is not str or _KEY.fullmatch(reconcile_key) is None))
                 or tuple(group.order) != plan.components):
             raise UpdateError('Недопустимая конфигурация группы служб')
+        if reconcile_key is not None and _KEY.fullmatch(reconcile_key).group(2) not in ('stop', 'rollback_stop'):
+            raise UpdateError('Подтверждение запуска пока не поддерживается')
         if resolve_datahome(plan.manifest, install_root) != ports.home:
             raise UpdateError('Установка не соответствует портам')
         self.plan, self.ports, self.group = plan, ports, group
+        self.reconcile_key = reconcile_key
         self.install_hash = hashlib.sha256(install_root.encode('utf-8')).hexdigest()
         self.units_hash = self._units_hash()
 
@@ -92,12 +97,25 @@ class SystemdLifecyclePort:
                 except Exception:
                     raise EffectIndeterminate('Состояние служб изменилось') from None
                 return
+            if record == {**binding, 'status': 'pending'} and action == 'stop' and self.reconcile_key == key:
+                try:
+                    # Только наблюдение: не запускать start/stop повторно.
+                    self._check_state(action)
+                    if self._units_hash() != self.units_hash or read_effect_receipt(path) != record:
+                        raise UpdateError('Данные изменились при проверке')
+                    _atomic_write(path, {**binding, 'status': 'done'})
+                    self._check_state(action)
+                except Exception:
+                    raise EffectIndeterminate('Состояние служб не подтверждено') from None
+                self.reconcile_key = None
+                return
             raise EffectIndeterminate('Результат управления службами требует проверки')
         _atomic_write(path, {**binding, 'status': 'pending'})
         try:
             self.group.command(action, execute=True)
             self._check_state(action)
             _atomic_write(path, {**binding, 'status': 'done'})
+            self._check_state(action)
         except Exception:
             raise EffectIndeterminate('Результат управления службами требует проверки') from None
 

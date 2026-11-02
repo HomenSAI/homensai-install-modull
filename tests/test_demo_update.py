@@ -253,7 +253,7 @@ class SystemdEffects(Effects):
     def health(self, key, url, timeout, checks):
         phase = key.split('/')[-1]
         self.calls.append(phase)
-        if phase == 'health' and self.fail_health:
+        if phase == 'health' and self.fail_health is True:
             raise RuntimeError('synthetic health failure')
         release = self.ports.current_release()
         deadline = time.monotonic() + min(timeout, 10)
@@ -309,6 +309,8 @@ def test_systemd_group_failure_has_indeterminate_effect(tmp_path, action):
     pytest.param(True, True, True, False, 'systemd', marks=pytest.mark.skipif(
         os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix', reason='opt-in systemd')),
     pytest.param(True, True, 'migration', False, 'systemd', marks=pytest.mark.skipif(
+        os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix', reason='opt-in systemd')),
+    pytest.param(True, True, 'stop-crash', False, 'systemd', marks=pytest.mark.skipif(
         os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix', reason='opt-in systemd')),
 ])
 def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch, signed_release, encrypted, fail_health, corrupt, live):
@@ -427,6 +429,39 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
     if live == 'systemd':
         from shared.systemd_lifecycle_port import SystemdLifecyclePort
         effects.lifecycle_port = SystemdLifecyclePort(update, ports, install_root=str(installation), group=effects.group)
+    if fail_health == 'stop-crash':
+        import shared.systemd_lifecycle_port as lifecycle
+        from shared.effect_receipt import read_effect_receipt
+        class Crash(BaseException):
+            pass
+        original_write, original_command = lifecycle._atomic_write, effects.group.command
+        commands = []
+        def trace_command(action, **kwargs):
+            commands.append(action)
+            return original_command(action, **kwargs)
+        def crash_before_done(path, value):
+            if value.get('status') == 'done' and value.get('key', '').endswith('/stop'):
+                raise Crash()
+            return original_write(path, value)
+        monkeypatch.setattr(effects.group, 'command', trace_command)
+        with monkeypatch.context() as patch:
+            patch.setattr(lifecycle, '_atomic_write', crash_before_done)
+            with pytest.raises(Crash):
+                update.run()
+        state = update.status()
+        key = state['transaction'] + '/stop'
+        assert state['indeterminate'] is True and update.forward[state['index']] == 'stop'
+        assert read_effect_receipt(ports._path(key, '.service.json'))['status'] == 'pending'
+        assert all(adapter.confirm_stopped()['active_state'] == 'inactive'
+                   for adapter in effects.group.adapters.values())
+        effects.lifecycle_port = SystemdLifecyclePort(update, ports, install_root=str(installation),
+                                                      group=effects.group, reconcile_key=key)
+        result = update.run(resume_indeterminate=True)
+        assert result['outcome'] == 'updated' and ports.current_release() == '2'
+        assert read_effect_receipt(ports._path(key, '.service.json'))['status'] == 'done'
+        assert commands.count('stop') == 1 and commands.count('start') == 1
+        assert entries(home.roots['data'] / 'demo.sqlite3') == ['synthetic-schema-1', 'synthetic-schema-2']
+        return
     if fail_health == 'migration':
         from shared.api import handle
         from shared.effect_receipt import read_effect_receipt

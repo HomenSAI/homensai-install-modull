@@ -338,6 +338,16 @@ class SystemdEffects(Effects):
             return self.composite.guarded_backup(key, purpose, command, backup)
         return backup(key, purpose, command)
 
+    def guarded_stage_release(self, key, release, stage):
+        if self.composite is not None:
+            return self.composite.guarded_stage_release(key, release, stage)
+        return stage(key, release)
+
+    def guarded_switch_pointer(self, key, release, switch):
+        if self.composite is not None:
+            return self.composite.guarded_switch_pointer(key, release, switch)
+        return switch(key, release)
+
 
 @pytest.mark.parametrize('action', ['start', 'stop'])
 def test_systemd_group_failure_has_indeterminate_effect(tmp_path, action):

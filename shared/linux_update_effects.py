@@ -5,7 +5,11 @@ from __future__ import annotations
 import re
 
 from shared.datahome import checked_path
+from shared.adapters_fs import _tree
 from shared.effect_receipt import read_effect_receipt
+from shared.host_target import native_target
+from shared.manifest import check_target
+from shared.package_signing import verify_signed_package
 from shared.signed_migration_port import SignedMigrationPort
 from shared.systemd_lifecycle_port import SystemdLifecyclePort
 from shared.update_health_port import LocalUpdateHealthPort
@@ -35,7 +39,71 @@ class LinuxSignedUpdateEffects:
         return self.lifecycle.stop(key, components)
 
     def start(self, key, components, pre_start):
+        if type(key) is str and key.endswith('/start'):
+            self._active_phase(key, 'start', 'forward')
+            try:
+                self._verify_release(self.lifecycle.ports.release_path(self.plan.release))
+                self.lifecycle.start(key, components, pre_start)
+                self._verify_release(self.lifecycle.ports.release_path(self.plan.release))
+            except Exception:
+                raise EffectIndeterminate('Подписанный выпуск или запуск не подтверждён') from None
+            return
         return self.lifecycle.start(key, components, pre_start)
+
+    def _active_phase(self, key, phase, direction):
+        active = _ACTIVE_EFFECT.get()
+        state = self.plan.status()
+        phases = self.plan.forward if direction == 'forward' else self.plan.rollback
+        if (type(key) is not str or active is None or active[0] is not self.plan
+                or active[2] != phase or key != active[1] + '/' + phase or state is None
+                or state['transaction'] != active[1] or state['direction'] != direction
+                or state['outcome'] != 'running' or state.get('indeterminate') is not True
+                or state['index'] >= len(phases) or phases[state['index']] != phase):
+            raise UpdateError('Действие не соответствует активному плану')
+
+    def _verify_release(self, directory):
+        migration = self.migration
+        metadata = verify_signed_package(migration.package_path, migration.envelope,
+            trusted_public_key=migration.public_key, expected_product_id=self.plan.manifest['product_id'],
+            expected_version=self.plan.release)
+        if (metadata['manifest'] != self.plan.manifest
+                or check_target(metadata['manifest'], native_target())['status'] != 'supported'):
+            raise UpdateError('Подписанный выпуск не соответствует плану или среде')
+        files = {item['path']: item['sha256'] for item in metadata['files']}
+        directories = {'.'}
+        for name in files:
+            parts = name.split('/')
+            directories.update('/'.join(parts[:index]) for index in range(1, len(parts)))
+        if _tree(directory) != (directories, files):
+            raise UpdateError('Состав выпуска не соответствует подписанному пакету')
+
+    def guarded_stage_release(self, key, release, stage):
+        self._active_phase(key, 'stage', 'forward')
+        if release != self.plan.release or not callable(stage):
+            raise UpdateError('Выпуск не соответствует плану')
+        try:
+            source = self.lifecycle.ports.payloads[release]
+            self._verify_release(source.directory)
+            stage(key, release)
+            self._verify_release(self.lifecycle.ports.release_path(release))
+        except Exception:
+            raise EffectIndeterminate('Подготовленный выпуск не подтверждён') from None
+
+    def guarded_switch_pointer(self, key, release, switch):
+        if type(key) is str and key.endswith('/pointer_back'):
+            self._active_phase(key, 'pointer_back', 'rollback')
+            if not callable(switch) or release != self.plan.status()['old_release']:
+                raise UpdateError('Откат не соответствует плану')
+            return switch(key, release)
+        self._active_phase(key, 'switch', 'forward')
+        if release != self.plan.release or not callable(switch):
+            raise UpdateError('Выпуск не соответствует плану')
+        try:
+            self._verify_release(self.lifecycle.ports.release_path(release))
+            switch(key, release)
+            self._verify_release(self.lifecycle.ports.release_path(release))
+        except Exception:
+            raise EffectIndeterminate('Переключённый выпуск не подтверждён') from None
 
     def migrate(self, key, migration, command):
         return self.migration.migrate(key, migration, command)

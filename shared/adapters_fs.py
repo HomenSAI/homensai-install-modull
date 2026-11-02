@@ -244,6 +244,14 @@ class FilesystemPorts:
         return value["release"]
 
     def stage_release(self, key: str, release: str) -> None:
+        guarded = getattr(self.effects, 'guarded_stage_release', None)
+        if guarded is not None:
+            if not callable(guarded):
+                raise UpdateError('Недопустимая проверка выпуска')
+            return guarded(key, release, self._stage_release)
+        return self._stage_release(key, release)
+
+    def _stage_release(self, key: str, release: str) -> None:
         destination = self.release_path(release)
         source = self.payloads.get(release)
         if source is None:
@@ -278,6 +286,14 @@ class FilesystemPorts:
         self._record(key, value)
 
     def switch_pointer(self, key: str, release: str) -> None:
+        guarded = getattr(self.effects, 'guarded_switch_pointer', None)
+        if guarded is not None:
+            if not callable(guarded):
+                raise UpdateError('Недопустимая проверка переключения')
+            return guarded(key, release, self._switch_pointer)
+        return self._switch_pointer(key, release)
+
+    def _switch_pointer(self, key: str, release: str) -> None:
         value = {"release": release}
         if self._receipt(key, value):
             return

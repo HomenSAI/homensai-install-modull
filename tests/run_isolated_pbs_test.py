@@ -21,11 +21,14 @@ def main():
     parser.add_argument('--run', action='store_true')
     parser.add_argument('--archive', required=True)
     parser.add_argument('--wheelhouse', required=True)
+    parser.add_argument('--full-archive')
     args = parser.parse_args()
     archive, wheelhouse = Path(args.archive), Path(args.wheelhouse)
+    full = Path(args.full_archive) if args.full_archive else None
     if (not args.run or not hasattr(os, 'getuid') or os.getuid() == 0 or
             not archive.is_absolute() or not archive.is_file() or archive.is_symlink() or
-            not wheelhouse.is_absolute() or not wheelhouse.is_dir() or wheelhouse.is_symlink()):
+            not wheelhouse.is_absolute() or not wheelhouse.is_dir() or wheelhouse.is_symlink() or
+            (full is not None and (not full.is_absolute() or not full.is_file() or full.is_symlink()))):
         parser.error('Нужны --run, непривилегированный пользователь и абсолютные безопасные входы')
     with tempfile.TemporaryDirectory(prefix='homensai-pbs-isolated-') as temp:
         work = Path(temp)
@@ -49,6 +52,10 @@ python -m pytest -q -ra -p no:cacheprovider tests/test_runtime_pbs.py tests/test
                '-v', str(archive) + ':/input/runtime.tar.gz:ro', '-v', str(wheelhouse) + ':/wheels:ro',
                '-v', str(work) + ':/work:rw', '-w', '/project', 'python:3.14-slim-bookworm',
                'sh', '/work/setup.sh']
+        if full is not None:
+            insertion = cmd.index('-w')
+            cmd[insertion:insertion] = ['-v', str(full) + ':/input/full.tar.zst:ro',
+                                         '-e', 'HOMENSAI_PBS_FULL_ARCHIVE=/input/full.tar.zst']
         try:
             return subprocess.run(cmd, timeout=900, check=False).returncode
         except (OSError, subprocess.TimeoutExpired):

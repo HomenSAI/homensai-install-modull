@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import gzip
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -110,7 +111,8 @@ def _copy(input_stream, path):
     return size, digest
 
 
-def prepare_pbs_archive(archive_path, destination, *, expected_sha256, origin, python_version):
+def prepare_pbs_archive(archive_path, destination, *, expected_sha256, origin, python_version,
+                        full_archive_path=None, full_sha256=None):
     """Подготовить блок из заранее загруженного архива; доверие к хэшу внешнее.
 
     Ссылки материализуются как обычные файлы; terminfo исключается. Утверждений
@@ -128,6 +130,16 @@ def prepare_pbs_archive(archive_path, destination, *, expected_sha256, origin, p
                 or parsed.password is not None or parsed.query or parsed.fragment or len(origin) > 1024
                 or any(ord(char) < 33 or ord(char) > 126 for char in origin)):
             raise RuntimeBlockError('Недопустимый источник Python')
+        evidence = None
+        if (full_archive_path is None) != (full_sha256 is None):
+            raise RuntimeBlockError('Требуются архив свидетельств и его хэш')
+        if full_archive_path is not None:
+            from shared.pbs_evidence import read_pbs_evidence
+            full_archive_path = checked_path(full_archive_path)
+            if contains(destination, full_archive_path):
+                raise RuntimeBlockError('Архив свидетельств находится внутри назначения')
+            evidence = read_pbs_evidence(full_archive_path, expected_sha256=full_sha256,
+                                         python_version=python_version)
         fd = os.open(archive_path, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0))
         with os.fdopen(fd, 'rb') as stream:
             before = os.fstat(stream.fileno())
@@ -173,6 +185,18 @@ def prepare_pbs_archive(archive_path, destination, *, expected_sha256, origin, p
                         count, digest = _copy(incoming, staging / target)
                     entries[target] = {'path': target, 'size': count, 'sha256': digest}
                     licenses.append(target)
+                if evidence is not None:
+                    metadata, license_data, install_license_digest = evidence
+                    if entries['lib/python3.14/LICENSE.txt']['sha256'] != install_license_digest:
+                        raise RuntimeBlockError('Архивы Python не совпадают по лицензии установки')
+                    for name, contents in sorted(license_data.items()):
+                        target = 'licenses/upstream-full/' + name
+                        count, digest = _copy(io.BytesIO(contents), staging / target)
+                        entries[target] = {'path': target, 'size': count, 'sha256': digest}
+                        licenses.append(target)
+                    target = 'licenses/upstream-full/PYTHON.json'
+                    count, digest = _copy(io.BytesIO(metadata), staging / target)
+                    entries[target] = {'path': target, 'size': count, 'sha256': digest}
                 if not licenses:
                     raise RuntimeBlockError('Лицензии Python отсутствуют')
                 after = os.fstat(stream.fileno())
@@ -184,13 +208,17 @@ def prepare_pbs_archive(archive_path, destination, *, expected_sha256, origin, p
                 lock = {'format': 1, 'target': {'os': 'linux', 'architecture': 'x86_64'},
                         'python_version': python_version, 'origin': origin, 'license': 'LicenseRef-Composite-Unreviewed',
                         'artifact_sha256': expected_sha256,
-                        'license_files': licenses, 'executables': ['bin/python'],
+                        'license_files': sorted(licenses), 'executables': ['bin/python'],
                         'files': [entries[name] for name in sorted(entries)]}
+                if evidence is not None:
+                    lock['evidence_sha256'] = full_sha256
                 lock_path = Path(temp) / 'runtime-lock.json'
                 lock_path.write_text(json.dumps(lock, ensure_ascii=True, sort_keys=True), encoding='utf-8')
                 result = build_runtime_block(staging, lock_path, destination)
                 return {**result, 'archive_sha256': expected_sha256, 'materialized_links': len(resolved),
-                        'terminfo_included': False, 'license_review_complete': False}
+                        'terminfo_included': False, 'license_review_complete': False,
+                        'supplemental_license_count': len(evidence[1]) if evidence is not None else 0,
+                        'archive_pair_independently_verified': False}
     except RuntimeBlockError:
         raise
     except Exception:
@@ -204,10 +232,13 @@ def main():
     parser.add_argument('--sha256', required=True)
     parser.add_argument('--origin', required=True)
     parser.add_argument('--python-version', required=True)
+    parser.add_argument('--full-archive')
+    parser.add_argument('--full-sha256')
     args = parser.parse_args()
     try:
         print(json.dumps(prepare_pbs_archive(args.archive, args.destination, expected_sha256=args.sha256,
-                                             origin=args.origin, python_version=args.python_version), sort_keys=True))
+                                             origin=args.origin, python_version=args.python_version,
+                                             full_archive_path=args.full_archive, full_sha256=args.full_sha256), sort_keys=True))
     except RuntimeBlockError as error:
         parser.exit(1, str(error) + '\n')
 

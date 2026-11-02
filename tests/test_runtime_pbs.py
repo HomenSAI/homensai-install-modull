@@ -1,6 +1,7 @@
 """Преобразование только проверенного синтетического архива, без исполнения кода."""
 import hashlib
 import io
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -36,6 +37,23 @@ def call(archive, destination, digest):
         origin='https://example.org/cpython.tar.gz', python_version='3.14.10')
 
 
+def full_archive_at(path, *, version='3.14.10', install_license=b'example license'):
+    metadata = {'version': '8', 'python_version': version, 'target_triple': 'x86_64-unknown-linux-gnu',
+                'python_implementation_name': 'cpython', 'build_options': 'pgo+lto',
+                'license_path': 'licenses/LICENSE.cpython.txt', 'licenses': ['Python-2.0'],
+                'build_info': {'extensions': {}}}
+    contents = {'python/PYTHON.json': json.dumps(metadata).encode(),
+                'python/licenses/LICENSE.cpython.txt': b'python license',
+                'python/licenses/LICENSE.openssl-3.txt': b'openssl license',
+                'python/install/lib/python3.14/LICENSE.txt': install_license}
+    with tarfile.open(path, 'w:zst') as archive:
+        for name, body in contents.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(body)
+            archive.addfile(info, io.BytesIO(body))
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def test_materializes_links_and_preserves_license_without_execution(tmp_path):
     archive = tmp_path / 'candidate.tar.gz'
     digest = archive_at(archive)
@@ -59,6 +77,41 @@ def test_wrong_hash_refuses_before_destination_created(tmp_path):
     block = tmp_path / 'runtime-linux'
     with pytest.raises(RuntimeBlockError):
         call(archive, block, '0' * 64)
+    assert not block.exists()
+
+
+def test_full_archive_adds_license_evidence_without_approving_it(tmp_path):
+    archive = tmp_path / 'candidate.tar.gz'
+    digest = archive_at(archive)
+    full = tmp_path / 'full.tar.zst'
+    full_hash = full_archive_at(full)
+    block = tmp_path / 'runtime-linux'
+    result = prepare_pbs_archive(archive, block, expected_sha256=digest,
+        origin='https://example.org/cpython.tar.gz', python_version='3.14.10',
+        full_archive_path=full, full_sha256=full_hash)
+    assert result['supplemental_license_count'] == 2 and result['license_review_complete'] is False
+    assert result['archive_pair_independently_verified'] is False
+    assert (block / 'licenses/upstream-full/LICENSE.openssl-3.txt').read_bytes() == b'openssl license'
+    assert (block / 'licenses/upstream-full/PYTHON.json').is_file()
+    assert verify_runtime_block(block)['evidence_sha256'] == full_hash
+
+
+@pytest.mark.parametrize('problem', ['hash', 'version', 'license_mismatch', 'missing_hash'])
+def test_unmatched_evidence_refused_before_destination(tmp_path, problem):
+    archive = tmp_path / 'candidate.tar.gz'
+    digest = archive_at(archive)
+    full = tmp_path / 'full.tar.zst'
+    full_hash = full_archive_at(full, version='3.14.9' if problem == 'version' else '3.14.10',
+                                install_license=b'wrong' if problem == 'license_mismatch' else b'example license')
+    if problem == 'hash':
+        full_hash = '0' * 64
+    if problem == 'missing_hash':
+        full_hash = None
+    block = tmp_path / 'runtime-linux'
+    with pytest.raises(RuntimeBlockError):
+        prepare_pbs_archive(archive, block, expected_sha256=digest,
+            origin='https://example.org/cpython.tar.gz', python_version='3.14.10',
+            full_archive_path=full, full_sha256=full_hash)
     assert not block.exists()
 
 
@@ -120,10 +173,18 @@ def test_real_pbs_signed_package_and_prepared_interpreter(tmp_path):
         path.write_bytes(body)
         artifact['sha256'] = hashlib.sha256(body).hexdigest()
     block = payload / 'runtime-linux'
-    conversion = prepare_pbs_archive(archive, block, expected_sha256=expected, origin=origin, python_version='3.14.10')
+    full_archive = os.environ.get('HOMENSAI_PBS_FULL_ARCHIVE')
+    full_hash = '4a2823d5deacb631e21b3c8387a1ec9be57e1b0ed37b7770e2e71cfe7b94eb94' if full_archive else None
+    conversion = prepare_pbs_archive(archive, block, expected_sha256=expected, origin=origin, python_version='3.14.10',
+                                     full_archive_path=full_archive, full_sha256=full_hash)
     assert conversion['runtime_executed'] is False and conversion['license_review_complete'] is False
     assert conversion['license_declared'] == 'LicenseRef-Composite-Unreviewed'
     assert conversion['materialized_links'] == 10 and not (block / 'share/terminfo').exists()
+    if full_archive:
+        assert conversion['supplemental_license_count'] == 20
+        assert verify_runtime_block(block)['evidence_sha256'] == full_hash
+        assert (block / 'licenses/upstream-full/LICENSE.openssl-3.txt').is_file()
+        assert (block / 'licenses/upstream-full/PYTHON.json').is_file()
     package = tmp_path / 'test-package.zip'
     build_package(manifest, '1', payload, package)
     private = ed.Ed25519PrivateKey.generate()

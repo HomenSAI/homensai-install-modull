@@ -26,11 +26,12 @@ from shared.package import PackageError
 from shared.package_signing import MAX_ENVELOPE, _crypto, verify_signed_package
 from shared.preflight import MAX_BYTES as MAX_DISK_BYTES, NAMES as PATH_NAMES, PreflightError, preflight_fresh
 from shared.systemd_user_publish import UnitPublicationError, publish_signed_user_units
-from shared.systemd_user_load import UnitLoadError, load_signed_user_units
+from shared.systemd_user_load import UnitLoadError, load_signed_user_units, load_portable_signed_user_units
+from shared.systemd_portable import PortableUnitError, publish_portable_signed_user_units
 from shared.update_plan import UpdateError, UpdatePlan
 
 API_MAJOR = 1
-API_MINOR = 16
+API_MINOR = 17
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -154,6 +155,9 @@ def handle(request: Any) -> dict:
                 if _systemd_plan_available():
                     operations.extend(["plan-systemd-user-units", "publish-systemd-user-units", "load-systemd-user-units"])
                     mutating_operations.extend(["publish-systemd-user-units", "load-systemd-user-units"])
+                    operations.extend(["plan-portable-systemd-user-units", "publish-portable-systemd-user-units",
+                                       "load-portable-systemd-user-units"])
+                    mutating_operations.extend(["publish-portable-systemd-user-units", "load-portable-systemd-user-units"])
             result = {"api_major": API_MAJOR, "api_minor": API_MINOR,
                       "operations": operations,
                       "mutating_operations": mutating_operations,
@@ -258,20 +262,23 @@ def handle(request: Any) -> dict:
             result = {'transaction': state['transaction'], 'product_id': state['product_id'],
                       'version': state['version'], 'status': state['status'],
                       'process_target': state['process_target'], 'installation_complete': False}
-        elif operation in ("plan-systemd-user-units", "publish-systemd-user-units", "load-systemd-user-units"):
+        elif operation in ("plan-systemd-user-units", "publish-systemd-user-units", "load-systemd-user-units",
+                           "plan-portable-systemd-user-units", "publish-portable-systemd-user-units",
+                           "load-portable-systemd-user-units"):
             fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id",
                       "expected_version", "install_root", "modes"}
-            publishing = operation == "publish-systemd-user-units"
-            loading = operation == "load-systemd-user-units"
+            portable = '-portable-' in operation
+            publishing = operation.startswith('publish-')
+            loading = operation.startswith('load-')
             if publishing or loading:
                 fields |= {"unit_dir", "idempotency_key"}
-            if publishing and 'verify_generated_units' in params:
+            if publishing and not portable and 'verify_generated_units' in params:
                 fields.add('verify_generated_units')
             strings = fields - {"modes", "verify_generated_units"}
             if (set(params) != fields or any(type(params[field]) is not str for field in strings)
                     or type(params['modes']) is not list or not params['modes']
                     or any(type(mode) is not str for mode in params['modes'])
-                    or (publishing and 'verify_generated_units' in params
+                    or (publishing and not portable and 'verify_generated_units' in params
                         and type(params['verify_generated_units']) is not bool)):
                 raise InvalidRequest()
             if not _signature_available() or not _systemd_plan_available():
@@ -287,14 +294,15 @@ def handle(request: Any) -> dict:
             if len(key) != 32:
                 raise InvalidRequest()
             try:
-                function = load_signed_user_units if loading else publish_signed_user_units
-                generated_policy = {'verify_generated_units': params.get('verify_generated_units', False)} if publishing else {}
+                function = (load_portable_signed_user_units if loading else publish_portable_signed_user_units) if portable else (
+                           load_signed_user_units if loading else publish_signed_user_units)
+                generated_policy = {'verify_generated_units': params.get('verify_generated_units', False)} if publishing and not portable else {}
                 plan = function(params['package_path'], envelope, params['install_root'],
                     trusted_public_key=key, expected_product_id=params['expected_product_id'],
                     expected_version=params['expected_version'], modes=tuple(params['modes']),
                     unit_dir=params['unit_dir'] if publishing or loading else '', execute=publishing or loading,
                     operation_id=params['idempotency_key'] if publishing or loading else None, **generated_policy)
-            except (UnitPublicationError, UnitLoadError):
+            except (UnitPublicationError, UnitLoadError, PortableUnitError):
                 if loading:
                     return _error(request_id, 'systemd_load_failed', 'Не удалось подтвердить загрузку служб',
                                   language, 'api.systemd_load_failed')

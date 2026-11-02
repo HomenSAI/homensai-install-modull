@@ -1,4 +1,5 @@
 """Проверка переносимого рецепта: только синтетические подписанные выпуски."""
+import base64
 import hashlib
 import json
 import os
@@ -165,6 +166,17 @@ def portable_load(data, directory, **kwargs):
                                             modes=('autonomous',), unit_dir=str(directory), **kwargs)
 
 
+def portable_api_request(data, directory, operation, key=None):
+    package, envelope, options, roots = data
+    params = {'package_path': str(package), 'envelope': base64.b64encode(envelope).decode(),
+              'trusted_public_key': base64.b64encode(options['trusted_public_key']).decode(),
+              'expected_product_id': options['expected_product_id'], 'expected_version': '1',
+              'install_root': str(roots[0]), 'modes': ['autonomous']}
+    if key is not None:
+        params.update(unit_dir=str(directory), idempotency_key=key)
+    return {'api_major': 1, 'request_id': 'test', 'operation': operation, 'params': params}
+
+
 class FakeReloadManager:
     def __init__(self, directory, *, lose_response=False):
         self.directory, self.lose_response, self.reloaded, self.calls = directory, lose_response, False, []
@@ -182,6 +194,44 @@ class FakeReloadManager:
         return (f'Id={name}\nLoadState=loaded\nActiveState=inactive\nSubState=dead\n'
                 f'FragmentPath={self.directory / name}\nDropInPaths=\n'
                 f'NeedDaemonReload={"no" if self.reloaded else "yes"}\n')
+
+
+def test_portable_api_plan_publish_load_and_retries(portable_release, portable_directory, monkeypatch):
+    import shared.systemd_portable as portable
+    import shared.systemd_user_load as loader
+    from shared.api import handle
+    publisher, calls = fake_manager(portable_directory)
+    monkeypatch.setattr(portable, '_run', publisher)
+    query = portable_api_request(portable_release, portable_directory, 'plan-portable-systemd-user-units')
+    validator = pytest.importorskip('jsonschema').Draft202012Validator(
+        json.loads((ROOT / 'shared/api-v1-request.schema.json').read_text()))
+    assert validator.is_valid(query)
+    caps = handle({'api_major': 1, 'request_id': 'test', 'operation': 'capabilities', 'params': {}})['result']
+    assert caps['api_minor'] >= 17 and query['operation'] in caps['operations']
+    assert query['operation'] not in caps['mutating_operations']
+    result = handle(query)
+    assert result['ok'] and result['result']['state'] == 'planned' and 'unit_texts' not in result['result']
+    assert not calls and not list(portable_directory.iterdir())
+    query = portable_api_request(portable_release, portable_directory, 'publish-portable-systemd-user-units', 'a' * 32)
+    assert validator.is_valid(query) and query['operation'] in caps['mutating_operations']
+    published = handle(query)
+    assert published['ok'] and published['result']['state'] == 'published'
+    assert handle(query) == published
+    query['params']['verify_generated_units'] = True
+    assert not validator.is_valid(query) and handle(query)['error']['code'] == 'invalid_request'
+    manager = FakeReloadManager(portable_directory)
+    monkeypatch.setattr(loader, '_run', manager)
+    query = portable_api_request(portable_release, portable_directory, 'load-portable-systemd-user-units', 'b' * 32)
+    assert validator.is_valid(query) and query['operation'] in caps['mutating_operations']
+    loaded = handle(query)
+    assert loaded['ok'] and loaded['result']['state'] == 'loaded'
+    assert handle(query) == loaded and manager.calls.count(['daemon-reload']) == 1
+    query['params']['idempotency_key'] = 'c' * 32
+    assert handle(query)['error']['code'] == 'systemd_load_failed'
+    assert manager.calls.count(['daemon-reload']) == 1
+    monkeypatch.setattr('shared.api._systemd_plan_available', lambda: False)
+    caps = handle({'api_major': 1, 'request_id': 'test', 'operation': 'capabilities', 'params': {}})['result']
+    assert query['operation'] not in caps['operations'] and query['operation'] not in caps['mutating_operations']
 
 
 def test_portable_loading_requires_bound_publication(portable_release, portable_directory):
@@ -275,9 +325,13 @@ def test_portable_publication_interruption_preserves_pending(portable_release, p
 
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Нужен отдельный тестовый user-systemd')
-def test_portable_publication_with_isolated_real_user_manager(portable_release):
+def test_portable_publication_with_isolated_real_user_manager(portable_release, monkeypatch):
     import pwd
     import subprocess
+    import sys
+    import shared.systemd_portable as portable
+    import shared.systemd_user_load as loader
+    from shared.api import handle
     identity = pwd.getpwuid(os.getuid())
     if (os.getuid() == 0 or identity.pw_name != 'homenstest'
             or identity.pw_dir != '/home/homenstest' or not Path('/run/.containerenv').is_file()):
@@ -292,17 +346,27 @@ def test_portable_publication_with_isolated_real_user_manager(portable_release):
     def actual(argv, *, timeout, env):
         calls.append(argv[4:])
         return pub._run(argv, timeout=timeout, env=env)
+    monkeypatch.setattr(portable, '_run', actual)
+    monkeypatch.setattr(loader, '_run', actual)
     try:
-        result = portable_publish(portable_release, directory, execute=True, operation_id='a' * 32, runner=actual)
+        query = portable_api_request(portable_release, directory, 'publish-portable-systemd-user-units', 'a' * 32)
+        response = handle(query)
+        assert response['ok'] and response['result']['installation_complete'] is False
+        result = response['result']
         before = {p.name: (p.stat().st_ino, p.stat().st_mtime_ns) for p in expected}
-        assert portable_publish(portable_release, directory, execute=True, operation_id='a' * 32, runner=actual) == result
+        cli = subprocess.run([sys.executable, '-B', '-m', 'shared.api'], cwd=ROOT,
+                             input=json.dumps(query).encode(), capture_output=True, timeout=90, check=True)
+        assert json.loads(cli.stdout) == response
         assert before == {p.name: (p.stat().st_ino, p.stat().st_mtime_ns) for p in expected}
         assert result['state'] == 'published' and result['services_started'] is False
         assert all(call[0] == 'show' for call in calls)
         assert all(p.read_bytes() == body for p, body in expected.items())
-        loaded = portable_load(portable_release, directory, execute=True, operation_id='b' * 32, runner=actual)
-        assert loaded['state'] == 'loaded' and loaded['services_started'] is False
-        assert portable_load(portable_release, directory, execute=True, operation_id='b' * 32, runner=actual) == loaded
+        query = portable_api_request(portable_release, directory, 'load-portable-systemd-user-units', 'b' * 32)
+        loaded = handle(query)
+        assert loaded['ok'] and loaded['result']['state'] == 'loaded' and loaded['result']['services_started'] is False
+        cli = subprocess.run([sys.executable, '-B', '-m', 'shared.api'], cwd=ROOT,
+                             input=json.dumps(query).encode(), capture_output=True, timeout=90, check=True)
+        assert json.loads(cli.stdout) == loaded
         assert calls.count(['daemon-reload']) == 1
         group = portable_signed_user_group(package, envelope, str(roots[0]), **options,
                     modes=('autonomous',), unit_dir=str(directory), operation_id='b' * 32, runner=actual)

@@ -22,7 +22,7 @@ from shared.fresh_prepare import (FreshConflict, FreshPrepareError, prepare_idem
 from shared.datahome import DataHomeError, checked_path
 from shared.docker_preflight import DockerPreflightError, check_docker
 from shared.docker_images import DockerImagesError, inspect_signed_compose_images
-from shared.docker_lifecycle import DockerLifecycleError, control_signed_compose
+from shared.docker_lifecycle import DockerLifecycleError, control_signed_compose, status_signed_compose
 from shared.docker_prepare import DockerPrepareError, prepare_signed_compose
 from shared.docker_recipe import DockerRecipeError, plan_signed_compose
 from shared.host_target import HostTargetError, native_target
@@ -43,7 +43,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 36
+API_MINOR = 37
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -186,6 +186,8 @@ def handle(request: Any) -> dict:
                     mutating_operations.append('inspect-signed-compose-images')
                     operations.append('control-signed-compose')
                     mutating_operations.append('control-signed-compose')
+                    operations.append('compose-control-status')
+                    mutating_operations.append('compose-control-status')  # Служебные блокировки на диске.
                     operations.extend(['install-portable-linux', 'inspect-portable-linux-install'])
                     mutating_operations.extend(['install-portable-linux', 'inspect-portable-linux-install'])
                     operations.extend(['prepare-signed-linux-update', 'inspect-signed-linux-update'])
@@ -302,12 +304,12 @@ def handle(request: Any) -> dict:
                     return _error(request_id, 'update_plan_failed', 'Не удалось составить план обновления', language, 'api.update_plan_failed')
                 return _error(request_id, "update_status_failed", "Не удалось прочитать состояние обновления", language, "api.update_status_failed")
         elif operation in ('plan-signed-compose', 'prepare-signed-compose', 'inspect-signed-compose-images',
-                           'control-signed-compose'):
+                           'control-signed-compose', 'compose-control-status'):
             fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id',
                       'expected_version', 'target', 'modes', 'instance_id'}
             if operation != 'plan-signed-compose':
                 fields |= {'work_dir', 'idempotency_key'}
-            if operation in ('inspect-signed-compose-images', 'control-signed-compose'):
+            if operation in ('inspect-signed-compose-images', 'control-signed-compose', 'compose-control-status'):
                 fields |= {'executable', 'executable_sha256', 'socket_path', 'timeout_seconds'}
             if operation == 'control-signed-compose':
                 fields |= {'action', 'action_id'}
@@ -316,7 +318,7 @@ def handle(request: Any) -> dict:
                     or type(params['target']) is not dict or set(params['target']) != {'os', 'architecture', 'execution'}
                     or params['target']['os'] not in ('windows', 'linux')
                     or params['target']['architecture'] != 'x86_64' or params['target']['execution'] != 'docker'
-                    or (operation in ('inspect-signed-compose-images', 'control-signed-compose')
+                    or (operation in ('inspect-signed-compose-images', 'control-signed-compose', 'compose-control-status')
                         and params['target']['os'] != 'linux')
                     or type(params['modes']) is not list
                     or not params['modes'] or any(type(value) is not str or not value for value in params['modes'])
@@ -324,7 +326,7 @@ def handle(request: Any) -> dict:
                     or re.fullmatch(r'[a-f0-9]{32}', params['instance_id']) is None
                     or (operation != 'plan-signed-compose'
                         and re.fullmatch(r'[a-f0-9]{32}', params['idempotency_key']) is None)
-                    or (operation in ('inspect-signed-compose-images', 'control-signed-compose') and
+                    or (operation in ('inspect-signed-compose-images', 'control-signed-compose', 'compose-control-status') and
                         (re.fullmatch(r'[a-f0-9]{64}', params['executable_sha256']) is None
                          or type(params['timeout_seconds']) is not int or not 1 <= params['timeout_seconds'] <=
                             (30 if operation == 'inspect-signed-compose-images' else 120)))
@@ -346,7 +348,12 @@ def handle(request: Any) -> dict:
                 options = {'trusted_public_key': key, 'expected_product_id': params['expected_product_id'],
                            'expected_version': params['expected_version'], 'target': params['target'],
                            'modes': tuple(params['modes']), 'instance_id': params['instance_id']}
-                if operation == 'control-signed-compose':
+                if operation == 'compose-control-status':
+                    result = status_signed_compose(params['package_path'], envelope, **options,
+                        work_dir=params['work_dir'], preparation_id=params['idempotency_key'],
+                        executable=params['executable'], executable_sha256=params['executable_sha256'],
+                        socket_path=params['socket_path'])
+                elif operation == 'control-signed-compose':
                     result = control_signed_compose(params['package_path'], envelope, **options,
                         work_dir=params['work_dir'], preparation_id=params['idempotency_key'],
                         action_id=params['action_id'], action=params['action'], executable=params['executable'],
@@ -363,7 +370,7 @@ def handle(request: Any) -> dict:
                 else:
                     result = plan_signed_compose(params['package_path'], envelope, **options)
             except (DockerRecipeError, DockerPrepareError, DockerImagesError, DockerLifecycleError):
-                if operation == 'control-signed-compose':
+                if operation in ('control-signed-compose', 'compose-control-status'):
                     return _error(request_id, 'docker_control_failed', 'Не удалось подтвердить управление контейнерами',
                                   language, 'api.docker_control_failed')
                 if operation == 'inspect-signed-compose-images':

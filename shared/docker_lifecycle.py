@@ -25,6 +25,65 @@ class DockerLifecycleError(RuntimeError):
     """Действие не подтверждено; оно могло частично выполниться."""
 
 
+def _binding(package_path, root, socket_path, executable, executable_sha256, envelope,
+             trusted_public_key, plan, target, modes, preparation_id, instance_id):
+    context = {'package': str(checked_path(package_path)), 'work': str(root),
+               'socket': str(checked_path(socket_path)), 'executable': str(checked_path(executable)),
+               'executable_sha256': executable_sha256, 'envelope': hashlib.sha256(envelope).hexdigest(),
+               'key': hashlib.sha256(trusted_public_key).hexdigest(), 'plan': plan['compose_sha256'],
+               'target': target, 'modes': modes, 'preparation': preparation_id, 'instance': instance_id}
+    return hashlib.sha256(json.dumps(context, sort_keys=True, ensure_ascii=True,
+                                     separators=(',', ':')).encode('ascii')).hexdigest()
+
+
+def _validate_record(record, binding, preparation_id):
+    if record is not None and (set(record) != {'version', 'binding', 'start_key', 'stop_key', 'status'}
+            or type(record['version']) is not int or record['version'] != 1 or record['binding'] != binding
+            or type(record['start_key']) is not str or re.fullmatch(r'[a-f0-9]{32}', record['start_key']) is None
+            or record['start_key'] == preparation_id
+            or record['status'] not in ('start_pending', 'running', 'stop_pending', 'stopped')
+            or (record['status'] in ('start_pending', 'running') and record['stop_key'] is not None)
+            or (record['status'] in ('stop_pending', 'stopped') and
+                (type(record['stop_key']) is not str or re.fullmatch(r'[a-f0-9]{32}', record['stop_key']) is None
+                 or record['stop_key'] in (record['start_key'], preparation_id)))):
+        raise DockerLifecycleError('Журнал не соответствует операции')
+
+
+def status_signed_compose(package_path: str, envelope: bytes, *, trusted_public_key: bytes,
+                          expected_product_id: str, expected_version: str, target: dict,
+                          modes: tuple[str, ...], instance_id: str, work_dir: str,
+                          preparation_id: str, executable: str, executable_sha256: str,
+                          socket_path: str) -> dict:
+    """Read a bound receipt without launching a CLI or authorizing recovery."""
+    try:
+        if (type(preparation_id) is not str or re.fullmatch(r'[a-f0-9]{32}', preparation_id) is None
+                or type(executable) is not str or type(socket_path) is not str
+                or type(executable_sha256) is not str or re.fullmatch(r'[a-f0-9]{64}', executable_sha256) is None
+                or native_target() != {'os': 'linux', 'architecture': 'x86_64', 'execution': 'native'}
+                or target != {'os': 'linux', 'architecture': 'x86_64', 'execution': 'docker'}):
+            raise DockerLifecycleError('Недопустимая среда')
+        root = checked_path(work_dir)
+        common = {'trusted_public_key': trusted_public_key, 'expected_product_id': expected_product_id,
+                  'expected_version': expected_version, 'target': target, 'modes': modes, 'instance_id': instance_id}
+        verified = prepare_signed_compose(package_path, envelope, **common, work_dir=str(root),
+                                           operation_id=preparation_id, verify_only=True)
+        plan = plan_signed_compose(package_path, envelope, **common)
+        if verified['compose_sha256'] != plan['compose_sha256']:
+            raise DockerLifecycleError('План изменился')
+        binding = _binding(package_path, root, socket_path, executable, executable_sha256, envelope,
+                           trusted_public_key, plan, target, modes, preparation_id, instance_id)
+        marker = checked_path(root / ('compose-lifecycle-' + instance_id + '.json'))
+        lock = checked_path(root / ('compose-lifecycle-' + instance_id + '.lock'))
+        with operation_lock(lock):
+            record = read_effect_receipt(marker)
+            _validate_record(record, binding, preparation_id)
+            state = 'not_recorded' if record is None else record['status']
+        return {'state': state, 'receipt_present': record is not None,
+                'daemon_state_verified': False, 'recovery_authorized': False}
+    except Exception:
+        raise DockerLifecycleError('Не удалось прочитать состояние управления контейнерами') from None
+
+
 def _status_records(output, project, services, *, stopped=False):
     """Проверить ровно один контейнер на сервис по ответу доверенного daemon."""
     if not output.strip():
@@ -90,27 +149,13 @@ def control_signed_compose(package_path: str, envelope: bytes, *, trusted_public
             raise DockerLifecycleError('План изменился')
         project, services = compose['name'], compose['services']
         deadline = time.monotonic() + 300
-        context = {'package': str(checked_path(package_path)), 'work': str(root), 'socket': str(socket),
-                   'executable': str(checked_path(executable)), 'executable_sha256': executable_sha256,
-                   'envelope': hashlib.sha256(envelope).hexdigest(), 'key': hashlib.sha256(trusted_public_key).hexdigest(),
-                   'plan': plan['compose_sha256'], 'target': target, 'modes': modes,
-                   'preparation': preparation_id, 'instance': instance_id}
-        binding = hashlib.sha256(json.dumps(context, sort_keys=True, ensure_ascii=True,
-                                           separators=(',', ':')).encode('ascii')).hexdigest()
+        binding = _binding(package_path, root, str(socket), executable, executable_sha256, envelope,
+                           trusted_public_key, plan, target, modes, preparation_id, instance_id)
         marker = checked_path(root / ('compose-lifecycle-' + instance_id + '.json'))
         lock = checked_path(root / ('compose-lifecycle-' + instance_id + '.lock'))
         with operation_lock(lock):
             record = read_effect_receipt(marker)
-            if record is not None:
-                if (set(record) != {'version', 'binding', 'start_key', 'stop_key', 'status'}
-                        or type(record['version']) is not int or record['version'] != 1 or record['binding'] != binding
-                        or type(record['start_key']) is not str or re.fullmatch(r'[a-f0-9]{32}', record['start_key']) is None
-                        or record['status'] not in ('start_pending', 'running', 'stop_pending', 'stopped')
-                        or (record['status'] in ('start_pending', 'running') and record['stop_key'] is not None)
-                        or (record['status'] in ('stop_pending', 'stopped') and
-                            (type(record['stop_key']) is not str or re.fullmatch(r'[a-f0-9]{32}', record['stop_key']) is None
-                             or record['stop_key'] in (record['start_key'], preparation_id)))):
-                    raise DockerLifecycleError('Журнал не соответствует операции')
+            _validate_record(record, binding, preparation_id)
             if (record is None and action != 'start') or (record is not None and
                     ((action == 'start' and (record['start_key'] != action_id or record['status'] != 'running'))
                      or (action == 'stop' and (action_id == record['start_key'] or

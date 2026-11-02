@@ -16,7 +16,7 @@ from test_docker_recipe import signed_plan
 from test_docker_prepare import preparation
 from test_docker_images import image_check, inspect_query
 from shared import api, docker_images, docker_lifecycle
-from shared.docker_lifecycle import DockerLifecycleError, _status_records, control_signed_compose
+from shared.docker_lifecycle import DockerLifecycleError, _status_records, control_signed_compose, status_signed_compose
 from shared.effect_receipt import read_effect_receipt
 from shared.i18n import translate
 from examples.demo_product.installer_client import InstallerClient
@@ -134,6 +134,55 @@ def test_signed_start_stop_and_retries_do_not_repeat_actions(lifecycle):
     assert len(actions(daemon, 'stop')) == 1
     with pytest.raises(DockerLifecycleError):
         control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
+
+
+def test_status_reports_bound_receipt_without_contacting_daemon(lifecycle, monkeypatch):
+    package, envelope, options, daemon = lifecycle
+    assert status_signed_compose(package, envelope, **{k: v for k, v in options.items() if k != 'timeout_seconds'})['state'] == 'not_recorded'
+    control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
+    count = len(daemon.calls)
+    status = status_signed_compose(package, envelope, **{k: v for k, v in options.items() if k != 'timeout_seconds'})
+    assert status == {'state': 'running', 'receipt_present': True, 'daemon_state_verified': False,
+                      'recovery_authorized': False}
+    assert len(daemon.calls) == count
+    changed = {k: v for k, v in options.items() if k != 'timeout_seconds'}
+    changed['executable_sha256'] = 'f' * 64
+    with pytest.raises(DockerLifecycleError):
+        status_signed_compose(package, envelope, **changed)
+
+
+def test_status_api_reads_pending_without_socket_or_cli(lifecycle, monkeypatch):
+    package, envelope, options, daemon = lifecycle
+    daemon.bad_image = True
+    with pytest.raises(DockerLifecycleError):
+        control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
+    query = inspect_query(package, envelope, {**options, 'operation_id': options['preparation_id']})
+    query['operation'] = 'compose-control-status'
+    schema = json.loads((Path(__file__).resolve().parents[1] / 'shared/api-v1-request.schema.json').read_text())
+    jsonschema = pytest.importorskip('jsonschema')
+    assert jsonschema.Draft202012Validator(schema).is_valid(query)
+    assert 'compose-control-status' in api.handle({'api_major': 1, 'request_id': 'cap',
+                                                    'operation': 'capabilities', 'params': {}})['result']['operations']
+    monkeypatch.setattr(docker_lifecycle, '_bounded_run', lambda *a, **kw: pytest.fail('CLI must not run'))
+    monkeypatch.setattr(docker_images, '_bounded_run', lambda *a, **kw: pytest.fail('CLI must not run'))
+    Path(options['socket_path']).unlink()
+    response = api.handle(query)
+    assert response['ok'] and response['result'] == {'state': 'start_pending', 'receipt_present': True,
+                                                      'daemon_state_verified': False, 'recovery_authorized': False}
+
+
+def test_status_rejects_corrupted_receipt_and_reports_stop_pending(lifecycle):
+    package, envelope, options, daemon = lifecycle
+    status_options = {k: v for k, v in options.items() if k != 'timeout_seconds'}
+    control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
+    daemon.crash_after_stop = True
+    with pytest.raises(DockerLifecycleError):
+        control_signed_compose(package, envelope, **options, action='stop', action_id='c' * 32)
+    assert status_signed_compose(package, envelope, **status_options)['state'] == 'stop_pending'
+    marker = Path(options['work_dir']) / ('compose-lifecycle-' + options['instance_id'] + '.json')
+    marker.write_text('{"status":"running"}', encoding='utf-8')
+    with pytest.raises(DockerLifecycleError):
+        status_signed_compose(package, envelope, **status_options)
 
 
 @pytest.mark.parametrize('conflict', ['container', 'volume', 'network'])

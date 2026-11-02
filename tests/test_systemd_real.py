@@ -97,3 +97,44 @@ def test_transient_user_service_can_stop_and_start():
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, check=False)
             subprocess.run(base + ['reset-failed', '--', name], env=env, stdin=subprocess.DEVNULL,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, check=False)
+
+
+@pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix',
+                    reason='Реальный пользовательский systemd проверяется только явно')
+def test_group_start_and_stop_with_real_user_manager():
+    from shared.systemd_group import SystemdUserGroup
+    manifest = load_manifest(ROOT / 'examples/rent.manifest.json')
+    manifest['product_id'] = 'homensai-test-' + uuid.uuid4().hex[:16]
+    names = ('web', 'bot', 'scheduler')
+    units = [manifest['product_id'] + '-' + name + '.service' for name in names]
+    holder = manifest['product_id'] + '-holder.service'
+    runtime = '/run/user/' + str(os.getuid())
+    env = {'PATH': '/usr/bin:/bin', 'LC_ALL': 'C', 'SYSTEMD_PAGER': 'cat',
+           'XDG_RUNTIME_DIR': runtime, 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=' + runtime + '/bus'}
+    base = ['/usr/bin/systemctl', '--user', '--no-pager', '--no-ask-password']
+    created = []
+    try:
+        for name in [*units, holder]:
+            extra = ['--property=Wants=' + ' '.join(units)] if name == holder else []
+            result = subprocess.run(['/usr/bin/systemd-run', '--user', '--unit=' + name,
+                                     *extra, '--', '/usr/bin/sleep', '90'], env=env,
+                                    stdin=subprocess.DEVNULL, capture_output=True, timeout=15)
+            assert result.returncode == 0, 'Не удалось запустить синтетическую user-службу'
+            created.append(name)
+        adapters = {}
+        for name, unit in zip(names, units):
+            result = subprocess.run(base + ['show', '--property=FragmentPath', '--value', '--', unit],
+                                    env=env, stdin=subprocess.DEVNULL, capture_output=True, timeout=15, check=True)
+            fragment = Path(result.stdout.decode().strip())
+            adapters[name] = SystemdUserAdapter(manifest, modes=('autonomous',), component=name,
+                                                fragment_path=str(fragment),
+                                                fragment_sha256=hashlib.sha256(fragment.read_bytes()).hexdigest())
+        group = SystemdUserGroup(manifest, modes=('autonomous',), adapters=adapters)
+        assert [x['active_state'] for x in group.command('stop', execute=True)] == ['inactive'] * 3
+        assert [x['active_state'] for x in group.command('start', execute=True)] == ['active'] * 3
+    finally:
+        for name in reversed(created):
+            subprocess.run(base + ['stop', '--', name], env=env, stdin=subprocess.DEVNULL,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, check=False)
+            subprocess.run(base + ['reset-failed', '--', name], env=env, stdin=subprocess.DEVNULL,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, check=False)

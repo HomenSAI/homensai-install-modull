@@ -119,6 +119,7 @@ class SystemdUserAdapter:
             self.digest = fragment_sha256
             self.runner = _run if runner is None else runner
             self.timeout = timeout
+            self._verified_once = False
         except (ManifestError, TypeError, ValueError):
             raise SystemdUserError('Недопустимый манифест службы') from None
 
@@ -162,9 +163,30 @@ class SystemdUserAdapter:
                     or _STATE.fullmatch(values['SubState']) is None):
                 raise SystemdUserError('Идентичность или состояние unit не подтверждены')
             _trusted_file(self.path, self.digest)
+            self._verified_once = True
             return {'unit': self.unit, 'active_state': values['ActiveState'], 'sub_state': values['SubState']}
         except (OSError, UnicodeError, ValueError):
             raise SystemdUserError('Не удалось проверить unit') from None
+
+    def _unloaded_transient(self):
+        transient = Path('/run/user') / str(os.getuid()) / 'systemd/transient' / self.unit
+        if not self._verified_once or self.path != transient or self.path.exists():
+            raise SystemdUserError('Не подтверждена остановка unit')
+        values = self._show()
+        if values != {'Id': self.unit, 'LoadState': 'not-found', 'ActiveState': 'inactive',
+                      'SubState': 'dead', 'FragmentPath': '', 'DropInPaths': '', 'NeedDaemonReload': 'no'}:
+            raise SystemdUserError('Остановка временного unit не подтверждена')
+        return {'unit': self.unit, 'active_state': 'inactive', 'sub_state': 'dead', 'unit_unloaded': True}
+
+    def confirm_stopped(self):
+        """Повторно проверить отсутствие активности ранее идентифицированного unit."""
+        try:
+            result = self.inspect()
+        except SystemdUserError:
+            return self._unloaded_transient()
+        if result['active_state'] != 'inactive':
+            raise SystemdUserError('Остановка unit не подтверждена')
+        return result
 
     def command(self, action, *, execute=False):
         if type(execute) is not bool or type(action) is not str or action not in ('start', 'stop'):
@@ -180,14 +202,9 @@ class SystemdUserAdapter:
         except SystemdUserError:
             # Временные user-units иногда выгружаются сразу после stop. Для
             # обычных файлов исчезновение не считается подтверждённой остановкой.
-            transient = Path('/run/user') / str(os.getuid()) / 'systemd/transient' / self.unit
-            if action != 'stop' or self.path != transient or self.path.exists():
+            if action != 'stop':
                 raise
-            values = self._show()
-            if values != {'Id': self.unit, 'LoadState': 'not-found', 'ActiveState': 'inactive',
-                          'SubState': 'dead', 'FragmentPath': '', 'DropInPaths': '', 'NeedDaemonReload': 'no'}:
-                raise SystemdUserError('Остановка временного unit не подтверждена')
-            return {'unit': self.unit, 'active_state': 'inactive', 'sub_state': 'dead', 'unit_unloaded': True}
+            return self._unloaded_transient()
         if after['active_state'] != wanted:
             raise SystemdUserError('Состояние unit не подтверждено')
         return after

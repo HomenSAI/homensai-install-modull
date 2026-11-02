@@ -60,6 +60,18 @@ def test_already_active_does_not_start_again(monkeypatch):
     assert len(calls) == 2 and all('show' in call for call in calls)
 
 
+def test_missing_transient_unit_was_never_verified_and_cannot_be_claimed_stopped(monkeypatch):
+    transient = '/run/user/' + str(systemd.os.getuid()) + '/systemd/transient/' + UNIT
+    service = systemd.SystemdUserAdapter(MANIFEST, modes=('autonomous',), component='web',
+                                         fragment_path=transient, fragment_sha256=DIGEST,
+                                         runner=lambda *a, **k: pytest.fail('unverified unit must not query manager'))
+    def absent(*args):
+        raise OSError('not found')
+    monkeypatch.setattr(systemd, '_trusted_file', absent)
+    with pytest.raises(systemd.SystemdUserError):
+        service.confirm_stopped()
+
+
 @pytest.mark.parametrize('body', [
     report(unit='other.service'), report(path='/tmp/other'), report(dropins='/tmp/override.conf'),
     report().replace('NeedDaemonReload=no', 'NeedDaemonReload=yes'),

@@ -1,4 +1,5 @@
 """Подготовка синтетического подписанного runtime без исполнения при установке."""
+import base64
 import hashlib
 import json
 import os
@@ -13,7 +14,7 @@ from shared.manifest import load_manifest
 from shared.package import build_package
 from shared.package_signing import sign_package
 from shared.preflight import NAMES
-from shared.runtime_native import NativeRuntimeError, RECIPE_PATH, prepare_signed_linux_runtime
+from shared.runtime_native import NativeRuntimeError, RECIPE_PATH, prepare_signed_linux_runtime, verify_signed_linux_runtime
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGET = {'os': 'linux', 'architecture': 'x86_64', 'execution': 'native'}
@@ -140,6 +141,70 @@ def test_runtime_refuses_untrusted_key(runtime_release):
     assert not list((root / 'runtime').iterdir())
 
 
+def test_verify_runtime_requires_done_and_never_prepares(runtime_release):
+    package, envelope, options, root, files = runtime_release
+    args = {'operation_id': 'a' * 32, 'reserve_bytes': 0}
+    with pytest.raises(NativeRuntimeError):
+        verify_signed_linux_runtime(package, envelope, str(root), **options, **args)
+    assert not list((root / 'runtime').iterdir())
+    assert not (root / '.homensai-control/linux-runtime.json').exists()
+    call(runtime_release, execute=True, operation_id='a' * 32)
+    before = {name: ((root / 'runtime' / name).stat().st_ino, (root / 'runtime' / name).stat().st_mtime_ns)
+              for name in files}
+    verified = verify_signed_linux_runtime(package, envelope, str(root), **options, **args)
+    assert verified['state'] == 'verified' and verified['runtime_executed'] is False
+    assert before == {name: ((root / 'runtime' / name).stat().st_ino, (root / 'runtime' / name).stat().st_mtime_ns)
+                      for name in files}
+    (root / 'runtime/lib/data.txt').write_bytes(b'tampered')
+    with pytest.raises(NativeRuntimeError):
+        verify_signed_linux_runtime(package, envelope, str(root), **options, **args)
+
+
+def test_runtime_api_plans_prepares_and_verifies_without_reexecution(runtime_release, monkeypatch):
+    import subprocess
+    import sys
+    from shared.api import handle
+
+    package, envelope, options, root, _ = runtime_release
+    monkeypatch.setattr('shared.api._systemd_plan_available', lambda: True)
+    params = {'package_path': str(package), 'envelope': base64.b64encode(envelope).decode(),
+              'trusted_public_key': base64.b64encode(options['trusted_public_key']).decode(),
+              'expected_product_id': options['expected_product_id'], 'expected_version': '1',
+              'install_root': str(root), 'reserve_bytes': 0}
+    query = {'api_major': 1, 'request_id': 'test', 'operation': 'plan-linux-runtime', 'params': params}
+    validator = pytest.importorskip('jsonschema').Draft202012Validator(
+        json.loads((ROOT / 'shared/api-v1-request.schema.json').read_text()))
+    caps = handle({'api_major': 1, 'request_id': 'test', 'operation': 'capabilities', 'params': {}})['result']
+    assert caps['api_minor'] >= 18 and query['operation'] in caps['operations']
+    assert query['operation'] not in caps['mutating_operations'] and validator.is_valid(query)
+    assert handle(query)['result']['state'] == 'planned' and not list((root / 'runtime').iterdir())
+    query['operation'] = 'verify-linux-runtime'
+    query['params']['idempotency_key'] = 'a' * 32
+    assert validator.is_valid(query) and handle(query)['error']['code'] == 'linux_runtime_failed'
+    assert not (root / '.homensai-control/linux-runtime.json').exists()
+    query['operation'] = 'prepare-linux-runtime'
+    assert validator.is_valid(query) and query['operation'] in caps['mutating_operations']
+    prepared = handle(query)
+    assert prepared['ok'] and prepared['result']['state'] == 'prepared'
+    assert prepared['result']['runtime_executed'] is False and prepared['result']['installation_complete'] is False
+    assert handle(query) == prepared
+    query['operation'] = 'verify-linux-runtime'
+    verified = handle(query)
+    assert verified['ok'] and verified['result']['state'] == 'verified'
+    assert query['operation'] not in caps['mutating_operations']
+    if os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') == '1':
+        cli = subprocess.run([sys.executable, '-B', '-m', 'shared.api'], cwd=ROOT,
+                             input=json.dumps(query).encode(), capture_output=True, timeout=60, check=True)
+        assert json.loads(cli.stdout) == verified
+    query['params']['idempotency_key'] = 'b' * 32
+    query['language'] = 'de'
+    error = handle(query)
+    assert error['error']['code'] == 'linux_runtime_failed'
+    assert error['error']['message'] == 'Die Linux-Laufzeitumgebung konnte nicht bestätigt werden'
+    query['params']['reserve_bytes'] = True
+    assert not validator.is_valid(query) and handle(query)['error']['code'] == 'invalid_request'
+
+
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Нужен одноразовый тестовый контейнер Python 3.14')
 def test_prepared_runtime_runs_real_container_cpython(tmp_path):
@@ -229,9 +294,13 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path):
     install = tmp_path / 'real runtime with spaces'
     prepare_fresh_native(package, envelope, install, **options,
                          required_bytes={name: 0 for name in NAMES}, reserve_bytes=0)
-    prepared = prepare_signed_linux_runtime(package, envelope, str(install), **options,
-                                             execute=True, operation_id='a' * 32, reserve_bytes=0)
+    client = InstallerClient(timeout=120)
+    runtime_args = {'package_path': str(package), 'envelope': base64.b64encode(envelope).decode(),
+                    'trusted_public_key': base64.b64encode(public).decode(), 'expected_product_id': manifest['product_id'],
+                    'expected_version': '1', 'install_root': str(install), 'reserve_bytes': 0, 'idempotency_key': 'a' * 32}
+    prepared = client.call('prepare-linux-runtime', runtime_args, min_minor=18)
     assert prepared['runtime_executed'] is False and prepared['python_compatibility_verified'] is False
+    assert client.call('verify-linux-runtime', runtime_args, min_minor=18)['state'] == 'verified'
     interpreter = install / 'runtime/bin/python'
     check = subprocess.run([str(interpreter), '-I', '-B', '-c',
         'import http.server, sqlite3, ssl, sys; print(sys.prefix); print(sys.version_info[:3])'],
@@ -252,7 +321,6 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path):
     env = {'PATH': '/usr/bin:/bin', 'LC_ALL': 'C', 'SYSTEMD_PAGER': 'cat',
            'XDG_RUNTIME_DIR': '/run/user/' + str(os.getuid()),
            'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/' + str(os.getuid()) + '/bus'}
-    client = InstallerClient(timeout=120)
     try:
         published = client.call('publish-portable-systemd-user-units',
                                 {**common, 'idempotency_key': 'b' * 32}, min_minor=17)

@@ -22,5 +22,6 @@
   "api.update_status_failed": "Der Aktualisierungsstatus konnte nicht gelesen werden",
   "api.systemd_plan_failed": "Die Dienstdateien konnten nicht geprüft werden",
   "api.systemd_publish_failed": "Die Veröffentlichung der Dienste konnte nicht bestätigt werden",
-  "api.systemd_load_failed": "Das Laden der Dienste konnte nicht bestätigt werden"
+  "api.systemd_load_failed": "Das Laden der Dienste konnte nicht bestätigt werden",
+  "api.linux_runtime_failed": "Die Linux-Laufzeitumgebung konnte nicht bestätigt werden"
 }

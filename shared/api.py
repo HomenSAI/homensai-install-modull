@@ -28,10 +28,11 @@ from shared.preflight import MAX_BYTES as MAX_DISK_BYTES, NAMES as PATH_NAMES, P
 from shared.systemd_user_publish import UnitPublicationError, publish_signed_user_units
 from shared.systemd_user_load import UnitLoadError, load_signed_user_units, load_portable_signed_user_units
 from shared.systemd_portable import PortableUnitError, publish_portable_signed_user_units
+from shared.runtime_native import NativeRuntimeError, prepare_signed_linux_runtime, verify_signed_linux_runtime
 from shared.update_plan import UpdateError, UpdatePlan
 
 API_MAJOR = 1
-API_MINOR = 17
+API_MINOR = 18
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -158,6 +159,8 @@ def handle(request: Any) -> dict:
                     operations.extend(["plan-portable-systemd-user-units", "publish-portable-systemd-user-units",
                                        "load-portable-systemd-user-units"])
                     mutating_operations.extend(["publish-portable-systemd-user-units", "load-portable-systemd-user-units"])
+                    operations.extend(["plan-linux-runtime", "prepare-linux-runtime", "verify-linux-runtime"])
+                    mutating_operations.append("prepare-linux-runtime")
             result = {"api_major": API_MAJOR, "api_minor": API_MINOR,
                       "operations": operations,
                       "mutating_operations": mutating_operations,
@@ -225,6 +228,42 @@ def handle(request: Any) -> dict:
                 result = {'state': plan.status()}
             except (DataHomeError, ManifestError, UpdateError, OSError, RecursionError):
                 return _error(request_id, "update_status_failed", "Не удалось прочитать состояние обновления", language, "api.update_status_failed")
+        elif operation in ('plan-linux-runtime', 'prepare-linux-runtime', 'verify-linux-runtime'):
+            fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id',
+                      'expected_version', 'install_root', 'reserve_bytes'}
+            changing = operation == 'prepare-linux-runtime'
+            verifying = operation == 'verify-linux-runtime'
+            if changing or verifying:
+                fields.add('idempotency_key')
+            strings = fields - {'reserve_bytes'}
+            if (set(params) != fields or any(type(params[field]) is not str for field in strings)
+                    or type(params['reserve_bytes']) is not int or not 0 <= params['reserve_bytes'] <= MAX_DISK_BYTES):
+                raise InvalidRequest()
+            if not _signature_available() or not _systemd_plan_available():
+                return _error(request_id, 'unsupported_operation', 'Операция API не поддерживается', language, 'api.unsupported_operation')
+            if (not params['package_path'] or not params['install_root']
+                    or re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,62}', params['expected_product_id']) is None
+                    or re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', params['expected_version']) is None
+                    or ((changing or verifying) and re.fullmatch(r'[a-f0-9]{32}', params['idempotency_key']) is None)):
+                raise InvalidRequest()
+            envelope = _base64(params['envelope'], MAX_ENVELOPE)
+            key = _base64(params['trusted_public_key'], 32)
+            if len(key) != 32:
+                raise InvalidRequest()
+            try:
+                options = {'trusted_public_key': key, 'expected_product_id': params['expected_product_id'],
+                           'expected_version': params['expected_version'], 'reserve_bytes': params['reserve_bytes']}
+                if verifying:
+                    result = verify_signed_linux_runtime(params['package_path'], envelope, params['install_root'],
+                                                          **options, operation_id=params['idempotency_key'])
+                else:
+                    result = prepare_signed_linux_runtime(params['package_path'], envelope, params['install_root'],
+                                **options, execute=changing,
+                                operation_id=params['idempotency_key'] if changing else None)
+            except NativeRuntimeError:
+                return _error(request_id, 'linux_runtime_failed', 'Не удалось подтвердить Linux runtime',
+                              language, 'api.linux_runtime_failed')
+            result['installation_complete'] = False
         elif operation == "prepare-native-release":
             fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version",
                       "install_root", "required_bytes", "reserve_bytes", "idempotency_key"}
@@ -434,7 +473,7 @@ def main() -> int:
     sys.stdout.write(json.dumps(response, ensure_ascii=True, separators=(",", ":")) + "\n")
     if response["ok"]:
         return 0
-    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_verify_failed", "fresh_prepare_failed", "update_status_failed", "health_check_failed", "systemd_plan_failed", "systemd_publish_failed", "systemd_load_failed") else 2
+    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_verify_failed", "fresh_prepare_failed", "update_status_failed", "health_check_failed", "systemd_plan_failed", "systemd_publish_failed", "systemd_load_failed", "linux_runtime_failed") else 2
 
 
 if __name__ == "__main__":

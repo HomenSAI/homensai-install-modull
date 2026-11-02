@@ -22,5 +22,6 @@
   "api.update_status_failed": "Could not read update state",
   "api.systemd_plan_failed": "Could not verify the service units",
   "api.systemd_publish_failed": "Could not confirm publication of the services",
-  "api.systemd_load_failed": "Could not confirm loading of the services"
+  "api.systemd_load_failed": "Could not confirm loading of the services",
+  "api.linux_runtime_failed": "Could not confirm the Linux runtime"
 }

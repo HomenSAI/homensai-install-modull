@@ -22,5 +22,6 @@
   "api.update_status_failed": "Не удалось прочитать состояние обновления",
   "api.systemd_plan_failed": "Не удалось проверить состав служб",
   "api.systemd_publish_failed": "Не удалось подтвердить публикацию служб",
-  "api.systemd_load_failed": "Не удалось подтвердить загрузку служб"
+  "api.systemd_load_failed": "Не удалось подтвердить загрузку служб",
+  "api.linux_runtime_failed": "Не удалось подтвердить Linux runtime"
 }

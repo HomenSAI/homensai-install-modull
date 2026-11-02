@@ -121,15 +121,16 @@ def _inspect_runtime(directory, files, executables):
         raise NativeRuntimeError('Состав runtime не совпадает')
 
 
-def prepare_signed_linux_runtime(package_path, envelope, install_root, *, trusted_public_key,
-                                 expected_product_id, expected_version, execute=False,
-                                 operation_id=None, reserve_bytes=64 * 1024 * 1024):
+def _prepare_signed_linux_runtime(package_path, envelope, install_root, *, trusted_public_key,
+                                  expected_product_id, expected_version, execute=False,
+                                  operation_id=None, reserve_bytes=64 * 1024 * 1024, verify_only=False):
     """Проверить или скопировать runtime в пустой каталог без запуска кода.
 
     При прерывании pending остаётся и повтор запрещён; done проверяет дерево.
     Подпись не гарантирует, что runtime является Python или безопасен.
     """
-    if (type(execute) is not bool or type(reserve_bytes) is not int or not 0 <= reserve_bytes <= 2**63 - 1
+    if (type(execute) is not bool or type(verify_only) is not bool or (verify_only and not execute)
+            or type(reserve_bytes) is not int or not 0 <= reserve_bytes <= 2**63 - 1
             or (operation_id is not None and (type(operation_id) is not str
                 or re.fullmatch(r'[a-f0-9]{32}', operation_id) is None))
             or (execute and operation_id is None)):
@@ -140,7 +141,7 @@ def prepare_signed_linux_runtime(package_path, envelope, install_root, *, truste
         definition = _definition(package_path, envelope, install_root, options)
         metadata, verified, root, home, release, recipe, files = definition
         total = sum(item['size'] for item in files.values())
-        public = {'state': 'prepared' if execute else 'planned', 'file_count': len(files),
+        public = {'state': 'verified' if verify_only else ('prepared' if execute else 'planned'), 'file_count': len(files),
                   'bytes': total, 'python_version_declared': recipe['python_version'],
                   'runtime_executed': False, 'python_compatibility_verified': False}
         if not execute:
@@ -172,6 +173,8 @@ def prepare_signed_linux_runtime(package_path, envelope, install_root, *, truste
                 update_state = checked_path(home.roots['services'] / metadata['manifest']['update']['state_file'].replace('\\', '/'))
                 _require_absent(update_state)
                 old = _publication_receipt(receipt)
+                if verify_only and old != done:
+                    raise NativeRuntimeError('Подготовка runtime не подтверждена')
                 if old == done:
                     _inspect_runtime(runtime, files, set(recipe['executables']))
                     if (_definition(package_path, envelope, install_root, options) != definition
@@ -234,3 +237,22 @@ def prepare_signed_linux_runtime(package_path, envelope, install_root, *, truste
     except (OSError, UnicodeError, ValueError, TypeError, KeyError, RecursionError, DataHomeError, ArchiveError,
             ManifestError, PackageError, FreshPrepareError, UnitPublicationError, UpdateError):
         raise NativeRuntimeError('Не удалось подготовить Linux runtime') from None
+
+
+def prepare_signed_linux_runtime(package_path, envelope, install_root, *, trusted_public_key,
+                                 expected_product_id, expected_version, execute=False,
+                                 operation_id=None, reserve_bytes=64 * 1024 * 1024):
+    """Подготовить runtime либо вернуть план; никогда не исполнять его."""
+    return _prepare_signed_linux_runtime(package_path, envelope, install_root,
+        trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
+        expected_version=expected_version, execute=execute, operation_id=operation_id, reserve_bytes=reserve_bytes)
+
+
+def verify_signed_linux_runtime(package_path, envelope, install_root, *, trusted_public_key,
+                                expected_product_id, expected_version, operation_id,
+                                reserve_bytes=64 * 1024 * 1024):
+    """Проверить подтверждённый runtime без создания файлов и исполнения."""
+    return _prepare_signed_linux_runtime(package_path, envelope, install_root,
+        trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
+        expected_version=expected_version, execute=True, operation_id=operation_id,
+        reserve_bytes=reserve_bytes, verify_only=True)

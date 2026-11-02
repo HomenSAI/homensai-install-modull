@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
 import hashlib
 import json
@@ -314,6 +314,13 @@ class UpdatePlan:
         """
         if type(resume_indeterminate) is not bool:
             raise UpdateError("Недопустимый признак возобновления")
+        guard = getattr(self.ports, 'operation_guard', None)
+        if guard is not None and not callable(guard):
+            raise UpdateError('Недопустимая внешняя блокировка операции')
+        with guard() if guard is not None else nullcontext():
+            return self._run_locked(resume_indeterminate=resume_indeterminate)
+
+    def _run_locked(self, *, resume_indeterminate: bool) -> dict[str, Any]:
         checked_path(self.lock_path.parent).mkdir(parents=True, exist_ok=True)
         with operation_lock(self.lock_path):
             checked_path(self.state_path.parent).mkdir(parents=True, exist_ok=True)

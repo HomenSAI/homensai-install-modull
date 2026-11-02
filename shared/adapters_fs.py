@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 import hashlib
 import json
@@ -144,6 +145,14 @@ class FilesystemPorts:
 
     def archive_path(self, key: str) -> Path:
         return self._path(key, ".hsac" if self.password_provider is not None else ".zip")
+
+    def operation_guard(self):
+        guard = getattr(self.effects, 'operation_guard', None)
+        if guard is None:
+            return nullcontext()
+        if not callable(guard):
+            raise UpdateError('Недопустимая внешняя блокировка операции')
+        return guard()
 
     def import_archive_for_restore(self, plan: UpdatePlan, source: str | Path, expected_sha256: str) -> None:
         """Перенести подтверждённый шифрованный архив в текущий checkpoint отката.

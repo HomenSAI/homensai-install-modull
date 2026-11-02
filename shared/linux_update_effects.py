@@ -2,10 +2,11 @@
 """Связка ограниченных портов обновления для Linux user-systemd."""
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 import re
 
-from shared.datahome import checked_path
+from shared.datahome import DataHomeError, checked_path
 from shared.adapters_fs import _tree
 from shared.effect_receipt import read_effect_receipt
 from shared.host_target import native_target
@@ -14,7 +15,7 @@ from shared.package_signing import verify_signed_package
 from shared.signed_migration_port import SignedMigrationPort
 from shared.systemd_lifecycle_port import SystemdLifecyclePort
 from shared.update_health_port import LocalUpdateHealthPort
-from shared.update_plan import EffectIndeterminate, UpdateError, _ACTIVE_EFFECT, _atomic_write
+from shared.update_plan import EffectIndeterminate, LockBusy, UpdateError, _ACTIVE_EFFECT, _atomic_write
 
 _BACKUP_KEY = re.compile(r'([a-f0-9]{32})/(archive|backup:(?:0|[1-9][0-9]{0,5})|before_rollback)\Z')
 
@@ -62,6 +63,16 @@ class LinuxSignedUpdateEffects:
         self.plan = lifecycle.plan
         self.lifecycle, self.migration, self.health_port = lifecycle, migration, health
         self.previous_release = previous_release
+
+    @contextmanager
+    def operation_guard(self):
+        """Блокировать fresh start/stop на всё время транзакции обновления."""
+        from shared.systemd_fresh_start import FreshStartError, _lifecycle_lock
+        try:
+            with _lifecycle_lock(self.migration.install_root):
+                yield
+        except (FreshStartError, DataHomeError, OSError):
+            raise LockBusy('Управление службами занято или не подтверждено') from None
 
     def stop(self, key, components):
         if type(key) is str and key.endswith('/stop'):

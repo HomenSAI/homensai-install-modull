@@ -1,8 +1,12 @@
 """Проверка подписи выпуска при обновлении без миграций; фиктивные службы."""
 import hashlib
 from copy import deepcopy
+import os
 from pathlib import Path
 import shutil
+import signal
+import subprocess
+import sys
 
 import pytest
 
@@ -18,7 +22,7 @@ from shared.signed_migration_port import SignedMigrationPort
 from shared.systemd_group import SystemdUserGroup
 from shared.systemd_lifecycle_port import SystemdLifecyclePort
 from shared.update_health_port import LocalUpdateHealthPort
-from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan, _ACTIVE_EFFECT
+from shared.update_plan import EffectIndeterminate, LockBusy, UpdateError, UpdatePlan, _ACTIVE_EFFECT
 
 
 @pytest.fixture
@@ -63,6 +67,8 @@ def signed(tmp_path):
     old_envelope = sign_package(old_package, private_key=private, expected_product_id=manifest['product_id'],
                                 expected_version='1')
     root = tmp_path / 'installation'
+    root.mkdir(mode=0o700)
+    (root / '.homensai-control').mkdir(mode=0o700)
     ports = FilesystemPorts(manifest, root, work_dir=tmp_path / 'work',
                             payloads={'2': ReleaseSource(payload, hashes)}, effects=object(),
                             password_provider=lambda: 'synthetic')
@@ -118,6 +124,68 @@ def test_stage_guard_requires_active_plan(signed):
     with pytest.raises(UpdateError):
         ports.stage_release('a' * 32 + '/stage', '2')
     assert not ports.release_path(plan.release).exists()
+
+
+@pytest.mark.skipif(os.name != 'posix', reason='Блокировка user-systemd использует POSIX flock')
+def test_update_cannot_start_while_fresh_lifecycle_is_running(signed):
+    from shared.systemd_fresh_start import _lifecycle_lock
+    plan, ports, state, adapters, _ = signed
+    state.update(index=0, archive_ready=False)
+    plan._save(state)
+    before = plan.state_path.read_bytes()
+    with _lifecycle_lock(ports.effects.migration.install_root):
+        with pytest.raises(LockBusy):
+            plan.run(resume_indeterminate=True)
+    assert plan.state_path.read_bytes() == before and not plan.lock_path.exists()
+    assert not any(adapter.active for adapter in adapters.values())
+
+
+@pytest.mark.skipif(os.name != 'posix', reason='Блокировка user-systemd использует POSIX flock')
+def test_update_holds_lifecycle_lock_across_phases_and_releases_on_crash(signed, monkeypatch):
+    import shared.systemd_fresh_start as fresh
+    from shared.systemd_fresh_start import FreshStartError, _lifecycle_lock
+    class Crash(BaseException):
+        pass
+    plan, ports, state, _, _ = signed
+    state.update(index=0, archive_ready=False)
+    plan._save(state)
+    root = ports.effects.migration.install_root
+    phases = []
+    starts = []
+    monkeypatch.setattr(fresh, '_start_portable_fresh', lambda *args, **kwargs: starts.append(1))
+    def execute(current, phase):
+        phases.append(phase)
+        with pytest.raises(BlockingIOError):
+            with _lifecycle_lock(root):
+                pytest.fail('Блокировка управления службами не удерживается')
+        with pytest.raises(FreshStartError):
+            fresh.start_portable_fresh('/synthetic/package', b'signature', root)
+        assert starts == []
+        if phase == 'stage':
+            raise Crash()
+    monkeypatch.setattr(plan, '_execute', execute)
+    with pytest.raises(Crash):
+        plan.run(resume_indeterminate=True)
+    assert phases == ['stop', 'archive', 'stage']
+    with _lifecycle_lock(root):
+        pass
+    fresh.start_portable_fresh('/synthetic/package', b'signature', root)
+    assert starts == [1]
+
+
+@pytest.mark.skipif(os.name != 'posix', reason='SIGKILL и flock предназначены для POSIX')
+def test_lifecycle_lock_released_after_actual_sigkill(signed):
+    from shared.systemd_fresh_start import _lifecycle_lock
+    _, ports, _, _, _ = signed
+    root = ports.effects.migration.install_root
+    code = ('import os, signal, sys\n'
+            'from shared.systemd_fresh_start import _lifecycle_lock\n'
+            'with _lifecycle_lock(sys.argv[1]):\n'
+            '    os.kill(os.getpid(), signal.SIGKILL)\n')
+    result = subprocess.run([sys.executable, '-B', '-c', code, root], capture_output=True, timeout=30)
+    assert result.returncode == -signal.SIGKILL, result.stderr
+    with _lifecycle_lock(root):
+        pass
 
 
 def test_modified_source_with_consistent_untrusted_hash_cannot_be_staged(signed):

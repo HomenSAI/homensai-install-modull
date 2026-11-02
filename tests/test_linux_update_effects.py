@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 import pytest
 
@@ -37,6 +38,8 @@ def setup(tmp_path, monkeypatch):
     for name in ('pre_start', 'health_checks', 'post_update'):
         manifest['hooks'][name] = []
     root = tmp_path / 'installation'
+    root.mkdir(mode=0o700)
+    (root / '.homensai-control').mkdir(mode=0o700)
     ports = FilesystemPorts(manifest, root, work_dir=tmp_path / 'work', payloads={}, effects=object(),
                             password_provider=lambda: 'synthetic')
     plan = UpdatePlan(manifest, root, ports, release='2', modes=('autonomous',), guard_effects=True)
@@ -174,6 +177,7 @@ def test_null_quiescence_receipt_cannot_authorize_another_snapshot(setup, monkey
     assert marker.read_bytes() == b'null'
 
 
+@pytest.mark.skipif(os.name != 'posix', reason='Блокировка user-systemd использует POSIX flock')
 def test_confirming_archive_does_not_confirm_interrupted_linux_quiescence(setup, monkeypatch):
     pytest.importorskip('cryptography')
     import shared.adapters_fs as fs

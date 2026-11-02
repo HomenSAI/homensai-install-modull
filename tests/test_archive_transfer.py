@@ -1,6 +1,7 @@
 """Перенос шифрованной копии между двумя синтетическими установками."""
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -169,6 +170,7 @@ def test_import_never_overwrites_untracked_archive_or_accepts_wrong_phase(tmp_pa
     assert destination.read_bytes() == b'untracked existing data' and plan.status() == state
 
 
+@pytest.mark.skipif(os.name != 'posix', reason='Блокировка user-systemd использует POSIX flock')
 def test_transferred_backup_resumes_guarded_signed_rollback(signed, tmp_path, monkeypatch):
     pytest.importorskip('cryptography')
     plan, destination, state, adapters, _ = signed

@@ -5,7 +5,7 @@ Opt-in сценарий использует настоящие временны
 """
 
 from hashlib import sha256
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from copy import deepcopy
 import json
 import os
@@ -353,6 +353,9 @@ class SystemdEffects(Effects):
         if self.composite is not None:
             return self.composite.guarded_restore(key, archive_key, command, restore)
         return restore(key, archive_key, command)
+
+    def operation_guard(self):
+        return self.composite.operation_guard() if self.composite is not None else nullcontext()
 
 
 @pytest.mark.parametrize('action', ['start', 'stop'])

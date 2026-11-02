@@ -511,6 +511,46 @@ def test_api_plans_signed_units_without_manager_or_writes(signed_units, monkeypa
     assert handle(query)['error']['code'] == 'unsupported_operation'
 
 
+def api_publish_request(data, directory):
+    import base64
+    package, envelope, root, options, _, _ = data
+    return {'api_major': 1, 'request_id': 'test', 'operation': 'publish-systemd-user-units',
+            'params': {'package_path': str(package), 'envelope': base64.b64encode(envelope).decode(),
+                       'trusted_public_key': base64.b64encode(options['trusted_public_key']).decode(),
+                       'expected_product_id': options['expected_product_id'], 'expected_version': '1',
+                       'install_root': str(root), 'modes': ['autonomous'], 'unit_dir': str(directory),
+                       'idempotency_key': 'a' * 32}}
+
+
+def test_api_publish_has_key_bound_retry_and_schema(signed_units, local_directory, monkeypatch):
+    from shared.api import handle
+    destination = signed_units[-2]
+    monkeypatch.setattr(pub, '_run', runner_for(destination))
+    query = api_publish_request(signed_units, destination)
+    caps = handle({'api_major': 1, 'request_id': 'test', 'operation': 'capabilities', 'params': {}})['result']
+    assert caps['api_minor'] >= 14 and query['operation'] in caps['mutating_operations']
+    validator = pytest.importorskip('jsonschema').Draft202012Validator(
+        json.loads((ROOT / 'shared/api-v1-request.schema.json').read_text()))
+    assert validator.is_valid(query)
+    first = handle(query)
+    assert first['ok'] and first['result']['state'] == 'published'
+    assert first['result']['services_started'] is False and first['result']['installation_complete'] is False
+    before = {p.name: (p.stat().st_ino, p.stat().st_mtime_ns) for p in destination.iterdir()}
+    assert handle(query) == first
+    assert before == {p.name: (p.stat().st_ino, p.stat().st_mtime_ns) for p in destination.iterdir()}
+    query['params']['idempotency_key'] = 'b' * 32
+    query['language'] = 'de'
+    failure = handle(query)
+    assert failure['error']['code'] == 'systemd_publish_failed'
+    assert failure['error']['message'] == 'Die Veröffentlichung der Dienste konnte nicht bestätigt werden'
+    assert before == {p.name: (p.stat().st_ino, p.stat().st_mtime_ns) for p in destination.iterdir()}
+    query['params']['idempotency_key'] = 'INVALID-KEY'
+    assert not validator.is_valid(query) and handle(query)['error']['code'] == 'invalid_request'
+    monkeypatch.setattr('shared.api._systemd_plan_available', lambda: False)
+    caps = handle({'api_major': 1, 'request_id': 'test', 'operation': 'capabilities', 'params': {}})['result']
+    assert query['operation'] not in caps['operations'] and query['operation'] not in caps['mutating_operations']
+
+
 @pytest.mark.parametrize('state', ['missing', 'pending'])
 def test_signed_group_requires_completed_reload_without_reloading(published_units, state):
     from shared.systemd_user_load import UnitLoadError
@@ -660,6 +700,8 @@ def test_inspect_pending_rejects_unbound_receipt_without_manager_call(published_
 def test_isolated_manager_reloads_signed_units_without_start(signed_units, exercise_lifecycle):
     import pwd
     import subprocess
+    import sys
+    from shared.api import handle
     from shared.systemd_user_load import load_signed_user_units, signed_user_group
 
     identity = pwd.getpwuid(os.getuid())
@@ -679,14 +721,26 @@ def test_isolated_manager_reloads_signed_units_without_start(signed_units, exerc
         return pub._run(argv, timeout=timeout, env=env)
 
     try:
-        published = pub.publish_signed_user_units(package, envelope, str(root), **options,
-                      modes=('autonomous',), unit_dir=str(destination), execute=True,
-                      operation_id='a' * 32, runner=actual_runner)
+        if exercise_lifecycle:
+            query = api_publish_request(signed_units, destination)
+            response = handle(query)
+            assert response['ok'] and response['result']['installation_complete'] is False
+            published = {key: value for key, value in response['result'].items() if key != 'installation_complete'}
+        else:
+            published = pub.publish_signed_user_units(package, envelope, str(root), **options,
+                          modes=('autonomous',), unit_dir=str(destination), execute=True,
+                          operation_id='a' * 32, runner=actual_runner)
         assert published['state'] == 'published' and published['services_started'] is False
         before = {p.name: (p.stat().st_ino, p.stat().st_mtime_ns) for p in expected}
-        repeated = pub.publish_signed_user_units(package, envelope, str(root), **options,
-                     modes=('autonomous',), unit_dir=str(destination), execute=True,
-                     operation_id='a' * 32, runner=actual_runner)
+        if exercise_lifecycle:
+            cli = subprocess.run([sys.executable, '-B', '-m', 'shared.api'], cwd=ROOT,
+                                 input=json.dumps(query).encode(), capture_output=True, timeout=60, check=True)
+            assert json.loads(cli.stdout) == response
+            repeated = published
+        else:
+            repeated = pub.publish_signed_user_units(package, envelope, str(root), **options,
+                         modes=('autonomous',), unit_dir=str(destination), execute=True,
+                         operation_id='a' * 32, runner=actual_runner)
         assert repeated == published
         assert before == {p.name: (p.stat().st_ino, p.stat().st_mtime_ns) for p in expected}
         loaded = load_signed_user_units(package, envelope, str(root), **options,

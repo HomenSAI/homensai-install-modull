@@ -29,7 +29,7 @@ from shared.systemd_user_publish import UnitPublicationError, publish_signed_use
 from shared.update_plan import UpdateError, UpdatePlan
 
 API_MAJOR = 1
-API_MINOR = 13
+API_MINOR = 14
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -151,7 +151,8 @@ def handle(request: Any) -> dict:
                 operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release"])
                 mutating_operations.append("prepare-native-release")
                 if _systemd_plan_available():
-                    operations.append("plan-systemd-user-units")
+                    operations.extend(["plan-systemd-user-units", "publish-systemd-user-units"])
+                    mutating_operations.append("publish-systemd-user-units")
             result = {"api_major": API_MAJOR, "api_minor": API_MINOR,
                       "operations": operations,
                       "mutating_operations": mutating_operations,
@@ -256,9 +257,12 @@ def handle(request: Any) -> dict:
             result = {'transaction': state['transaction'], 'product_id': state['product_id'],
                       'version': state['version'], 'status': state['status'],
                       'process_target': state['process_target'], 'installation_complete': False}
-        elif operation == "plan-systemd-user-units":
+        elif operation in ("plan-systemd-user-units", "publish-systemd-user-units"):
             fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id",
                       "expected_version", "install_root", "modes"}
+            publishing = operation == "publish-systemd-user-units"
+            if publishing:
+                fields |= {"unit_dir", "idempotency_key"}
             strings = fields - {"modes"}
             if (set(params) != fields or any(type(params[field]) is not str for field in strings)
                     or type(params['modes']) is not list or not params['modes']
@@ -268,7 +272,9 @@ def handle(request: Any) -> dict:
                 return _error(request_id, "unsupported_operation", "Операция API не поддерживается", language, "api.unsupported_operation")
             if (not params['package_path'] or not params['install_root']
                     or re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,62}", params['expected_product_id']) is None
-                    or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", params['expected_version']) is None):
+                    or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", params['expected_version']) is None
+                    or (publishing and (not params['unit_dir']
+                        or re.fullmatch(r'[a-f0-9]{32}', params['idempotency_key']) is None))):
                 raise InvalidRequest()
             envelope = _base64(params['envelope'], MAX_ENVELOPE)
             key = _base64(params['trusted_public_key'], 32)
@@ -277,11 +283,17 @@ def handle(request: Any) -> dict:
             try:
                 plan = publish_signed_user_units(params['package_path'], envelope, params['install_root'],
                     trusted_public_key=key, expected_product_id=params['expected_product_id'],
-                    expected_version=params['expected_version'], modes=tuple(params['modes']), unit_dir='')
+                    expected_version=params['expected_version'], modes=tuple(params['modes']),
+                    unit_dir=params['unit_dir'] if publishing else '', execute=publishing,
+                    operation_id=params['idempotency_key'] if publishing else None)
             except UnitPublicationError:
+                if publishing:
+                    return _error(request_id, 'systemd_publish_failed', 'Не удалось подтвердить публикацию служб',
+                                  language, 'api.systemd_publish_failed')
                 return _error(request_id, 'systemd_plan_failed', 'Не удалось проверить состав служб',
                               language, 'api.systemd_plan_failed')
-            result = {**plan, 'manager_checked': False, 'publication_readiness_verified': False}
+            result = ({**plan, 'installation_complete': False} if publishing else
+                      {**plan, 'manager_checked': False, 'publication_readiness_verified': False})
         elif operation in ("fresh-status", "verify-native-release"):
             fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root"}
             if set(params) != fields or any(type(params[field]) is not str for field in fields):
@@ -403,7 +415,7 @@ def main() -> int:
     sys.stdout.write(json.dumps(response, ensure_ascii=True, separators=(",", ":")) + "\n")
     if response["ok"]:
         return 0
-    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_verify_failed", "fresh_prepare_failed", "update_status_failed", "health_check_failed", "systemd_plan_failed") else 2
+    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_verify_failed", "fresh_prepare_failed", "update_status_failed", "health_check_failed", "systemd_plan_failed", "systemd_publish_failed") else 2
 
 
 if __name__ == "__main__":

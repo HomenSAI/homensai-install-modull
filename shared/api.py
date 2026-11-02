@@ -14,13 +14,13 @@ import re
 import sys
 from typing import Any
 
-from shared.manifest import ManifestError, validate_manifest
+from shared.manifest import ManifestError, check_target, validate_manifest
 from shared.package import PackageError
 from shared.package_signing import MAX_ENVELOPE, _crypto, verify_signed_package
 from shared.preflight import PreflightError, preflight_fresh
 
 API_MAJOR = 1
-API_MINOR = 2
+API_MINOR = 3
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -113,7 +113,7 @@ def handle(request: Any) -> dict:
         if operation == "capabilities":
             if params:
                 raise InvalidRequest()
-            operations = ["capabilities", "validate", "preflight-fresh"]
+            operations = ["capabilities", "validate", "preflight-fresh", "check-target"]
             if _signature_available():
                 operations.append("verify-package")
             result = {"api_major": API_MAJOR, "api_minor": API_MINOR,
@@ -129,6 +129,13 @@ def handle(request: Any) -> dict:
             except (ManifestError, RecursionError):
                 return _error(request_id, "invalid_request", "Манифест не соответствует контракту")
             result = {"product_id": manifest["product_id"], "schema_version": manifest["schema_version"]}
+        elif operation == "check-target":
+            if set(params) != {"manifest", "target"}:
+                raise InvalidRequest()
+            try:
+                result = check_target(params["manifest"], params["target"])
+            except (ManifestError, RecursionError):
+                return _error(request_id, "invalid_request", "Манифест или цель не соответствуют контракту")
         elif operation == "preflight-fresh":
             if set(params) != {"manifest", "install_root", "required_bytes", "reserve_bytes"}:
                 raise InvalidRequest()

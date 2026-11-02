@@ -31,7 +31,7 @@ def test_capabilities_only_advertises_read_only_operations(monkeypatch):
     monkeypatch.setattr("shared.api._signature_available", lambda: False)
     response = handle(request())
     assert response["ok"] is True
-    assert response["result"]["operations"] == ["capabilities", "validate", "preflight-fresh"]
+    assert response["result"]["operations"] == ["capabilities", "validate", "preflight-fresh", "check-target"]
     assert response["result"]["execution_modes"] == []
     assert response["result"]["manifest_versions"] == [1, 2]
 

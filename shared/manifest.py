@@ -184,6 +184,22 @@ def validate_manifest(value: Any) -> dict[str, Any]:
     return deepcopy(value)
 
 
+def check_target(value: Any, target: Any) -> dict[str, str]:
+    """Сопоставить декларацию продукта с целью, не проверяя сам компьютер."""
+    manifest = validate_manifest(value)
+    if type(target) is not dict or set(target) != {"os", "architecture", "execution"}:
+        raise ManifestError("target: неверный состав полей")
+    for field, allowed in (("os", ("windows", "linux")),
+                           ("architecture", ("x86_64",)),
+                           ("execution", ("native", "docker"))):
+        if type(target[field]) is not str or target[field] not in allowed:
+            raise ManifestError("target: недопустимое значение")
+    declaration = manifest.get("compatibility")
+    if declaration is None:
+        return {"status": "unknown"}
+    return {"status": "supported" if target in declaration["targets"] else "unsupported"}
+
+
 def _object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:

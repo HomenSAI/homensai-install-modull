@@ -6,13 +6,18 @@
   "required": ["api_major", "operation", "request_id", "params"],
   "properties": {
     "api_major": {"type": "integer", "const": 1},
-    "operation": {"type": "string", "enum": ["capabilities", "validate", "preflight-fresh", "verify-package"]},
+    "operation": {"type": "string", "enum": ["capabilities", "validate", "preflight-fresh", "check-target", "verify-package"]},
     "request_id": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
     "params": {"type": "object"}
   },
   "oneOf": [
     {"properties": {"operation": {"const": "capabilities"}, "params": {"type": "object", "maxProperties": 0}}},
     {"properties": {"operation": {"const": "validate"}, "params": {"type": "object", "required": ["manifest"], "additionalProperties": false, "properties": {"manifest": {"type": "object"}}}}},
+    {"properties": {"operation": {"const": "check-target"}, "params": {"type": "object", "required": ["manifest", "target"], "additionalProperties": false, "properties": {
+      "manifest": {"type": "object"}, "target": {"type": "object", "additionalProperties": false, "required": ["os", "architecture", "execution"], "properties": {
+        "os": {"type": "string", "enum": ["windows", "linux"]}, "architecture": {"type": "string", "enum": ["x86_64"]}, "execution": {"type": "string", "enum": ["native", "docker"]}
+      }}
+    }}}},
     {"properties": {"operation": {"const": "preflight-fresh"}, "params": {"type": "object", "required": ["manifest", "install_root", "required_bytes", "reserve_bytes"], "additionalProperties": false, "properties": {
       "manifest": {"type": "object"}, "install_root": {"type": "string", "minLength": 1, "maxLength": 8192},
       "required_bytes": {"type": "object", "additionalProperties": false, "required": ["app", "releases", "data", "backup", "services", "config", "runtime"], "properties": {

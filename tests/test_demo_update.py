@@ -184,6 +184,7 @@ class SystemdEffects(Effects):
         self.created = []
         self.group = None
         self.lifecycle_port = None
+        self.composite = None
         runtime = '/run/user/' + str(os.getuid())
         self.env = {'PATH': '/usr/bin:/bin', 'LC_ALL': 'C', 'SYSTEMD_PAGER': 'cat',
                     'XDG_RUNTIME_DIR': runtime, 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=' + runtime + '/bus'}
@@ -199,7 +200,7 @@ class SystemdEffects(Effects):
             'version = json.loads(pathlib.Path(pointer).read_text())["release"]\n'
             'script = pathlib.Path(root) / ("app-" + version) / "main.py"\n'
             'args = [sys.executable, "-B", str(script), action, "--data-dir", data]\n'
-            'if action == "serve": args += ["--port", "0"]\n'
+            f'if action == "serve": args += ["--port", "{self.manifest["web"]["port"]}"]\n'
             'os.execv(sys.executable, args)\n', encoding='utf-8')
         units = [self.manifest['product_id'] + '-' + n + '.service' for n in ('web', 'bot')]
         holder = self.manifest['product_id'] + '-holder.service'
@@ -238,7 +239,27 @@ class SystemdEffects(Effects):
         super().stop(key, components)
         assert components == ('bot', 'web')
         if self.lifecycle_port is not None:
-            return self.lifecycle_port.stop(key, components)
+            try:
+                return (self.composite or self.lifecycle_port).stop(key, components)
+            except EffectIndeterminate:
+                for name, adapter in self.group.adapters.items():
+                    result = subprocess.run(self.base + ['show', '--property=Id,LoadState,ActiveState,SubState,FragmentPath,DropInPaths,NeedDaemonReload', '--', adapter.unit],
+                                            env=self.env, stdin=subprocess.DEVNULL, capture_output=True, timeout=15)
+                    print('synthetic systemd diagnostic', name, result.stdout.decode(errors='replace'))
+                    try:
+                        print('synthetic adapter inspection', adapter.inspect())
+                    except Exception as error:
+                        print('synthetic adapter error', type(error).__name__, str(error))
+                    try:
+                        from shared.systemd_user import _trusted_file
+                        _trusted_file(adapter.path, adapter.digest)
+                        print('synthetic unit file trusted')
+                    except Exception as error:
+                        print('synthetic unit file error', type(error).__name__, str(error))
+                        for parent in reversed(adapter.path.parents):
+                            info = parent.lstat()
+                            print('synthetic unit parent', parent, info.st_uid, oct(info.st_mode & 0o7777))
+                raise
         try:
             self.group.command('stop', execute=True)
         except SystemdGroupError:
@@ -250,7 +271,7 @@ class SystemdEffects(Effects):
         assert components == ('web', 'bot')
         self.log.write_text('', encoding='utf-8')
         if self.lifecycle_port is not None:
-            return self.lifecycle_port.start(key, components, pre_start)
+            return (self.composite or self.lifecycle_port).start(key, components, pre_start)
         try:
             self.group.command('start', execute=True)
         except SystemdGroupError:
@@ -261,6 +282,8 @@ class SystemdEffects(Effects):
         self.calls.append(phase)
         if phase == 'health' and self.fail_health is True:
             raise RuntimeError('synthetic health failure')
+        if self.composite is not None:
+            self.composite.health(key, url, timeout, checks)
         release = self.ports.current_release()
         deadline = time.monotonic() + min(timeout, 10)
         while time.monotonic() < deadline:
@@ -275,8 +298,8 @@ class SystemdEffects(Effects):
                     time.sleep(0.05)
                     continue
                 code = ("import sys; from shared.health import check_local_health; "
-                        "check_local_health(int(sys.argv[1]),product_id='homensai-test-demo',version=sys.argv[2])")
-                result = subprocess.run([sys.executable, '-B', '-c', code, str(port), release],
+                        "check_local_health(int(sys.argv[1]),product_id=sys.argv[3],version=sys.argv[2])")
+                result = subprocess.run([sys.executable, '-B', '-c', code, str(port), release, self.manifest['product_id']],
                                         capture_output=True, timeout=5)
                 if result.returncode == 0:
                     self.release = release
@@ -285,6 +308,17 @@ class SystemdEffects(Effects):
                 pass
             time.sleep(0.05)
         raise RuntimeError('test systemd product health failure')
+
+    def migrate(self, key, migration, command):
+        if self.composite is None:
+            return super().migrate(key, migration, command)
+        self.calls.append('migrate')
+        return self.composite.migrate(key, migration, command)
+
+    def post_update(self, key, hooks):
+        super().post_update(key, hooks)
+        if self.composite is not None:
+            return self.composite.post_update(key, hooks)
 
 
 @pytest.mark.parametrize('action', ['start', 'stop'])
@@ -323,6 +357,13 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
     source = tmp_path / "source"
     subprocess.run([sys.executable, "-B", str(DEMO / "build_releases.py"), str(source)],
                    capture_output=True, text=True, timeout=15, check=True)
+    systemd_product = 'homensai-test-' + uuid.uuid4().hex[:16] if live == 'systemd' else None
+    if systemd_product:
+        for version in ('1', '2'):
+            script = source / ('app-' + version) / 'main.py'
+            text = script.read_text()
+            assert text.count('homensai-test-demo') == 1
+            script.write_text(text.replace('homensai-test-demo', systemd_product))
     synthetic = {"locks/windows.lock": b"synthetic windows lock",
                  "locks/linux.lock": b"synthetic linux lock",
                  "vendor/demo-0-py3-none-any.whl": b"synthetic wheel placeholder"}
@@ -340,7 +381,7 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
     manifest = load_manifest(ROOT / "examples/rent.manifest.json")
     manifest["product_name"] = "Синтетический тест обновления"
     manifest["product_id"] = "homensai-test-demo"
-    if live is True:
+    if live is True or live == 'systemd':
         with _SOCKET() as probe:
             probe.bind(('127.0.0.1', 0))
             manifest['web']['port'] = probe.getsockname()[1]
@@ -360,10 +401,11 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
         manifest['update']['health_wait'] = 2
         manifest['hooks']['health_checks'] = []
     if live == 'systemd':
-        manifest['product_id'] = 'homensai-test-' + uuid.uuid4().hex[:16]
+        manifest['product_id'] = systemd_product
         manifest['components'] = [c for c in manifest['components'] if c['name'] != 'scheduler']
         manifest['modes'][0]['components'] = ['web', 'bot']
         manifest['hooks']['pre_start'] = []
+        manifest['hooks']['post_update'] = []
     manifest["runtime"]["lock_files"] = {
         name: {"file": "locks/" + name + ".lock", "sha256": sha256(synthetic["locks/" + name + ".lock"]).hexdigest()}
         for name in ("windows", "linux")}
@@ -458,7 +500,11 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
                                                      timeout=15)
     if live == 'systemd':
         from shared.systemd_lifecycle_port import SystemdLifecyclePort
+        from shared.update_health_port import LocalUpdateHealthPort
+        from shared.linux_update_effects import LinuxSignedUpdateEffects
         effects.lifecycle_port = SystemdLifecyclePort(update, ports, install_root=str(installation), group=effects.group)
+        effects.composite = LinuxSignedUpdateEffects(effects.lifecycle_port, effects.migration_port,
+                                                   LocalUpdateHealthPort(update, ports))
     if fail_health == 'stop-crash':
         import shared.systemd_lifecycle_port as lifecycle
         from shared.effect_receipt import read_effect_receipt
@@ -486,6 +532,7 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
                    for adapter in effects.group.adapters.values())
         effects.lifecycle_port = SystemdLifecyclePort(update, ports, install_root=str(installation),
                                                       group=effects.group, reconcile_key=key)
+        effects.composite.lifecycle = effects.lifecycle_port
         result = update.run(resume_indeterminate=True)
         assert result['outcome'] == 'updated' and ports.current_release() == '2'
         assert read_effect_receipt(ports._path(key, '.service.json'))['status'] == 'done'

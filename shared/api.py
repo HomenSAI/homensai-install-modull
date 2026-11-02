@@ -14,13 +14,14 @@ import re
 import sys
 from typing import Any
 
+from shared.i18n import LanguageError, available_languages, translate
 from shared.manifest import ManifestError, check_target, validate_manifest
 from shared.package import PackageError
 from shared.package_signing import MAX_ENVELOPE, _crypto, verify_signed_package
 from shared.preflight import PreflightError, preflight_fresh
 
 API_MAJOR = 1
-API_MINOR = 3
+API_MINOR = 4
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -63,7 +64,14 @@ def _check_tree(value: Any) -> None:
             raise InvalidRequest()
 
 
-def _error(request_id: str | None, code: str, message: str) -> dict:
+def _error(request_id: str | None, code: str, message: str,
+           language: str | None = None, key: str | None = None) -> dict:
+    if language is not None and key is not None:
+        try:
+            message = translate(language, key)
+        except LanguageError:
+            # Сбой словаря не должен скрывать ошибку проверки пакета или пути.
+            pass
     return {"api_major": API_MAJOR, "request_id": request_id, "ok": False,
             "error": {"code": code, "message": message, "retryable": False}}
 
@@ -95,18 +103,27 @@ def _base64(value: Any, max_decoded: int) -> bytes:
 def handle(request: Any) -> dict:
     """Обработать один объект без процессов, сети или изменения файлов."""
     request_id = None
+    language = None
     try:
         _check_tree(request)
-        if type(request) is not dict or set(request) != {"api_major", "operation", "request_id", "params"}:
+        required = {"api_major", "operation", "request_id", "params"}
+        if (type(request) is not dict or not required <= request.keys()
+                or request.keys() - required - {"language"}):
             raise InvalidRequest()
         candidate = request["request_id"]
         if type(candidate) is not str or _ID.fullmatch(candidate) is None:
             raise InvalidRequest()
         request_id = candidate
+        if "language" in request:
+            try:
+                translate(request["language"], "api.invalid_request")
+            except LanguageError:
+                raise InvalidRequest() from None
+            language = request["language"]
         if type(request["api_major"]) is not int:
             raise InvalidRequest()
         if request["api_major"] != API_MAJOR:
-            return _error(request_id, "unsupported_version", "Версия API не поддерживается")
+            return _error(request_id, "unsupported_version", "Версия API не поддерживается", language, "api.unsupported_version")
         operation, params = request["operation"], request["params"]
         if type(operation) is not str or type(params) is not dict:
             raise InvalidRequest()
@@ -118,6 +135,7 @@ def handle(request: Any) -> dict:
                 operations.append("verify-package")
             result = {"api_major": API_MAJOR, "api_minor": API_MINOR,
                       "operations": operations,
+                      "languages": available_languages(),
                       "manifest_versions": [1, 2], "execution_modes": [],
                       "limits": {"request_bytes": MAX_BYTES, "depth": MAX_DEPTH,
                                  "nodes": MAX_NODES, "string_chars": MAX_STRING}}
@@ -127,7 +145,7 @@ def handle(request: Any) -> dict:
             try:
                 manifest = validate_manifest(params["manifest"])
             except (ManifestError, RecursionError):
-                return _error(request_id, "invalid_request", "Манифест не соответствует контракту")
+                return _error(request_id, "invalid_request", "Манифест не соответствует контракту", language, "api.invalid_manifest")
             result = {"product_id": manifest["product_id"], "schema_version": manifest["schema_version"]}
         elif operation == "check-target":
             if set(params) != {"manifest", "target"}:
@@ -135,7 +153,7 @@ def handle(request: Any) -> dict:
             try:
                 result = check_target(params["manifest"], params["target"])
             except (ManifestError, RecursionError):
-                return _error(request_id, "invalid_request", "Манифест или цель не соответствуют контракту")
+                return _error(request_id, "invalid_request", "Манифест или цель не соответствуют контракту", language, "api.invalid_target")
         elif operation == "preflight-fresh":
             if set(params) != {"manifest", "install_root", "required_bytes", "reserve_bytes"}:
                 raise InvalidRequest()
@@ -146,14 +164,14 @@ def handle(request: Any) -> dict:
                                          required_bytes=params["required_bytes"],
                                          reserve_bytes=params["reserve_bytes"])
             except PreflightError:
-                return _error(request_id, "preflight_failed", "Предварительная проверка не пройдена")
+                return _error(request_id, "preflight_failed", "Предварительная проверка не пройдена", language, "api.preflight_failed")
         elif operation == "verify-package":
             if set(params) != {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version"}:
                 raise InvalidRequest()
             if any(type(params[field]) is not str for field in params):
                 raise InvalidRequest()
             if not _signature_available():
-                return _error(request_id, "unsupported_operation", "Проверка подписи недоступна")
+                return _error(request_id, "unsupported_operation", "Проверка подписи недоступна", language, "api.signature_unavailable")
             if (not params["package_path"]
                     or re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,62}", params["expected_product_id"]) is None
                     or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", params["expected_version"]) is None):
@@ -167,13 +185,13 @@ def handle(request: Any) -> dict:
                                                  expected_product_id=params["expected_product_id"],
                                                  expected_version=params["expected_version"])
             except PackageError:
-                return _error(request_id, "verification_failed", "Подпись или пакет не прошли проверку")
+                return _error(request_id, "verification_failed", "Подпись или пакет не прошли проверку", language, "api.verification_failed")
             result = {"product_id": metadata["product_id"], "version": metadata["version"],
                       "file_count": len(metadata["files"])}
         else:
-            return _error(request_id, "unsupported_operation", "Операция API не поддерживается")
+            return _error(request_id, "unsupported_operation", "Операция API не поддерживается", language, "api.unsupported_operation")
     except (InvalidRequest, RecursionError):
-        return _error(request_id, "invalid_request", "Неверный запрос API")
+        return _error(request_id, "invalid_request", "Неверный запрос API", language, "api.invalid_request")
     return {"api_major": API_MAJOR, "request_id": request_id, "ok": True, "result": result}
 
 

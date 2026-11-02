@@ -8,6 +8,7 @@
     "api_major": {"type": "integer", "const": 1},
     "operation": {"type": "string", "enum": ["capabilities", "validate", "preflight-fresh", "check-target", "verify-package"]},
     "request_id": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+    "language": {"type": "string", "pattern": "^[a-z]{2,3}(?![\\s\\S])"},
     "params": {"type": "object"}
   },
   "oneOf": [

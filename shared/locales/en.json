@@ -3,5 +3,13 @@
   "installer.unsupported": "This installation target is not supported.",
   "installer.unknown": "Compatibility with this installation target is unknown.",
   "package.verification_failed": "Package verification failed.",
-  "package.verified": "Package signature and contents verified."
+  "package.verified": "Package signature and contents verified.",
+  "api.invalid_request": "Invalid API request",
+  "api.unsupported_version": "API version is not supported",
+  "api.invalid_manifest": "Manifest does not meet the contract",
+  "api.invalid_target": "Manifest or target does not meet the contract",
+  "api.preflight_failed": "Preflight check failed",
+  "api.signature_unavailable": "Signature verification is unavailable",
+  "api.verification_failed": "Signature or package verification failed",
+  "api.unsupported_operation": "API operation is not supported"
 }

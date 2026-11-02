@@ -179,3 +179,48 @@ def test_fresh_preflight_api_is_read_only_and_cli_agrees(tmp_path):
     result = cli(json.dumps(query).encode())
     assert result.returncode == 1 and json.loads(result.stdout)["error"]["code"] == "preflight_failed"
     assert (root / "data/keep").read_text() == "preserve"
+
+
+@pytest.mark.parametrize('language,expected', [
+    ('ru', 'Операция API не поддерживается'),
+    ('en', 'API operation is not supported'),
+    ('de', 'Die API-Operation wird nicht unterstützt'),
+])
+def test_api_localizes_errors_without_changing_code(language, expected):
+    query = request('unknown', language=language)
+    response = handle(query)
+    assert response['error'] == {'code': 'unsupported_operation', 'message': expected, 'retryable': False}
+    result = cli(json.dumps(query).encode())
+    assert result.returncode == 2 and json.loads(result.stdout) == response
+
+
+def test_languages_are_discoverable_and_legacy_default_is_unchanged():
+    capabilities = handle(request())['result']
+    assert capabilities['api_minor'] >= 4
+    assert {'de', 'en', 'ru'} <= set(capabilities['languages'])
+    assert handle(request('unknown'))['error']['message'] == 'Операция API не поддерживается'
+
+
+@pytest.mark.parametrize('language', ['../SECRET-SENTINEL', 'xx', 'RU', None, 1, {}])
+def test_unknown_or_invalid_language_rejected_without_echo(language):
+    response = handle(request('unknown', language=language))
+    assert response['error']['code'] == 'invalid_request'
+    assert 'SECRET-SENTINEL' not in json.dumps(response)
+
+
+def test_selected_language_applies_to_invalid_manifest_and_invalid_params():
+    response = handle(request('validate', {'manifest': {}}, language='en'))
+    assert response['error']['message'] == 'Manifest does not meet the contract'
+    response = handle(request('validate', {}, language='de'))
+    assert response['error']['message'] == 'Ungültige API-Anfrage'
+
+
+def test_missing_or_broken_catalog_does_not_hide_failure(monkeypatch):
+    import shared.api as api
+    def broken(*args, **kwargs):
+        raise api.LanguageError('broken')
+    monkeypatch.setattr(api, 'translate', broken)
+    error = api._error('test', 'verification_failed', 'Подпись или пакет не прошли проверку',
+                       'de', 'api.verification_failed')
+    assert error['error']['code'] == 'verification_failed'
+    assert error['error']['message'] == 'Подпись или пакет не прошли проверку'

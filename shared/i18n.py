@@ -78,3 +78,20 @@ def translate(language: str, key: str, **variables: str) -> str:
     if set(variables) != required or any(type(value) is not str or len(value) > 8192 for value in variables.values()):
         raise LanguageError('Недопустимые переменные сообщения')
     return catalog[key].format(**variables)
+
+
+def available_languages() -> list[str]:
+    """Перечислить только полные совместимые словари установленного пакета."""
+    try:
+        candidates = sorted(path.stem for path in _DIRECTORY.glob('*.json')
+                            if _LANGUAGE.fullmatch(path.stem) is not None)
+    except OSError:
+        return []
+    result = []
+    for language in candidates:
+        try:
+            translate(language, 'api.invalid_request')
+        except LanguageError:
+            continue
+        result.append(language)
+    return result

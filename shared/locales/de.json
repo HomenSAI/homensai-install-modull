@@ -3,5 +3,13 @@
   "installer.unsupported": "Diese Installationsvariante wird nicht unterstützt.",
   "installer.unknown": "Die Kompatibilität mit dieser Installationsvariante ist unbekannt.",
   "package.verification_failed": "Die Prüfung des Installationspakets ist fehlgeschlagen.",
-  "package.verified": "Signatur und Inhalt des Pakets wurden geprüft."
+  "package.verified": "Signatur und Inhalt des Pakets wurden geprüft.",
+  "api.invalid_request": "Ungültige API-Anfrage",
+  "api.unsupported_version": "Die API-Version wird nicht unterstützt",
+  "api.invalid_manifest": "Das Manifest entspricht nicht dem Vertrag",
+  "api.invalid_target": "Das Manifest oder die Zielumgebung entspricht nicht dem Vertrag",
+  "api.preflight_failed": "Die Vorprüfung ist fehlgeschlagen",
+  "api.signature_unavailable": "Die Signaturprüfung ist nicht verfügbar",
+  "api.verification_failed": "Die Prüfung der Signatur oder des Pakets ist fehlgeschlagen",
+  "api.unsupported_operation": "Die API-Operation wird nicht unterstützt"
 }

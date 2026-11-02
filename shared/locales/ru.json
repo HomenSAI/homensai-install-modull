@@ -3,5 +3,13 @@
   "installer.unsupported": "Этот вариант установки не поддерживается.",
   "installer.unknown": "Совместимость с этим вариантом установки неизвестна.",
   "package.verification_failed": "Проверка установочного пакета не пройдена.",
-  "package.verified": "Подпись и содержимое пакета проверены."
+  "package.verified": "Подпись и содержимое пакета проверены.",
+  "api.invalid_request": "Неверный запрос API",
+  "api.unsupported_version": "Версия API не поддерживается",
+  "api.invalid_manifest": "Манифест не соответствует контракту",
+  "api.invalid_target": "Манифест или цель не соответствуют контракту",
+  "api.preflight_failed": "Предварительная проверка не пройдена",
+  "api.signature_unavailable": "Проверка подписи недоступна",
+  "api.verification_failed": "Подпись или пакет не прошли проверку",
+  "api.unsupported_operation": "Операция API не поддерживается"
 }

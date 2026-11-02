@@ -360,7 +360,22 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch):
                                    stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30)
             assert state.stdout.strip() == 'inactive'
         interpreter.chmod(0o700)
-        started = client.call('start-portable-linux', start_request, min_minor=20)
+        import shared.systemd_fresh_start as fresh_start
+        original_write = fresh_start._atomic_write
+        def lose_start_receipt(path, value):
+            if path.name == 'user-systemd-start.json' and value['status'] == 'done':
+                raise OSError('synthetic lost response')
+            return original_write(path, value)
+        monkeypatch.setattr(fresh_start, '_atomic_write', lose_start_receipt)
+        failed_start = handle({**request, 'operation': 'start-portable-linux', 'params': start_request})
+        assert failed_start['error']['code'] == 'linux_start_failed'
+        assert json.loads((install / '.homensai-control/user-systemd-start.json').read_text())['status'] == 'pending'
+        monkeypatch.setattr(fresh_start, '_atomic_write', original_write)
+        reconcile_start = {**request, 'operation': 'reconcile-portable-linux-start', 'params': start_request}
+        assert validator.is_valid(reconcile_start)
+        recovered = client.call('reconcile-portable-linux-start', start_request, min_minor=23)
+        assert recovered['prior_start_command_confirmed'] is False
+        started = {key: value for key, value in recovered.items() if key != 'prior_start_command_confirmed'}
         assert started['state'] == 'started' and started['health_verified'] is False
         assert client.call('start-portable-linux', start_request, min_minor=20) == started
         deadline = time.monotonic() + 30

@@ -136,14 +136,15 @@ def stop_portable_fresh(package_path, envelope, install_root, *, trusted_public_
 
 def _start_portable_fresh(package_path, envelope, install_root, *, trusted_public_key,
                          expected_product_id, expected_version, modes, unit_dir,
-                         load_key, runtime_key, reserve_bytes, operation_id, runner=None):
+                         load_key, runtime_key, reserve_bytes, operation_id, runner=None, reconcile=False):
     """Однократно отправить start; pending никогда автоматически не повторяется."""
     if (any(type(key) is not str or re.fullmatch(r'[a-f0-9]{32}', key) is None
             for key in (load_key, runtime_key, operation_id))
             or len({load_key, runtime_key, operation_id}) != 3
             or type(reserve_bytes) is not int or not 0 <= reserve_bytes <= 2**63 - 1
             or type(envelope) is not bytes or type(trusted_public_key) is not bytes
-            or len(trusted_public_key) != 32 or type(modes) is not tuple or not modes):
+            or len(trusted_public_key) != 32 or type(modes) is not tuple or not modes
+            or type(reconcile) is not bool):
         raise FreshStartError('Недопустимые параметры запуска')
     try:
         root, directory = checked_path(install_root), checked_path(unit_dir)
@@ -163,16 +164,27 @@ def _start_portable_fresh(package_path, envelope, install_root, *, trusted_publi
         done = {**pending, 'status': 'done'}
         receipt = checked_path(control / 'user-systemd-start.json')
         old = _publication_receipt(receipt)
-        if old is not None and old != done:
+        if ((reconcile and old not in (pending, done)) or
+                (not reconcile and old is not None and old != done)):
             raise FreshStartError('Предыдущий запуск требует проверки')
         options = dict(trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
                        expected_version=expected_version)
         verify_signed_linux_runtime(package_path, envelope, str(root), **options,
                                     operation_id=runtime_key, reserve_bytes=reserve_bytes)
-        if old == done:
+        if old == done or reconcile:
             group = signed_user_group(package_path, envelope, str(root), **options, modes=modes,
                         unit_dir=str(directory), operation_id=load_key, portable=True,
                         runner=runner, _require_active=True)
+            if reconcile and old == pending:
+                if (_publication_receipt(receipt) != pending or
+                        _publication_receipt(control / 'user-systemd-publication.json') != publication or
+                        _publication_receipt(control / 'user-systemd-stop.json') is not None):
+                    raise FreshStartError('Отметки изменились')
+                _atomic_write(receipt, done)
+                verify_signed_linux_runtime(package_path, envelope, str(root), **options,
+                                            operation_id=runtime_key, reserve_bytes=reserve_bytes)
+                signed_user_group(package_path, envelope, str(root), **options, modes=modes,
+                    unit_dir=str(directory), operation_id=load_key, portable=True, runner=runner, _require_active=True)
         else:
             group = portable_signed_runtime_user_group(package_path, envelope, str(root), **options,
                         modes=modes, unit_dir=str(directory), operation_id=load_key,
@@ -184,8 +196,11 @@ def _start_portable_fresh(package_path, envelope, install_root, *, trusted_publi
             _atomic_write(receipt, done)
         if _publication_receipt(receipt) != done:
             raise FreshStartError('Отметка запуска не подтверждена')
-        return {'state': 'started', 'services_started': True, 'installation_complete': False,
-                'health_verified': False, 'python_compatibility_verified': False}
+        result = {'state': 'started', 'services_started': True, 'installation_complete': False,
+                  'health_verified': False, 'python_compatibility_verified': False}
+        if reconcile:
+            result['prior_start_command_confirmed'] = False
+        return result
     except FreshStartError:
         raise
     except Exception:

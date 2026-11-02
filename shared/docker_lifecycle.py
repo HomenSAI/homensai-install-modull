@@ -125,7 +125,7 @@ def control_signed_compose(package_path: str, envelope: bytes, *, trusted_public
     находятся вне блокировки этого модуля.
     """
     try:
-        if (type(action) is not str or action not in ('start', 'stop')
+        if (type(action) is not str or action not in ('start', 'stop', 'reconcile-start', 'reconcile-stop')
                 or type(preparation_id) is not str or re.fullmatch(r'[a-f0-9]{32}', preparation_id) is None
                 or type(action_id) is not str or re.fullmatch(r'[a-f0-9]{32}', action_id) is None
                 or action_id == preparation_id or type(executable) is not str
@@ -160,7 +160,11 @@ def control_signed_compose(package_path: str, envelope: bytes, *, trusted_public
                     ((action == 'start' and (record['start_key'] != action_id or record['status'] != 'running'))
                      or (action == 'stop' and (action_id == record['start_key'] or
                          record['status'] not in ('running', 'stopped') or
-                         (record['status'] == 'stopped' and record['stop_key'] != action_id))))):
+                         (record['status'] == 'stopped' and record['stop_key'] != action_id)))
+                     or (action == 'reconcile-start' and (record['start_key'] != action_id
+                         or record['status'] not in ('start_pending', 'running')))
+                     or (action == 'reconcile-stop' and (record['stop_key'] != action_id
+                         or record['status'] not in ('stop_pending', 'stopped'))))):
                 raise DockerLifecycleError('Повтор требует проверки')
             if action == 'start':
                 inspect_signed_compose_images(package_path, envelope, **common, work_dir=str(root),
@@ -216,6 +220,29 @@ def control_signed_compose(package_path: str, envelope: bytes, *, trusted_public
                         actual = image_id(json.loads(text, object_pairs_hook=_object, parse_constant=_reject_constant))
                         if actual != expected or resolve_image(reference) != expected:
                             raise DockerLifecycleError('Образ контейнера не соответствует плану')
+                    return rows
+
+                def verify_reconciliation(*, stopped):
+                    # Compose config hashes are evidence of the signed service model,
+                    # not proof against a malicious daemon or forged labels.
+                    hashes = {}
+                    for line in run(prefix + ['config', '--hash', '*']).splitlines():
+                        parts = line.split()
+                        if (len(parts) != 2 or parts[0] not in services or parts[0] in hashes
+                                or re.fullmatch(r'[a-f0-9]{64}', parts[1]) is None):
+                            raise DockerLifecycleError('Недопустимый хэш конфигурации')
+                        hashes[parts[0]] = parts[1]
+                    if set(hashes) != set(services):
+                        raise DockerLifecycleError('Неполный состав конфигураций')
+                    rows = verify_containers(stopped=stopped)
+                    for name, container_id in rows.items():
+                        label = run(['inspect', '--format',
+                                     '{{json (index .Config.Labels "com.docker.compose.config-hash")}}', container_id])
+                        if json.loads(label, object_pairs_hook=_object, parse_constant=_reject_constant) != hashes[name]:
+                            raise DockerLifecycleError('Конфигурация контейнера не подтверждена')
+                    if _status_records(run(prefix + ['ps', '--all', '--format', 'json']),
+                                       project, services, stopped=stopped) != rows:
+                        raise DockerLifecycleError('Состав контейнеров изменился')
                 if record is None:
                     help_text = run(['compose', 'up', '--help'])
                     if any(re.search(r'(?m)^\s*' + re.escape(flag) + r'(?:[=\s]|$)', help_text) is None
@@ -254,12 +281,21 @@ def control_signed_compose(package_path: str, envelope: bytes, *, trusted_public
                         raise DockerLifecycleError('Журнал изменился')
                     record = {**record, 'status': 'stopped'}
                     _atomic_write(marker, record)
+                elif action in ('reconcile-start', 'reconcile-stop'):
+                    final = 'running' if action == 'reconcile-start' else 'stopped'
+                    verify_reconciliation(stopped=(action == 'reconcile-stop'))
+                    if (read_effect_receipt(marker) != record
+                            or prepare_signed_compose(package_path, envelope, **prep) != verified):
+                        raise DockerLifecycleError('Данные изменились')
+                    if record['status'] != final:
+                        record = {**record, 'status': final}
+                        _atomic_write(marker, record)
                 else:
                     verify_containers(stopped=(action == 'stop'))
                 if (read_effect_receipt(marker) != record
                         or prepare_signed_compose(package_path, envelope, **prep) != verified):
                     raise DockerLifecycleError('Данные изменились')
-        return {'state': 'running' if action == 'start' else 'stopped',
+        return {'state': 'running' if action in ('start', 'reconcile-start') else 'stopped',
                 'instance_id': instance_id, 'container_count': len(services),
                 'daemon_state_verified': True, 'health_verified': False,
                 'image_contents_verified': False, 'all_writers_verified': False,

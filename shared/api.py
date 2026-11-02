@@ -43,7 +43,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 38
+API_MINOR = 39
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -331,7 +331,7 @@ def handle(request: Any) -> dict:
                          or type(params['timeout_seconds']) is not int or not 1 <= params['timeout_seconds'] <=
                             (30 if operation == 'inspect-signed-compose-images' else 120)))
                     or (operation == 'control-signed-compose' and
-                        (params['action'] not in ('start', 'stop')
+                        (params['action'] not in ('start', 'stop', 'reconcile-start', 'reconcile-stop')
                          or re.fullmatch(r'[a-f0-9]{32}', params['action_id']) is None
                          or params['action_id'] == params['idempotency_key']))
                     or re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,62}', params['expected_product_id']) is None

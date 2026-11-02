@@ -35,6 +35,7 @@ class FakeDaemon:
         self.crash_after_start = False
         self.crash_after_stop = False
         self.bad_image = False
+        self.bad_hash = False
 
     def __call__(self, argv, *, timeout, env):
         assert env['DOCKER_CONFIG'] == env['HOME'] and 'SYNTHETIC_DOCKER_SECRET' not in env
@@ -68,10 +69,14 @@ class FakeDaemon:
             elif tail == ['ps', '--all', '--format', 'json']:
                 output = '\n'.join(json.dumps({'ID': format(index + 1, '064x'), 'Project': project,
                     'Service': name, 'State': self.state}) for index, name in enumerate(services))
+            elif tail == ['config', '--hash', '*']:
+                output = '\n'.join(name + ' ' + 'f' * 64 for name in services)
             else:
                 raise AssertionError('неизвестная команда Compose')
         elif args[:3] == ['inspect', '--format', '{{json .Image}}']:
             output = json.dumps('sha256:' + ('e' if self.bad_image else 'd') * 64)
+        elif args[:3] == ['inspect', '--format', '{{json (index .Config.Labels "com.docker.compose.config-hash")}}']:
+            output = json.dumps(('a' if self.bad_hash else 'f') * 64)
         else:
             raise AssertionError('неизвестная команда Docker')
         return subprocess.CompletedProcess(argv, 0, stdout=output)
@@ -198,6 +203,64 @@ def test_unknown_start_result_stays_pending_and_is_not_repeated(lifecycle):
     daemon.crash_after_start = True
     with pytest.raises(DockerLifecycleError):
         control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
+    marker = Path(options['work_dir']) / ('compose-lifecycle-' + options['instance_id'] + '.json')
+    assert read_effect_receipt(marker)['status'] == 'start_pending'
+    assert len([argv for argv in daemon.calls if '--detach' in argv]) == 1
+    with pytest.raises(DockerLifecycleError):
+        control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
+    assert len([argv for argv in daemon.calls if '--detach' in argv]) == 1
+
+
+def test_reconcile_confirms_unknown_start_and_stop_without_repeating_effects(lifecycle):
+    package, envelope, options, daemon = lifecycle
+    daemon.crash_after_start = True
+    with pytest.raises(DockerLifecycleError):
+        control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
+    with pytest.raises(DockerLifecycleError):
+        control_signed_compose(package, envelope, **options, action='reconcile-start', action_id='d' * 32)
+    result = control_signed_compose(package, envelope, **options, action='reconcile-start', action_id='b' * 32)
+    assert result['state'] == 'running'
+    assert control_signed_compose(package, envelope, **options, action='reconcile-start', action_id='b' * 32) == result
+    assert len([argv for argv in daemon.calls if '--detach' in argv]) == 1
+    daemon.crash_after_stop = True
+    with pytest.raises(DockerLifecycleError):
+        control_signed_compose(package, envelope, **options, action='stop', action_id='c' * 32)
+    result = control_signed_compose(package, envelope, **options, action='reconcile-stop', action_id='c' * 32)
+    assert result['state'] == 'stopped' and len(actions(daemon, 'stop')) == 1
+
+
+def test_reconcile_start_is_available_through_api_schema(lifecycle):
+    package, envelope, options, daemon = lifecycle
+    daemon.crash_after_start = True
+    with pytest.raises(DockerLifecycleError):
+        control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
+    query = inspect_query(package, envelope, {**options, 'operation_id': options['preparation_id']})
+    query['operation'] = 'control-signed-compose'
+    query['params'].update(action='reconcile-start', action_id='b' * 32)
+    jsonschema = pytest.importorskip('jsonschema')
+    schema = json.loads((Path(__file__).resolve().parents[1] / 'shared/api-v1-request.schema.json').read_text())
+    assert jsonschema.Draft202012Validator(schema).is_valid(query)
+    result = api.handle(query)
+    assert result['ok'] and result['result']['state'] == 'running'
+    assert len([argv for argv in daemon.calls if '--detach' in argv]) == 1
+
+
+@pytest.mark.parametrize('failure', ['bad_hash', 'bad_image', 'missing', 'wrong_state'])
+def test_reconcile_requires_matching_running_services_and_configuration(lifecycle, failure):
+    package, envelope, options, daemon = lifecycle
+    daemon.crash_after_start = True
+    with pytest.raises(DockerLifecycleError):
+        control_signed_compose(package, envelope, **options, action='start', action_id='b' * 32)
+    if failure == 'bad_hash':
+        daemon.bad_hash = True
+    elif failure == 'bad_image':
+        daemon.bad_image = True
+    elif failure == 'missing':
+        del daemon.compose['services']['web']
+    else:
+        daemon.state = 'exited'
+    with pytest.raises(DockerLifecycleError):
+        control_signed_compose(package, envelope, **options, action='reconcile-start', action_id='b' * 32)
     marker = Path(options['work_dir']) / ('compose-lifecycle-' + options['instance_id'] + '.json')
     assert read_effect_receipt(marker)['status'] == 'start_pending'
     assert len([argv for argv in daemon.calls if '--detach' in argv]) == 1

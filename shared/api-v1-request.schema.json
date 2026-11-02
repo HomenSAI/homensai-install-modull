@@ -29,7 +29,7 @@
         "instance_id": {"$ref": "#/$defs/operation_key"}, "idempotency_key": {"$ref": "#/$defs/operation_key"},
         "work_dir": {"type": "string", "minLength": 1, "maxLength": 8192}, "executable": {"type": "string", "minLength": 1, "maxLength": 8192},
         "executable_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}(?![\\s\\S])"}, "socket_path": {"type": "string", "minLength": 1, "maxLength": 8192},
-        "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 120}, "action": {"enum": ["start", "stop"]},
+        "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 120}, "action": {"enum": ["start", "stop", "reconcile-start", "reconcile-stop"]},
         "action_id": {"$ref": "#/$defs/operation_key"}
       }}}},
     {"properties": {"operation": {"const": "compose-control-status"}, "params": {"type": "object", "additionalProperties": false,

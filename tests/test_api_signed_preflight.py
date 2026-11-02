@@ -111,11 +111,14 @@ def native_query(query):
 
 
 def test_native_inspection_uses_detected_target(signed_request, monkeypatch):
-    query, _, _ = signed_request
+    query, package, _ = signed_request
     query = native_query(query)
     monkeypatch.setattr('shared.api.native_target', lambda: deepcopy(TARGET))
     result = handle(query)
     assert result['ok'] and result['result']['process_target'] == TARGET
+    estimate = result['result']['storage_estimate']
+    assert estimate['minimum_bytes'] >= package.stat().st_size * 2 + 4 * 1024 * 1024
+    assert estimate['reserve_bytes'] == 0 and estimate['free_bytes'] >= estimate['minimum_bytes']
     assert not Path(query['params']['install_root']).exists()
     query['params']['target'] = {'os': 'windows', 'architecture': 'x86_64', 'execution': 'native'}
     assert handle(query)['error']['code'] == 'invalid_request'
@@ -145,6 +148,16 @@ def test_native_inspection_requires_signature_support(signed_request, monkeypatc
     capabilities = handle({'api_major': 1, 'request_id': 'test', 'operation': 'capabilities', 'params': {}})
     assert 'inspect-native-fresh-package' not in capabilities['result']['operations']
     assert handle(query)['error']['code'] == 'unsupported_operation'
+
+
+def test_native_inspection_rejects_existing_empty_root(signed_request, monkeypatch):
+    query, _, _ = signed_request
+    query = native_query(query)
+    root = Path(query['params']['install_root'])
+    root.mkdir()
+    monkeypatch.setattr('shared.api.native_target', lambda: deepcopy(TARGET))
+    assert handle(query)['error']['code'] == 'preflight_failed'
+    assert root.is_dir() and not list(root.iterdir())
 
 
 def test_native_inspection_current_process_and_cli(signed_request):
@@ -918,3 +931,47 @@ def test_independent_product_client_recovers_from_lost_prepare_response(tmp_path
         client.call('prepare-native-release', preparation, min_minor=8, language='en')
     assert exc.value.code == 'fresh_prepare_failed'
     assert (root / 'releases/app-1/main.py').read_text() == 'tampered'
+
+
+@pytest.mark.parametrize('reserve', [0, 4096])
+def test_fresh_prepare_refuses_underestimated_package_space_before_creation(signed_request, monkeypatch, reserve):
+    from types import SimpleNamespace
+    from shared.preflight import preflight_fresh
+    query, path, manifest = signed_request
+    query['params']['reserve_bytes'] = reserve
+    monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: deepcopy(TARGET))
+    minimum = path.stat().st_size * 2 + 4 * 1024 * 1024
+    monkeypatch.setattr('shared.fresh_prepare.shutil.disk_usage',
+                        lambda _: SimpleNamespace(free=minimum + reserve - 1))
+    root = Path(query['params']['install_root'])
+    # Caller-provided zeros alone would otherwise pass the existing preflight.
+    assert preflight_fresh(manifest, root, required_bytes={name: 0 for name in NAMES},
+                           reserve_bytes=reserve)['checks_passed']
+    monkeypatch.setattr('shared.api.native_target', lambda: deepcopy(TARGET))
+    assert handle(native_query(query))['error']['code'] == 'preflight_failed'
+    response = handle(api_prepare_query(query))
+    assert response['error']['code'] == 'fresh_prepare_failed'
+    assert not root.exists()
+
+
+def test_fresh_prepare_rechecks_space_after_lock_before_extraction(signed_request, monkeypatch):
+    from types import SimpleNamespace
+    import shared.fresh_prepare as fresh
+    query, _, _ = signed_request
+    monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: deepcopy(TARGET))
+    root = Path(query['params']['install_root'])
+    original = fresh._check_fresh_storage
+    calls = []
+
+    def fill_after_check(*args):
+        calls.append(1)
+        result = original(*args)
+        if len(calls) == 1:
+            monkeypatch.setattr(fresh.shutil, 'disk_usage', lambda _: SimpleNamespace(free=0))
+        return result
+
+    monkeypatch.setattr(fresh, '_check_fresh_storage', fill_after_check)
+    response = handle(api_prepare_query(query))
+    assert response['error']['code'] == 'fresh_prepare_failed' and len(calls) == 2
+    assert root.is_dir() and not (root / '.homensai-fresh.json').exists()
+    assert not (root / '.homensai-control').exists()

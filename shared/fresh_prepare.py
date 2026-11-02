@@ -67,6 +67,25 @@ def _layout(manifest, root):
     return home, paths, control, marker
 
 
+def _check_fresh_storage(package_path, metadata, root, reserve_bytes):
+    """Нижняя оценка для snapshot и двух файловых копий до новых записей."""
+    package = checked_path(package_path)
+    info = package.lstat()
+    if not stat.S_ISREG(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
+        raise FreshPrepareError('Пакет недоступен')
+    payload_bytes = sum(item['size'] for item in metadata['files'])
+    # package_prepare reserves twice the ZIP size plus 4 MiB, while staging
+    # temporarily holds both the prepared copy and the installed release.
+    minimum = max(info.st_size * 2 + 4 * 1024 * 1024, payload_bytes * 2)
+    needed = minimum + reserve_bytes
+    if needed > MAX_BYTES:
+        raise FreshPrepareError('Недопустимая оценка места')
+    free = shutil.disk_usage(_nearest_directory(root)).free
+    if type(free) is not int or free < needed:
+        raise FreshPrepareError('Недостаточно места для подготовки')
+    return {'minimum_bytes': minimum, 'reserve_bytes': reserve_bytes, 'free_bytes': free}
+
+
 def prepare_fresh_native(package_path, envelope, install_root, *, trusted_public_key,
                          expected_product_id, expected_version, required_bytes, reserve_bytes,
                          transaction_id=None, request_hash=None):
@@ -92,9 +111,11 @@ def prepare_fresh_native(package_path, envelope, install_root, *, trusted_public
         if manifest['schema_version'] != 2 or check_target(manifest, target)['status'] != 'supported':
             raise FreshPrepareError('Платформа не подтверждена')
         preflight_fresh(manifest, root, required_bytes=required_bytes, reserve_bytes=reserve_bytes)
+        _check_fresh_storage(package_path, metadata, root, reserve_bytes)
         home, paths, control, marker = _layout(manifest, root)
         root.mkdir(mode=0o700)
         with operation_lock(root / '.homensai-bootstrap.lock'):
+            _check_fresh_storage(package_path, metadata, root, reserve_bytes)
             transaction = transaction_id or uuid.uuid4().hex
             state = {'format': 4 if transaction_id else 3, 'transaction': transaction, 'product_id': expected_product_id,
                      'version': expected_version, 'status': 'preparing',

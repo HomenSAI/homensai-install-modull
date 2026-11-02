@@ -15,7 +15,8 @@ import sys
 from typing import Any
 
 from shared.fresh_prepare import (FreshConflict, FreshPrepareError, prepare_idempotent_native,
-                                  status_fresh_native, verify_fresh_release)
+                                  status_fresh_native, verify_fresh_release,
+                                  _check_fresh_storage, _layout)
 from shared.datahome import DataHomeError, checked_path
 from shared.host_target import HostTargetError, native_target
 from shared.i18n import LanguageError, available_languages, translate
@@ -26,7 +27,7 @@ from shared.preflight import MAX_BYTES as MAX_DISK_BYTES, NAMES as PATH_NAMES, P
 from shared.update_plan import UpdateError, UpdatePlan
 
 API_MAJOR = 1
-API_MINOR = 10
+API_MINOR = 11
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -302,6 +303,15 @@ def handle(request: Any) -> dict:
                 result["declared_target"] = "supported"
                 if operation == "inspect-native-fresh-package":
                     result["process_target"] = selected_target
+                    try:
+                        root = checked_path(params["install_root"])
+                        if root == root.parent or root.exists() or not root.parent.is_dir():
+                            raise FreshPrepareError('Требуется новый корень установки')
+                        _layout(metadata['manifest'], root)
+                        result['storage_estimate'] = _check_fresh_storage(
+                            params['package_path'], metadata, root, params['reserve_bytes'])
+                    except (FreshPrepareError, DataHomeError, OSError, ValueError, KeyError, TypeError):
+                        return _error(request_id, "preflight_failed", "Предварительная проверка не пройдена", language, "api.preflight_failed")
         else:
             return _error(request_id, "unsupported_operation", "Операция API не поддерживается", language, "api.unsupported_operation")
     except (InvalidRequest, RecursionError):

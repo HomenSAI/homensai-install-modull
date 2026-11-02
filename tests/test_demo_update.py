@@ -560,7 +560,7 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
         work = tmp_path / 'assembled-work'
         work.mkdir(mode=0o700)
         interpreter = Path(sys.executable).resolve()
-        update = assemble_prepared_linux_update(
+        assembly_options = dict(
             new_package=str(package), new_envelope=envelope, new_key=public,
             old_package=str(package_one), old_envelope=envelope_one, old_key=public,
             product_id=manifest['product_id'], old_version='1', new_version='2',
@@ -568,6 +568,7 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
             migration_ids=('schema-2',), operation_id='c' * 32, group=effects.group,
             password_provider=password_provider, interpreter=str(interpreter),
             interpreter_sha256=sha256(interpreter.read_bytes()).hexdigest(), timeout=15)
+        update = assemble_prepared_linux_update(**assembly_options)
         ports = update.ports
         effects.ports, effects.composite = ports, ports.effects
         effects.lifecycle_port = effects.composite.lifecycle
@@ -620,9 +621,16 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
         assert read_effect_receipt(ports._path(key, '.service.json'))['status'] == 'pending'
         assert all(adapter.confirm_stopped()['active_state'] == 'inactive'
                    for adapter in effects.group.adapters.values())
-        effects.lifecycle_port = SystemdLifecyclePort(update, ports, install_root=str(installation),
-                                                      group=effects.group, reconcile_key=key)
-        effects.composite.lifecycle = effects.lifecycle_port
+        if assembled:
+            update = assemble_prepared_linux_update(**assembly_options, reopen=True, reconcile_stop_key=key)
+            ports = update.ports
+            effects.ports, effects.composite = ports, ports.effects
+            effects.lifecycle_port = effects.composite.lifecycle
+            ports.effects = effects
+        else:
+            effects.lifecycle_port = SystemdLifecyclePort(update, ports, install_root=str(installation),
+                                                          group=effects.group, reconcile_key=key)
+            effects.composite.lifecycle = effects.lifecycle_port
         result = update.run(resume_indeterminate=True)
         assert result['outcome'] == 'updated' and ports.current_release() == '2', result
         assert read_effect_receipt(ports._path(key, '.service.json'))['status'] == 'done'
@@ -724,7 +732,7 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
 
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix',
                     reason='opt-in systemd')
-@pytest.mark.parametrize('fail_health', [False, True], ids=['update', 'rollback'])
+@pytest.mark.parametrize('fail_health', [False, True, 'stop-crash'], ids=['update', 'rollback', 'reopen'])
 def test_systemd_assembled_update_runs_demo_product(tmp_path, request, monkeypatch, fail_health):
     test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
         True, True, fail_health, False, 'systemd', assembled=True)

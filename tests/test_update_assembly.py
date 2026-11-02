@@ -1,5 +1,6 @@
 """Проверка связи подготовленного пакета с защищённым портом выпуска."""
 from pathlib import Path
+import json
 import sys
 
 import pytest
@@ -14,7 +15,7 @@ from shared.package import build_package
 from shared.package_signing import sign_package
 from shared.systemd_group import SystemdUserGroup
 from shared.update_assembly import assemble_prepared_linux_update
-from shared.update_plan import EffectIndeterminate, UpdateError, _ACTIVE_EFFECT
+from shared.update_plan import EffectIndeterminate, UpdateError, UpdateIndeterminate, _ACTIVE_EFFECT
 
 pytestmark = pytest.mark.skipif(not sys.platform.startswith('linux'), reason='Требуется Linux')
 
@@ -119,3 +120,58 @@ def test_guarded_stage_rejects_tampered_prepared_payload(assembled):
     finally:
         _ACTIVE_EFFECT.reset(token)
     assert not plan.ports.release_path('2').exists()
+
+
+def test_reopen_requires_bound_running_checkpoint_and_never_resumes_automatically(assembled):
+    options, adapters = assembled
+    plan = assemble_prepared_linux_update(**options)
+    with pytest.raises(UpdateError):
+        assemble_prepared_linux_update(**options, reopen=True)
+    state = {'version': 1, 'transaction': 'b' * 32, 'plan': plan.digest, 'old_release': '1',
+             'release': '2', 'direction': 'forward', 'index': 0, 'failed_phase': None,
+             'archive_ready': False, 'outcome': 'running', 'indeterminate': True}
+    plan._save(state)
+    reopened = assemble_prepared_linux_update(**options, reopen=True)
+    assert reopened.status() == state and all(adapter.active for adapter in adapters.values())
+    with pytest.raises(UpdateIndeterminate):
+        reopened.run()
+    assert reopened.status() == state and all(adapter.active for adapter in adapters.values())
+    key = state['transaction'] + '/stop'
+    assert assemble_prepared_linux_update(**options, reopen=True, reconcile_stop_key=key).status() == state
+    with pytest.raises(UpdateError):
+        assemble_prepared_linux_update(**options, reopen=True, reconcile_stop_key='c' * 32 + '/stop')
+    with pytest.raises(UpdateError):
+        assemble_prepared_linux_update(**{**options, 'operation_id': 'd' * 32}, reopen=True)
+    marker = Path(options['work_dir']) / ('prepare-' + options['operation_id'] + '.json')
+    original = marker.read_bytes()
+    malformed = json.loads(original)
+    malformed['version'] = True
+    marker.write_text(json.dumps(malformed), encoding='utf-8')
+    with pytest.raises(UpdateError):
+        assemble_prepared_linux_update(**options, reopen=True)
+    marker.write_bytes(original)
+    (plan.ports.payloads['2'].directory / 'new.py').write_bytes(b'tampered')
+    with pytest.raises(UpdateError):
+        assemble_prepared_linux_update(**options, reopen=True)
+
+
+def test_reopen_after_switch_verifies_both_signed_releases(assembled):
+    options, _ = assembled
+    plan = assemble_prepared_linux_update(**options)
+    ports = plan.ports
+    state = {'version': 1, 'transaction': 'b' * 32, 'plan': plan.digest, 'old_release': '1',
+             'release': '2', 'direction': 'forward', 'index': plan.forward.index('stage'),
+             'failed_phase': None, 'archive_ready': True, 'outcome': 'running', 'indeterminate': True}
+    plan._save(state)
+    token = _ACTIVE_EFFECT.set((plan, state['transaction'], 'stage'))
+    try:
+        ports.stage_release(state['transaction'] + '/stage', '2')
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+    ports._switch_pointer(state['transaction'] + '/switch', '2')
+    state.update(index=plan.forward.index('start'))
+    plan._save(state)
+    assert assemble_prepared_linux_update(**options, reopen=True).status() == state
+    (ports.release_path('1') / 'locks/demo-linux.lock').write_bytes(b'tampered')
+    with pytest.raises(UpdateError):
+        assemble_prepared_linux_update(**options, reopen=True)

@@ -13,5 +13,6 @@
   "api.verification_failed": "Подпись или пакет не прошли проверку",
   "api.unsupported_operation": "Операция API не поддерживается",
   "api.target_not_supported": "Цель не подтверждена подписанным манифестом",
-  "api.unsupported_platform": "Платформа процесса не поддерживается"
+  "api.unsupported_platform": "Платформа процесса не поддерживается",
+  "api.fresh_status_failed": "Не удалось прочитать состояние подготовки"
 }

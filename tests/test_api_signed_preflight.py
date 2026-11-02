@@ -499,3 +499,74 @@ fresh.prepare_fresh_native(p['package_path'], base64.b64decode(p['envelope']), p
     assert json.loads(lock[1:])['status'] == 'held'
     assert fresh_resume(query)['status'] == 'prepared'
     assert json.loads((root / 'services/active.json').read_text()) == {'release': '1'}
+
+
+def status_query(query):
+    value = deepcopy(query)
+    value['operation'] = 'fresh-status'
+    for field in ('target', 'required_bytes', 'reserve_bytes'):
+        del value['params'][field]
+    return value
+
+
+def test_api_reports_fresh_status_without_claiming_files_verified(signed_request, monkeypatch):
+    query, _, _ = signed_request
+    monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    fresh_prepare(query)
+    root = Path(query['params']['install_root'])
+    marker = root / '.homensai-fresh.json'
+    before = marker.read_bytes()
+    query = status_query(query)
+    assert 'fresh-status' in handle({'api_major': 1, 'request_id': 't', 'operation': 'capabilities', 'params': {}})['result']['operations']
+    result = handle(query)
+    assert result['ok'] and result['result']['reported_status'] == 'prepared'
+    assert result['result']['completion_verified'] is False
+    assert result['result']['product_id'] == query['params']['expected_product_id']
+    assert marker.read_bytes() == before
+    assert str(root) not in json.dumps(result)
+    # Статус описывает журнал, не целостность установленного выпуска.
+    (root / 'releases/app-1/locks/demo-linux.lock').write_text('tamper')
+    assert handle(query)['result']['completion_verified'] is False
+    assert handle(query)['result']['reported_status'] == 'prepared'
+
+
+def test_api_fresh_status_reports_partial_and_refuses_untrusted_key(signed_request, monkeypatch):
+    query, _, _ = signed_request
+    monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    def fail(*args, **kwargs):
+        raise SystemExit('synthetic interruption')
+    with monkeypatch.context() as patch:
+        patch.setattr('shared.fresh_prepare.FilesystemPorts.stage_release', fail)
+        with pytest.raises(SystemExit):
+            fresh_prepare(query)
+    query = status_query(query)
+    assert handle(query)['result']['reported_status'] == 'preparing'
+    query['language'] = 'en'
+    query['params']['trusted_public_key'] = base64.b64encode(b'x' * 32).decode()
+    error = handle(query)['error']
+    assert error['code'] == 'fresh_status_failed'
+    assert error['message'] == 'Could not read preparation state'
+    assert str(query['params']['install_root']) not in json.dumps(error)
+
+
+def test_cli_fresh_status_reports_prepared(signed_request):
+    from shared.host_target import HostTargetError, native_target
+    try:
+        if native_target() != TARGET:
+            pytest.skip('Фикстура рассчитана на Linux x86_64')
+    except HostTargetError:
+        pytest.skip('Платформа процесса не поддерживается')
+    query, _, _ = signed_request
+    fresh_prepare(query)
+    query = status_query(query)
+    result = subprocess.run([sys.executable, '-B', '-m', 'shared.api'], cwd=ROOT,
+                            input=json.dumps(query).encode(), capture_output=True, timeout=30)
+    assert result.returncode == 0 and result.stderr == b''
+    assert json.loads(result.stdout) == handle(query)
+    query['params']['install_root'] += '-nonexistent'
+    result = subprocess.run([sys.executable, '-B', '-m', 'shared.api'], cwd=ROOT,
+                            input=json.dumps(query).encode(), capture_output=True, timeout=30)
+    assert result.returncode == 1
+    assert json.loads(result.stdout)['error']['code'] == 'fresh_status_failed'

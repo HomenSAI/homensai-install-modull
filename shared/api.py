@@ -14,6 +14,7 @@ import re
 import sys
 from typing import Any
 
+from shared.fresh_prepare import FreshPrepareError, status_fresh_native
 from shared.host_target import HostTargetError, native_target
 from shared.i18n import LanguageError, available_languages, translate
 from shared.manifest import ManifestError, check_target, validate_manifest
@@ -22,7 +23,7 @@ from shared.package_signing import MAX_ENVELOPE, _crypto, verify_signed_package
 from shared.preflight import PreflightError, preflight_fresh
 
 API_MAJOR = 1
-API_MINOR = 6
+API_MINOR = 7
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -133,7 +134,7 @@ def handle(request: Any) -> dict:
                 raise InvalidRequest()
             operations = ["capabilities", "validate", "preflight-fresh", "check-target"]
             if _signature_available():
-                operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package"])
+                operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status"])
             result = {"api_major": API_MAJOR, "api_minor": API_MINOR,
                       "operations": operations,
                       "languages": available_languages(),
@@ -166,6 +167,27 @@ def handle(request: Any) -> dict:
                                          reserve_bytes=params["reserve_bytes"])
             except PreflightError:
                 return _error(request_id, "preflight_failed", "Предварительная проверка не пройдена", language, "api.preflight_failed")
+        elif operation == "fresh-status":
+            fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root"}
+            if set(params) != fields or any(type(params[field]) is not str for field in fields):
+                raise InvalidRequest()
+            if not _signature_available():
+                return _error(request_id, "unsupported_operation", "Проверка подписи недоступна", language, "api.signature_unavailable")
+            if (not params['package_path'] or not params['install_root']
+                    or re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,62}", params['expected_product_id']) is None
+                    or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", params['expected_version']) is None):
+                raise InvalidRequest()
+            envelope = _base64(params['envelope'], MAX_ENVELOPE)
+            key = _base64(params['trusted_public_key'], 32)
+            if len(key) != 32:
+                raise InvalidRequest()
+            try:
+                result = status_fresh_native(params['package_path'], envelope, params['install_root'],
+                                             trusted_public_key=key,
+                                             expected_product_id=params['expected_product_id'],
+                                             expected_version=params['expected_version'])
+            except FreshPrepareError:
+                return _error(request_id, "fresh_status_failed", "Не удалось прочитать состояние подготовки", language, "api.fresh_status_failed")
         elif operation in ("verify-package", "inspect-fresh-package", "inspect-native-fresh-package"):
             package_fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version"}
             inspection_fields = {"install_root", "required_bytes", "reserve_bytes"}
@@ -254,7 +276,7 @@ def main() -> int:
     sys.stdout.write(json.dumps(response, ensure_ascii=True, separators=(",", ":")) + "\n")
     if response["ok"]:
         return 0
-    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed") else 2
+    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed") else 2
 
 
 if __name__ == "__main__":

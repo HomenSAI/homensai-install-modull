@@ -104,7 +104,7 @@ def prepare_fresh_native(package_path, envelope, install_root, *, trusted_public
         raise FreshPrepareError('Не удалось подготовить свежий выпуск') from None
 
 
-def _read_state(marker, plan, product_id, version):
+def _read_state(marker, plan, product_id, version, *, statuses=('preparing',)):
     info = marker.lstat()
     if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > 8192:
         raise FreshPrepareError('Журнал операции недоступен')
@@ -116,9 +116,34 @@ def _read_state(marker, plan, product_id, version):
             or type(state['transaction']) is not str
             or re.fullmatch(r'[a-f0-9]{32}', state['transaction']) is None
             or state['product_id'] != product_id or state['version'] != version
-            or state['status'] != 'preparing' or state['plan'] != plan):
+            or state['status'] not in statuses or state['plan'] != plan):
         raise FreshPrepareError('Журнал не соответствует проверенному выпуску')
     return state
+
+
+def status_fresh_native(package_path, envelope, install_root, *, trusted_public_key,
+                        expected_product_id, expected_version):
+    """Прочитать журнал после проверки пакета; не подтверждает целостность установки."""
+    try:
+        root = checked_path(install_root)
+        if root == Path(root.anchor) or not root.is_dir():
+            raise FreshPrepareError('Корень недоступен')
+        metadata = verify_signed_package(package_path, envelope, trusted_public_key=trusted_public_key,
+                                         expected_product_id=expected_product_id,
+                                         expected_version=expected_version)
+        manifest, target = metadata['manifest'], native_target()
+        if manifest['schema_version'] != 2 or check_target(manifest, target)['status'] != 'supported':
+            raise FreshPrepareError('Платформа не подтверждена')
+        _, _, _, marker = _layout(manifest, root)
+        plan = _plan(root, metadata, trusted_public_key, target)
+        state = _read_state(marker, plan, expected_product_id, expected_version,
+                            statuses=('preparing', 'prepared'))
+        return {'transaction': state['transaction'], 'product_id': state['product_id'],
+                'version': state['version'], 'reported_status': state['status'],
+                'completion_verified': False}
+    except (PackageError, DataHomeError, HostTargetError, ManifestError, UpdateError,
+            OSError, ValueError, KeyError, TypeError, RecursionError):
+        raise FreshPrepareError('Не удалось прочитать состояние подготовки') from None
 
 
 def _check_lock(path):

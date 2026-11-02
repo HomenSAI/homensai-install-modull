@@ -6,7 +6,7 @@
   "required": ["api_major", "operation", "request_id", "params"],
   "properties": {
     "api_major": {"type": "integer", "const": 1},
-    "operation": {"type": "string", "enum": ["capabilities", "validate", "preflight-fresh", "check-target", "check-local-health", "verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release", "update-plan-status", "plan-update", "inspect-update-recovery", "import-update-archive", "plan-systemd-user-units", "publish-systemd-user-units", "load-systemd-user-units", "plan-portable-systemd-user-units", "publish-portable-systemd-user-units", "load-portable-systemd-user-units", "plan-linux-runtime", "prepare-linux-runtime", "verify-linux-runtime", "check-portable-linux-start", "start-portable-linux", "stop-portable-linux", "reconcile-portable-linux-stop", "reconcile-portable-linux-start", "cycle-portable-linux"]},
+    "operation": {"type": "string", "enum": ["capabilities", "validate", "preflight-fresh", "check-target", "check-local-health", "check-docker-engine", "verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release", "update-plan-status", "plan-update", "inspect-update-recovery", "import-update-archive", "plan-systemd-user-units", "publish-systemd-user-units", "load-systemd-user-units", "plan-portable-systemd-user-units", "publish-portable-systemd-user-units", "load-portable-systemd-user-units", "plan-linux-runtime", "prepare-linux-runtime", "verify-linux-runtime", "check-portable-linux-start", "start-portable-linux", "stop-portable-linux", "reconcile-portable-linux-stop", "reconcile-portable-linux-start", "cycle-portable-linux"]},
     "request_id": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
     "language": {"type": "string", "pattern": "^[a-z]{2,3}(?![\\s\\S])"},
     "params": {"type": "object"}
@@ -65,6 +65,12 @@
       "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44}, "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},
       "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"}, "install_root": {"type": "string", "minLength": 1, "maxLength": 8192},
       "modes": {"type": "array", "minItems": 1, "items": {"type": "string", "maxLength": 8192}}
+    }}}},
+    {"properties": {"operation": {"const": "check-docker-engine"}, "params": {"type": "object", "additionalProperties": false, "required": ["executable", "executable_sha256", "socket_path", "timeout_seconds"], "properties": {
+      "executable": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "executable_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}(?![\\s\\S])"},
+      "socket_path": {"type": ["string", "null"], "minLength": 1, "maxLength": 8192},
+      "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 10}
     }}}},
     {"properties": {"operation": {"const": "check-local-health"}, "params": {"type": "object", "additionalProperties": false, "required": ["port", "product_id", "version", "path", "timeout_seconds"], "properties": {
       "port": {"type": "integer", "minimum": 1, "maximum": 65535}, "product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},

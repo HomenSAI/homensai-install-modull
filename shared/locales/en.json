@@ -29,5 +29,6 @@
   "api.linux_start_failed": "Could not confirm service start",
   "api.linux_stop_failed": "Could not confirm service stop",
   "api.linux_cycle_failed": "Could not confirm service operation",
-  "api.update_archive_import_failed": "Could not confirm archive import"
+  "api.update_archive_import_failed": "Could not confirm archive import",
+  "api.docker_preflight_failed": "Could not check Docker"
 }

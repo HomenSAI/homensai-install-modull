@@ -15,6 +15,7 @@ from shared.adapters_docker import DockerAdapterError, DockerComposeAdapter
 from shared.adapters_fs import FilesystemPorts
 from shared.datahome import DataHomeError, checked_path, contains, resolve_datahome
 from shared.doctor import DoctorError, evaluate_health
+from shared.docker_preflight import DockerPreflightError, check_docker
 from shared.linux_sh import render_linux
 from shared.manifest import ManifestError, load_manifest
 from shared.render_docker import render_docker
@@ -81,6 +82,7 @@ def _parser() -> Parser:
         "plan-install": "Показать каталоги и файлы будущей установки без записи",
         "render-docker": "Записать Dockerfile/compose.yml без сборки",
         "docker-plan": "Показать argv Compose без исполнения и записи",
+        "docker-check": "Проверить закреплённый Docker CLI и локальный демон",
         "render-services": "Записать XML/units без установки служб",
         "render-linux": "Записать тексты Linux без исполнения",
         "doctor-eval": "Оценить внедрённые факты без проверки живого продукта",
@@ -128,6 +130,11 @@ def _parser() -> Parser:
             command.add_argument("--compose-file", required=True, help="Путь публичного compose.yml")
             command.add_argument("--action", choices=("up", "stop", "ps", "logs"), required=True,
                                  help="Только план команды Compose")
+        if name == "docker-check":
+            command.add_argument("--executable", required=True, help="Абсолютный путь доверенного Docker CLI")
+            command.add_argument("--executable-sha256", required=True, help="Независимо доверенный SHA-256 CLI")
+            command.add_argument("--socket-path", help="Абсолютный путь локального Unix socket на Linux")
+            command.add_argument("--timeout-seconds", type=int, default=5, help="Timeout каждой проверки: 1–10 секунд")
         if name in ("archive-create", "archive-verify", "archive-restore", "update-import-archive"):
             command.add_argument("--archive", required=True, help="Путь архива (create: новый файл)")
             command.add_argument("--password-env", help="Только имя переменной пароля; иначе скрытый запрос")
@@ -195,6 +202,10 @@ def _write_rendered(rendered: dict[str, str], destination: str) -> list[str]:
 
 def _execute(manifest, args, *, password_provider=None) -> tuple[str, dict]:
     name = args.command
+    if name == 'docker-check':
+        report = check_docker(executable=args.executable, executable_sha256=args.executable_sha256,
+                              socket_path=args.socket_path, timeout_seconds=args.timeout_seconds)
+        return 'Проверка Docker завершена; готовность установки не подтверждена', {'docker': report}
     if name == "doctor-eval":
         def unique_object(pairs):
             result = {}
@@ -344,6 +355,8 @@ def _emit(code: int, message: str, data: dict, as_json: bool) -> int:
         if "argv" in data:
             # JSON-массив явно сохраняет границы аргументов; это не shell-строка.
             print("argv: " + json.dumps(data["argv"], ensure_ascii=True))
+        if "docker" in data:
+            print("Docker: " + json.dumps(data["docker"], ensure_ascii=True, sort_keys=True))
         if "schema_version" in data:
             print("Версия схемы: " + str(data["schema_version"]))
         if "file_count" in data:
@@ -365,7 +378,7 @@ def main(argv: list[str] | None = None, *, password_provider=None) -> int:
     try:
         args = _parser().parse_args(arguments)
         as_json = args.json
-        if args.command != "doctor-eval" and not args.manifest:
+        if args.command not in ("doctor-eval", "docker-check") and not args.manifest:
             raise UsageError("Требуется --manifest")
         manifest = load_manifest(_file(args.manifest)) if args.manifest else None
         message, data = _execute(manifest, args, password_provider=password_provider)
@@ -381,6 +394,8 @@ def main(argv: list[str] | None = None, *, password_provider=None) -> int:
         return _emit(2, "Небезопасный путь или пересечение каталогов; операция запрещена", {}, as_json)
     except DockerAdapterError:
         return _emit(2, "Недопустимый план Docker Compose", {}, as_json)
+    except DockerPreflightError:
+        return _emit(1, "Не удалось проверить Docker", {}, as_json)
     except DoctorError:
         return _emit(1, "Неверные факты диагностики", {}, as_json)
     except archive_crypto.ArchiveCryptoError as error:

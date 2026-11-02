@@ -56,6 +56,7 @@ JSON сериализуется с ASCII escape для независимост�
 | `plan-install` | `--install-root`, `--platform docker/linux/windows`; для служб v2 — `--mode` | `dry_run: true`, `directories`, `files`. Только списки app/releases/постоянных корней и Dockerfile/compose.yml либо XML/units выбранных компонентов. Не создаёт каталогов и файлов, не читает бинарник WinSW. |
 | `render-docker` | `--output-dir` | Только v1: новые Dockerfile/compose.yml в указанном каталоге. Нет сборки, сети или запуска. v2 явно отвергается библиотекой. |
 | `docker-plan` | `--compose-file`, `--action up/stop/ps/logs` | Только v1: `dry_run: true`, `argv`. Ни процессов/HTTP, ни записи; `--execute` отсутствует. [Контракт шага 7](DOCKER-ADAPTER.md). |
+| `docker-check` | `--executable`, `--executable-sha256`, на Linux также `--socket-path` | Запускает доверенный закреплённый CLI для проверки версий и справки, без запуска контейнеров; не подтверждает образы или готовность установки. Манифест не нужен. |
 | `render-services` | `--install-root`, `--platform linux/windows`, `--mode`, `--output-dir` | Только v2: XML/units в указанном каталоге. Для Windows необходимы pin в манифесте и `--winsw-file` с совпадающим SHA-256. Бинарник только читается, не запускается. |
 | `render-linux` | `--install-root`, `--mode`, `--output-dir` | Только v2: тексты shell/units/override; без исполнения. [Linux](LINUX.md). |
 | `doctor-eval` | `--facts FILE`; манифест необязателен | Чистая оценка публичных фактов с внедрённым временем; report и код 0/1. [Doctor](DOCTOR.md). |

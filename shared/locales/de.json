@@ -29,5 +29,6 @@
   "api.linux_start_failed": "Der Start der Dienste konnte nicht bestätigt werden",
   "api.linux_stop_failed": "Das Stoppen der Dienste konnte nicht bestätigt werden",
   "api.linux_cycle_failed": "Die Dienstoperation konnte nicht bestätigt werden",
-  "api.update_archive_import_failed": "Der Archivimport konnte nicht bestätigt werden"
+  "api.update_archive_import_failed": "Der Archivimport konnte nicht bestätigt werden",
+  "api.docker_preflight_failed": "Docker konnte nicht geprüft werden"
 }

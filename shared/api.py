@@ -20,6 +20,7 @@ from shared.fresh_prepare import (FreshConflict, FreshPrepareError, prepare_idem
                                   status_fresh_native, verify_fresh_release,
                                   _check_fresh_storage, _layout)
 from shared.datahome import DataHomeError, checked_path
+from shared.docker_preflight import DockerPreflightError, check_docker
 from shared.host_target import HostTargetError, native_target
 from shared.health import HealthError, check_local_health
 from shared.i18n import LanguageError, available_languages, translate
@@ -37,7 +38,7 @@ from shared.systemd_cycle import cycle_portable
 from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 
 API_MAJOR = 1
-API_MINOR = 27
+API_MINOR = 28
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -163,6 +164,9 @@ def handle(request: Any) -> dict:
                 raise InvalidRequest()
             operations = ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status", "plan-update", "inspect-update-recovery", "check-local-health"]
             mutating_operations = []
+            if sys.platform.startswith('linux') or sys.platform == 'win32':
+                operations.append('check-docker-engine')
+                mutating_operations.append('check-docker-engine')  # Выполняет доверенные внешние программы.
             if _archive_import_available():
                 operations.append('import-update-archive')
                 mutating_operations.append('import-update-archive')
@@ -280,6 +284,23 @@ def handle(request: Any) -> dict:
                 if operation == 'plan-update':
                     return _error(request_id, 'update_plan_failed', 'Не удалось составить план обновления', language, 'api.update_plan_failed')
                 return _error(request_id, "update_status_failed", "Не удалось прочитать состояние обновления", language, "api.update_status_failed")
+        elif operation == 'check-docker-engine':
+            fields = {'executable', 'executable_sha256', 'socket_path', 'timeout_seconds'}
+            if (set(params) != fields or type(params['executable']) is not str or not params['executable']
+                    or type(params['executable_sha256']) is not str
+                    or re.fullmatch(r'[a-f0-9]{64}', params['executable_sha256']) is None
+                    or (params['socket_path'] is not None and
+                        (type(params['socket_path']) is not str or not params['socket_path']))
+                    or type(params['timeout_seconds']) is not int or not 1 <= params['timeout_seconds'] <= 10):
+                raise InvalidRequest()
+            if not (sys.platform.startswith('linux') or sys.platform == 'win32'):
+                return _error(request_id, 'unsupported_operation', 'Операция API не поддерживается',
+                              language, 'api.unsupported_operation')
+            try:
+                result = check_docker(**params)
+            except DockerPreflightError:
+                return _error(request_id, 'docker_preflight_failed', 'Не удалось проверить Docker',
+                              language, 'api.docker_preflight_failed')
         elif operation == 'import-update-archive':
             fields = {'manifest', 'install_root', 'release', 'modes', 'migration_ids',
                       'work_dir', 'archive', 'expected_sha256', 'password_env'}

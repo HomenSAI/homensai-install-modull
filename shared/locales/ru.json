@@ -29,5 +29,6 @@
   "api.linux_start_failed": "Не удалось подтвердить запуск служб",
   "api.linux_stop_failed": "Не удалось подтвердить остановку служб",
   "api.linux_cycle_failed": "Не удалось подтвердить управление службами",
-  "api.update_archive_import_failed": "Не удалось подтвердить перенос архива"
+  "api.update_archive_import_failed": "Не удалось подтвердить перенос архива",
+  "api.docker_preflight_failed": "Не удалось проверить Docker"
 }

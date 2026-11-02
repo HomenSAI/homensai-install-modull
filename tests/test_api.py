@@ -32,7 +32,10 @@ def test_capabilities_only_advertises_read_only_operations(monkeypatch):
     monkeypatch.setattr("shared.api._archive_import_available", lambda: False)
     response = handle(request())
     assert response["ok"] is True
-    assert response["result"]["operations"] == ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status", "plan-update", "inspect-update-recovery", "check-local-health"]
+    expected = ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status", "plan-update", "inspect-update-recovery", "check-local-health"]
+    if sys.platform.startswith('linux') or sys.platform == 'win32':
+        expected.append('check-docker-engine')
+    assert response["result"]["operations"] == expected
     assert response["result"]["execution_modes"] == []
     assert response["result"]["manifest_versions"] == [1, 2]
 

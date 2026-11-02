@@ -1,0 +1,7 @@
+{
+  "installer.ready": "Ready to install {product}.",
+  "installer.unsupported": "This installation target is not supported.",
+  "installer.unknown": "Compatibility with this installation target is unknown.",
+  "package.verification_failed": "Package verification failed.",
+  "package.verified": "Package signature and contents verified."
+}

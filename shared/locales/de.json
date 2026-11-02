@@ -1,0 +1,7 @@
+{
+  "installer.ready": "Bereit zur Installation von {product}.",
+  "installer.unsupported": "Diese Installationsvariante wird nicht unterstützt.",
+  "installer.unknown": "Die Kompatibilität mit dieser Installationsvariante ist unbekannt.",
+  "package.verification_failed": "Die Prüfung des Installationspakets ist fehlgeschlagen.",
+  "package.verified": "Signatur und Inhalt des Pakets wurden geprüft."
+}

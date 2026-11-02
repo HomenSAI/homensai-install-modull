@@ -60,6 +60,8 @@ class Effects:
             package, envelope, public, product_id = self.signed_details
             run_signed_native_migration(package_path=package, envelope=envelope, trusted_public_key=public,
                                         expected_product_id=product_id, expected_version='2',
+                                        expected_manifest=self.ports.manifest, install_root=str(self.installation),
+                                        migration_id=migration,
                                         release_root=str(release), interpreter=str(interpreter),
                                         interpreter_sha256=sha256(interpreter.read_bytes()).hexdigest(),
                                         timeout=15, execute=True)
@@ -337,9 +339,8 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_relea
     manifest["runtime"]["vendor_wheels"] = [{"file": wheel, "sha256": sha256(synthetic[wheel]).hexdigest()}]
     if signed_release:
         if live != 'systemd':
-            data_path = tmp_path / 'installation' / manifest['paths']['data']
-            manifest['migrations']['cmd'] = ['python', 'main.py', 'migrate', '--data-dir', str(data_path),
-                                             '--migration', 'schema-2']
+            manifest['migrations']['cmd'] = ['python', 'main.py', 'migrate', '--data-dir', '@DATA_DIR@',
+                                             '--migration', '@MIGRATION_ID@']
         from shared.host_target import HostTargetError, native_target
         try:
             manifest["compatibility"] = {"targets": [native_target()]}
@@ -384,6 +385,7 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_relea
                else Effects(home, fail_health=fail_health, corrupt_archive=corrupt))
     if signed_release:
         effects.signed_details = (str(package), envelope, public, manifest['product_id'])
+        effects.installation = installation
     if live:
         request.addfinalizer(effects.close)
     password = "synthetic-test-password-not-a-secret"

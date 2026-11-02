@@ -8,6 +8,7 @@ import sys
 import pytest
 
 from shared.host_target import native_target
+from shared.datahome import resolve_datahome
 from shared.manifest import load_manifest
 from shared.native_migration import run_signed_native_migration
 from shared.package import build_package
@@ -26,11 +27,10 @@ def signed(tmp_path):
     manifest = deepcopy(load_manifest(ROOT / 'examples/rent.manifest.json'))
     manifest['compatibility'] = {'targets': [native_target()]}
     manifest['product_id'] = 'homensai-test-signed-migration'
-    marker = tmp_path / 'migration-result'
-    manifest['migrations']['cmd'] = ['python', 'main.py', str(marker)]
+    manifest['migrations']['cmd'] = ['python', 'main.py', '@DATA_DIR@', '@MIGRATION_ID@']
     source = tmp_path / 'source'
     source.mkdir()
-    files = {'main.py': b'import pathlib, sys\npathlib.Path(sys.argv[1]).write_text("ok")\n',
+    files = {'main.py': b'import pathlib, sys\n(pathlib.Path(sys.argv[1]) / sys.argv[2]).write_text("ok")\n',
              'locks/windows.lock': b'fake windows lock', 'locks/linux.lock': b'fake linux lock',
              'vendor/demo-0-py3-none-any.whl': b'fake wheel'}
     for name, data in files.items():
@@ -47,12 +47,18 @@ def signed(tmp_path):
     private = ed.Ed25519PrivateKey.generate()
     public = private.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
     envelope = sign_package(package, private_key=private, expected_product_id=manifest['product_id'], expected_version='2')
-    release = tmp_path / 'release'
+    installation = tmp_path / 'installation'
+    home = resolve_datahome(manifest, installation)
+    home.releases.mkdir(parents=True)
+    home.roots['data'].mkdir(parents=True)
+    marker = home.roots['data'] / 'schema-2'
+    release = home.releases / 'app-2'
     prepare_native_signed_package(package, envelope, release, trusted_public_key=public,
                                   expected_product_id=manifest['product_id'], expected_version='2')
     interpreter = Path(sys.executable).resolve()
     params = {'package_path': str(package), 'envelope': envelope, 'trusted_public_key': public,
               'expected_product_id': manifest['product_id'], 'expected_version': '2',
+              'expected_manifest': manifest, 'install_root': str(installation), 'migration_id': 'schema-2',
               'release_root': str(release), 'interpreter': str(interpreter),
               'interpreter_sha256': sha256(interpreter.read_bytes()).hexdigest(), 'timeout': 5}
     return params, marker
@@ -64,6 +70,25 @@ def test_signed_command_is_verified_and_run(signed):
     assert not marker.exists()
     run_signed_native_migration(**params, execute=True)
     assert marker.read_text() == 'ok'
+
+
+def test_same_signed_package_works_in_another_installation(signed, tmp_path):
+    params, original_marker = signed
+    run_signed_native_migration(**params, execute=True)
+    assert original_marker.read_text() == 'ok'
+    original_marker.write_text('first-installation')
+    other = tmp_path / 'other-installation'
+    home = resolve_datahome(params['expected_manifest'], other)
+    home.releases.mkdir(parents=True)
+    home.roots['data'].mkdir(parents=True)
+    release = home.releases / 'app-2'
+    prepare_native_signed_package(params['package_path'], params['envelope'], release,
+                                  trusted_public_key=params['trusted_public_key'],
+                                  expected_product_id=params['expected_product_id'], expected_version='2')
+    params.update(install_root=str(other), release_root=str(release))
+    run_signed_native_migration(**params, execute=True)
+    assert (home.roots['data'] / 'schema-2').read_text() == 'ok'
+    assert original_marker.read_text() == 'first-installation'
 
 
 @pytest.mark.parametrize('tampering', ['wrong-key', 'wrong-product', 'wrong-version', 'script', 'extra', 'missing'])
@@ -107,7 +132,12 @@ def test_symlinked_release_directory_is_rejected(signed):
     assert not marker.exists()
 
 
-def test_signed_command_must_point_to_an_included_python_file(signed, tmp_path):
+@pytest.mark.parametrize('command', [
+    ['python', 'not-in-package.py'],
+    ['python', 'main.py', 'prefix@DATA_DIR@', '@MIGRATION_ID@'],
+    ['python', 'main.py', '@DATA_DIR@', '@DATA_DIR@', '@MIGRATION_ID@'],
+])
+def test_rejects_unlisted_script_or_ambiguous_templates(signed, tmp_path, command):
     from shared.package_signing import verify_signed_package
     ed = pytest.importorskip('cryptography.hazmat.primitives.asymmetric.ed25519')
     serialization = pytest.importorskip('cryptography.hazmat.primitives.serialization')
@@ -116,7 +146,7 @@ def test_signed_command_must_point_to_an_included_python_file(signed, tmp_path):
                                      trusted_public_key=params['trusted_public_key'],
                                      expected_product_id=params['expected_product_id'],
                                      expected_version=params['expected_version'])['manifest']
-    manifest['migrations']['cmd'] = ['python', 'not-in-package.py']
+    manifest['migrations']['cmd'] = command
     package = tmp_path / 'other.zip'
     build_package(manifest, '2', tmp_path / 'source', package)
     private = ed.Ed25519PrivateKey.generate()
@@ -125,6 +155,24 @@ def test_signed_command_must_point_to_an_included_python_file(signed, tmp_path):
                                                                      serialization.PublicFormat.Raw)
     params['envelope'] = sign_package(package, private_key=private,
                                       expected_product_id=params['expected_product_id'], expected_version='2')
+    params['expected_manifest'] = manifest
+    with pytest.raises(UpdateError):
+        run_signed_native_migration(**params, execute=True)
+    assert not marker.exists()
+
+
+@pytest.mark.parametrize('case', ['different-manifest', 'different-installation', 'invalid-id', 'missing-id'])
+def test_binding_rejects_wrong_plan_or_installation(signed, tmp_path, case):
+    params, marker = signed
+    if case == 'different-manifest':
+        params['expected_manifest'] = deepcopy(params['expected_manifest'])
+        params['expected_manifest']['update']['health_wait'] += 1
+    elif case == 'different-installation':
+        params['install_root'] = str(tmp_path / 'other')
+    elif case == 'invalid-id':
+        params['migration_id'] = '../outside'
+    else:
+        params['migration_id'] = None
     with pytest.raises(UpdateError):
         run_signed_native_migration(**params, execute=True)
     assert not marker.exists()

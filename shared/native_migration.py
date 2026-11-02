@@ -16,12 +16,12 @@ import signal
 import stat
 import subprocess
 
-from shared.datahome import DataHomeError, checked_path
+from shared.datahome import DataHomeError, checked_path, resolve_datahome
 from shared.host_target import HostTargetError, native_target
-from shared.manifest import ManifestError, check_target
+from shared.manifest import ManifestError, check_target, validate_manifest
 from shared.package import PackageError
 from shared.package_signing import verify_signed_package
-from shared.update_plan import EffectIndeterminate, UpdateError
+from shared.update_plan import EffectIndeterminate, UpdateError, _identifier
 
 _HASH = re.compile(r'[a-f0-9]{64}\Z')
 
@@ -122,11 +122,13 @@ def run_python_migration(*, interpreter: str, interpreter_sha256: str,
 
 def run_signed_native_migration(*, package_path: str, envelope: bytes, trusted_public_key: bytes,
                                 expected_product_id: str, expected_version: str, release_root: str,
+                                expected_manifest: dict, install_root: str, migration_id: str | None = None,
                                 interpreter: str, interpreter_sha256: str, timeout: float,
                                 execute: bool = False) -> None:
     """Запустить только объявленную в подписанном манифесте Python-миграцию.
 
-    Начальный контракт команды: ["python", "relative/script.py", ...fixed_args].
+    Контракт команды: ["python", "relative/script.py", ...args], при этом
+    целые аргументы @DATA_DIR@ и @MIGRATION_ID@ подставляются строго по контракту.
     Ключ, продукт, версия и хэш runtime независимо задаются вызывающим. Эта
     проверка не является sandbox, idempotency ledger или проверкой отсутствия
     вредоносного кода. Параметры из доверенного манифеста видны в argv процесса.
@@ -137,6 +139,8 @@ def run_signed_native_migration(*, package_path: str, envelope: bytes, trusted_p
         manifest = metadata['manifest']
         if (manifest['schema_version'] != 2 or check_target(manifest, native_target())['status'] != 'supported'):
             raise UpdateError('Целевая среда не подтверждена')
+        if validate_manifest(expected_manifest) != manifest:
+            raise UpdateError('Подписанный манифест не соответствует плану')
         command = manifest['migrations']['cmd']
         if len(command) < 2 or command[0] != 'python' or not command[1].endswith('.py'):
             raise UpdateError('Команда миграции не поддерживается')
@@ -147,6 +151,24 @@ def run_signed_native_migration(*, package_path: str, envelope: bytes, trusted_p
         root = checked_path(release_root)
         if not root.is_dir() or root == Path(root.anchor):
             raise UpdateError('Недопустимый каталог выпуска')
+        home = resolve_datahome(manifest, install_root)
+        if root != checked_path(home.releases / ('app-' + expected_version)):
+            raise UpdateError('Выпуск не принадлежит установке')
+        arguments = command[2:]
+        data_token, migration_token = '@DATA_DIR@', '@MIGRATION_ID@'
+        if (arguments.count(data_token) > 1 or arguments.count(migration_token) > 1
+                or any((data_token in arg or migration_token in arg) and arg not in (data_token, migration_token)
+                       for arg in arguments)):
+            raise UpdateError('Недопустимые шаблоны миграции')
+        if migration_token in arguments:
+            if not _identifier(migration_id):
+                raise UpdateError('Недопустимый идентификатор миграции')
+        elif migration_id is not None:
+            raise UpdateError('Идентификатор не предусмотрен манифестом')
+        if data_token in arguments and not home.roots['data'].is_dir():
+            raise UpdateError('Каталог данных не подготовлен')
+        arguments = tuple(str(home.roots['data']) if arg == data_token else
+                          migration_id if arg == migration_token else arg for arg in arguments)
         directories = {'.'}
         for name in expected:
             parts = name.split('/')
@@ -172,7 +194,7 @@ def run_signed_native_migration(*, package_path: str, envelope: bytes, trusted_p
             raise UpdateError('Состав выпуска не соответствует подписи')
         run_python_migration(interpreter=interpreter, interpreter_sha256=interpreter_sha256,
                              release_root=str(root), script=str(root.joinpath(*script.split('/'))),
-                             script_sha256=expected[script], args=tuple(command[2:]),
+                             script_sha256=expected[script], args=arguments,
                              timeout=timeout, execute=execute)
     except (PackageError, HostTargetError, ManifestError, DataHomeError, OSError, ValueError, KeyError, TypeError):
         raise UpdateError('Не удалось подтвердить подписанную миграцию') from None

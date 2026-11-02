@@ -2,9 +2,12 @@
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import stat
 import struct
+import subprocess
+import sys
 from types import SimpleNamespace
 import zipfile
 
@@ -61,6 +64,89 @@ def test_create_verify_and_restore_roundtrip(home, tmp_path):
     assert restore_archive(path, target, expected_product_id=home.product_id) == manifest
     assert {name: snapshot(target / "roots" / name) for name in home.roots} == before
     assert {name: snapshot(root) for name, root in home.roots.items()} == before
+
+
+@pytest.mark.skipif(not hasattr(os, 'mkfifo'), reason='FIFO недоступен')
+def test_fifo_archive_is_rejected_without_blocking_or_writing(tmp_path):
+    fifo = tmp_path / 'input.fifo'
+    os.mkfifo(fifo)
+    target = tmp_path / 'target'
+    target.mkdir()
+    code = """import sys
+from shared.archive import ArchiveError, verify_archive, restore_archive
+from shared import archive_crypto as crypto
+from shared.archive_crypto import is_encrypted, verify_archive as verify_auto, restore_archive as restore_auto
+path, target = sys.argv[1:]
+for operation in (lambda: verify_archive(path), lambda: restore_archive(path, target),
+                  lambda: is_encrypted(path), lambda: verify_auto(path), lambda: restore_auto(path, target)):
+    try:
+        operation()
+    except ArchiveError:
+        continue
+    raise SystemExit('special file was accepted')
+try:
+    crypto._aesgcm()
+except crypto.CryptoUnavailableError:
+    pass
+else:
+    for operation in (lambda: crypto.decrypted_archive(path, password_provider=lambda: 'test').__enter__(),
+                      lambda: crypto.encrypt_archive(path, target + '/output', password_provider=lambda: 'test')):
+        try:
+            operation()
+        except ArchiveError:
+            continue
+        raise SystemExit('special file was accepted by crypto')
+"""
+    result = subprocess.run([sys.executable, '-B', '-c', code, str(fifo), str(target)],
+                            cwd=Path(__file__).resolve().parents[1], stdin=subprocess.DEVNULL,
+                            capture_output=True, timeout=30)
+    assert result.returncode == 0 and not list(target.iterdir())
+
+
+@pytest.mark.skipif(not hasattr(os, 'mkfifo'), reason='FIFO недоступен')
+def test_fifo_swap_between_stat_and_open_does_not_block(tmp_path):
+    original = tmp_path / 'archive.zip'
+    original.write_bytes(b'synthetic file')
+    fifo = tmp_path / 'swap.fifo'
+    os.mkfifo(fifo)
+    code = """import os, sys
+from shared import archive
+path, fifo = sys.argv[1:]
+actual_open = os.open
+swapped = False
+def swap_before_open(name, flags, *args, **kwargs):
+    global swapped
+    if os.fspath(name) == path and not swapped:
+        swapped = True
+        os.replace(fifo, path)
+    return actual_open(name, flags, *args, **kwargs)
+archive.os.open = swap_before_open
+try:
+    archive.verify_archive(path)
+except archive.ArchiveError:
+    raise SystemExit(0 if swapped else 2)
+raise SystemExit(3)
+"""
+    result = subprocess.run([sys.executable, '-B', '-c', code, str(original), str(fifo)],
+                            cwd=Path(__file__).resolve().parents[1], stdin=subprocess.DEVNULL,
+                            capture_output=True, timeout=30)
+    assert result.returncode == 0 and stat.S_ISFIFO(original.stat().st_mode)
+
+
+@pytest.mark.skipif(os.name == 'nt', reason='Замена открытого файла зависит от настроек Windows')
+def test_replaced_archive_is_not_reported_verified(home, tmp_path, monkeypatch):
+    original = tmp_path / 'archive.zip'
+    replacement = tmp_path / 'replacement.zip'
+    build_archive(home, original)
+    replacement.write_bytes(original.read_bytes())
+    verify_inner = module._verify
+    def replace_after_check(archive, expected_product_id):
+        result = verify_inner(archive, expected_product_id)
+        os.replace(replacement, original)
+        return result
+    monkeypatch.setattr(module, '_verify', replace_after_check)
+    with pytest.raises(ArchiveError):
+        verify_archive(original, expected_product_id=home.product_id)
 
 
 def test_deterministic_order_and_bytes(home, tmp_path):

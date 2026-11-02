@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -55,6 +56,28 @@ def _signature(path: Path) -> tuple[int, ...]:
         raise ArchiveError("Поддерживаются только обычные файлы и каталоги")
     return (info.st_dev, info.st_ino, info.st_mode, info.st_size,
             info.st_mtime_ns, info.st_ctime_ns)
+
+
+@contextmanager
+def _open_regular(path: str | Path):
+    """Открыть только стабильный обычный файл без блокировки на FIFO."""
+    path = checked_path(path)
+    signature = _signature(path)
+    if not stat.S_ISREG(signature[2]):
+        raise ArchiveError('Требуется обычный файл архива')
+    flags = (os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0)
+             | getattr(os, 'O_BINARY', 0))
+    descriptor = os.open(path, flags)
+    with os.fdopen(descriptor, 'rb') as stream:
+        def current():
+            info = os.fstat(stream.fileno())
+            return (info.st_dev, info.st_ino, info.st_mode, info.st_size,
+                    info.st_mtime_ns, info.st_ctime_ns)
+        if current() != signature or _signature(path) != signature:
+            raise ArchiveError('Файл архива изменился при открытии')
+        yield stream
+        if current() != signature or _signature(path) != signature:
+            raise ArchiveError('Файл архива изменился при чтении')
 
 
 def _digest(stream, output=None) -> tuple[int, str]:
@@ -266,8 +289,9 @@ def _verify(archive: zipfile.ZipFile, expected_product_id: str | None) -> dict:
 def verify_archive(path: str | Path, *, expected_product_id: str | None = None) -> dict:
     """Проверить весь ZIP без извлечения; вернуть манифест без содержимого файлов."""
     try:
-        with zipfile.ZipFile(checked_path(path), "r") as archive:
-            return _verify(archive, expected_product_id)
+        with _open_regular(path) as stream:
+            with zipfile.ZipFile(stream, "r") as archive:
+                return _verify(archive, expected_product_id)
     except (OSError, DataHomeError, zipfile.BadZipFile, UnicodeError, ValueError, RecursionError) as error:
         if isinstance(error, ArchiveError):
             raise
@@ -284,7 +308,7 @@ def restore_archive(path: str | Path, target: str | Path, *, expected_product_id
         target = checked_path(target)
         if not target.is_dir() or any(target.iterdir()):
             raise ArchiveError("Восстановление требует существующий пустой каталог")
-        with zipfile.ZipFile(checked_path(path), "r") as archive:
+        with _open_regular(path) as stream, zipfile.ZipFile(stream, "r") as archive:
             manifest = _verify(archive, expected_product_id)
             _space(target, sum(item["size"] for item in manifest["files"])
                    + 4096 * (len(manifest["directories"]) + len(manifest["files"]) + 1))

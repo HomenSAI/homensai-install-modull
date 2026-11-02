@@ -116,9 +116,9 @@ def read_header(stream) -> dict:
 
 def is_encrypted(path: str | Path) -> bool:
     try:
-        with checked_path(path).open("rb") as stream:
+        with plain._open_regular(path) as stream:
             return stream.read(len(MAGIC)) == MAGIC
-    except (OSError, DataHomeError):
+    except (OSError, DataHomeError, plain.ArchiveError):
         raise ArchiveCryptoError("Архив недоступен") from None
 
 
@@ -159,7 +159,7 @@ def encrypt_archive(source: str | Path, destination: str | Path, *, password_pro
             raise ArchiveCryptoError("Недопустимый размер блока шифрования")
         source, destination = checked_path(source), _destination(destination)
         manifest = plain.verify_archive(source)
-        with source.open("rb") as incoming:
+        with plain._open_regular(source) as incoming:
             size, digest = plain._digest(incoming)
             salt, prefix = os.urandom(16), os.urandom(4)
             raw = HEADER.pack(MAGIC, VERSION, 1, SCRYPT_N, SCRYPT_R, SCRYPT_P,
@@ -206,7 +206,7 @@ def decrypted_archive(path: str | Path, *, password_provider,
     try:
         from cryptography.exceptions import InvalidTag
         path = checked_path(path)
-        with path.open("rb") as incoming:
+        with plain._open_regular(path) as incoming:
             header = read_header(incoming)
             # Проверка точной длины до KDF/временной записи; нет доверия к size.
             count = max(1, (header["size"] + header["chunk_size"] - 1) // header["chunk_size"])

@@ -506,9 +506,12 @@ def test_inspect_pending_rejects_unbound_receipt_without_manager_call(published_
 
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Требуется явно созданный изолированный systemd-контейнер')
-def test_isolated_manager_reloads_signed_units_without_start(signed_units):
+@pytest.mark.parametrize('exercise_lifecycle', [False, True], ids=['reload-only', 'group-lifecycle'])
+def test_isolated_manager_reloads_signed_units_without_start(signed_units, exercise_lifecycle):
     import pwd
     import subprocess
+    from shared.systemd_group import SystemdUserGroup
+    from shared.systemd_user import SystemdUserAdapter
     from shared.systemd_user_load import load_signed_user_units
 
     identity = pwd.getpwuid(os.getuid())
@@ -540,7 +543,25 @@ def test_isolated_manager_reloads_signed_units_without_start(signed_units):
                    modes=('autonomous',), unit_dir=str(destination), execute=True, runner=actual_runner) == loaded
         assert calls.count(['daemon-reload']) == 1
         assert all(path.read_bytes() == units[path.name] for path in expected)
+        if exercise_lifecycle:
+            manifest = load_manifest(ROOT / 'examples/rent.manifest.json')
+            manifest['product_id'] = options['expected_product_id']
+            adapters = {}
+            for component in ('web', 'bot', 'scheduler'):
+                unit = manifest['product_id'] + '-' + component + '.service'
+                adapters[component] = SystemdUserAdapter(
+                    manifest, modes=('autonomous',), component=component,
+                    fragment_path=str(destination / unit),
+                    fragment_sha256=hashlib.sha256(units[unit]).hexdigest())
+            group = SystemdUserGroup(manifest, modes=('autonomous',), adapters=adapters)
+            assert [status['active_state'] for status in group.command('start', execute=True)] == ['active'] * 3
+            assert [status['active_state'] for status in group.command('stop', execute=True)] == ['inactive'] * 3
     finally:
+        if exercise_lifecycle:
+            # Only random unit names created by this test, inside the gated manager.
+            subprocess.run(['/usr/bin/systemctl', '--user', 'stop', '--', *[p.name for p in expected]],
+                           env=pub._manager_environment(), stdin=subprocess.DEVNULL,
+                           capture_output=True, timeout=30, check=False)
         for path in expected:
             if path.exists():
                 info = path.lstat()

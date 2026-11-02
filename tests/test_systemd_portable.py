@@ -1,7 +1,10 @@
 """Проверка переносимого рецепта: только синтетические подписанные выпуски."""
 import hashlib
+import json
 import os
 from pathlib import Path
+import stat
+import uuid
 
 import pytest
 
@@ -11,7 +14,8 @@ from shared.package import build_package
 from shared.package_signing import sign_package, verify_signed_package
 from shared.preflight import NAMES
 from shared.systemd_portable import (RECIPE_PATH, RECIPE_V1, PortableUnitError,
-                                      plan_portable_signed_user_units)
+                                      plan_portable_signed_user_units, publish_portable_signed_user_units)
+from shared import systemd_user_publish as pub
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGET = {'os': 'linux', 'architecture': 'x86_64', 'execution': 'native'}
@@ -25,6 +29,7 @@ def portable_release(tmp_path, monkeypatch):
         monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: dict(TARGET))
         monkeypatch.setattr('shared.package_prepare.native_target', lambda: dict(TARGET))
     manifest = load_manifest(ROOT / 'examples/rent.manifest.json')
+    manifest['product_id'] = 'homensai-test-' + uuid.uuid4().hex[:16]
     manifest['paths'] = {name: name for name in NAMES}
     manifest['compatibility'] = {'targets': [dict(TARGET)]}
     manifest['secrets'] = []
@@ -114,3 +119,118 @@ def test_portable_plan_rejects_signed_unsupported_or_ambiguous_recipe(portable_r
         plan_portable_signed_user_units(other_package, other_envelope, str(root),
                                         **other_options, modes=('autonomous',))
     assert not (root / '.homensai-control/user-systemd-publication.json').exists()
+
+
+def fake_manager(directory):
+    calls = []
+    def run(argv, *, timeout, env):
+        calls.append(argv[4:])
+        if '--value' in argv:
+            return str(directory) + '\n'
+        name = argv[-1]
+        return (f'Id={name}\nLoadState=not-found\nActiveState=inactive\nSubState=dead\n'
+                'FragmentPath=\nDropInPaths=\nNeedDaemonReload=no\n')
+    return run, calls
+
+
+@pytest.fixture
+def portable_directory(tmp_path, monkeypatch):
+    import shared.systemd_portable as portable
+    directory = tmp_path / 'user-units'
+    directory.mkdir(mode=0o700)
+    monkeypatch.setattr(portable, '_unit_directory', lambda path: Path(path))
+    def trusted(path, expected):
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+            raise pub.SystemdUserError('synthetic untrusted file')
+    monkeypatch.setattr(pub, '_trusted_file', trusted)
+    return directory
+
+
+def portable_publish(data, directory, **kwargs):
+    package, envelope, options, roots = data
+    return publish_portable_signed_user_units(package, envelope, str(roots[0]), **options,
+                                              modes=('autonomous',), unit_dir=str(directory), **kwargs)
+
+
+def test_portable_publication_repeats_without_rewrite_and_rejects_conflict(portable_release, portable_directory):
+    manager, calls = fake_manager(portable_directory)
+    plan = portable_publish(portable_release, portable_directory, runner=manager)
+    assert plan['state'] == 'planned' and not calls and not list(portable_directory.iterdir())
+    first = portable_publish(portable_release, portable_directory, execute=True, operation_id='a' * 32, runner=manager)
+    receipt = portable_release[3][0] / '.homensai-control/user-systemd-publication.json'
+    assert json.loads(receipt.read_text())['status'] == 'done'
+    before = {p.name: (p.stat().st_ino, p.stat().st_mtime_ns) for p in portable_directory.iterdir()}
+    assert portable_publish(portable_release, portable_directory, execute=True,
+                            operation_id='a' * 32, runner=manager) == first
+    assert before == {p.name: (p.stat().st_ino, p.stat().st_mtime_ns) for p in portable_directory.iterdir()}
+    with pytest.raises(PortableUnitError):
+        portable_publish(portable_release, portable_directory, execute=True, operation_id='b' * 32, runner=manager)
+    assert all(call[0] == 'show' for call in calls)
+    (portable_directory / first['units'][0]['name']).write_text('tampered')
+    with pytest.raises(PortableUnitError):
+        portable_publish(portable_release, portable_directory, execute=True, operation_id='a' * 32, runner=manager)
+    assert json.loads(receipt.read_text())['status'] == 'done'
+
+
+def test_portable_publication_interruption_preserves_pending(portable_release, portable_directory, monkeypatch):
+    manager, _ = fake_manager(portable_directory)
+    original = pub._write_exclusive
+    writes = []
+    def fail_during_write(fd, name, data):
+        writes.append(name)
+        if len(writes) == 2:
+            raise OSError('synthetic interruption')
+        original(fd, name, data)
+    monkeypatch.setattr(pub, '_write_exclusive', fail_during_write)
+    with pytest.raises(PortableUnitError):
+        portable_publish(portable_release, portable_directory, execute=True, operation_id='a' * 32, runner=manager)
+    receipt = portable_release[3][0] / '.homensai-control/user-systemd-publication.json'
+    before = receipt.read_bytes()
+    assert json.loads(before)['status'] == 'pending'
+    monkeypatch.setattr(pub, '_write_exclusive', original)
+    with pytest.raises(PortableUnitError):
+        portable_publish(portable_release, portable_directory, execute=True, operation_id='a' * 32, runner=manager)
+    assert receipt.read_bytes() == before
+
+
+@pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
+                    reason='Нужен отдельный тестовый user-systemd')
+def test_portable_publication_with_isolated_real_user_manager(portable_release):
+    import pwd
+    identity = pwd.getpwuid(os.getuid())
+    if (os.getuid() == 0 or identity.pw_name != 'homenstest'
+            or identity.pw_dir != '/home/homenstest' or not Path('/run/.containerenv').is_file()):
+        pytest.skip('Защитные условия изолированной среды не выполнены')
+    package, envelope, options, roots = portable_release
+    directory = Path(identity.pw_dir) / '.config/systemd/user'
+    plan = plan_portable_signed_user_units(package, envelope, str(roots[0]), **options, modes=('autonomous',))
+    expected = {directory / name: text.encode('utf-8') for name, text in plan['unit_texts'].items()}
+    marker = directory / ('.' + options['expected_product_id'] + '.homensai-units.pending')
+    assert directory.is_dir() and not marker.exists() and all(not p.exists() for p in expected)
+    calls = []
+    def actual(argv, *, timeout, env):
+        calls.append(argv[4:])
+        return pub._run(argv, timeout=timeout, env=env)
+    try:
+        result = portable_publish(portable_release, directory, execute=True, operation_id='a' * 32, runner=actual)
+        before = {p.name: (p.stat().st_ino, p.stat().st_mtime_ns) for p in expected}
+        assert portable_publish(portable_release, directory, execute=True, operation_id='a' * 32, runner=actual) == result
+        assert before == {p.name: (p.stat().st_ino, p.stat().st_mtime_ns) for p in expected}
+        assert result['state'] == 'published' and result['services_started'] is False
+        assert all(call[0] == 'show' for call in calls)
+        assert all(p.read_bytes() == body for p, body in expected.items())
+    finally:
+        for path, body in expected.items():
+            if path.exists():
+                info = path.lstat()
+                assert stat.S_ISREG(info.st_mode) and info.st_uid == os.getuid() and info.st_nlink == 1
+                assert path.read_bytes() == body
+                path.unlink()
+        if marker.exists():
+            info = marker.lstat()
+            assert stat.S_ISREG(info.st_mode) and info.st_uid == os.getuid() and info.st_nlink == 1
+            body = json.loads(marker.read_text())
+            assert body['product_id'] == options['expected_product_id'] and body['version'] == '1'
+            assert {item['name']: item['sha256'] for item in body['units']} == {
+                path.name: hashlib.sha256(data).hexdigest() for path, data in expected.items()}
+            marker.unlink()

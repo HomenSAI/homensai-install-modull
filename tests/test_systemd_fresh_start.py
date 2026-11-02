@@ -144,3 +144,30 @@ def test_uncertain_stop_is_not_replayed(scenario, monkeypatch):
     assert record['status'] == 'pending'
     with pytest.raises(start.FreshStartError):
         start.start_portable_fresh('package', b'envelope', str(root), **args)
+
+
+def test_reconcile_pending_stop_observes_without_repeating(scenario, monkeypatch):
+    root, args, calls, group = scenario
+    start.start_portable_fresh('package', b'envelope', str(root), **args)
+    def fail(action, *, execute=False):
+        calls.append((action, execute))
+        raise RuntimeError('response lost')
+    monkeypatch.setattr(group, 'command', fail)
+    stop_args = {**args, 'start_key': args['operation_id'], 'operation_id': 'e' * 32}
+    with pytest.raises(start.FreshStartError):
+        start.stop_portable_fresh('package', b'envelope', str(root), **stop_args)
+    receipt = root / '.homensai-control/user-systemd-stop.json'
+    before = receipt.read_bytes()
+    original = start.signed_user_group
+    def active(*a, **kw):
+        raise RuntimeError('service remains active')
+    monkeypatch.setattr(start, 'signed_user_group', active)
+    with pytest.raises(start.FreshStartError):
+        start.stop_portable_fresh('package', b'envelope', str(root), **stop_args, reconcile=True)
+    assert receipt.read_bytes() == before
+    monkeypatch.setattr(start, 'signed_user_group', original)
+    result = start.stop_portable_fresh('package', b'envelope', str(root), **stop_args, reconcile=True)
+    assert result['services_stopped'] and result['prior_stop_command_confirmed'] is False
+    assert start.stop_portable_fresh('package', b'envelope', str(root), **stop_args, reconcile=True) == result
+    assert json.loads(receipt.read_text())['status'] == 'done'
+    assert calls == [('start', True), ('stop', True)]

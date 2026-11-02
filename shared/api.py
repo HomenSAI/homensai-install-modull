@@ -34,7 +34,7 @@ from shared.systemd_fresh_start import FreshStartError, start_portable_fresh, st
 from shared.update_plan import UpdateError, UpdatePlan
 
 API_MAJOR = 1
-API_MINOR = 21
+API_MINOR = 22
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -168,6 +168,8 @@ def handle(request: Any) -> dict:
                     mutating_operations.append("start-portable-linux")
                     operations.append("stop-portable-linux")
                     mutating_operations.append("stop-portable-linux")
+                    operations.append("reconcile-portable-linux-stop")
+                    mutating_operations.append("reconcile-portable-linux-stop")
                     mutating_operations.append("prepare-linux-runtime")
             result = {"api_major": API_MAJOR, "api_minor": API_MINOR,
                       "operations": operations,
@@ -236,12 +238,14 @@ def handle(request: Any) -> dict:
                 result = {'state': plan.status()}
             except (DataHomeError, ManifestError, UpdateError, OSError, RecursionError):
                 return _error(request_id, "update_status_failed", "Не удалось прочитать состояние обновления", language, "api.update_status_failed")
-        elif operation in ('check-portable-linux-start', 'start-portable-linux', 'stop-portable-linux'):
+        elif operation in ('check-portable-linux-start', 'start-portable-linux', 'stop-portable-linux',
+                           'reconcile-portable-linux-stop'):
             fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id',
                       'expected_version', 'install_root', 'modes', 'unit_dir', 'load_key',
                       'runtime_key', 'reserve_bytes'}
             starting = operation == 'start-portable-linux'
-            stopping = operation == 'stop-portable-linux'
+            reconciling = operation == 'reconcile-portable-linux-stop'
+            stopping = operation == 'stop-portable-linux' or reconciling
             if starting or stopping:
                 fields.add('idempotency_key')
             if stopping:
@@ -273,7 +277,8 @@ def handle(request: Any) -> dict:
                     result = stop_portable_fresh(params['package_path'], envelope, params['install_root'],
                             **options, modes=tuple(params['modes']), unit_dir=params['unit_dir'],
                             load_key=params['load_key'], runtime_key=params['runtime_key'], start_key=params['start_key'],
-                            reserve_bytes=params['reserve_bytes'], operation_id=params['idempotency_key'])
+                            reserve_bytes=params['reserve_bytes'], operation_id=params['idempotency_key'],
+                            reconcile=reconciling)
                 elif starting:
                     result = start_portable_fresh(params['package_path'], envelope, params['install_root'],
                             **options, modes=tuple(params['modes']), unit_dir=params['unit_dir'],

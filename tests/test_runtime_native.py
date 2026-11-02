@@ -207,7 +207,7 @@ def test_runtime_api_plans_prepares_and_verifies_without_reexecution(runtime_rel
 
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Нужен одноразовый тестовый контейнер Python 3.14')
-def test_prepared_runtime_runs_real_container_cpython(tmp_path):
+def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch):
     import base64
     import pwd
     import shutil
@@ -380,9 +380,24 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path):
         interpreter.chmod(0o600)  # Остановка доступна при повреждённом runtime.
         stop_request = {**readiness, 'start_key': 'd' * 32, 'idempotency_key': 'e' * 32}
         assert validator.is_valid({**request, 'operation': 'stop-portable-linux', 'params': stop_request})
-        stopped = client.call('stop-portable-linux', stop_request, min_minor=21)
+        import shared.systemd_fresh_start as fresh_start
+        original_write = fresh_start._atomic_write
+        def lose_stop_receipt(path, value):
+            if path.name == 'user-systemd-stop.json' and value['status'] == 'done':
+                raise OSError('synthetic lost response')
+            return original_write(path, value)
+        monkeypatch.setattr(fresh_start, '_atomic_write', lose_stop_receipt)
+        failed = handle({**request, 'operation': 'stop-portable-linux', 'params': stop_request})
+        assert failed['error']['code'] == 'linux_stop_failed'
+        assert json.loads((install / '.homensai-control/user-systemd-stop.json').read_text())['status'] == 'pending'
+        monkeypatch.setattr(fresh_start, '_atomic_write', original_write)
+        reconcile_request = {**request, 'operation': 'reconcile-portable-linux-stop', 'params': stop_request}
+        assert validator.is_valid(reconcile_request)
+        stopped = client.call('reconcile-portable-linux-stop', stop_request, min_minor=22)
         assert stopped['state'] == 'stopped' and stopped['all_writers_stopped'] is False
-        assert client.call('stop-portable-linux', stop_request, min_minor=21) == stopped
+        assert stopped['prior_stop_command_confirmed'] is False
+        assert client.call('stop-portable-linux', stop_request, min_minor=21) == {
+            key: value for key, value in stopped.items() if key != 'prior_stop_command_confirmed'}
         with pytest.raises(InstallerClientError):
             client.call('start-portable-linux', start_request, min_minor=20)
     finally:

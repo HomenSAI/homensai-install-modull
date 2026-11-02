@@ -70,7 +70,8 @@ def start_portable_fresh(package_path, envelope, install_root, **options):
 
 def stop_portable_fresh(package_path, envelope, install_root, *, trusted_public_key,
                         expected_product_id, expected_version, modes, unit_dir,
-                        load_key, runtime_key, start_key, reserve_bytes, operation_id, runner=None):
+                        load_key, runtime_key, start_key, reserve_bytes, operation_id, runner=None,
+                        reconcile=False):
     """Остановить стабильные units с отдельной отметкой, в том числе после pending start."""
     try:
         if (any(type(key) is not str or re.fullmatch(r'[a-f0-9]{32}', key) is None
@@ -78,7 +79,8 @@ def stop_portable_fresh(package_path, envelope, install_root, *, trusted_public_
                 or len({load_key, runtime_key, start_key, operation_id}) != 4
                 or type(reserve_bytes) is not int or not 0 <= reserve_bytes <= 2**63 - 1
                 or type(envelope) is not bytes or type(trusted_public_key) is not bytes
-                or len(trusted_public_key) != 32 or type(modes) is not tuple or not modes):
+                or len(trusted_public_key) != 32 or type(modes) is not tuple or not modes
+                or type(reconcile) is not bool):
             raise FreshStartError('Недопустимые параметры остановки')
         with _lifecycle_lock(install_root):
             root, directory = checked_path(install_root), checked_path(unit_dir)
@@ -97,14 +99,23 @@ def stop_portable_fresh(package_path, envelope, install_root, *, trusted_public_
             done = {**pending, 'status': 'done'}
             receipt = checked_path(control / 'user-systemd-stop.json')
             old = _publication_receipt(receipt)
-            if old is not None and old != done:
+            if ((reconcile and old not in (pending, done)) or
+                    (not reconcile and old is not None and old != done)):
                 raise FreshStartError('Предыдущая остановка требует проверки')
             options = dict(trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
                            expected_version=expected_version)
             group = signed_user_group(package_path, envelope, str(root), **options, modes=modes,
                         unit_dir=str(directory), operation_id=load_key, portable=True, runner=runner,
-                        _require_stable=(old is None))
-            if old is None:
+                        _require_stable=(old is None and not reconcile))
+            if reconcile and old == pending:
+                if (_publication_receipt(receipt) != pending or
+                        _publication_receipt(control / 'user-systemd-start.json') != start_receipt or
+                        _publication_receipt(control / 'user-systemd-publication.json') != publication):
+                    raise FreshStartError('Отметки изменились')
+                _atomic_write(receipt, done)
+                signed_user_group(package_path, envelope, str(root), **options, modes=modes,
+                    unit_dir=str(directory), operation_id=load_key, portable=True, runner=runner)
+            elif old is None:
                 _new_publication_receipt(receipt, pending)
                 group.command('stop', execute=True)
                 if _publication_receipt(receipt) != pending:
@@ -112,8 +123,11 @@ def stop_portable_fresh(package_path, envelope, install_root, *, trusted_public_
                 _atomic_write(receipt, done)
             if _publication_receipt(receipt) != done:
                 raise FreshStartError('Остановка не подтверждена')
-            return {'state': 'stopped', 'services_stopped': True, 'installation_complete': False,
-                    'all_writers_stopped': False}
+            result = {'state': 'stopped', 'services_stopped': True, 'installation_complete': False,
+                      'all_writers_stopped': False}
+            if reconcile:
+                result['prior_stop_command_confirmed'] = False
+            return result
     except FreshStartError:
         raise
     except Exception:

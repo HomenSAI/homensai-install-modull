@@ -17,6 +17,13 @@ class WriterGuardError(RuntimeError):
     """The cooperative writer lock cannot be trusted or acquired."""
 
 
+@dataclass(frozen=True)
+class LockIdentity:
+    """Observed file identity; meaningful only on the current host and filesystem."""
+    device: int
+    inode: int
+
+
 def _checked_path(value: str | Path) -> Path:
     """Absolute Linux path with no links or ambiguous components."""
     text = str(value)
@@ -81,7 +88,7 @@ class CooperativeWriterLock:
                 os.close(fd)
             raise WriterGuardError('Блокировка писателей недоступна') from None
         try:
-            yield
+            yield LockIdentity(info.st_dev, info.st_ino)
         finally:
             try:
                 current = _checked_path(path).lstat()

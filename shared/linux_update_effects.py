@@ -238,13 +238,17 @@ class LinuxSignedUpdateEffects:
         try:
             checked_path(ports.work).mkdir(parents=True, exist_ok=True)
             marker = ports._path(key, '.quiescence.json')
-            record = read_effect_receipt(marker)
-            done = {**binding, 'status': 'done'}
-            if record is not None and record != done:
-                raise EffectIndeterminate('Предыдущая копия требует проверки')
-            if (record is None and ports.archive_path(key).exists()) or (record == done and not ports.archive_path(key).exists()):
-                raise EffectIndeterminate('Копия не соответствует отметке')
-            with writer_lock.hold(exclusive=True) if writer_lock is not None else nullcontext():
+            with writer_lock.hold(exclusive=True) if writer_lock is not None else nullcontext() as identity:
+                if writer_lock is not None:
+                    binding['writer_lock_file_sha256'] = hashlib.sha256(
+                        f'{identity.device}:{identity.inode}'.encode('ascii')).hexdigest()
+                record = read_effect_receipt(marker)
+                done = {**binding, 'status': 'done'}
+                if record is not None and record != done:
+                    raise EffectIndeterminate('Предыдущая копия требует проверки')
+                if ((record is None and ports.archive_path(key).exists())
+                        or (record == done and not ports.archive_path(key).exists())):
+                    raise EffectIndeterminate('Копия не соответствует отметке')
                 confirm_stopped()
                 if record is None:
                     _atomic_write(marker, {**binding, 'status': 'pending'})

@@ -18,6 +18,15 @@ def test_installer_and_client_use_the_same_lock_type():
     assert InstallerLock is CooperativeWriterLock
 
 
+def test_lock_reports_stable_file_identity(tmp_path):
+    root = tmp_path / 'private'
+    root.mkdir(mode=0o700)
+    guard = CooperativeWriterLock(str(root / 'writers.lock'))
+    with guard.hold(exclusive=True) as identity:
+        info = guard.path.stat()
+        assert (identity.device, identity.inode) == (info.st_dev, info.st_ino)
+
+
 @pytest.mark.parametrize('path', ['relative/lock', '/tmp/../escape', '/tmp/invalid.', '/tmp/a\\b',
                                    '/tmp/control\nchar', '/tmp/name:stream', '//server/share'])
 def test_lock_rejects_ambiguous_or_nonlocal_paths(path):

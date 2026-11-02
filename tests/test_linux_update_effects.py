@@ -1,5 +1,8 @@
 from pathlib import Path
 import os
+import subprocess
+import sys
+import time
 
 import pytest
 
@@ -203,6 +206,98 @@ def test_replaced_writer_lock_leaves_backup_pending(setup, tmp_path, monkeypatch
         assert read_effect_receipt(ports._path(key, '.quiescence.json'))['status'] == 'pending'
     finally:
         _ACTIVE_EFFECT.reset(token)
+
+
+@pytest.mark.skipif(not sys.platform.startswith('linux'), reason='Requires Linux flock')
+def test_replacing_writer_lock_between_retries_rejects_existing_receipt(setup, tmp_path, monkeypatch):
+    plan, ports, state, _ = _prepare_archive(setup)
+    private = tmp_path / 'writer-lock'
+    private.mkdir(mode=0o700)
+    guard = CooperativeWriterLock(str(private / 'writers.lock'))
+    ports.effects.writer_lock = guard
+    key = state['transaction'] + '/archive'
+    calls = []
+    def backup(*args):
+        calls.append(args)
+        ports.archive_path(key).write_bytes(b'synthetic archive')
+    monkeypatch.setattr(ports, '_backup', backup)
+    token = _ACTIVE_EFFECT.set((plan, state['transaction'], 'archive'))
+    old_fd = None
+    try:
+        ports.backup(key, 'archive', ())
+        old_fd = os.open(guard.path, os.O_RDONLY)
+        guard.path.unlink()
+        guard.path.touch(mode=0o600)
+        with pytest.raises(EffectIndeterminate):
+            ports.backup(key, 'archive', ())
+        assert len(calls) == 1
+    finally:
+        if old_fd is not None:
+            os.close(old_fd)
+        _ACTIVE_EFFECT.reset(token)
+
+
+@pytest.mark.skipif(not sys.platform.startswith('linux'), reason='Requires Linux flock')
+def test_real_cooperating_worker_blocks_then_allows_encrypted_update_backup(setup, tmp_path, monkeypatch):
+    pytest.importorskip('cryptography')
+    from shared import archive_crypto
+    from shared.effect_receipt import read_effect_receipt
+
+    plan, ports, state, _ = _prepare_archive(setup)
+    private = tmp_path / 'writer-lock'
+    private.mkdir(mode=0o700)
+    guard = CooperativeWriterLock(str(private / 'writers.lock'))
+    ports.effects.writer_lock = guard
+    for directory in ports.home.roots.values():
+        directory.mkdir(parents=True, exist_ok=True)
+    key = state['transaction'] + '/archive'
+    command = [sys.executable, '-B', '-m', 'examples.demo_product.main', 'worker',
+               '--data-dir', str(ports.home.roots['data']), '--writer-lock', str(guard.path)]
+    worker = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    original = archive_crypto.build_encrypted_archive
+    checked = []
+    def attempt_restart_during_archive(*args, **kwargs):
+        unwanted = tmp_path / 'unexpected-writer-data'
+        result = subprocess.run([sys.executable, '-B', '-m', 'examples.demo_product.main', 'worker',
+                                 '--data-dir', str(unwanted), '--writer-lock', str(guard.path)],
+                                capture_output=True, timeout=10)
+        assert result.returncode != 0 and not unwanted.exists()
+        checked.append(True)
+        return original(*args, **kwargs)
+    monkeypatch.setattr(archive_crypto, 'build_encrypted_archive', attempt_restart_during_archive)
+    try:
+        heartbeat = ports.home.roots['data'] / 'worker-heartbeat.json'
+        deadline = time.monotonic() + 10
+        while not heartbeat.exists() and time.monotonic() < deadline:
+            if worker.poll() is not None:
+                pytest.fail('writer exited before heartbeat')
+            time.sleep(0.05)
+        assert heartbeat.exists()
+        token = _ACTIVE_EFFECT.set((plan, state['transaction'], 'archive'))
+        try:
+            with pytest.raises(EffectIndeterminate):
+                ports.backup(key, 'archive', ())
+            assert not ports.archive_path(key).exists()
+            assert not ports._path(key, '.quiescence.json').exists()
+            worker.terminate()
+            assert worker.wait(timeout=10) == 0
+            ports.backup(key, 'archive', ())
+            assert checked == [True]
+            record = read_effect_receipt(ports._path(key, '.quiescence.json'))
+            assert (record['status'] == 'done' and 'writer_lock_sha256' in record
+                    and 'writer_lock_file_sha256' in record)
+            archive = ports.archive_path(key)
+            assert archive_crypto.is_encrypted(archive)
+            metadata = archive_crypto.verify_archive(archive, password_provider=lambda: 'synthetic',
+                                                     expected_product_id=plan.manifest['product_id'])
+            assert any(item['path'].endswith('/worker-heartbeat.json') for item in metadata['files'])
+        finally:
+            _ACTIVE_EFFECT.reset(token)
+    finally:
+        if worker.poll() is None:
+            worker.kill()
+            worker.wait(timeout=10)
+        worker.stderr.close()
 
 
 def test_restart_during_backup_leaves_pending_and_never_reuses_snapshot(setup, monkeypatch):

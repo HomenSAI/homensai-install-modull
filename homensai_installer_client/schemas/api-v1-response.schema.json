@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HomenS.AI local API v1: response envelope",
+  "type": "object",
+  "required": ["api_major", "request_id", "ok"],
+  "properties": {
+    "api_major": {"type": "integer", "const": 1},
+    "request_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 64,
+                   "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+    "ok": {"type": "boolean"},
+    "result": {"type": "object"},
+    "error": {"type": "object", "required": ["code", "message", "retryable"],
+              "properties": {"code": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}(?![\\s\\S])"},
+                             "message": {"type": "string", "maxLength": 8192},
+                             "retryable": {"type": "boolean"}}}
+  },
+  "oneOf": [
+    {"required": ["result"], "properties": {"ok": {"const": true}, "request_id": {"type": "string"}},
+     "not": {"required": ["error"]}},
+    {"required": ["error"], "properties": {"ok": {"const": false}},
+     "not": {"required": ["result"]}}
+  ]
+}

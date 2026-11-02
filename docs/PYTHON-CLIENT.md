@@ -1,12 +1,12 @@
 # Экспериментальный Python-клиент установщика
 
-`homensai-installer-client` версии `0.1.0` — локальный клиент JSON/CLI API,
+`homensai-installer-client` версии `0.2.0` — локальный клиент JSON/CLI API,
 не сам установщик и не сетевая служба. Версия клиента не совпадает с
 minor-версией API: нужная возможность отдельно проверяется через `capabilities`
 и `min_minor`.
 
 ```python
-from homensai_installer_client import InstallerClient, InstallerClientError
+from homensai_installer_client import InstallerClient, InstallerClientError, contract_schema
 
 client = InstallerClient(
     python_executable='/absolute/path/to/trusted/installer-python',
@@ -15,6 +15,8 @@ client = InstallerClient(
 )
 caps = client.capabilities()
 result = client.call('validate', {'manifest': manifest}, min_minor=0, language='ru')
+request_schema = contract_schema('request')
+response_envelope_schema = contract_schema('response')
 ```
 
 Клиент требует Python 3.14+, согласует major/minor, операции и язык, передаёт
@@ -26,6 +28,12 @@ JSON через stdin/stdout без shell, ограничивает размер
 остаётся совместимым в исходном дереве.
 Без `api_root` клиент ищет установщик рядом с самим пакетом и отказывает, если
 его там нет; текущий каталог вызывающей программы для поиска API не используется.
+Пакет включает снимок схемы запросов API 1.43 и схему общей оболочки ответов;
+они доступны через `contract_schema` без дополнительных runtime-зависимостей.
+Схема ответов не описывает поля `result` каждой операции, а проверка схемы
+запроса не заменяет проверку совместимости и семантическую проверку сервера.
+Константы `CONTRACT_API_MAJOR` и `CONTRACT_API_MINOR` обозначают версию снимка,
+а не гарантируют наличие операции на конкретном хосте.
 
 ## Локальная проверочная сборка
 
@@ -43,12 +51,20 @@ python -m pip wheel --no-index --no-deps --no-build-isolation \
 3 ноября 2026 года Linux/Python 3.14: получен и по хэшу PyPI проверен
 `setuptools-84.2.1-py3-none-any.whl` SHA-256
 `ca140b45d5325a9478f880e351484f62fef15f336462e449ca0c03c873d589c2`, затем
-offline собран клиентский wheel SHA-256
+offline собран предыдущий клиентский wheel 0.1.0 SHA-256
 `7d1bc18fbedaf43f61a4211b0472b42c0f88046c70f0b2eb9d5f6bac7594ae5d`.
 Он установлен без сети в отдельную среду и вызвал API из независимого
 каталога с пробелами и кириллицей; тестовая подмена `shared.api` не выполнилась.
 Этот хэш относится только к конкретному локальному файлу: воспроизводимость,
 подпись, публичная поставка и Windows пока не подтверждены.
+
+Следующая проверочная сборка 0.2.0 на том же закреплённом инструменте имеет
+SHA-256 `85a77f2713986c97b7dc205fa62461df6a9b40a3a3baa3ae0e8006e6e1a368c4`.
+Она также установлена offline в отдельное окружение; встроенные схемы совпали
+побайтно с серверными исходниками, клиент обнаружил API 1.43. Хэши снимков:
+запрос `c7faa2c5ebb53f866986cafedd5147cc1484306d35f2df4892cfc17a3d5df6bc`,
+оболочка ответа `9485c6bacde448bf75360cb3a543a4db3ec7c5c27e72e6ce3d4f998a3a87b901`.
+Это конкретная локальная сборка, не подписанный или принятый выпуск.
 
 Первый локальный эксперимент использовал системные setuptools 66.1.1 и wheel
 0.38.4, для которых опубликованы предупреждения безопасности; он выполнялся

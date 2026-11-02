@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ранний локальный API HomenS.AI v1: запрос",
+  "type": "object",
+  "$defs": {
+    "disk_bytes": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807},
+    "operation_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}
+  },
+  "additionalProperties": false,
+  "required": ["api_major", "operation", "request_id", "params"],
+  "properties": {
+    "api_major": {"type": "integer", "const": 1},
+    "operation": {"type": "string", "enum": ["capabilities", "validate", "preflight-fresh", "check-target", "check-local-health", "check-docker-engine", "verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release", "install-portable-linux", "inspect-portable-linux-install", "update-plan-status", "plan-update", "inspect-update-recovery", "import-update-archive", "prepare-signed-linux-update", "inspect-signed-linux-update", "plan-signed-compose", "prepare-signed-compose", "inspect-signed-compose-images", "control-signed-compose", "check-signed-compose-health", "compose-control-status", "plan-systemd-user-units", "publish-systemd-user-units", "load-systemd-user-units", "plan-portable-systemd-user-units", "publish-portable-systemd-user-units", "load-portable-systemd-user-units", "plan-linux-runtime", "prepare-linux-runtime", "verify-linux-runtime", "check-portable-linux-start", "start-portable-linux", "stop-portable-linux", "reconcile-portable-linux-stop", "reconcile-portable-linux-start", "cycle-portable-linux"]},
+    "request_id": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+    "language": {"type": "string", "pattern": "^[a-z]{2,3}(?![\\s\\S])"},
+    "params": {"type": "object"}
+  },
+  "oneOf": [
+    {"properties": {"operation": {"const": "check-signed-compose-health"}, "params": {"type": "object", "additionalProperties": false,
+      "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "target", "modes", "instance_id", "work_dir", "idempotency_key", "executable", "executable_sha256", "socket_path", "timeout_seconds", "action_id", "health_timeout_seconds"],
+      "properties": {
+        "package_path": {"type": "string", "minLength": 1, "maxLength": 8192}, "envelope": {"type": "string", "minLength": 4, "maxLength": 5464},
+        "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44},
+        "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},
+        "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+        "target": {"type": "object", "additionalProperties": false, "required": ["os", "architecture", "execution"],
+                   "properties": {"os": {"const": "linux"}, "architecture": {"const": "x86_64"}, "execution": {"const": "docker"}}},
+        "modes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 8192}},
+        "instance_id": {"$ref": "#/$defs/operation_key"}, "idempotency_key": {"$ref": "#/$defs/operation_key"},
+        "work_dir": {"type": "string", "minLength": 1, "maxLength": 8192}, "executable": {"type": "string", "minLength": 1, "maxLength": 8192},
+        "executable_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}(?![\\s\\S])"}, "socket_path": {"type": "string", "minLength": 1, "maxLength": 8192},
+        "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 120}, "health_timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 30},
+        "action_id": {"$ref": "#/$defs/operation_key"}
+      }}}},
+    {"properties": {"operation": {"const": "control-signed-compose"}, "params": {"type": "object", "additionalProperties": false,
+      "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "target", "modes", "instance_id", "work_dir", "idempotency_key", "executable", "executable_sha256", "socket_path", "timeout_seconds", "action", "action_id"],
+      "properties": {
+        "package_path": {"type": "string", "minLength": 1, "maxLength": 8192}, "envelope": {"type": "string", "minLength": 4, "maxLength": 5464},
+        "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44},
+        "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},
+        "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+        "target": {"type": "object", "additionalProperties": false, "required": ["os", "architecture", "execution"],
+                   "properties": {"os": {"const": "linux"}, "architecture": {"const": "x86_64"}, "execution": {"const": "docker"}}},
+        "modes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 8192}},
+        "instance_id": {"$ref": "#/$defs/operation_key"}, "idempotency_key": {"$ref": "#/$defs/operation_key"},
+        "work_dir": {"type": "string", "minLength": 1, "maxLength": 8192}, "executable": {"type": "string", "minLength": 1, "maxLength": 8192},
+        "executable_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}(?![\\s\\S])"}, "socket_path": {"type": "string", "minLength": 1, "maxLength": 8192},
+        "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 120}, "action": {"enum": ["start", "stop", "reconcile-start", "reconcile-stop"]},
+        "action_id": {"$ref": "#/$defs/operation_key"}
+      }}}},
+    {"properties": {"operation": {"const": "compose-control-status"}, "params": {"type": "object", "additionalProperties": false,
+      "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "target", "modes", "instance_id", "work_dir", "idempotency_key", "executable", "executable_sha256", "socket_path", "timeout_seconds"],
+      "properties": {
+        "package_path": {"type": "string", "minLength": 1, "maxLength": 8192}, "envelope": {"type": "string", "minLength": 4, "maxLength": 5464},
+        "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44},
+        "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},
+        "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+        "target": {"type": "object", "additionalProperties": false, "required": ["os", "architecture", "execution"],
+                   "properties": {"os": {"const": "linux"}, "architecture": {"const": "x86_64"}, "execution": {"const": "docker"}}},
+        "modes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 8192}},
+        "instance_id": {"$ref": "#/$defs/operation_key"}, "idempotency_key": {"$ref": "#/$defs/operation_key"},
+        "work_dir": {"type": "string", "minLength": 1, "maxLength": 8192}, "executable": {"type": "string", "minLength": 1, "maxLength": 8192},
+        "executable_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}(?![\\s\\S])"}, "socket_path": {"type": "string", "minLength": 1, "maxLength": 8192},
+        "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 120}
+      }}}},
+    {"properties": {"operation": {"const": "inspect-signed-compose-images"}, "params": {"type": "object", "additionalProperties": false,
+      "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "target", "modes", "instance_id", "work_dir", "idempotency_key", "executable", "executable_sha256", "socket_path", "timeout_seconds"],
+      "properties": {
+        "package_path": {"type": "string", "minLength": 1, "maxLength": 8192}, "envelope": {"type": "string", "minLength": 4, "maxLength": 5464},
+        "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44},
+        "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},
+        "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+        "target": {"type": "object", "additionalProperties": false, "required": ["os", "architecture", "execution"],
+                   "properties": {"os": {"const": "linux"}, "architecture": {"const": "x86_64"}, "execution": {"const": "docker"}}},
+        "modes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 8192}},
+        "instance_id": {"$ref": "#/$defs/operation_key"}, "idempotency_key": {"$ref": "#/$defs/operation_key"},
+        "work_dir": {"type": "string", "minLength": 1, "maxLength": 8192}, "executable": {"type": "string", "minLength": 1, "maxLength": 8192},
+        "executable_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}(?![\\s\\S])"}, "socket_path": {"type": "string", "minLength": 1, "maxLength": 8192},
+        "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 30}
+      }}}},
+    {"properties": {"operation": {"const": "prepare-signed-compose"}, "params": {"type": "object", "additionalProperties": false,
+      "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "target", "modes", "instance_id", "work_dir", "idempotency_key"],
+      "properties": {
+        "package_path": {"type": "string", "minLength": 1, "maxLength": 8192},
+        "envelope": {"type": "string", "minLength": 4, "maxLength": 5464},
+        "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44},
+        "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},
+        "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+        "target": {"type": "object", "additionalProperties": false, "required": ["os", "architecture", "execution"],
+                   "properties": {"os": {"enum": ["windows", "linux"]}, "architecture": {"const": "x86_64"}, "execution": {"const": "docker"}}},
+        "modes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 8192}},
+        "instance_id": {"$ref": "#/$defs/operation_key"}, "idempotency_key": {"$ref": "#/$defs/operation_key"},
+        "work_dir": {"type": "string", "minLength": 1, "maxLength": 8192}
+      }}}},
+    {"properties": {"operation": {"const": "plan-signed-compose"}, "params": {"type": "object", "additionalProperties": false,
+      "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "target", "modes", "instance_id"],
+      "properties": {
+        "package_path": {"type": "string", "minLength": 1, "maxLength": 8192},
+        "envelope": {"type": "string", "minLength": 4, "maxLength": 5464},
+        "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44},
+        "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},
+        "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+        "target": {"type": "object", "additionalProperties": false, "required": ["os", "architecture", "execution"],
+                   "properties": {"os": {"enum": ["windows", "linux"]}, "architecture": {"const": "x86_64"}, "execution": {"const": "docker"}}},
+        "modes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 8192}},
+        "instance_id": {"$ref": "#/$defs/operation_key"}
+      }}}},
+    {"properties": {"operation": {"enum": ["install-portable-linux", "inspect-portable-linux-install"]}, "params": {"type": "object", "additionalProperties": false,
+      "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root", "unit_dir", "work_dir", "modes", "required_bytes", "reserve_bytes", "workflow_key", "keys"],
+      "properties": {
+        "package_path": {"type": "string", "minLength": 1, "maxLength": 8192},
+        "envelope": {"type": "string", "minLength": 4, "maxLength": 5464},
+        "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44},
+        "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},
+        "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+        "install_root": {"type": "string", "minLength": 1, "maxLength": 8192},
+        "unit_dir": {"type": "string", "minLength": 1, "maxLength": 8192}, "work_dir": {"type": "string", "minLength": 1, "maxLength": 8192},
+        "modes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 8192}},
+        "required_bytes": {"type": "object", "additionalProperties": false, "required": ["app", "releases", "data", "backup", "services", "config", "runtime"],
+          "properties": {"app": {"$ref": "#/$defs/disk_bytes"}, "releases": {"$ref": "#/$defs/disk_bytes"}, "data": {"$ref": "#/$defs/disk_bytes"}, "backup": {"$ref": "#/$defs/disk_bytes"}, "services": {"$ref": "#/$defs/disk_bytes"}, "config": {"$ref": "#/$defs/disk_bytes"}, "runtime": {"$ref": "#/$defs/disk_bytes"}}},
+        "reserve_bytes": {"$ref": "#/$defs/disk_bytes"}, "workflow_key": {"$ref": "#/$defs/operation_key"},
+        "keys": {"type": "object", "additionalProperties": false, "required": ["release", "runtime", "publish", "load", "start"],
+          "properties": {"release": {"$ref": "#/$defs/operation_key"}, "runtime": {"$ref": "#/$defs/operation_key"}, "publish": {"$ref": "#/$defs/operation_key"}, "load": {"$ref": "#/$defs/operation_key"}, "start": {"$ref": "#/$defs/operation_key"}}}
+      }}}},
+    {"properties": {"operation": {"const": "cycle-portable-linux"}, "params": {"type": "object", "additionalProperties": false, "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root", "modes", "unit_dir", "load_key", "runtime_key", "initial_start_key", "initial_stop_key", "reserve_bytes", "idempotency_key", "action", "reconcile"], "properties": {
+      "package_path": {"type": "string", "minLength": 1, "maxLength": 8192}, "envelope": {"type": "string", "minLength": 4, "maxLength": 5464}, "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44},
+      "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"}, "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+      "install_root": {"type": "string", "minLength": 1, "maxLength": 8192}, "modes": {"type": "array", "minItems": 1, "items": {"type": "string", "maxLength": 8192}}, "unit_dir": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "load_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}, "runtime_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}, "initial_start_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}, "initial_stop_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}, "idempotency_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}, "reserve_bytes": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}, "action": {"enum": ["start", "stop"]}, "reconcile": {"type": "boolean"}
+    }}}},
+    {"properties": {"operation": {"enum": ["stop-portable-linux", "reconcile-portable-linux-stop"]}, "params": {"type": "object", "additionalProperties": false, "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root", "modes", "unit_dir", "load_key", "runtime_key", "start_key", "reserve_bytes", "idempotency_key"], "properties": {
+      "package_path": {"type": "string", "minLength": 1, "maxLength": 8192}, "envelope": {"type": "string", "minLength": 4, "maxLength": 5464}, "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44},
+      "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"}, "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+      "install_root": {"type": "string", "minLength": 1, "maxLength": 8192}, "modes": {"type": "array", "minItems": 1, "items": {"type": "string", "maxLength": 8192}}, "unit_dir": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "load_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}, "runtime_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}, "start_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}, "idempotency_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}, "reserve_bytes": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}
+    }}}},
+    {"properties": {"operation": {"enum": ["start-portable-linux", "reconcile-portable-linux-start"]}, "params": {"type": "object", "additionalProperties": false, "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root", "modes", "unit_dir", "load_key", "runtime_key", "reserve_bytes", "idempotency_key"], "properties": {
+      "package_path": {"type": "string", "minLength": 1, "maxLength": 8192}, "envelope": {"type": "string", "minLength": 4, "maxLength": 5464}, "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44},
+      "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"}, "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+      "install_root": {"type": "string", "minLength": 1, "maxLength": 8192}, "modes": {"type": "array", "minItems": 1, "items": {"type": "string", "maxLength": 8192}}, "unit_dir": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "load_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}, "runtime_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}, "idempotency_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}, "reserve_bytes": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}
+    }}}},
+    {"properties": {"operation": {"const": "check-portable-linux-start"}, "params": {"type": "object", "additionalProperties": false, "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root", "modes", "unit_dir", "load_key", "runtime_key", "reserve_bytes"], "properties": {
+      "package_path": {"type": "string", "minLength": 1, "maxLength": 8192}, "envelope": {"type": "string", "minLength": 4, "maxLength": 5464}, "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44},
+      "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"}, "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+      "install_root": {"type": "string", "minLength": 1, "maxLength": 8192}, "modes": {"type": "array", "minItems": 1, "items": {"type": "string", "maxLength": 8192}}, "unit_dir": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "load_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}, "runtime_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}, "reserve_bytes": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}
+    }}}},
+    {"properties": {"operation": {"const": "plan-linux-runtime"}, "params": {"type": "object", "additionalProperties": false, "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root", "reserve_bytes"], "properties": {
+      "package_path": {"type": "string", "minLength": 1, "maxLength": 8192}, "envelope": {"type": "string", "minLength": 4, "maxLength": 5464}, "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44},
+      "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"}, "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+      "install_root": {"type": "string", "minLength": 1, "maxLength": 8192}, "reserve_bytes": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}
+    }}}},
+    {"properties": {"operation": {"enum": ["prepare-linux-runtime", "verify-linux-runtime"]}, "params": {"type": "object", "additionalProperties": false, "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root", "reserve_bytes", "idempotency_key"], "properties": {
+      "package_path": {"type": "string", "minLength": 1, "maxLength": 8192}, "envelope": {"type": "string", "minLength": 4, "maxLength": 5464}, "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44},
+      "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"}, "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+      "install_root": {"type": "string", "minLength": 1, "maxLength": 8192}, "reserve_bytes": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}, "idempotency_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}
+    }}}},
+    {"properties": {"operation": {"const": "publish-systemd-user-units"}, "params": {"type": "object", "additionalProperties": false, "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root", "modes", "unit_dir", "idempotency_key"], "properties": {
+      "package_path": {"type": "string", "minLength": 1, "maxLength": 8192}, "envelope": {"type": "string", "minLength": 4, "maxLength": 5464},
+      "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44}, "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},
+      "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"}, "install_root": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "modes": {"type": "array", "minItems": 1, "items": {"type": "string", "maxLength": 8192}}, "unit_dir": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "idempotency_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}, "verify_generated_units": {"type": "boolean"}
+    }}}},
+    {"properties": {"operation": {"enum": ["load-systemd-user-units", "publish-portable-systemd-user-units", "load-portable-systemd-user-units"]}, "params": {"type": "object", "additionalProperties": false, "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root", "modes", "unit_dir", "idempotency_key"], "properties": {
+      "package_path": {"type": "string", "minLength": 1, "maxLength": 8192}, "envelope": {"type": "string", "minLength": 4, "maxLength": 5464},
+      "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44}, "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},
+      "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"}, "install_root": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "modes": {"type": "array", "minItems": 1, "items": {"type": "string", "maxLength": 8192}}, "unit_dir": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "idempotency_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}
+    }}}},
+    {"properties": {"operation": {"enum": ["plan-systemd-user-units", "plan-portable-systemd-user-units"]}, "params": {"type": "object", "additionalProperties": false, "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root", "modes"], "properties": {
+      "package_path": {"type": "string", "minLength": 1, "maxLength": 8192}, "envelope": {"type": "string", "minLength": 4, "maxLength": 5464},
+      "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44}, "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},
+      "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"}, "install_root": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "modes": {"type": "array", "minItems": 1, "items": {"type": "string", "maxLength": 8192}}
+    }}}},
+    {"properties": {"operation": {"enum": ["prepare-signed-linux-update", "inspect-signed-linux-update"]}, "params": {"type": "object", "additionalProperties": false, "required": ["new_package", "new_envelope", "new_key", "old_package", "old_envelope", "old_key", "product_id", "old_version", "new_version", "install_root", "work_dir", "modes", "migration_ids", "idempotency_key"], "properties": {
+      "new_package": {"type": "string", "minLength": 1, "maxLength": 8192}, "old_package": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "new_envelope": {"type": "string", "minLength": 4, "maxLength": 5464}, "old_envelope": {"type": "string", "minLength": 4, "maxLength": 5464},
+      "new_key": {"type": "string", "minLength": 44, "maxLength": 44}, "old_key": {"type": "string", "minLength": 44, "maxLength": 44},
+      "product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},
+      "old_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+      "new_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+      "install_root": {"type": "string", "minLength": 1, "maxLength": 8192}, "work_dir": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "modes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+      "migration_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"}},
+      "idempotency_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}
+    }}}},
+    {"properties": {"operation": {"const": "check-docker-engine"}, "params": {"type": "object", "additionalProperties": false, "required": ["executable", "executable_sha256", "socket_path", "timeout_seconds"], "properties": {
+      "executable": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "executable_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}(?![\\s\\S])"},
+      "socket_path": {"type": ["string", "null"], "minLength": 1, "maxLength": 8192},
+      "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 10}
+    }}}},
+    {"properties": {"operation": {"const": "check-local-health"}, "params": {"type": "object", "additionalProperties": false, "required": ["port", "product_id", "version", "path", "timeout_seconds"], "properties": {
+      "port": {"type": "integer", "minimum": 1, "maximum": 65535}, "product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},
+      "version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+      "path": {"type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^/[A-Za-z0-9/_.~-]*(?![\\s\\S])"}, "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 30}
+    }}}},
+    {"properties": {"operation": {"const": "capabilities"}, "params": {"type": "object", "maxProperties": 0}}},
+    {"properties": {"operation": {"const": "validate"}, "params": {"type": "object", "required": ["manifest"], "additionalProperties": false, "properties": {"manifest": {"type": "object"}}}}},
+    {"properties": {"operation": {"enum": ["update-plan-status", "plan-update", "inspect-update-recovery"]}, "params": {"type": "object", "additionalProperties": false, "required": ["manifest", "install_root", "release", "modes", "migration_ids", "guard_effects"], "properties": {
+      "manifest": {"type": "object"}, "install_root": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "release": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+      "modes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+      "migration_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"}},
+      "guard_effects": {"type": "boolean"}
+    }}}},
+    {"properties": {"operation": {"const": "import-update-archive"}, "params": {"type": "object", "additionalProperties": false, "required": ["manifest", "install_root", "release", "modes", "migration_ids", "work_dir", "archive", "expected_sha256", "password_env"], "properties": {
+      "manifest": {"type": "object"}, "install_root": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "release": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+      "modes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+      "migration_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"}},
+      "work_dir": {"type": "string", "minLength": 1, "maxLength": 8192}, "archive": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "expected_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}(?![\\s\\S])"},
+      "password_env": {"type": "string", "minLength": 1, "maxLength": 8192, "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?![\\s\\S])"}
+    }}}},
+    {"properties": {"operation": {"const": "check-target"}, "params": {"type": "object", "required": ["manifest", "target"], "additionalProperties": false, "properties": {
+      "manifest": {"type": "object"}, "target": {"type": "object", "additionalProperties": false, "required": ["os", "architecture", "execution"], "properties": {
+        "os": {"type": "string", "enum": ["windows", "linux"]}, "architecture": {"type": "string", "enum": ["x86_64"]}, "execution": {"type": "string", "enum": ["native", "docker"]}
+      }}
+    }}}},
+    {"properties": {"operation": {"const": "preflight-fresh"}, "params": {"type": "object", "required": ["manifest", "install_root", "required_bytes", "reserve_bytes"], "additionalProperties": false, "properties": {
+      "manifest": {"type": "object"}, "install_root": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "required_bytes": {"type": "object", "additionalProperties": false, "required": ["app", "releases", "data", "backup", "services", "config", "runtime"], "properties": {
+        "app": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}, "releases": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807},
+        "data": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}, "backup": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807},
+        "services": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}, "config": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}, "runtime": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}
+      }},
+      "reserve_bytes": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807}
+    }}}},
+    {"properties":{"operation":{"const":"inspect-fresh-package"},"params":{"type":"object","additionalProperties":false,"required":["package_path","envelope","trusted_public_key","expected_product_id","expected_version","target","install_root","required_bytes","reserve_bytes"],"properties":{"package_path":{"type":"string","minLength":1,"maxLength":8192},"envelope":{"type":"string","minLength":4,"maxLength":5464},"trusted_public_key":{"type":"string","minLength":44,"maxLength":44},"expected_product_id":{"type":"string","minLength":1,"maxLength":63,"pattern":"^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},"expected_version":{"type":"string","minLength":1,"maxLength":64,"pattern":"^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},"target":{"type":"object","additionalProperties":false,"required":["os","architecture","execution"],"properties":{"os":{"type":"string","enum":["windows","linux"]},"architecture":{"type":"string","enum":["x86_64"]},"execution":{"type":"string","enum":["native","docker"]}}},"install_root":{"type":"string","minLength":1,"maxLength":8192},"required_bytes":{"type":"object","additionalProperties":false,"required":["app","releases","data","backup","services","config","runtime"],"properties":{"app":{"type":"integer","minimum":0,"maximum":9223372036854775807},"releases":{"type":"integer","minimum":0,"maximum":9223372036854775807},"data":{"type":"integer","minimum":0,"maximum":9223372036854775807},"backup":{"type":"integer","minimum":0,"maximum":9223372036854775807},"services":{"type":"integer","minimum":0,"maximum":9223372036854775807},"config":{"type":"integer","minimum":0,"maximum":9223372036854775807},"runtime":{"type":"integer","minimum":0,"maximum":9223372036854775807}}},"reserve_bytes":{"type":"integer","minimum":0,"maximum":9223372036854775807}}}}},
+    {"properties":{"operation":{"const":"inspect-native-fresh-package"},"params":{"type":"object","additionalProperties":false,"required":["package_path","envelope","trusted_public_key","expected_product_id","expected_version","install_root","required_bytes","reserve_bytes"],"properties":{"package_path":{"type":"string","minLength":1,"maxLength":8192},"envelope":{"type":"string","minLength":4,"maxLength":5464},"trusted_public_key":{"type":"string","minLength":44,"maxLength":44},"expected_product_id":{"type":"string","minLength":1,"maxLength":63,"pattern":"^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},"expected_version":{"type":"string","minLength":1,"maxLength":64,"pattern":"^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},"install_root":{"type":"string","minLength":1,"maxLength":8192},"required_bytes":{"type":"object","additionalProperties":false,"required":["app","releases","data","backup","services","config","runtime"],"properties":{"app":{"type":"integer","minimum":0,"maximum":9223372036854775807},"releases":{"type":"integer","minimum":0,"maximum":9223372036854775807},"data":{"type":"integer","minimum":0,"maximum":9223372036854775807},"backup":{"type":"integer","minimum":0,"maximum":9223372036854775807},"services":{"type":"integer","minimum":0,"maximum":9223372036854775807},"config":{"type":"integer","minimum":0,"maximum":9223372036854775807},"runtime":{"type":"integer","minimum":0,"maximum":9223372036854775807}}},"reserve_bytes":{"type":"integer","minimum":0,"maximum":9223372036854775807}}}}},
+    {"properties":{"operation":{"enum":["fresh-status","verify-native-release"]},"params":{"type":"object","additionalProperties":false,"required":["package_path","envelope","trusted_public_key","expected_product_id","expected_version","install_root"],"properties":{"package_path":{"type":"string","minLength":1,"maxLength":8192},"envelope":{"type":"string","minLength":4,"maxLength":5464},"trusted_public_key":{"type":"string","minLength":44,"maxLength":44},"expected_product_id":{"type":"string","minLength":1,"maxLength":63,"pattern":"^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},"expected_version":{"type":"string","minLength":1,"maxLength":64,"pattern":"^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},"install_root":{"type":"string","minLength":1,"maxLength":8192}}}}},
+    {"properties":{"operation":{"const":"prepare-native-release"},"params":{"type":"object","additionalProperties":false,"required":["package_path","envelope","trusted_public_key","expected_product_id","expected_version","install_root","required_bytes","reserve_bytes","idempotency_key"],"properties":{"package_path":{"type":"string","minLength":1,"maxLength":8192},"envelope":{"type":"string","minLength":4,"maxLength":5464},"trusted_public_key":{"type":"string","minLength":44,"maxLength":44},"expected_product_id":{"type":"string","minLength":1,"maxLength":63,"pattern":"^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},"expected_version":{"type":"string","minLength":1,"maxLength":64,"pattern":"^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},"install_root":{"type":"string","minLength":1,"maxLength":8192},"required_bytes":{"type":"object","additionalProperties":false,"required":["app","releases","data","backup","services","config","runtime"],"properties":{"app":{"type":"integer","minimum":0,"maximum":9223372036854775807},"releases":{"type":"integer","minimum":0,"maximum":9223372036854775807},"data":{"type":"integer","minimum":0,"maximum":9223372036854775807},"backup":{"type":"integer","minimum":0,"maximum":9223372036854775807},"services":{"type":"integer","minimum":0,"maximum":9223372036854775807},"config":{"type":"integer","minimum":0,"maximum":9223372036854775807},"runtime":{"type":"integer","minimum":0,"maximum":9223372036854775807}}},"reserve_bytes":{"type":"integer","minimum":0,"maximum":9223372036854775807},"idempotency_key":{"type":"string","pattern":"^[a-f0-9]{32}(?![\\s\\S])"}}}}},
+    {"properties": {"operation": {"const": "verify-package"}, "params": {"type": "object", "additionalProperties": false, "required": ["package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version"], "properties": {
+      "package_path": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "envelope": {"type": "string", "minLength": 4, "maxLength": 5464},
+      "trusted_public_key": {"type": "string", "minLength": 44, "maxLength": 44},
+      "expected_product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},
+      "expected_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"}
+    }}}}
+  ]
+}

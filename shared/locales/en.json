@@ -11,5 +11,6 @@
   "api.preflight_failed": "Preflight check failed",
   "api.signature_unavailable": "Signature verification is unavailable",
   "api.verification_failed": "Signature or package verification failed",
-  "api.unsupported_operation": "API operation is not supported"
+  "api.unsupported_operation": "API operation is not supported",
+  "api.target_not_supported": "Target is not confirmed by the signed manifest"
 }

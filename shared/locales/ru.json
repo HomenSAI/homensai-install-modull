@@ -11,5 +11,6 @@
   "api.preflight_failed": "Предварительная проверка не пройдена",
   "api.signature_unavailable": "Проверка подписи недоступна",
   "api.verification_failed": "Подпись или пакет не прошли проверку",
-  "api.unsupported_operation": "Операция API не поддерживается"
+  "api.unsupported_operation": "Операция API не поддерживается",
+  "api.target_not_supported": "Цель не подтверждена подписанным манифестом"
 }

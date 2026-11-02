@@ -21,7 +21,7 @@ from shared.package_signing import MAX_ENVELOPE, _crypto, verify_signed_package
 from shared.preflight import PreflightError, preflight_fresh
 
 API_MAJOR = 1
-API_MINOR = 4
+API_MINOR = 5
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -132,7 +132,7 @@ def handle(request: Any) -> dict:
                 raise InvalidRequest()
             operations = ["capabilities", "validate", "preflight-fresh", "check-target"]
             if _signature_available():
-                operations.append("verify-package")
+                operations.extend(["verify-package", "inspect-fresh-package"])
             result = {"api_major": API_MAJOR, "api_minor": API_MINOR,
                       "operations": operations,
                       "languages": available_languages(),
@@ -165,10 +165,12 @@ def handle(request: Any) -> dict:
                                          reserve_bytes=params["reserve_bytes"])
             except PreflightError:
                 return _error(request_id, "preflight_failed", "Предварительная проверка не пройдена", language, "api.preflight_failed")
-        elif operation == "verify-package":
-            if set(params) != {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version"}:
+        elif operation in ("verify-package", "inspect-fresh-package"):
+            package_fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version"}
+            inspection_fields = {"target", "install_root", "required_bytes", "reserve_bytes"}
+            if set(params) != package_fields | (inspection_fields if operation == "inspect-fresh-package" else set()):
                 raise InvalidRequest()
-            if any(type(params[field]) is not str for field in params):
+            if any(type(params[field]) is not str for field in package_fields):
                 raise InvalidRequest()
             if not _signature_available():
                 return _error(request_id, "unsupported_operation", "Проверка подписи недоступна", language, "api.signature_unavailable")
@@ -188,6 +190,22 @@ def handle(request: Any) -> dict:
                 return _error(request_id, "verification_failed", "Подпись или пакет не прошли проверку", language, "api.verification_failed")
             result = {"product_id": metadata["product_id"], "version": metadata["version"],
                       "file_count": len(metadata["files"])}
+            if operation == "inspect-fresh-package":
+                try:
+                    target = check_target(metadata["manifest"], params["target"])
+                except ManifestError:
+                    raise InvalidRequest() from None
+                if target["status"] != "supported":
+                    return _error(request_id, "target_not_supported", "Цель не подтверждена подписанным манифестом", language, "api.target_not_supported")
+                if type(params["install_root"]) is not str:
+                    raise InvalidRequest()
+                try:
+                    result["preflight"] = preflight_fresh(metadata["manifest"], params["install_root"],
+                                                          required_bytes=params["required_bytes"],
+                                                          reserve_bytes=params["reserve_bytes"])
+                except PreflightError:
+                    return _error(request_id, "preflight_failed", "Предварительная проверка не пройдена", language, "api.preflight_failed")
+                result["declared_target"] = "supported"
         else:
             return _error(request_id, "unsupported_operation", "Операция API не поддерживается", language, "api.unsupported_operation")
     except (InvalidRequest, RecursionError):

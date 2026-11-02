@@ -850,3 +850,71 @@ def test_api_prepare_repeat_rejects_modified_release_without_repair(signed_reque
             assert changed.read_text() == 'tampered'
         elif change == 'pointer':
             assert changed.read_text() == '{"release":"other"}'
+
+
+def test_independent_product_client_recovers_from_lost_prepare_response(tmp_path, monkeypatch):
+    from examples.demo_product.installer_client import InstallerClient, InstallerClientError
+    from shared.host_target import HostTargetError, native_target
+    try:
+        if native_target() != TARGET:
+            pytest.skip('Сквозная фикстура рассчитана на Linux x86_64')
+    except HostTargetError:
+        pytest.skip('Платформа процесса не поддерживается')
+    ed = pytest.importorskip('cryptography.hazmat.primitives.asymmetric.ed25519')
+    serialization = pytest.importorskip('cryptography.hazmat.primitives.serialization')
+    manifest = load_manifest(ROOT / 'examples/rent.manifest.json')
+    manifest['product_id'] = 'homensai-test-demo'
+    manifest['product_name'] = 'Synthetic Demo Product'
+    manifest['paths'] = {name: name for name in NAMES}
+    manifest['compatibility'] = {'targets': [deepcopy(TARGET)]}
+    payload = tmp_path / 'payload'
+    payload.mkdir()
+    (payload / 'main.py').write_bytes((ROOT / 'examples/demo_product/main.py').read_bytes())
+    (payload / 'release.json').write_bytes((ROOT / 'examples/demo_product/releases/1/release.json').read_bytes())
+    for index, artifact in enumerate([*manifest['runtime']['lock_files'].values(), *manifest['runtime']['vendor_wheels']]):
+        data = ('fictional runtime ' + str(index)).encode()
+        file = payload / artifact['file']
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_bytes(data)
+        artifact['sha256'] = sha256(data).hexdigest()
+    package = tmp_path / 'demo.zip'
+    build_package(manifest, '1', payload, package)
+    private = ed.Ed25519PrivateKey.generate()
+    public = private.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    envelope = sign_package(package, private_key=private, expected_product_id=manifest['product_id'], expected_version='1')
+    root = tmp_path / 'install'
+    shared = {'package_path': str(package), 'envelope': base64.b64encode(envelope).decode(),
+              'trusted_public_key': base64.b64encode(public).decode(),
+              'expected_product_id': manifest['product_id'], 'expected_version': '1', 'install_root': str(root)}
+    preparation = {**shared, 'required_bytes': {name: 0 for name in NAMES}, 'reserve_bytes': 0,
+                   'idempotency_key': 'd' * 32}
+    client = InstallerClient(timeout=60)
+    original = subprocess.run
+    calls = []
+
+    def lose_response(argv, **kwargs):
+        request = json.loads(kwargs['input'])
+        calls.append(request['operation'])
+        response = original(argv, **kwargs)
+        if request['operation'] == 'prepare-native-release':
+            assert response.returncode == 0
+            raise subprocess.TimeoutExpired(argv, 60)
+        return response
+
+    with monkeypatch.context() as patch:
+        patch.setattr('examples.demo_product.installer_client.subprocess.run', lose_response)
+        with pytest.raises(InstallerClientError) as exc:
+            client.call('prepare-native-release', preparation, min_minor=8, language='en')
+        assert exc.value.code == 'transport_error'
+    assert calls == ['capabilities', 'prepare-native-release']
+    assert client.call('fresh-status', shared, min_minor=7)['reported_status'] == 'prepared'
+    repeated = client.call('prepare-native-release', preparation, min_minor=8, language='en')
+    assert repeated['transaction'] == 'd' * 32 and repeated['installation_complete'] is False
+    verified = client.call('verify-native-release', shared, min_minor=10, language='de')
+    assert verified['release_files_match'] is True and verified['installation_complete'] is False
+    assert (root / 'releases/app-1/main.py').read_bytes() == (payload / 'main.py').read_bytes()
+    (root / 'releases/app-1/main.py').write_text('tampered')
+    with pytest.raises(InstallerClientError) as exc:
+        client.call('prepare-native-release', preparation, min_minor=8, language='en')
+    assert exc.value.code == 'fresh_prepare_failed'
+    assert (root / 'releases/app-1/main.py').read_text() == 'tampered'

@@ -805,6 +805,11 @@ def test_cli_verifies_native_release(signed_request):
                              input=json.dumps(query).encode(), capture_output=True, timeout=30)
     assert process.returncode == 0 and process.stderr == b''
     assert json.loads(process.stdout) == handle(query)
+    (Path(query['params']['install_root']) / 'releases/app-1/locks/demo-linux.lock').write_text('tamper')
+    process = subprocess.run([sys.executable, '-B', '-m', 'shared.api'], cwd=ROOT,
+                             input=json.dumps(query).encode(), capture_output=True, timeout=30)
+    assert process.returncode == 1 and process.stderr == b''
+    assert json.loads(process.stdout)['error']['code'] == 'fresh_verify_failed'
 
 
 @pytest.mark.parametrize('change', ['file', 'extra_file', 'empty_dir', 'pointer', 'missing_release'])

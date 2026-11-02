@@ -47,6 +47,7 @@ class Effects:
         self.ports = None
         self.calls = []
         self.signed_details = None
+        self.migration_port = None
 
     def stop(self, key, components):
         self.calls.append(key.split("/")[-1])
@@ -54,6 +55,8 @@ class Effects:
     def migrate(self, key, migration, command):
         from shared.native_migration import run_python_migration, run_signed_native_migration
         self.calls.append("migrate")
+        if self.migration_port is not None:
+            return self.migration_port.migrate(key, migration, command)
         interpreter = Path(sys.executable).resolve()
         release = self.home.releases / 'app-2'
         if self.signed_details is not None:
@@ -303,7 +306,7 @@ def test_systemd_group_failure_has_indeterminate_effect(tmp_path, action):
     pytest.param(True, True, 'migration', False, 'systemd', marks=pytest.mark.skipif(
         os.environ.get('HOMENSAI_TEST_REAL_SYSTEMD') != '1' or os.name != 'posix', reason='opt-in systemd')),
 ])
-def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_release, encrypted, fail_health, corrupt, live):
+def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch, signed_release, encrypted, fail_health, corrupt, live):
     source = tmp_path / "source"
     subprocess.run([sys.executable, "-B", str(DEMO / "build_releases.py"), str(source)],
                    capture_output=True, text=True, timeout=15, check=True)
@@ -407,6 +410,14 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_relea
 
     update = UpdatePlan(manifest, installation, ports, release="2", modes=("autonomous" if live == 'systemd' else "platform",),
                         migration_ids=("schema-2",), guard_effects=signed_release)
+    if signed_release and encrypted:
+        from shared.signed_migration_port import SignedMigrationPort
+        interpreter = Path(sys.executable).resolve()
+        effects.migration_port = SignedMigrationPort(update, ports, install_root=str(installation),
+                                                     package_path=str(package), envelope=envelope,
+                                                     trusted_public_key=public, interpreter=str(interpreter),
+                                                     interpreter_sha256=sha256(interpreter.read_bytes()).hexdigest(),
+                                                     timeout=15)
     if fail_health == 'migration':
         from shared.api import handle
         with pytest.raises(UpdateIndeterminate):
@@ -430,6 +441,12 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, signed_relea
             update.run()
         assert ports.current_release() == '1' and 'rollback_health' not in effects.calls
         assert effects.calls.count('migrate') == 1
+        calls = []
+        monkeypatch.setattr('shared.signed_migration_port.run_signed_native_migration',
+                            lambda *args, **kwargs: calls.append(kwargs))
+        with pytest.raises(UpdateIndeterminate):
+            update.run(resume_indeterminate=True)
+        assert calls == [] and entries(home.roots['data'] / 'demo.sqlite3') == ['synthetic-schema-1']
         return
     if corrupt:
         with pytest.raises(UpdateError):

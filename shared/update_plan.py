@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from contextvars import ContextVar
 import hashlib
 import json
 import os
@@ -23,6 +24,7 @@ from shared.manifest import validate_manifest
 from shared.services import component_order
 
 MAX_STATE_BYTES = 16 * 1024
+_ACTIVE_EFFECT = ContextVar('homensai_update_active_effect', default=None)
 
 
 class UpdateError(RuntimeError):
@@ -337,7 +339,11 @@ class UpdatePlan:
                     state["indeterminate"] = True
                     self._save(state)
                 try:
-                    self._execute(state, phase)
+                    token = _ACTIVE_EFFECT.set((self, state['transaction'], phase))
+                    try:
+                        self._execute(state, phase)
+                    finally:
+                        _ACTIVE_EFFECT.reset(token)
                 except EffectIndeterminate:
                     state["indeterminate"] = True
                     self._save(state)

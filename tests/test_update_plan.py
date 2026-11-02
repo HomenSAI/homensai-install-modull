@@ -151,6 +151,7 @@ def test_every_update_failure_rolls_back(tmp_path, manifest, phase, after):
 def test_crash_resume_each_update_phase(tmp_path, manifest, phase, after):
     with pytest.raises(Crash):
         plan(tmp_path, manifest, FakePorts(tmp_path, crash=phase, after=after)).run()
+    assert module._ACTIVE_EFFECT.get() is None
     ports = FakePorts(tmp_path)
     result = plan(tmp_path, manifest, ports).run()
     assert result["outcome"] == "updated"

@@ -52,6 +52,18 @@ def test_preparation_is_durable_idempotent_and_rejects_tampering(preparation):
     assert path.read_bytes() == b'tampered'
 
 
+def test_verify_only_requires_done_and_never_creates_compose(preparation):
+    package, envelope, options = preparation
+    work = Path(options['work_dir'])
+    with pytest.raises(DockerPrepareError):
+        prepare_signed_compose(package, envelope, **options, verify_only=True)
+    assert not (work / ('compose-' + options['instance_id'] + '.json')).exists()
+    assert not (work / ('prepare-compose-' + options['operation_id'] + '.json')).exists()
+    prepared = prepare_signed_compose(package, envelope, **options)
+    verified = prepare_signed_compose(package, envelope, **options, verify_only=True)
+    assert verified == {**prepared, 'state': 'verified'}
+
+
 def test_untracked_destination_and_unsafe_work_directory_never_overwrite(preparation):
     package, envelope, options = preparation
     work = Path(options['work_dir'])

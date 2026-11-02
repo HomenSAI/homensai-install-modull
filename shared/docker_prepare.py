@@ -52,7 +52,7 @@ def _create_compose(path, content):
 def prepare_signed_compose(package_path: str, envelope: bytes, *, trusted_public_key: bytes,
                            expected_product_id: str, expected_version: str, target: dict,
                            modes: tuple[str, ...], instance_id: str, work_dir: str,
-                           operation_id: str) -> dict:
+                           operation_id: str, verify_only: bool = False) -> dict:
     """Подготовить файл и отметку, не исполняя Docker и не заменяя чужие файлы.
 
     Прерванный pending не повторяется автоматически. Родители work_dir и
@@ -60,7 +60,7 @@ def prepare_signed_compose(package_path: str, envelope: bytes, *, trusted_public
     """
     try:
         if (os.name != 'posix' or not hasattr(os, 'getuid') or not hasattr(os, 'O_NOFOLLOW')
-                or not hasattr(os, 'O_DIRECTORY') or type(operation_id) is not str
+                or not hasattr(os, 'O_DIRECTORY') or type(verify_only) is not bool or type(operation_id) is not str
                 or re.fullmatch(r'[a-f0-9]{32}', operation_id) is None):
             raise DockerPrepareError('Среда или ключ не поддерживаются')
         root = checked_path(work_dir)
@@ -88,6 +88,8 @@ def prepare_signed_compose(package_path: str, envelope: bytes, *, trusted_public
         done = {**pending, 'status': 'done'}
         with operation_lock(lock):
             record = read_effect_receipt(marker)
+            if verify_only and record is None:
+                raise DockerPrepareError('Нет подтверждённой подготовки')
             if record is not None and (type(record.get('version')) is not int or record != done):
                 raise DockerPrepareError('Предыдущая операция требует проверки')
             if record is None:
@@ -105,7 +107,8 @@ def prepare_signed_compose(package_path: str, envelope: bytes, *, trusted_public
             if final is None or type(final.get('version')) is not int or final != done:
                 raise DockerPrepareError('Отметка не подтверждена')
             _read_compose(destination, content)
-        return {'state': 'prepared', 'compose_name': destination.name, 'compose_sha256': plan['compose_sha256'],
+        return {'state': 'verified' if verify_only else 'prepared',
+                'compose_name': destination.name, 'compose_sha256': plan['compose_sha256'],
                 'instance_id': instance_id, 'host_verified': False, 'images_verified': False,
                 'containers_started': False, 'installation_complete': False}
     except Exception:

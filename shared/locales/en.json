@@ -36,5 +36,6 @@
   "api.fresh_controller_failed": "Could not confirm the installation",
   "api.docker_plan_failed": "Could not verify the Docker plan",
   "api.docker_prepare_failed": "Could not prepare Compose",
-  "api.docker_images_failed": "Could not check local images"
+  "api.docker_images_failed": "Could not check local images",
+  "api.docker_control_failed": "Could not confirm container control"
 }

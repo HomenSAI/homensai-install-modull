@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import time
 
 import pytest
 
@@ -106,6 +107,45 @@ print(outputs[tuple(args)])
     assert result['client_version'] == '28.5.1' and result['server_version'] == '28.5.1'
     assert result['compose_version'] == '2.32.4' and result['compose_flags_present'] is True
     assert result['installation_ready'] is False
+
+
+@pytest.mark.skipif(os.name != 'posix', reason='Проверка использует POSIX группы процессов и shebang')
+def test_excess_output_terminates_process_without_returning_output(tmp_path):
+    executable = tmp_path / 'noisy-docker'
+    sentinel = tmp_path / 'should-not-be-created'
+    executable.write_text(f'#!{sys.executable}\n' +
+        'import os,time,pathlib\n'
+        'os.write(1, b"x" * 1000000)\n'
+        'time.sleep(2)\n'
+        f'pathlib.Path({str(sentinel)!r}).touch()\n', encoding='utf-8')
+    executable.chmod(0o700)
+    digest = hashlib.sha256(executable.read_bytes()).hexdigest()
+    result = check_docker(executable=str(executable), executable_sha256=digest,
+                          socket_path=str(tmp_path / 'local.sock'), timeout_seconds=5)
+    assert result['client_version'] is None and result['server_version'] is None
+    assert 'xxx' not in repr(result)
+    time.sleep(2.5)
+    assert not sentinel.exists()
+
+
+@pytest.mark.skipif(os.name != 'posix', reason='Проверка использует POSIX группы процессов и shebang')
+def test_timeout_terminates_same_group_child_writer(tmp_path):
+    executable = tmp_path / 'slow-docker'
+    ready, sentinel = tmp_path / 'child-ready', tmp_path / 'late-write'
+    child = ('import pathlib,time; '
+             f'pathlib.Path({str(ready)!r}).touch(); time.sleep(6); '
+             f'pathlib.Path({str(sentinel)!r}).touch()')
+    executable.write_text(f'#!{sys.executable}\n' +
+        'import subprocess,sys,time\n' +
+        f'subprocess.Popen([sys.executable, "-c", {child!r}])\n' +
+        'time.sleep(30)\n', encoding='utf-8')
+    executable.chmod(0o700)
+    digest = hashlib.sha256(executable.read_bytes()).hexdigest()
+    result = check_docker(executable=str(executable), executable_sha256=digest,
+                          socket_path=str(tmp_path / 'local.sock'), timeout_seconds=5)
+    assert result['client_version'] is None and ready.exists()
+    time.sleep(6.5)
+    assert not sentinel.exists()
 
 
 def test_changed_binary_and_remote_endpoint_are_rejected(binary, tmp_path):

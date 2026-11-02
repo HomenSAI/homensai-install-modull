@@ -391,6 +391,9 @@ def prepare_idempotent_native(package_path, envelope, install_root, *, trusted_p
                                   statuses=('prepared',))
             if current != state:
                 raise FreshPrepareError('Состояние изменилось')
+            verified = verify_fresh_release(package_path, envelope, root, **options)
+            if verified['transaction'] != state['transaction'] or verified['process_target'] != target:
+                raise FreshPrepareError('Выпуск не соответствует операции')
         return {**state, 'process_target': target}
     except (PackageError, DataHomeError, HostTargetError, ManifestError, PreflightError,
             UpdateError, OSError, ValueError, KeyError, TypeError, RecursionError):

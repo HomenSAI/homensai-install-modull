@@ -805,3 +805,43 @@ def test_cli_verifies_native_release(signed_request):
                              input=json.dumps(query).encode(), capture_output=True, timeout=30)
     assert process.returncode == 0 and process.stderr == b''
     assert json.loads(process.stdout) == handle(query)
+
+
+@pytest.mark.parametrize('change', ['file', 'extra_file', 'empty_dir', 'pointer', 'missing_release'])
+def test_api_prepare_repeat_rejects_modified_release_without_repair(signed_request, monkeypatch, change):
+    query, _, _ = signed_request
+    monkeypatch.setattr('shared.fresh_prepare.native_target', lambda: deepcopy(TARGET))
+    monkeypatch.setattr('shared.package_prepare.native_target', lambda: deepcopy(TARGET))
+    query = api_prepare_query(query)
+    assert handle(query)['ok']
+    root = Path(query['params']['install_root'])
+    release = root / 'releases/app-1'
+    keep = root / 'data/keep'
+    keep.write_text('preserve')
+    if change == 'file':
+        changed = release / 'locks/demo-linux.lock'
+        changed.write_text('tampered')
+    elif change == 'extra_file':
+        changed = release / 'unexpected'
+        changed.write_text('keep')
+    elif change == 'empty_dir':
+        changed = release / 'unexpected'
+        changed.mkdir()
+    elif change == 'pointer':
+        changed = root / 'services/active.json'
+        changed.write_text('{"release":"other"}')
+    else:
+        changed = release
+        release.rename(root / 'releases/displaced')
+    result = handle(query)
+    assert not result['ok'] and result['error']['code'] == 'fresh_prepare_failed'
+    assert str(root) not in json.dumps(result)
+    assert keep.read_text() == 'preserve'
+    if change == 'missing_release':
+        assert not changed.exists() and (root / 'releases/displaced').is_dir()
+    else:
+        assert changed.exists()
+        if change == 'file':
+            assert changed.read_text() == 'tampered'
+        elif change == 'pointer':
+            assert changed.read_text() == '{"release":"other"}'

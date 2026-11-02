@@ -1,5 +1,7 @@
 from pathlib import Path
 import os
+import select
+import signal
 import subprocess
 import sys
 import time
@@ -298,6 +300,66 @@ def test_real_cooperating_worker_blocks_then_allows_encrypted_update_backup(setu
             worker.kill()
             worker.wait(timeout=10)
         worker.stderr.close()
+
+
+@pytest.mark.skipif(not sys.platform.startswith('linux'), reason='Requires Linux fork and flock')
+def test_sigkill_during_encryption_leaves_pending_and_releases_guard(setup, tmp_path, monkeypatch):
+    pytest.importorskip('cryptography')
+    from shared import archive_crypto
+    from shared.effect_receipt import read_effect_receipt
+
+    plan, ports, state, _ = _prepare_archive(setup)
+    private = tmp_path / 'writer-lock'
+    private.mkdir(mode=0o700)
+    guard = CooperativeWriterLock(str(private / 'writers.lock'))
+    ports.effects.writer_lock = guard
+    for directory in ports.home.roots.values():
+        directory.mkdir(parents=True, exist_ok=True)
+    (ports.home.roots['data'] / 'synthetic.txt').write_text('synthetic crash test')
+    key = state['transaction'] + '/archive'
+    read_fd, write_fd = os.pipe()
+    pid = os.fork()
+    if pid == 0:
+        os.close(read_fd)
+        def stop_at_encryption(source, destination, **kwargs):
+            assert Path(source).is_file()
+            os.write(write_fd, b'R')
+            signal.pause()
+        archive_crypto.encrypt_archive = stop_at_encryption
+        _ACTIVE_EFFECT.set((plan, state['transaction'], 'archive'))
+        try:
+            ports.backup(key, 'archive', ())
+        except BaseException:
+            os.write(write_fd, b'E')
+        os._exit(1)
+    os.close(write_fd)
+    reaped = False
+    try:
+        ready, _, _ = select.select([read_fd], [], [], 20)
+        assert ready and os.read(read_fd, 1) == b'R', 'child failed before encryption'
+        os.kill(pid, signal.SIGKILL)
+        _, status = os.waitpid(pid, 0)
+        reaped = True
+        assert os.WIFSIGNALED(status) and os.WTERMSIG(status) == signal.SIGKILL
+        assert read_effect_receipt(ports._path(key, '.quiescence.json'))['status'] == 'pending'
+        assert read_effect_receipt(ports.archive_path(key).with_suffix('.archive.json'))['status'] == 'pending'
+        assert not ports.archive_path(key).exists()
+        # The synthetic plaintext ZIP demonstrates the unresolved crash-cleanup risk.
+        assert len(list(ports.work.glob('.archive-build-*/full.zip'))) == 1
+        with guard.hold(exclusive=True):
+            pass
+        monkeypatch.setattr(ports, '_backup', lambda *args: pytest.fail('interrupted backup was repeated'))
+        token = _ACTIVE_EFFECT.set((plan, state['transaction'], 'archive'))
+        try:
+            with pytest.raises(EffectIndeterminate):
+                ports.backup(key, 'archive', ())
+        finally:
+            _ACTIVE_EFFECT.reset(token)
+    finally:
+        os.close(read_fd)
+        if not reaped:
+            os.kill(pid, signal.SIGKILL)
+            os.waitpid(pid, 0)
 
 
 def test_restart_during_backup_leaves_pending_and_never_reuses_snapshot(setup, monkeypatch):

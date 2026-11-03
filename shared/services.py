@@ -232,3 +232,40 @@ def render_portable_user_services_v1(manifest: dict[str, Any], *, modes: tuple[s
                 expanded.append(argument)
         component['cmd'] = expanded
     return render_fixed_user_services(manifest, modes=modes, install_root=install_root)
+
+
+def render_pointer_user_services_v2(manifest: dict[str, Any], *, modes: tuple[str, ...],
+                                    install_root: str) -> dict[str, str]:
+    """Experimental stable units; launcher and runtime must be independently trusted.
+
+    Pure rendering only: no publication, signature, file or service checks.
+    The caller must place the exact launcher at runtime/lib/homensai/portable_launcher.py.
+    """
+    from shared.portable_launcher import LauncherError, _relative
+
+    manifest = validate_manifest(manifest)
+    # Reuse the v1 checks for target root, selection and placeholder syntax.
+    render_portable_user_services_v1(manifest, modes=modes, install_root=install_root, version='1')
+    order = set(component_order(manifest, modes))
+    try:
+        paths = {name: _relative(manifest['paths'][name])
+                 for name in ('app', 'data', 'runtime', 'releases', 'services')}
+        pointer = paths['services'] + '/' + _relative(manifest['update']['pointer_file'])
+        for component in manifest['components']:
+            if component['name'] not in order:
+                continue
+            for argument in component['cmd']:
+                if argument.startswith('@') and '/' in argument:
+                    _relative(argument.partition('/')[2])
+    except (LauncherError, KeyError, TypeError):
+        raise ManifestError('systemd user: недопустимый путь launcher') from None
+    root = PurePosixPath(install_root)
+    runtime = root / paths['runtime']
+    prefix = [str(runtime / 'bin/python'), '-I', '-B',
+              str(runtime / 'lib/homensai/portable_launcher.py'),
+              '--root', install_root, '--app', paths['app'], '--data', paths['data'],
+              '--runtime', paths['runtime'], '--releases', paths['releases'], '--pointer', pointer, '--']
+    for component in manifest['components']:
+        if component['name'] in order:
+            component['cmd'] = prefix + component['cmd']
+    return render_fixed_user_services(manifest, modes=modes, install_root=install_root)

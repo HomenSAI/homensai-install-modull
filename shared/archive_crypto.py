@@ -239,6 +239,21 @@ def decrypted_archive(path: str | Path, *, password_provider,
 
 
 @contextmanager
+def decrypted_archive_stream(path: str | Path, *, password_provider,
+                             expected_product_id: str | None = None,
+                             expected_ciphertext_sha256: str | None = None):
+    """Linux: проверенный seekable поток ZIP без имени, действителен внутри контекста."""
+    if not sys.platform.startswith('linux'):
+        raise ArchiveCryptoError('Безымянная расшифровка поддерживается только на Linux')
+    with _decrypted_archive(path, password_provider=password_provider,
+                            expected_product_id=expected_product_id,
+                            expected_ciphertext_sha256=expected_ciphertext_sha256,
+                            anonymous=True) as (stream, manifest):
+        with os.fdopen(os.dup(stream.fileno()), 'rb') as readonly:
+            yield readonly, manifest
+
+
+@contextmanager
 def _decrypted_archive(path, *, password_provider, expected_product_id,
                        expected_ciphertext_sha256, anonymous):
     if (expected_ciphertext_sha256 is not None and (type(expected_ciphertext_sha256) is not str

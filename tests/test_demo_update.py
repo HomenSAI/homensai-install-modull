@@ -714,8 +714,10 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
             assert archive_crypto.is_encrypted(path)
             assert password.encode() not in path.read_bytes()
             assert b'synthetic-schema-1' not in path.read_bytes()
-            with archive_crypto.decrypted_archive(path, password_provider=password_provider,
-                                                   expected_product_id=manifest['product_id']) as (plain, _):
+            decrypt = (archive_crypto.decrypted_archive_stream if sys.platform.startswith('linux')
+                       else archive_crypto.decrypted_archive)
+            with decrypt(path, password_provider=password_provider,
+                         expected_product_id=manifest['product_id']) as (plain, _):
                 with zipfile.ZipFile(plain) as archive:
                     yield archive
         else:

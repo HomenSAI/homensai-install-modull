@@ -220,6 +220,22 @@ manager, выдающий `(temporary_zip_path, manifest)` после всех �
 обратную проверку расшифровки/ZIP перед атомарной публикацией через hard link
 без перезаписи; скрытый запрос при этом происходит один раз.
 
+На Linux клиент, которому не требуется путь, может использовать
+`decrypted_archive_stream(...)`: он возвращает `(stream, manifest)` после
+проверки GCM, SHA-256, ZIP и, если указан, SHA-256 зашифрованного снимка.
+Поток предназначен для чтения, поддерживает seek и закрывается при выходе из
+контекста. Внутренний файл не имеет имени и требует `O_TMPFILE`; на других ОС
+этот интерфейс явно отказывает. Например:
+
+```python
+import zipfile
+
+with archive_crypto.decrypted_archive_stream(encrypted_path, password_provider=provider,
+                                             expected_product_id=home.product_id) as (stream, manifest):
+    with zipfile.ZipFile(stream) as archive:
+        names = archive.namelist()
+```
+
 Пароль передаётся через внедрённый callable без аргументов, возвращающий
 непустой `str`. Фабрика provider читает только явно названную переменную
 окружения либо запрашивает пароль через `getpass` (скрытый ввод с терминала/stdin).

@@ -255,6 +255,28 @@ def test_roundtrip_full_archive(aes, tmp_path, home):
     no_scratch(tmp_path)
 
 
+@pytest.mark.skipif(not __import__('sys').platform.startswith('linux'), reason='Linux O_TMPFILE')
+def test_public_decrypted_stream_is_anonymous_verified_and_closed(aes, tmp_path, home):
+    import zipfile
+    encrypted = tmp_path / 'encrypted'
+    expected = crypto.build_encrypted_archive(home, encrypted, password_provider=lambda: PASSWORD)
+    ciphertext_hash = hashlib.sha256(encrypted.read_bytes()).hexdigest()
+    with crypto.decrypted_archive_stream(encrypted, password_provider=lambda: PASSWORD,
+                                         expected_product_id=home.product_id,
+                                         expected_ciphertext_sha256=ciphertext_hash) as (stream, manifest):
+        assert manifest == expected and os.fstat(stream.fileno()).st_nlink == 0
+        assert not stream.writable()
+        with zipfile.ZipFile(stream) as archive:
+            assert archive.read('roots/data/sample.bin') == PAYLOAD
+        no_scratch(tmp_path)
+    assert stream.closed
+    with pytest.raises(plain.ArchiveError):
+        with crypto.decrypted_archive_stream(encrypted, password_provider=lambda: PASSWORD,
+                                             expected_ciphertext_sha256='0' * 64):
+            pytest.fail('unverified stream exposed')
+    no_scratch(tmp_path)
+
+
 @pytest.mark.parametrize("mutation", ["password", "truncate", "drop", "reorder", "duplicate", "flip",
                                       "append", "hash", "salt", "prefix", "size", "magic"])
 def test_authentication_failure_before_any_restore(aes, tmp_path, home, monkeypatch, mutation):

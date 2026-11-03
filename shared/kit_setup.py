@@ -18,6 +18,7 @@ import os
 from pathlib import Path
 import secrets
 import shutil
+import stat
 import subprocess
 import sys
 import time
@@ -79,6 +80,38 @@ def _private_dir(path: Path) -> Path:
     if os.name == 'posix':
         os.chmod(path, 0o700)
     return path
+
+
+def _root_parents(root: Path):
+    """Создать недостающих предков корня установки (0700); сам корень не создаётся.
+
+    Путь абсолютный, без ссылок. Каждый предок — каталог владельца root или
+    текущего пользователя, недоступный на запись группе/остальным: то же
+    требование позже предъявляет загрузчик служб (portable_launcher), поэтому
+    корни под /tmp и подобными каталогами отклоняются сразу. Иначе — отказ до
+    вызова API.
+    """
+    from shared.datahome import DataHomeError, checked_path
+    try:
+        if os.name != 'posix' or not root.is_absolute() or checked_path(root) != root or root.parent == root:
+            raise SetupError('kit.unsafe_root_parent', path=root)
+    except (DataHomeError, OSError):
+        raise SetupError('kit.unsafe_root_parent', path=root) from None
+    uid = os.getuid()
+    for parent in reversed(root.parents):
+        try:
+            try:
+                info = parent.lstat()
+            except FileNotFoundError:
+                parent.mkdir(mode=0o700)
+                info = parent.lstat()
+                if stat.S_ISDIR(info.st_mode) and info.st_uid == uid:
+                    os.chmod(parent, 0o700, follow_symlinks=False)
+                    info = parent.lstat()
+        except OSError:
+            raise SetupError('kit.unsafe_root_parent', path=parent) from None
+        if not stat.S_ISDIR(info.st_mode) or info.st_uid not in (0, uid) or info.st_mode & 0o022:
+            raise SetupError('kit.unsafe_root_parent', path=parent)
 
 
 def _write_json(path: Path, value: dict):
@@ -356,6 +389,9 @@ class Setup:
             self.out(self.t('kit.resume'))
         self.confirm('kit.confirm_install')
         _private_dir(self.state_dir)
+        # Стандартный ~/.local/share/homensai может отсутствовать в чистом HOME;
+        # подготовка выпуска требует существующего родителя корня.
+        _root_parents(install_root)
         if units.exists():
             if not units.is_dir():
                 raise SetupError('kit.unsafe_state')

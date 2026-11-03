@@ -195,7 +195,7 @@ def test_pointer_publication_requires_runtime_and_is_idempotent(signed_pointer, 
     assert {p.name: p.read_bytes() for p in directory.iterdir()} == contents
 
 
-def test_pointer_publication_pending_never_repeats(signed_pointer, tmp_path, monkeypatch):
+def test_pointer_publication_pending_resumes_only_with_same_key(signed_pointer, tmp_path, monkeypatch):
     import shared.systemd_pointer as pointer
     from shared.runtime_native import prepare_signed_linux_runtime
     package, envelope, root, directory, options, publish, calls = _pointer_publisher(signed_pointer, tmp_path)
@@ -203,15 +203,21 @@ def test_pointer_publication_pending_never_repeats(signed_pointer, tmp_path, mon
                                  reserve_bytes=0, operation_id='a' * 32, execute=True)
     def interrupted(*args, **kwargs):
         raise OSError('synthetic interrupted write')
+    original = pointer._publish_files
     monkeypatch.setattr(pointer, '_publish_files', interrupted)
     with pytest.raises(PortableUnitError):
         publish(execute=True)
     receipt = root / '.homensai-control/user-systemd-publication.json'
     assert json.loads(receipt.read_text())['status'] == 'pending'
-    previous_calls = len(calls)
+    monkeypatch.setattr(pointer, '_publish_files', original)
     with pytest.raises(PortableUnitError):
-        publish(execute=True)
-    assert len(calls) == previous_calls and not list(directory.iterdir())
+        pointer.publish_pointer_signed_user_units(package, envelope, str(root), **options,
+            modes=('autonomous',), unit_dir=str(directory), runtime_operation_id='a' * 32,
+            operation_id='c' * 32, reserve_bytes=0, runner=lambda *a, **kw: '', execute=True)
+    assert not list(directory.iterdir())
+    result = publish(execute=True)
+    assert result['state'] == 'published' and json.loads(receipt.read_text())['status'] == 'done'
+    assert list(directory.iterdir()) and all('daemon-reload' not in call for call in calls)
 
 
 def test_runtime_tampering_during_publication_leaves_pending_marker(signed_pointer, tmp_path, monkeypatch):
@@ -240,7 +246,8 @@ def test_runtime_tampering_during_publication_leaves_pending_marker(signed_point
 
 
 @pytest.mark.parametrize('lost_response', [False, True])
-def test_pointer_reload_is_bound_to_runtime_and_never_replayed(signed_pointer, tmp_path, lost_response):
+def test_pointer_reload_is_bound_to_runtime_and_replayed_only_after_checks(signed_pointer, tmp_path,
+                                                                           lost_response):
     from shared.runtime_native import prepare_signed_linux_runtime
     from shared.systemd_user_load import (UnitLoadError, load_pointer_signed_user_units,
                                          inspect_pending_pointer_user_units)
@@ -255,16 +262,22 @@ def test_pointer_reload_is_bound_to_runtime_and_never_replayed(signed_pointer, t
     if lost_response:
         with pytest.raises(UnitLoadError):
             load_pointer_signed_user_units(package, envelope, str(root), **args)
+        # Тот же ключ: всё перепроверяется и reload отправляется снова.
         with pytest.raises(UnitLoadError):
             load_pointer_signed_user_units(package, envelope, str(root), **args)
+        assert manager.calls.count(['daemon-reload']) == 2
         (root / 'runtime/lib/homensai/portable_launcher.py').write_text('damaged')
+        manager.lose_response = False
+        with pytest.raises(UnitLoadError):
+            load_pointer_signed_user_units(package, envelope, str(root), **args)
         observed = inspect_pending_pointer_user_units(package, envelope, str(root), **args)
         assert observed['state'] == 'pending_observed' and not observed['reload_completion_verified']
+        assert manager.calls.count(['daemon-reload']) == 2
     else:
         result = load_pointer_signed_user_units(package, envelope, str(root), **args)
         assert result['state'] == 'loaded' and not result['services_started']
         assert load_pointer_signed_user_units(package, envelope, str(root), **args) == result
-    assert manager.calls.count(['daemon-reload']) == 1
+        assert manager.calls.count(['daemon-reload']) == 1
     assert all('start' not in call for call in manager.calls)
 
 
@@ -365,8 +378,13 @@ def test_api_pointer_reload_and_pending_inspection(signed_pointer, tmp_path, mon
     first = handle(request)
     if lost_response:
         assert first['error']['code'] == 'systemd_load_failed'
+        # Повтор того же ключа перепроверяет всё и снова отправляет reload.
         assert handle(request)['error']['code'] == 'systemd_load_failed'
+        assert manager.calls.count(['daemon-reload']) == 2
         (root / 'runtime/lib/homensai/portable_launcher.py').write_text('damaged')
+        manager.lose_response = False
+        assert handle(request)['error']['code'] == 'systemd_load_failed'
+        assert manager.calls.count(['daemon-reload']) == 2
         request['operation'] = 'inspect-pending-pointer-systemd-user-units'
         assert validator.is_valid(request) and request['operation'] in caps['mutating_operations']
         observed = handle(request)
@@ -375,7 +393,7 @@ def test_api_pointer_reload_and_pending_inspection(signed_pointer, tmp_path, mon
     else:
         assert first['ok'] and first['result']['state'] == 'loaded' and not first['result']['services_started']
         assert handle(request) == first
-    assert manager.calls.count(['daemon-reload']) == 1
+        assert manager.calls.count(['daemon-reload']) == 1
 
 
 @pytest.mark.parametrize('lost_response', ['none', 'start', 'stop'])
@@ -430,11 +448,17 @@ def test_api_pointer_start_stop_survives_runtime_damage(signed_pointer, tmp_path
     first = handle(request)
     if lost_response == 'start':
         assert first['error']['code'] == 'linux_start_failed'
-        assert handle(request)['error']['code'] == 'linux_start_failed'
+        starts = [call for call in manager.calls if call[0] == 'start']
+        # Обычный повтор того же ключа: группа устойчива и уже активна,
+        # поэтому start больше не отправляется, отметка завершается.
+        first = handle(request)
+        assert first['ok'] and 'prior_start_command_confirmed' not in first['result']
+        assert [call for call in manager.calls if call[0] == 'start'] == starts
         request['operation'] = 'reconcile-pointer-linux-start'
         assert validator.is_valid(request)
-        first = handle(request)
-        assert first['ok'] and not first['result']['prior_start_command_confirmed']
+        reconciled = handle(request)
+        assert reconciled['ok'] and not reconciled['result']['prior_start_command_confirmed']
+        request['operation'] = 'start-pointer-linux'
     assert first['ok'] and first['result']['services_started'] and not first['result']['health_verified']
     assert handle(request) == first
     assert len(manager.active) == 3

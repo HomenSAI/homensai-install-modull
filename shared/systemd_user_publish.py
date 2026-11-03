@@ -74,7 +74,13 @@ def _manager_environment():
             'XDG_RUNTIME_DIR': runtime, 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=' + runtime + '/bus'}
 
 
-def _confirm_manager(runner, directory, names, timeout):
+def _confirm_manager(runner, directory, names, timeout, own_fragments=False):
+    """Каталог принадлежит менеджеру, имена свободны и службы не работают.
+
+    own_fragments=True (только продолжение pending той же публикации) также
+    допускает unit, загруженный из нашего файла в этом каталоге: show может
+    загрузить уже записанный файл. Drop-in и активное состояние — всегда отказ.
+    """
     base = ['/usr/bin/systemctl', '--user', '--no-pager', '--no-ask-password']
     env = _manager_environment()
     unit_paths = runner(base + ['show', '--property=UnitPath', '--value'], timeout=timeout, env=env)
@@ -91,8 +97,13 @@ def _confirm_manager(runner, directory, names, timeout):
             if not sep or key in fields or key not in _PROPERTIES:
                 raise UnitPublicationError('Некорректный ответ менеджера')
             fields[key] = value
-        if fields != {'Id': name, 'LoadState': 'not-found', 'ActiveState': 'inactive',
+        if fields == {'Id': name, 'LoadState': 'not-found', 'ActiveState': 'inactive',
                       'SubState': 'dead', 'FragmentPath': '', 'DropInPaths': '', 'NeedDaemonReload': 'no'}:
+            continue
+        if not (own_fragments and set(fields) == set(_PROPERTIES) and fields['Id'] == name
+                and fields['LoadState'] == 'loaded' and fields['FragmentPath'] == str(directory / name)
+                and fields['ActiveState'] == 'inactive' and fields['SubState'] == 'dead'
+                and fields['DropInPaths'] == '' and fields['NeedDaemonReload'] in ('yes', 'no')):
             raise UnitPublicationError('Имя службы уже занято или состояние не подтверждено')
 
 
@@ -196,6 +207,11 @@ def _existing_lock(path):
         os.close(fd)
 
 
+def _marker_body(product_id, version, public):
+    return (json.dumps({'product_id': product_id, 'version': version,
+                        'units': public['units']}, sort_keys=True, separators=(',', ':')) + '\n').encode()
+
+
 def _publish_files(directory, names, units, public, product_id, version, verify_again):
     marker = '.' + product_id + '.homensai-units.pending'
     dir_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
@@ -211,9 +227,7 @@ def _publish_files(directory, names, units, public, product_id, version, verify_
             except FileNotFoundError:
                 continue
             raise UnitPublicationError('Файл службы или маркер уже существует')
-        body = (json.dumps({'product_id': product_id, 'version': version,
-                            'units': public['units']}, sort_keys=True, separators=(',', ':')) + '\n').encode()
-        _write_exclusive(dir_fd, marker, body)
+        _write_exclusive(dir_fd, marker, _marker_body(product_id, version, public))
         os.fsync(dir_fd)
         for name, digest, data in units:
             _write_exclusive(dir_fd, name, data)
@@ -222,6 +236,86 @@ def _publish_files(directory, names, units, public, product_id, version, verify_
         verify_again()
         os.unlink(marker, dir_fd=dir_fd)
         os.fsync(dir_fd)
+    finally:
+        os.close(dir_fd)
+
+
+def _own_prefix(dir_fd, name, data):
+    """None — файла нет; True — байты полностью совпадают; False — начало data.
+
+    Иное (ссылка, чужой владелец, жёсткая ссылка, права записи группе/остальным,
+    другие байты или больший размер) — отказ.
+    """
+    flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, 'O_NONBLOCK', 0)
+    try:
+        descriptor = os.open(name, flags, dir_fd=dir_fd)
+    except FileNotFoundError:
+        return None
+    with os.fdopen(descriptor, 'rb') as stream:
+        before = os.fstat(stream.fileno())
+        if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.getuid() or before.st_nlink != 1
+                or before.st_mode & 0o022 or before.st_size > len(data)):
+            raise UnitPublicationError('Посторонний файл в каталоге служб')
+        content = stream.read(len(data) + 1)
+        after = os.fstat(stream.fileno())
+    current = os.stat(name, dir_fd=dir_fd, follow_symlinks=False)
+    if (len(content) != before.st_size
+            or (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns)
+            != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns)
+            or (current.st_dev, current.st_ino) != (before.st_dev, before.st_ino)
+            or not hmac.compare_digest(content, data[:len(content)])):
+        raise UnitPublicationError('Файл службы не является записью этой публикации')
+    return len(content) == len(data)
+
+
+def _resume_publish_files(directory, names, units, public, product_id, version, verify_again):
+    """Продолжить публикацию после pending той же операции и привязки.
+
+    Маркер должен совпадать с ожидаемым или быть его прерванной записью. Без
+    полного маркера допустимы только «ни одного unit» (обычная публикация с
+    начала) или «все units полностью записаны» (сбой после удаления маркера).
+    При полном маркере готовые units сохраняются, свои прерванные записи
+    (начало подписанного текста) удаляются и пишутся заново. Посторонние
+    байты, drop-in и ссылки приводят к отказу без изменений.
+    """
+    marker = '.' + product_id + '.homensai-units.pending'
+    dir_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        info = os.fstat(dir_fd)
+        if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o022:
+            raise UnitPublicationError('Каталог служб изменился')
+        for name in names:
+            try:
+                os.stat(name + '.d', dir_fd=dir_fd, follow_symlinks=False)
+            except FileNotFoundError:
+                continue
+            raise UnitPublicationError('Обнаружен drop-in службы')
+        marked = _own_prefix(dir_fd, marker, _marker_body(product_id, version, public))
+        states = {name: _own_prefix(dir_fd, name, data) for name, _, data in units}
+        if marked is not True:
+            if all(state is None for state in states.values()):
+                if marked is False:
+                    os.unlink(marker, dir_fd=dir_fd)
+                    os.fsync(dir_fd)
+                _publish_files(directory, names, units, public, product_id, version, verify_again)
+                return
+            if marked is not None or any(state is not True for state in states.values()):
+                raise UnitPublicationError('Состояние публикации не подтверждено')
+        else:
+            for name, digest, data in units:
+                if states[name] is False:
+                    os.unlink(name, dir_fd=dir_fd)
+            os.fsync(dir_fd)
+            for name, digest, data in units:
+                if states[name] is not True:
+                    _write_exclusive(dir_fd, name, data)
+            os.fsync(dir_fd)
+        for name, digest, _ in units:
+            _trusted_file(directory / name, digest)
+        verify_again()
+        if marked is True:
+            os.unlink(marker, dir_fd=dir_fd)
+            os.fsync(dir_fd)
     finally:
         os.close(dir_fd)
 

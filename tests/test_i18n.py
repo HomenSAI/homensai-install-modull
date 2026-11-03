@@ -86,3 +86,33 @@ def test_language_replacement_during_open_is_rejected(monkeypatch, tmp_path):
     monkeypatch.setattr(i18n.os, 'open', replace_after_open)
     with pytest.raises(LanguageError):
         translate('fr', 'installer.ready', product='Demo')
+
+
+@pytest.mark.parametrize('broken', [
+    b'{}', b'[]', b'{', b'\xff', b'{"api.invalid_request":"x","api.invalid_request":"y"}',
+    b'{"api.invalid_request":42}', b' ' * 65537,
+])
+def test_invalid_language_files_do_not_affect_other_languages(monkeypatch, tmp_path, broken):
+    import shared.i18n as i18n
+    source = Path(i18n.__file__).with_name('locales')
+    for language in ('en', 'ru', 'de'):
+        (tmp_path / (language + '.json')).write_bytes((source / (language + '.json')).read_bytes())
+    (tmp_path / 'fr.json').write_bytes(broken)
+    monkeypatch.setattr(i18n, '_DIRECTORY', tmp_path)
+    assert i18n.available_languages() == ['de', 'en', 'ru']
+    with pytest.raises(LanguageError):
+        translate('fr', 'installer.ready', product='Demo')
+    assert translate('de', 'installer.ready', product='Demo') == 'Bereit zur Installation von Demo.'
+
+
+@pytest.mark.parametrize('language', ['en', 'ru', 'de'])
+def test_installed_catalogs_match_base_keys_and_placeholder_sets(language):
+    import shared.i18n as i18n
+    source = Path(i18n.__file__).with_name('locales')
+    catalog = json.loads((source / (language + '.json')).read_text(encoding='utf-8'))
+    result = i18n.validate_catalog(catalog)
+    assert result['valid'] and result['message_count'] == len(catalog)
+    for key, template in catalog.items():
+        fields = i18n._fields(template)
+        variables = {name: 'synthetic-value' for name in fields}
+        assert isinstance(translate(language, key, **variables), str)

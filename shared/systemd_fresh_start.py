@@ -11,7 +11,8 @@ from contextlib import contextmanager
 
 from shared.datahome import checked_path
 from shared.runtime_native import verify_signed_linux_runtime
-from shared.systemd_user_load import signed_user_group, portable_signed_runtime_user_group
+from shared.systemd_user_load import (signed_user_group, portable_signed_runtime_user_group,
+                                     _pointer_signed_user_group, pointer_signed_runtime_user_group)
 from shared.systemd_user_publish import _new_publication_receipt, _publication_receipt
 from shared.update_plan import _atomic_write
 from shared.wheel_audit import audit_signed_wheels
@@ -49,13 +50,28 @@ def _lifecycle_lock(install_root):
 
 
 def _binding(root, directory, envelope, trusted_public_key, expected_product_id,
-             expected_version, modes, load_key, runtime_key, reserve_bytes):
+             expected_version, modes, load_key, runtime_key, reserve_bytes, pointer=False):
     context = {'product_id': expected_product_id, 'version': expected_version,
                'envelope_sha256': hashlib.sha256(envelope).hexdigest(),
                'publisher_sha256': hashlib.sha256(trusted_public_key).hexdigest(),
                'install_root': str(root), 'unit_dir': str(directory), 'modes': modes,
                'load_key': load_key, 'runtime_key': runtime_key, 'reserve_bytes': reserve_bytes}
+    if pointer:
+        context['generator'] = 'homensai-systemd-user-pointer-v2'
     return hashlib.sha256(json.dumps(context, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
+def _loaded_group(package_path, envelope, root, *, options, modes, directory, load_key, runtime_key,
+                  reserve_bytes, runner, pointer, require_active=False, require_stable=False,
+                  verify_runtime=True):
+    if pointer:
+        return _pointer_signed_user_group(package_path, envelope, str(root), **options, modes=modes,
+            unit_dir=str(directory), operation_id=load_key, runtime_operation_id=runtime_key,
+            reserve_bytes=reserve_bytes, runner=runner, _require_active=require_active,
+            _require_stable=require_stable, _verify_runtime=verify_runtime)
+    return signed_user_group(package_path, envelope, str(root), **options, modes=modes,
+        unit_dir=str(directory), operation_id=load_key, portable=True, runner=runner,
+        _require_active=require_active, _require_stable=require_stable)
 
 
 def start_portable_fresh(package_path, envelope, install_root, **options):
@@ -72,7 +88,7 @@ def start_portable_fresh(package_path, envelope, install_root, **options):
 def stop_portable_fresh(package_path, envelope, install_root, *, trusted_public_key,
                         expected_product_id, expected_version, modes, unit_dir,
                         load_key, runtime_key, start_key, reserve_bytes, operation_id, runner=None,
-                        reconcile=False):
+                        reconcile=False, pointer=False):
     """Остановить стабильные units с отдельной отметкой, в том числе после pending start."""
     try:
         if (any(type(key) is not str or re.fullmatch(r'[a-f0-9]{32}', key) is None
@@ -81,7 +97,7 @@ def stop_portable_fresh(package_path, envelope, install_root, *, trusted_public_
                 or type(reserve_bytes) is not int or not 0 <= reserve_bytes <= 2**63 - 1
                 or type(envelope) is not bytes or type(trusted_public_key) is not bytes
                 or len(trusted_public_key) != 32 or type(modes) is not tuple or not modes
-                or type(reconcile) is not bool):
+                or type(reconcile) is not bool or type(pointer) is not bool):
             raise FreshStartError('Недопустимые параметры остановки')
         with _lifecycle_lock(install_root):
             root, directory = checked_path(install_root), checked_path(unit_dir)
@@ -96,7 +112,7 @@ def stop_portable_fresh(package_path, envelope, install_root, *, trusted_public_
             if publication is None or publication['status'] != 'done' or publication['operation_id'] == operation_id:
                 raise FreshStartError('Публикация не подтверждена')
             digest = _binding(root, directory, envelope, trusted_public_key, expected_product_id,
-                              expected_version, modes, load_key, runtime_key, reserve_bytes)
+                              expected_version, modes, load_key, runtime_key, reserve_bytes, pointer=pointer)
             start_receipt = _publication_receipt(control / 'user-systemd-start.json')
             if (start_receipt is None or start_receipt['operation_id'] != start_key
                     or start_receipt['binding'] != digest):
@@ -111,17 +127,19 @@ def stop_portable_fresh(package_path, envelope, install_root, *, trusted_public_
                 raise FreshStartError('Предыдущая остановка требует проверки')
             options = dict(trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
                            expected_version=expected_version)
-            group = signed_user_group(package_path, envelope, str(root), **options, modes=modes,
-                        unit_dir=str(directory), operation_id=load_key, portable=True, runner=runner,
-                        _require_stable=(old is None and not reconcile))
+            group = _loaded_group(package_path, envelope, root, options=options, modes=modes,
+                        directory=directory, load_key=load_key, runtime_key=runtime_key,
+                        reserve_bytes=reserve_bytes, runner=runner, pointer=pointer,
+                        require_stable=(old is None and not reconcile), verify_runtime=False)
             if reconcile and old == pending:
                 if (_publication_receipt(receipt) != pending or
                         _publication_receipt(control / 'user-systemd-start.json') != start_receipt or
                         _publication_receipt(control / 'user-systemd-publication.json') != publication):
                     raise FreshStartError('Отметки изменились')
                 _atomic_write(receipt, done)
-                signed_user_group(package_path, envelope, str(root), **options, modes=modes,
-                    unit_dir=str(directory), operation_id=load_key, portable=True, runner=runner)
+                _loaded_group(package_path, envelope, root, options=options, modes=modes,
+                    directory=directory, load_key=load_key, runtime_key=runtime_key,
+                    reserve_bytes=reserve_bytes, runner=runner, pointer=pointer, verify_runtime=False)
             elif old is None:
                 _new_publication_receipt(receipt, pending)
                 group.command('stop', execute=True)
@@ -143,7 +161,7 @@ def stop_portable_fresh(package_path, envelope, install_root, *, trusted_public_
 
 def _start_portable_fresh(package_path, envelope, install_root, *, trusted_public_key,
                          expected_product_id, expected_version, modes, unit_dir,
-                         load_key, runtime_key, reserve_bytes, operation_id, runner=None, reconcile=False):
+                         load_key, runtime_key, reserve_bytes, operation_id, runner=None, reconcile=False, pointer=False):
     """Однократно отправить start; pending никогда автоматически не повторяется."""
     if (any(type(key) is not str or re.fullmatch(r'[a-f0-9]{32}', key) is None
             for key in (load_key, runtime_key, operation_id))
@@ -151,7 +169,7 @@ def _start_portable_fresh(package_path, envelope, install_root, *, trusted_publi
             or type(reserve_bytes) is not int or not 0 <= reserve_bytes <= 2**63 - 1
             or type(envelope) is not bytes or type(trusted_public_key) is not bytes
             or len(trusted_public_key) != 32 or type(modes) is not tuple or not modes
-            or type(reconcile) is not bool):
+            or type(reconcile) is not bool or type(pointer) is not bool):
         raise FreshStartError('Недопустимые параметры запуска')
     try:
         root, directory = checked_path(install_root), checked_path(unit_dir)
@@ -166,7 +184,7 @@ def _start_portable_fresh(package_path, envelope, install_root, *, trusted_publi
         if _publication_receipt(control / 'user-systemd-stop.json') is not None:
             raise FreshStartError('Остановка требует отдельного нового цикла')
         digest = _binding(root, directory, envelope, trusted_public_key, expected_product_id,
-                          expected_version, modes, load_key, runtime_key, reserve_bytes)
+                          expected_version, modes, load_key, runtime_key, reserve_bytes, pointer=pointer)
         pending = {'version': 1, 'operation_id': operation_id, 'binding': digest, 'status': 'pending'}
         done = {**pending, 'status': 'done'}
         receipt = checked_path(control / 'user-systemd-start.json')
@@ -181,9 +199,9 @@ def _start_portable_fresh(package_path, envelope, install_root, *, trusted_publi
         verify_signed_linux_runtime(package_path, envelope, str(root), **options,
                                     operation_id=runtime_key, reserve_bytes=reserve_bytes)
         if old == done or reconcile:
-            group = signed_user_group(package_path, envelope, str(root), **options, modes=modes,
-                        unit_dir=str(directory), operation_id=load_key, portable=True,
-                        runner=runner, _require_active=True)
+            group = _loaded_group(package_path, envelope, root, options=options, modes=modes,
+                        directory=directory, load_key=load_key, runtime_key=runtime_key,
+                        reserve_bytes=reserve_bytes, runner=runner, pointer=pointer, require_active=True)
             if reconcile and old == pending:
                 if (_publication_receipt(receipt) != pending or
                         _publication_receipt(control / 'user-systemd-publication.json') != publication or
@@ -192,12 +210,18 @@ def _start_portable_fresh(package_path, envelope, install_root, *, trusted_publi
                 _atomic_write(receipt, done)
                 verify_signed_linux_runtime(package_path, envelope, str(root), **options,
                                             operation_id=runtime_key, reserve_bytes=reserve_bytes)
-                signed_user_group(package_path, envelope, str(root), **options, modes=modes,
-                    unit_dir=str(directory), operation_id=load_key, portable=True, runner=runner, _require_active=True)
+                _loaded_group(package_path, envelope, root, options=options, modes=modes,
+                    directory=directory, load_key=load_key, runtime_key=runtime_key,
+                    reserve_bytes=reserve_bytes, runner=runner, pointer=pointer, require_active=True)
         else:
-            group = portable_signed_runtime_user_group(package_path, envelope, str(root), **options,
-                        modes=modes, unit_dir=str(directory), operation_id=load_key,
-                        runtime_operation_id=runtime_key, runtime_reserve_bytes=reserve_bytes, runner=runner)
+            if pointer:
+                group = pointer_signed_runtime_user_group(package_path, envelope, str(root), **options,
+                    modes=modes, unit_dir=str(directory), operation_id=load_key,
+                    runtime_operation_id=runtime_key, reserve_bytes=reserve_bytes, runner=runner)
+            else:
+                group = portable_signed_runtime_user_group(package_path, envelope, str(root), **options,
+                    modes=modes, unit_dir=str(directory), operation_id=load_key,
+                    runtime_operation_id=runtime_key, runtime_reserve_bytes=reserve_bytes, runner=runner)
             _new_publication_receipt(receipt, pending)
             group.command('start', execute=True)
             if _publication_receipt(receipt) != pending:

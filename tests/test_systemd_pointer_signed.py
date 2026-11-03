@@ -308,6 +308,34 @@ def test_pointer_reload_detects_runtime_change_during_reload(signed_pointer, tmp
     assert manager.calls.count(['daemon-reload']) == 1 and all('start' not in x for x in manager.calls)
 
 
+def test_pointer_group_checks_runtime_before_start_and_allows_stop(signed_pointer, tmp_path):
+    from shared.runtime_native import prepare_signed_linux_runtime
+    from shared.systemd_group import SystemdGroupError
+    from shared.systemd_user_load import (load_pointer_signed_user_units, pointer_signed_runtime_user_group,
+                                         _pointer_signed_user_group)
+    from test_systemd_portable import FakeReloadManager
+    package, envelope, root, directory, options, publish, _ = _pointer_publisher(signed_pointer, tmp_path)
+    prepare_signed_linux_runtime(package, envelope, str(root), **options,
+                                 reserve_bytes=0, operation_id='a' * 32, execute=True)
+    publish(execute=True)
+    manager = FakeReloadManager(directory)
+    args = dict(**options, modes=('autonomous',), unit_dir=str(directory), runtime_operation_id='a' * 32,
+                reserve_bytes=0, operation_id='c' * 32, runner=manager)
+    load_pointer_signed_user_units(package, envelope, str(root), **args)
+    group = pointer_signed_runtime_user_group(package, envelope, str(root), **args)
+    assert len(group.command('start')) == 3
+    (root / 'runtime/lib/homensai/portable_launcher.py').write_text('damaged')
+    before = len(manager.calls)
+    with pytest.raises(SystemdGroupError):
+        group.command('start', execute=True)
+    assert len(manager.calls) == before
+    assert len(group.command('stop', execute=True)) == 3
+    stopped = _pointer_signed_user_group(package, envelope, str(root), **args,
+                                         _require_stable=True, _verify_runtime=False)
+    assert len(stopped.command('stop', execute=True)) == 3
+    assert all('start' not in call for call in manager.calls)
+
+
 @pytest.mark.parametrize('lost_response', [False, True])
 def test_api_pointer_reload_and_pending_inspection(signed_pointer, tmp_path, monkeypatch, lost_response):
     import shared.systemd_user_load as loader
@@ -347,6 +375,84 @@ def test_api_pointer_reload_and_pending_inspection(signed_pointer, tmp_path, mon
         assert first['ok'] and first['result']['state'] == 'loaded' and not first['result']['services_started']
         assert handle(request) == first
     assert manager.calls.count(['daemon-reload']) == 1
+
+
+@pytest.mark.parametrize('lost_response', ['none', 'start', 'stop'])
+def test_api_pointer_start_stop_survives_runtime_damage(signed_pointer, tmp_path, monkeypatch, lost_response):
+    import shared.systemd_user as user_adapter
+    import shared.systemd_user_load as loader
+    from homensai_installer_client import contract_schema
+    from shared.api import handle
+    from shared.runtime_native import prepare_signed_linux_runtime
+    from test_systemd_portable import FakeReloadManager
+    package, envelope, root, directory, options, publish, _ = _pointer_publisher(signed_pointer, tmp_path)
+    prepare_signed_linux_runtime(package, envelope, str(root), **options,
+                                 reserve_bytes=0, operation_id='a' * 32, execute=True)
+    publish(execute=True)
+    class StatefulManager(FakeReloadManager):
+        def __init__(self, directory):
+            super().__init__(directory)
+            self.active = set()
+            self.lost = False
+        def __call__(self, argv, *, timeout, env):
+            action, name = argv[4], argv[-1]
+            if action in ('start', 'stop'):
+                self.calls.append(argv[4:])
+                self.active.add(name) if action == 'start' else self.active.discard(name)
+                if (not self.lost and action == lost_response
+                        and ((action == 'start' and len(self.active) == 3) or
+                             (action == 'stop' and not self.active))):
+                    self.lost = True
+                    raise TimeoutError('synthetic response loss')
+                return ''
+            output = super().__call__(argv, timeout=timeout, env=env)
+            if action == 'show' and name in self.active:
+                output = output.replace('ActiveState=inactive\nSubState=dead', 'ActiveState=active\nSubState=running')
+            return output
+    manager = StatefulManager(directory)
+    monkeypatch.setattr(loader, '_run', manager)
+    monkeypatch.setattr(user_adapter, '_run', manager)
+    loader.load_pointer_signed_user_units(package, envelope, str(root), **options, modes=('autonomous',),
+        unit_dir=str(directory), runtime_operation_id='a' * 32, reserve_bytes=0,
+        operation_id='c' * 32, runner=manager)
+    params = {'package_path': str(package), 'envelope': base64.b64encode(envelope).decode(),
+              'trusted_public_key': base64.b64encode(options['trusted_public_key']).decode(),
+              'expected_product_id': options['expected_product_id'], 'expected_version': '1',
+              'install_root': str(root), 'modes': ['autonomous'], 'unit_dir': str(directory),
+              'runtime_key': 'a' * 32, 'load_key': 'c' * 32, 'reserve_bytes': 0}
+    request = {'api_major': 1, 'request_id': 'pointer-start', 'operation': 'check-pointer-linux-start', 'params': params}
+    validator = pytest.importorskip('jsonschema').Draft202012Validator(contract_schema('request'))
+    assert validator.is_valid(request) and handle(request)['result']['state'] == 'checked'
+    request['operation'] = 'start-pointer-linux'
+    params['idempotency_key'] = 'd' * 32
+    assert validator.is_valid(request)
+    first = handle(request)
+    if lost_response == 'start':
+        assert first['error']['code'] == 'linux_start_failed'
+        assert handle(request)['error']['code'] == 'linux_start_failed'
+        request['operation'] = 'reconcile-pointer-linux-start'
+        assert validator.is_valid(request)
+        first = handle(request)
+        assert first['ok'] and not first['result']['prior_start_command_confirmed']
+    assert first['ok'] and first['result']['services_started'] and not first['result']['health_verified']
+    assert handle(request) == first
+    assert len(manager.active) == 3
+    (root / 'runtime/lib/homensai/portable_launcher.py').write_text('damaged after start')
+    request['operation'] = 'stop-pointer-linux'
+    params.update(start_key='d' * 32, idempotency_key='e' * 32)
+    assert validator.is_valid(request)
+    stopped = handle(request)
+    if lost_response == 'stop':
+        assert stopped['error']['code'] == 'linux_stop_failed'
+        assert handle(request)['error']['code'] == 'linux_stop_failed'
+        request['operation'] = 'reconcile-pointer-linux-stop'
+        assert validator.is_valid(request)
+        stopped = handle(request)
+        assert stopped['ok'] and not stopped['result']['prior_stop_command_confirmed']
+    assert stopped['ok'] and stopped['result']['services_stopped'] and not manager.active
+    assert handle(request) == stopped
+    assert sum(call[0] == 'start' for call in manager.calls) == 3
+    assert sum(call[0] == 'stop' for call in manager.calls) == 3
 
 
 def test_api_publishes_pointer_units_only_with_verified_runtime(signed_pointer, tmp_path, monkeypatch):
@@ -426,3 +532,59 @@ def test_pointer_publication_and_reload_with_real_isolated_systemd(signed_pointe
             path.unlink(missing_ok=True)
         subprocess.run(['/usr/bin/systemctl', '--user', 'daemon-reload'],
                        check=False, capture_output=True, timeout=30)
+
+
+@pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
+                    reason='Нужен одноразовый контейнер с user-systemd')
+def test_real_pointer_start_and_stop_with_damaged_runtime(signed_pointer, tmp_path):
+    import pwd
+    import shutil
+    import subprocess
+    from shared.api import handle
+    from shared.runtime_native import prepare_signed_linux_runtime
+    from shared.systemd_pointer import publish_pointer_signed_user_units
+    from shared.systemd_user_load import load_pointer_signed_user_units
+    user = pwd.getpwuid(os.getuid())
+    if (os.getuid() == 0 or user.pw_name != 'homenstest' or user.pw_dir != '/home/homenstest'
+            or not Path('/run/.containerenv').is_file() or not tmp_path.is_relative_to(Path(user.pw_dir))):
+        pytest.skip('Защитные условия изолированного теста не выполнены')
+    payload, options, build = signed_pointer
+    shutil.copy2(Path(sys.executable).resolve(), payload / 'runtime-linux/bin/python')
+    (payload / 'main.py').write_text('import time\ntime.sleep(180)\n')
+    package, envelope, root = build('real-start')
+    prepare_signed_linux_runtime(package, envelope, str(root), **options,
+                                 reserve_bytes=0, operation_id='a' * 32, execute=True)
+    directory = Path(user.pw_dir) / '.config/systemd/user'
+    directory.mkdir(parents=True, exist_ok=True)
+    plan = plan_pointer_signed_user_units(package, envelope, str(root), **options, modes=('autonomous',))
+    names = [item['name'] for item in plan['units']]
+    files = [directory / name for name in names]
+    assert all(not path.exists() for path in files)
+    base = ['/usr/bin/systemctl', '--user', '--no-pager', '--no-ask-password']
+    try:
+        publish_pointer_signed_user_units(package, envelope, str(root), **options, modes=('autonomous',),
+            unit_dir=str(directory), runtime_operation_id='a' * 32, operation_id='b' * 32,
+            reserve_bytes=0, execute=True)
+        load_pointer_signed_user_units(package, envelope, str(root), **options, modes=('autonomous',),
+            unit_dir=str(directory), runtime_operation_id='a' * 32, reserve_bytes=0, operation_id='c' * 32)
+        params = {'package_path': str(package), 'envelope': base64.b64encode(envelope).decode(),
+                  'trusted_public_key': base64.b64encode(options['trusted_public_key']).decode(),
+                  'expected_product_id': options['expected_product_id'], 'expected_version': '1',
+                  'install_root': str(root), 'modes': ['autonomous'], 'unit_dir': str(directory),
+                  'runtime_key': 'a' * 32, 'load_key': 'c' * 32, 'reserve_bytes': 0, 'idempotency_key': 'd' * 32}
+        request = {'api_major': 1, 'request_id': 'real-pointer', 'operation': 'start-pointer-linux', 'params': params}
+        started = handle(request)
+        assert started['ok'] and started['result']['services_started'] and not started['result']['health_verified']
+        assert all(subprocess.run(base + ['is-active', '--quiet', name], timeout=15).returncode == 0 for name in names)
+        (root / 'runtime/lib/homensai/portable_launcher.py').write_text('damaged after start')
+        request['operation'] = 'stop-pointer-linux'
+        params.update(start_key='d' * 32, idempotency_key='e' * 32)
+        stopped = handle(request)
+        assert stopped['ok'] and stopped['result']['services_stopped']
+        assert all(subprocess.run(base + ['is-active', '--quiet', name], timeout=15).returncode != 0 for name in names)
+    finally:
+        for name in names:
+            subprocess.run(base + ['stop', name], check=False, capture_output=True, timeout=30)
+        for path in files:
+            path.unlink(missing_ok=True)
+        subprocess.run(base + ['daemon-reload'], check=False, capture_output=True, timeout=30)

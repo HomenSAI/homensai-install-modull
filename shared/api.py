@@ -44,7 +44,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 55
+API_MINOR = 56
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -210,6 +210,10 @@ def handle(request: Any) -> dict:
                     mutating_operations.append('publish-pointer-systemd-user-units')
                     operations.extend(['load-pointer-systemd-user-units', 'inspect-pending-pointer-systemd-user-units'])
                     mutating_operations.extend(['load-pointer-systemd-user-units', 'inspect-pending-pointer-systemd-user-units'])
+                    pointer_lifecycle = ['check-pointer-linux-start', 'start-pointer-linux', 'stop-pointer-linux',
+                                         'reconcile-pointer-linux-start', 'reconcile-pointer-linux-stop']
+                    operations.extend(pointer_lifecycle)
+                    mutating_operations.extend(pointer_lifecycle)
                     mutating_operations.extend(["publish-portable-systemd-user-units", "load-portable-systemd-user-units"])
                     operations.extend(["plan-linux-runtime", "prepare-linux-runtime", "verify-linux-runtime"])
                     operations.append("check-portable-linux-start")
@@ -548,14 +552,17 @@ def handle(request: Any) -> dict:
                 return _error(request_id, 'linux_cycle_failed', 'Не удалось подтвердить управление службами',
                               language, 'api.linux_cycle_failed')
         elif operation in ('check-portable-linux-start', 'start-portable-linux', 'stop-portable-linux',
-                           'reconcile-portable-linux-stop', 'reconcile-portable-linux-start'):
+                           'reconcile-portable-linux-stop', 'reconcile-portable-linux-start',
+                           'check-pointer-linux-start', 'start-pointer-linux', 'stop-pointer-linux',
+                           'reconcile-pointer-linux-start', 'reconcile-pointer-linux-stop'):
             fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id',
                       'expected_version', 'install_root', 'modes', 'unit_dir', 'load_key',
                       'runtime_key', 'reserve_bytes'}
-            reconcile_start = operation == 'reconcile-portable-linux-start'
-            starting = operation == 'start-portable-linux' or reconcile_start
-            reconciling = operation == 'reconcile-portable-linux-stop'
-            stopping = operation == 'stop-portable-linux' or reconciling
+            pointer = '-pointer-' in operation
+            reconcile_start = operation in ('reconcile-portable-linux-start', 'reconcile-pointer-linux-start')
+            starting = operation in ('start-portable-linux', 'start-pointer-linux') or reconcile_start
+            reconciling = operation in ('reconcile-portable-linux-stop', 'reconcile-pointer-linux-stop')
+            stopping = operation in ('stop-portable-linux', 'stop-pointer-linux') or reconciling
             if starting or stopping:
                 fields.add('idempotency_key')
             if stopping:
@@ -588,15 +595,22 @@ def handle(request: Any) -> dict:
                             **options, modes=tuple(params['modes']), unit_dir=params['unit_dir'],
                             load_key=params['load_key'], runtime_key=params['runtime_key'], start_key=params['start_key'],
                             reserve_bytes=params['reserve_bytes'], operation_id=params['idempotency_key'],
-                            reconcile=reconciling)
+                            reconcile=reconciling, **({'pointer': True} if pointer else {}))
                 elif starting:
                     result = start_portable_fresh(params['package_path'], envelope, params['install_root'],
                             **options, modes=tuple(params['modes']), unit_dir=params['unit_dir'],
                             load_key=params['load_key'], runtime_key=params['runtime_key'],
                             reserve_bytes=params['reserve_bytes'], operation_id=params['idempotency_key'],
-                            reconcile=reconcile_start)
+                            reconcile=reconcile_start, **({'pointer': True} if pointer else {}))
                 else:
-                    group = portable_signed_user_group(params['package_path'], envelope, params['install_root'],
+                    if pointer:
+                        from shared.systemd_user_load import _pointer_signed_user_group
+                        group = _pointer_signed_user_group(params['package_path'], envelope, params['install_root'],
+                            **options, modes=tuple(params['modes']), unit_dir=params['unit_dir'],
+                            operation_id=params['load_key'], runtime_operation_id=params['runtime_key'],
+                            reserve_bytes=params['reserve_bytes'])
+                    else:
+                        group = portable_signed_user_group(params['package_path'], envelope, params['install_root'],
                             **options, modes=tuple(params['modes']), unit_dir=params['unit_dir'],
                             operation_id=params['load_key'])
                     runtime = verify_signed_linux_runtime(params['package_path'], envelope, params['install_root'],

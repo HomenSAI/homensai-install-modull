@@ -107,9 +107,12 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
                             expected_product_id, expected_version, modes, unit_dir,
                             execute=False, inspect_pending=False, require_done=False, operation_id=None, portable=False,
                             runner=None, timeout=30, require_active=False, require_stable=False,
-                            pointer=False, runtime_operation_id=None, reserve_bytes=None):
+                            pointer=False, runtime_operation_id=None, reserve_bytes=None,
+                            _verify_pointer_runtime=True):
     if (type(execute) is not bool or type(portable) is not bool or type(pointer) is not bool
-            or (pointer and portable) or type(modes) is not tuple or not modes
+            or (pointer and portable) or type(_verify_pointer_runtime) is not bool
+            or (not _verify_pointer_runtime and (not pointer or not require_done))
+            or type(modes) is not tuple or not modes
             or type(inspect_pending) is not bool or (inspect_pending and not execute)
             or type(require_done) is not bool or (require_done and (not execute or inspect_pending))
             or type(require_active) is not bool or (require_active and not require_done)
@@ -167,7 +170,7 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
         directory = _unit_directory(unit_dir)
         runtime_receipt_path = None
         runtime_definition = None
-        if pointer and not inspect_pending:
+        if pointer and not inspect_pending and _verify_pointer_runtime:
             from shared.runtime_native import _definition, _inspect_runtime, verify_signed_linux_runtime
             runtime_definition = _definition(package_path, envelope, install_root, options)
             runtime_receipt_path = checked_path(control / 'linux-runtime.json')
@@ -341,6 +344,68 @@ def inspect_pending_pointer_user_units(package_path, envelope, install_root, *, 
         expected_version=expected_version, modes=modes, unit_dir=unit_dir, execute=True, inspect_pending=True,
         operation_id=operation_id, pointer=True, runtime_operation_id=runtime_operation_id,
         reserve_bytes=reserve_bytes, runner=runner, timeout=timeout)
+
+
+def _pointer_signed_user_group(package_path, envelope, install_root, *, trusted_public_key,
+                               expected_product_id, expected_version, modes, unit_dir,
+                               operation_id, runtime_operation_id, reserve_bytes, runner=None, timeout=30,
+                               _require_active=False, _require_stable=False, _verify_runtime=True):
+    """Build a group from a completed pointer reload, without service commands."""
+    from shared.systemd_group import SystemdGroupError, SystemdUserGroup
+    from shared.systemd_pointer import plan_pointer_signed_user_units
+    options = dict(trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
+                   expected_version=expected_version)
+    try:
+        loaded = _load_signed_user_units(package_path, envelope, install_root, **options,
+            modes=modes, unit_dir=unit_dir, execute=True, require_done=True, operation_id=operation_id,
+            pointer=True, runtime_operation_id=runtime_operation_id, reserve_bytes=reserve_bytes,
+            runner=runner, timeout=timeout, require_active=_require_active, require_stable=_require_stable,
+            _verify_pointer_runtime=_verify_runtime)
+        metadata = verify_signed_package(package_path, envelope, **options)
+        verified = verify_fresh_release(package_path, envelope, install_root, **options)
+        plan = plan_pointer_signed_user_units(package_path, envelope, install_root, **options, modes=modes)
+        manifest = metadata['manifest']
+        order = component_order(manifest, modes)
+        units = loaded['units']
+        names = [expected_product_id + '-' + name + '.service' for name in order]
+        if [item['name'] for item in units] != names or plan['units'] != units:
+            raise UnitLoadError('Состав служб изменился')
+        directory = _unit_directory(unit_dir)
+        adapters = {component: SystemdUserAdapter(manifest, modes=modes, component=component,
+            fragment_path=str(directory / item['name']), fragment_sha256=item['sha256'],
+            runner=runner, timeout=timeout) for component, item in zip(order, units)}
+        group = SystemdUserGroup(manifest, modes=modes, adapters=adapters)
+        for adapter in adapters.values():
+            status = adapter.inspect()
+            if ((_require_active and status['active_state'] != 'active') or
+                    (_require_stable and not (status['active_state'] == 'active' or
+                      (status['active_state'] == 'inactive' and status['sub_state'] == 'dead'))) or
+                    (not _require_active and not _require_stable and
+                     (status['active_state'] != 'inactive' or status['sub_state'] != 'dead'))):
+                raise UnitLoadError('Состояние службы изменилось')
+        if (verify_signed_package(package_path, envelope, **options) != metadata
+                or verify_fresh_release(package_path, envelope, install_root, **options) != verified
+                or plan_pointer_signed_user_units(package_path, envelope, install_root, **options, modes=modes) != plan):
+            raise UnitLoadError('Выпуск изменился')
+        return group
+    except (OSError, ValueError, TypeError, KeyError, RecursionError, DataHomeError, ManifestError,
+            PackageError, FreshPrepareError, NativeRuntimeError, SystemdUserError, SystemdGroupError,
+            UnitPublicationError, PortableUnitError, UpdateError):
+        raise UnitLoadError('Не удалось подтвердить группу служб') from None
+
+
+def pointer_signed_runtime_user_group(package_path, envelope, install_root, *, trusted_public_key,
+                                      expected_product_id, expected_version, modes, unit_dir,
+                                      operation_id, runtime_operation_id, reserve_bytes, runner=None, timeout=30):
+    """Return a verified fresh group with runtime and wheel checks before start."""
+    from shared.systemd_runtime_group import RuntimeCheckedUserGroup
+    group = _pointer_signed_user_group(package_path, envelope, install_root,
+        trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
+        expected_version=expected_version, modes=modes, unit_dir=unit_dir, operation_id=operation_id,
+        runtime_operation_id=runtime_operation_id, reserve_bytes=reserve_bytes, runner=runner, timeout=timeout)
+    return RuntimeCheckedUserGroup(group, package_path, envelope, install_root,
+        trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
+        expected_version=expected_version, runtime_operation_id=runtime_operation_id, reserve_bytes=reserve_bytes)
 
 
 def signed_user_group(package_path, envelope, install_root, *, trusted_public_key,

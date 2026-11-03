@@ -54,7 +54,7 @@ def main() -> int:
                             ['--run', '--pointer-publish'], ['--run', '--pointer-start'],
                             ['--run', '--pointer-controller'], ['--run', '--pointer-update'],
                             ['--run', '--pointer-recovery']) or not hasattr(os, 'getuid') or os.getuid() == 0:
-        print('Нужны непривилегированный пользователь и --run [--runtime|--update|--assembled|--fresh-controller|--pointer|--pointer-publish|--pointer-start|--pointer-controller|--pointer-update]', file=sys.stderr)
+        print('Нужны непривилегированный пользователь и --run [--runtime|--update|--assembled|--fresh-controller|--pointer|--pointer-publish|--pointer-start|--pointer-controller|--pointer-update|--pointer-recovery]', file=sys.stderr)
         return 2
     with tempfile.TemporaryDirectory(prefix='homensai-isolated-systemd-') as temp:
         harness = Path(temp)

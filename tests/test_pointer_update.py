@@ -414,3 +414,42 @@ def test_controller_reconcile_never_stops_without_service_receipt(installation, 
         reopened.run(resume_indeterminate=True)
     assert all(call[0] == 'show' for call in manager.calls[len(before):])
     assert reopened.status() == state
+
+
+@pytest.mark.parametrize('rollback', [False, True])
+def test_inspection_can_report_completed_update_without_replaying(installation, monkeypatch, rollback):
+    from shared.update_prepare import UpdatePrepareError, verify_started_linux_update
+    root, _, options, manager = installation
+    plan = assemble_pointer_linux_update(**options)
+    def health(key, *_):
+        if rollback and key.endswith('/health'):
+            raise RuntimeError('synthetic failure')
+    monkeypatch.setattr(plan.ports.effects.health_port, 'health', health)
+    state = plan.run()
+    assert state['outcome'] == ('rolled_back' if rollback else 'updated')
+    omitted = {'unit_dir', 'load_key', 'runtime_key', 'runtime_reserve_bytes', 'runner',
+               'password_provider', 'interpreter', 'interpreter_sha256', 'timeout'}
+    common = {name: value for name, value in options.items() if name not in omitted}
+    with pytest.raises(UpdatePrepareError):
+        verify_started_linux_update(**common)
+    args = {**common, 'unit_dir': options['unit_dir'], 'load_key': options['load_key'],
+            'runtime_key': options['runtime_key'], 'runtime_reserve_bytes': 0, 'runner': manager}
+    before = len(manager.calls)
+    observed = inspect_started_pointer_group(**args)
+    assert observed['state'] == state and not observed['resume_authorized']
+    assert all(call[0] == 'show' for call in manager.calls[before:])
+    if not rollback:
+        from shared import api, pointer_recovery
+        from test_update_prepare import api_query
+        request = api_query(common)
+        request['operation'] = 'inspect-started-pointer-update'
+        request['params'].update({name: args[name] for name in
+                                  ('unit_dir', 'load_key', 'runtime_key', 'runtime_reserve_bytes')})
+        monkeypatch.setattr(pointer_recovery, '_run', manager)
+        result = api.handle(request)
+        assert result['ok'] and result['result']['state'] == state
+        assert not result['result']['resume_authorized']
+    pointer = plan.ports.pointer
+    pointer.write_text(json.dumps({'release': '2' if rollback else '1'}))
+    with pytest.raises(UpdateError):
+        inspect_started_pointer_group(**args)

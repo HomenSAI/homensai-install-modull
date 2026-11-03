@@ -20,7 +20,7 @@ from shared.update_plan import UpdateError
 
 def _inspect_started_pointer_group(*, unit_dir, load_key, runtime_key, runtime_reserve_bytes,
                                    runner=None, timeout=30, **options):
-    """Observe signed unit files and systemd state, without authorizing any effect.
+    """Observe signed units and systemd state, without authorizing any effect.
 
     Caller must independently trust the keys, manager, local installer and all
     writers. Results are observations, not a process identity or health check.

@@ -172,10 +172,16 @@ def verify_started_linux_update(*, new_package: str, new_envelope: bytes, new_ke
                                 old_package: str, old_envelope: bytes, old_key: bytes,
                                 product_id: str, old_version: str, new_version: str,
                                 install_root: str, work_dir: str, modes: tuple[str, ...],
-                                migration_ids: tuple[str, ...], operation_id: str) -> dict:
-    """Сверить подготовку и начатый checkpoint, не продолжая транзакцию."""
+                                migration_ids: tuple[str, ...], operation_id: str,
+                                _allow_terminal: bool = False) -> dict:
+    """Сверить подготовку и checkpoint, не продолжая транзакцию.
+
+    Закрытое расширение _allow_terminal применяется для наблюдения результата;
+    сам checkpoint не подтверждает текущее здоровье продукта.
+    """
     try:
-        if (type(operation_id) is not str or re.fullmatch(r'[a-f0-9]{32}', operation_id) is None
+        if (type(_allow_terminal) is not bool
+                or type(operation_id) is not str or re.fullmatch(r'[a-f0-9]{32}', operation_id) is None
                 or type(old_key) is not bytes or len(old_key) != 32
                 or type(new_key) is not bytes or len(new_key) != 32
                 or type(old_envelope) is not bytes or not old_envelope
@@ -213,7 +219,8 @@ def verify_started_linux_update(*, new_package: str, new_envelope: bytes, new_ke
                 fresh = status_fresh_native(old_path, old_envelope, str(root), **old_options)
                 state = plan.status()
                 if (fresh['reported_status'] != 'prepared' or state is None
-                        or state['old_release'] != old_version or state['outcome'] != 'running'):
+                        or state['old_release'] != old_version
+                        or (state['outcome'] != 'running' and not _allow_terminal)):
                     raise UpdatePrepareError('Нет начатого обновления')
                 digest = _binding(root=root, work=work, old_path=old_path, new_path=new_path,
                     old_envelope=old_envelope, new_envelope=new_envelope, old_key=old_key, new_key=new_key,
@@ -230,6 +237,9 @@ def verify_started_linux_update(*, new_package: str, new_envelope: bytes, new_ke
                 new_release = ports.release_path(new_version)
                 if new_release.exists() and _tree(new_release) != _expected_tree(new_metadata):
                     raise UpdatePrepareError('Новый выпуск изменился')
+                if ((state['outcome'] == 'updated' and (current != new_version or not new_release.is_dir()))
+                        or (state['outcome'] == 'rolled_back' and current != old_version)):
+                    raise UpdatePrepareError('Результат обновления не соответствует указателю')
                 if (plan.status() != state or ports.current_release() != current
                         or read_effect_receipt(marker) != done
                         or status_fresh_native(old_path, old_envelope, str(root), **old_options) != fresh

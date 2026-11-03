@@ -401,7 +401,7 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                 update_work = tmp_path / 'pointer-update-work'
                 update_work.mkdir(mode=0o700)
                 interpreter = Path(sys.executable).resolve()
-                update = assemble_pointer_linux_update(new_package=str(newer), new_envelope=new_envelope,
+                update_args = dict(new_package=str(newer), new_envelope=new_envelope,
                     new_key=public, old_package=str(package), old_envelope=envelope, old_key=public,
                     product_id=manifest['product_id'], old_version='1', new_version='2', install_root=str(install),
                     work_dir=str(update_work), modes=('autonomous',), migration_ids=('schema-2',),
@@ -409,6 +409,14 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                     runtime_key=args['keys']['runtime'], runtime_reserve_bytes=0,
                     password_provider=lambda: 'synthetic-test-password', interpreter=str(interpreter),
                     interpreter_sha256=hashlib.sha256(interpreter.read_bytes()).hexdigest(), timeout=30)
+                calls = []
+                if update_case == 'recover_stop':
+                    from shared.systemd_user import _run
+                    def record_systemctl(argv, **kwargs):
+                        calls.append(argv[4:])
+                        return _run(argv, **kwargs)
+                    update_args['runner'] = record_systemctl
+                update = assemble_pointer_linux_update(**update_args)
                 if update_case == 'rollback':
                     original_health = update.ports.effects.health_port.health
                     def fail_forward_health(key, *values):
@@ -416,7 +424,30 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                             raise RuntimeError('synthetic forward health failure')
                         return original_health(key, *values)
                     monkeypatch.setattr(update.ports.effects.health_port, 'health', fail_forward_health)
-                outcome = update.run()
+                if update_case == 'recover_stop':
+                    import shared.systemd_lifecycle_port as lifecycle
+                    from shared.update_plan import UpdateIndeterminate
+                    original_write = lifecycle._atomic_write
+                    def lost_stop_ack(path, value):
+                        if value.get('action') == 'stop' and value.get('status') == 'done':
+                            raise OSError('synthetic lost stop acknowledgement')
+                        return original_write(path, value)
+                    with monkeypatch.context() as patch:
+                        patch.setattr(lifecycle, '_atomic_write', lost_stop_ack)
+                        with pytest.raises(UpdateIndeterminate):
+                            update.run()
+                    interrupted = update.status()
+                    assert interrupted['indeterminate'] and update.forward[interrupted['index']] == 'stop'
+                    stops = sum(call[0] == 'stop' for call in calls)
+                    assert stops == len(names)
+                    update = assemble_pointer_linux_update(**update_args, reopen=True,
+                        reconcile_stop_key=interrupted['transaction'] + '/stop')
+                    with pytest.raises(UpdateIndeterminate):
+                        update.run()
+                    outcome = update.run(resume_indeterminate=True)
+                    assert sum(call[0] == 'stop' for call in calls) == stops
+                else:
+                    outcome = update.run()
                 expected_version = '1' if update_case == 'rollback' else '2'
                 assert outcome['outcome'] == ('rolled_back' if update_case == 'rollback' else 'updated')
                 assert update.ports.current_release() == expected_version
@@ -607,7 +638,7 @@ def test_fresh_controller_runs_real_pointer_product(tmp_path, monkeypatch):
 
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Нужен одноразовый тестовый контейнер Python 3.14')
-@pytest.mark.parametrize('update_case', ['updated', 'rollback'])
+@pytest.mark.parametrize('update_case', ['updated', 'rollback', 'recover_stop'])
 def test_real_pointer_product_update_and_rollback(tmp_path, monkeypatch, update_case):
     test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True,
                                                       pointer=True, update_case=update_case)

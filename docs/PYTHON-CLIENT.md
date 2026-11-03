@@ -1,6 +1,6 @@
 # Экспериментальный Python-клиент установщика
 
-`homensai-installer-client` версии `0.21.0` — локальный клиент JSON/CLI API,
+`homensai-installer-client` версии `0.21.1` — локальный клиент JSON/CLI API,
 не сам установщик и не сетевая служба. Версия клиента не совпадает с
 minor-версией API: нужная возможность отдельно проверяется через `capabilities`
 и `min_minor`.
@@ -22,7 +22,9 @@ response_envelope_schema = contract_schema('response')
 Клиент требует Python 3.14+, согласует major/minor, операции и язык, передаёт
 JSON через stdin/stdout без shell, ограничивает размер ответа и не повторяет
 изменяющие операции автоматически. Для архивного секрета разрешён только явно
-названный канал `HOMENSAI_SECRET_*`. Python и `api_root` должны быть доверены;
+названный канал `HOMENSAI_SECRET_*`; он доступен для `import-update-archive` и
+`run-pointer-linux-update`, если `secret_env_name` совпадает с `password_env`.
+Python и `api_root` должны быть доверены;
 клиент не проверяет их подлинность, а установленный wheel не устанавливает
 серверную часть. Старый импорт из `examples.demo_product.installer_client`
 остаётся совместимым в исходном дереве.

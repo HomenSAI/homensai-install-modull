@@ -212,7 +212,8 @@ class InstallerClient:
                 or (language is not None and type(language) is not str)):
             raise ValueError('invalid API request')
         if secret_env_name is not None and (type(secret_env_name) is not str
-                or _SECRET_ENV.fullmatch(secret_env_name) is None or operation != 'import-update-archive'
+                or _SECRET_ENV.fullmatch(secret_env_name) is None
+                or operation not in ('import-update-archive', 'run-pointer-linux-update')
                 or params.get('password_env') != secret_env_name):
             raise ValueError('invalid secret channel')
         capabilities = self.capabilities()

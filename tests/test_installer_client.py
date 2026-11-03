@@ -116,20 +116,21 @@ def test_client_does_not_pass_secrets_or_use_shell(monkeypatch):
         assert b'sensitive' not in kwargs['input']
 
 
-def test_client_passes_only_explicit_archive_secret_to_operation(monkeypatch):
+@pytest.mark.parametrize('operation', ['import-update-archive', 'run-pointer-linux-update'])
+def test_client_passes_only_explicit_archive_secret_to_operation(monkeypatch, operation):
     monkeypatch.setenv('HOMENSAI_SECRET_BACKUP', 'synthetic-password')
     monkeypatch.setenv('UNRELATED_SECRET', 'must-not-pass')
     seen = []
     def run(argv, **kwargs):
         request = json.loads(kwargs['input'])
         seen.append((request, kwargs['env']))
-        result = ({'api_major': 1, 'api_minor': 27, 'operations': ['import-update-archive'], 'languages': ['en']}
+        result = ({'api_major': 1, 'api_minor': 60, 'operations': [operation], 'languages': ['en']}
                   if request['operation'] == 'capabilities' else {'archive_imported': True})
         body = {'api_major': 1, 'request_id': request['request_id'], 'ok': True, 'result': result}
         return SimpleNamespace(returncode=0, stdout=json.dumps(body).encode(), stderr=b'')
     monkeypatch.setattr('homensai_installer_client.client._run_bounded', run)
     client = InstallerClient()
-    result = client.call('import-update-archive', {'password_env': 'HOMENSAI_SECRET_BACKUP'},
+    result = client.call(operation, {'password_env': 'HOMENSAI_SECRET_BACKUP'},
                          min_minor=27, secret_env_name='HOMENSAI_SECRET_BACKUP')
     assert result['archive_imported'] is True and len(seen) == 2
     assert 'HOMENSAI_SECRET_BACKUP' not in seen[0][1]
@@ -138,10 +139,16 @@ def test_client_passes_only_explicit_archive_secret_to_operation(monkeypatch):
     assert all('synthetic-password' not in json.dumps(request) for request, _ in seen)
     for invalid in ('PATH', 'PYTHONPATH', 'HOMENSAI_SECRET_'):
         with pytest.raises(ValueError):
-            client.call('import-update-archive', {'password_env': invalid}, secret_env_name=invalid)
+            client.call(operation, {'password_env': invalid}, secret_env_name=invalid)
+    with pytest.raises(ValueError):
+        client.call(operation, {'password_env': 'HOMENSAI_SECRET_OTHER'},
+                    secret_env_name='HOMENSAI_SECRET_BACKUP')
+    with pytest.raises(ValueError):
+        client.call('validate', {'password_env': 'HOMENSAI_SECRET_BACKUP'},
+                    secret_env_name='HOMENSAI_SECRET_BACKUP')
     monkeypatch.delenv('HOMENSAI_SECRET_BACKUP')
     with pytest.raises(InstallerClientError) as error:
-        client.call('import-update-archive', {'password_env': 'HOMENSAI_SECRET_BACKUP'},
+        client.call(operation, {'password_env': 'HOMENSAI_SECRET_BACKUP'},
                     secret_env_name='HOMENSAI_SECRET_BACKUP')
     assert error.value.code == 'secret_unavailable' and len(seen) == 3
 

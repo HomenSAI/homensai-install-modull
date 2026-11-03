@@ -416,7 +416,7 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                         calls.append(argv[4:])
                         return _run(argv, **kwargs)
                     update_args['runner'] = record_systemctl
-                update = assemble_pointer_linux_update(**update_args)
+                update = None if update_case == 'api_start' else assemble_pointer_linux_update(**update_args)
                 if update_case == 'rollback':
                     original_health = update.ports.effects.health_port.health
                     def fail_forward_health(key, *values):
@@ -447,24 +447,30 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                     outcome = update.run(resume_indeterminate=True)
                     assert sum(call[0] == 'stop' for call in calls) == stops
                 elif update_case == 'api_start':
-                    monkeypatch.setenv('HOMENSAI_TEST_POINTER_PASSWORD', 'synthetic-test-password')
+                    monkeypatch.setenv('HOMENSAI_SECRET_POINTER_PASSWORD', 'synthetic-test-password')
                     api_update = {key: value for key, value in update_args.items() if key not in
                         ('password_provider', 'timeout', 'operation_id')}
                     api_update.update(idempotency_key=update_args['operation_id'],
-                        timeout_seconds=update_args['timeout'], password_env='HOMENSAI_TEST_POINTER_PASSWORD',
+                        timeout_seconds=update_args['timeout'], password_env='HOMENSAI_SECRET_POINTER_PASSWORD',
                         action='start', reconcile_stop_key=None, modes=list(update_args['modes']),
                         migration_ids=list(update_args['migration_ids']))
                     for key in ('old_key', 'new_key', 'old_envelope', 'new_envelope'):
                         api_update[key] = base64.b64encode(api_update[key]).decode('ascii')
-                    response = api_module.handle({'api_major': 1, 'request_id': 'isolated-pointer-update',
-                        'operation': 'run-pointer-linux-update', 'params': api_update})
-                    assert response['ok'] and 'synthetic-test-password' not in json.dumps(response)
-                    outcome = response['result']['state']
+                    response = client.call('run-pointer-linux-update', api_update, min_minor=60,
+                                           secret_env_name='HOMENSAI_SECRET_POINTER_PASSWORD')
+                    assert 'synthetic-test-password' not in json.dumps(response)
+                    outcome = response['state']
                 else:
                     outcome = update.run()
                 expected_version = '1' if update_case == 'rollback' else '2'
                 assert outcome['outcome'] == ('rolled_back' if update_case == 'rollback' else 'updated')
-                assert update.ports.current_release() == expected_version
+                if update is None:
+                    from shared.adapters_fs import FilesystemPorts
+                    ports = FilesystemPorts(manifest, install, work_dir=update_work, payloads={}, effects=None,
+                                            password_provider=lambda: 'synthetic-test-password')
+                else:
+                    ports = update.ports
+                assert ports.current_release() == expected_version
                 result = client.call('check-local-health', {'port': port, 'product_id': manifest['product_id'],
                     'version': expected_version, 'path': '/health', 'timeout_seconds': 3}, min_minor=12)
                 assert result['health_response_matches'] and not result['process_identity_verified']

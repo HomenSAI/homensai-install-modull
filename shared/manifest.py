@@ -200,6 +200,30 @@ def check_target(value: Any, target: Any) -> dict[str, str]:
     return {"status": "supported" if target in declaration["targets"] else "unsupported"}
 
 
+def plan_target_dependencies(value: Any, target: Any) -> dict[str, Any]:
+    """Перечислить декларации, без проверки файлов или разрешения установки."""
+    manifest = validate_manifest(value)
+    status = check_target(manifest, target)['status']
+    result = {'product_id': manifest['product_id'], 'schema_version': manifest['schema_version'],
+              'target': deepcopy(target), 'compatibility': status, 'execution_authorized': False,
+              'package_artifacts': [], 'native_lock_candidate': None,
+              'declared_python': None, 'legacy_docker_base_image': None,
+              'not_checked': ['package_signature', 'artifact_contents', 'host_platform',
+                              'runtime_availability', 'docker_engine', 'license', 'security']}
+    if manifest['schema_version'] == 1:
+        result['legacy_docker_base_image'] = manifest['docker']['base_image']
+        return result
+    runtime = manifest['runtime']
+    result['declared_python'] = runtime['python']
+    for platform in ('linux', 'windows'):
+        result['package_artifacts'].append({'kind': 'lock', 'platform': platform,
+                                            **runtime['lock_files'][platform]})
+    result['package_artifacts'].extend({'kind': 'wheel', **entry} for entry in runtime['vendor_wheels'])
+    if status == 'supported' and target['execution'] == 'native':
+        result['native_lock_candidate'] = deepcopy(runtime['lock_files'][target['os']])
+    return result
+
+
 def _object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:

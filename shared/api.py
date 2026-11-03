@@ -29,7 +29,7 @@ from shared.docker_recipe import DockerRecipeError, plan_signed_compose
 from shared.host_target import HostTargetError, native_target
 from shared.health import HealthError, check_local_health
 from shared.i18n import LanguageError, available_languages, translate, validate_catalog
-from shared.manifest import ManifestError, check_target, validate_manifest
+from shared.manifest import ManifestError, check_target, plan_target_dependencies, validate_manifest
 from shared.package import PackageError
 from shared.package_signing import MAX_ENVELOPE, _crypto, verify_signed_package
 from shared.preflight import MAX_BYTES as MAX_DISK_BYTES, NAMES as PATH_NAMES, PreflightError, preflight_fresh
@@ -44,7 +44,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 45
+API_MINOR = 46
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -168,7 +168,7 @@ def handle(request: Any) -> dict:
         if operation == "capabilities":
             if params:
                 raise InvalidRequest()
-            operations = ["capabilities", "validate", "validate-language-catalog", "preflight-fresh", "check-target", "update-plan-status", "plan-update", "inspect-update-recovery", "check-local-health"]
+            operations = ["capabilities", "validate", "validate-language-catalog", "preflight-fresh", "check-target", "plan-target-dependencies", "update-plan-status", "plan-update", "inspect-update-recovery", "check-local-health"]
             mutating_operations = []
             if sys.platform.startswith('linux'):
                 operations.append('check-archive-storage')
@@ -241,11 +241,12 @@ def handle(request: Any) -> dict:
             except LanguageError:
                 return _error(request_id, 'invalid_request', 'Словарь не соответствует контракту',
                               language, 'api.invalid_request')
-        elif operation == "check-target":
+        elif operation in ("check-target", "plan-target-dependencies"):
             if set(params) != {"manifest", "target"}:
                 raise InvalidRequest()
             try:
-                result = check_target(params["manifest"], params["target"])
+                function = check_target if operation == 'check-target' else plan_target_dependencies
+                result = function(params["manifest"], params["target"])
             except (ManifestError, RecursionError):
                 return _error(request_id, "invalid_request", "Манифест или цель не соответствуют контракту", language, "api.invalid_target")
         elif operation == "check-local-health":

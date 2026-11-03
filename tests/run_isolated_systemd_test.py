@@ -56,15 +56,19 @@ def main() -> int:
                             ['--run', '--pointer-recovery'], ['--run', '--pointer-api'],
                             ['--run', '--pointer-cycle'], ['--run', '--pointer-cycle-api'],
                             ['--run', '--pointer-writer-api'], ['--run', '--pointer-writer-success-api'],
-                            ['--run', '--unicode']) or not hasattr(os, 'getuid') or os.getuid() == 0:
-        print('Нужны непривилегированный пользователь и --run [--runtime|--update|--assembled|--fresh-controller|--pointer|--pointer-publish|--pointer-start|--pointer-controller|--pointer-update|--pointer-recovery|--pointer-api|--pointer-cycle|--pointer-cycle-api|--pointer-writer-api|--pointer-writer-success-api|--unicode]', file=sys.stderr)
+                            ['--run', '--unicode'], ['--run', '--interactive']) or not hasattr(os, 'getuid') or os.getuid() == 0:
+        print('Нужны непривилегированный пользователь и --run [--runtime|--update|--assembled|--fresh-controller|--pointer|--pointer-publish|--pointer-start|--pointer-controller|--pointer-update|--pointer-recovery|--pointer-api|--pointer-cycle|--pointer-cycle-api|--pointer-writer-api|--pointer-writer-success-api|--unicode|--interactive]', file=sys.stderr)
         return 2
     with tempfile.TemporaryDirectory(prefix='homensai-isolated-systemd-') as temp:
         harness = Path(temp)
         harness.chmod(0o755)  # Скрипты не содержат секретов; их читает тестовый uid контейнера.
         (harness / 'setup.sh').write_text(SETUP, encoding='utf-8')
         session = SESSION
-        if sys.argv[1:] == ['--run', '--unicode']:
+        if sys.argv[1:] == ['--run', '--interactive']:
+            session = SESSION.rsplit('python -m pytest', 1)[0] + (
+                'mkdir -p /home/homenstest/tmp\nexport TMPDIR=/home/homenstest/tmp\n'
+                'python -m pytest -q -ra --tb=short -x -p no:cacheprovider tests/test_runtime_native.py -k interactive_resumes_real_pointer_product\n')
+        elif sys.argv[1:] == ['--run', '--unicode']:
             session = SESSION.rsplit('python -m pytest', 1)[0] + (
                 'mkdir -p /home/homenstest/tmp\nexport TMPDIR=/home/homenstest/tmp\n'
                 'python -m pytest -q -ra --tb=short -x -p no:cacheprovider tests/test_isolated_signed_demo.py\n')

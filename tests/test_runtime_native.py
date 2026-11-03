@@ -212,7 +212,7 @@ def test_runtime_api_plans_prepares_and_verifies_without_reexecution(runtime_rel
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Нужен одноразовый тестовый контейнер Python 3.14')
 def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=False, pointer=False,
-                                                      update_case=None):
+                                                      update_case=None, interactive=False):
     import base64
     import pwd
     import shutil
@@ -374,6 +374,30 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
             assert observed['state'] == 'pending' and observed['completed_steps'] == 1
             assert observed['current_step'] == 'prepare-linux-runtime' and observed['step_may_have_executed'] is True
             assert observed['resume_authorized'] is False and json.loads(marker_file.read_text())['index'] == 1
+            if interactive:
+                import pty
+                request_file = tmp_path / 'interactive-request.json'
+                request_file.write_text(json.dumps(api_args), encoding='utf-8')
+                master, slave = pty.openpty()
+                try:
+                    process = subprocess.Popen([sys.executable, '-m', 'shared.interactive_install',
+                        '--request-file', str(request_file), '--language', 'de'], cwd=str(ROOT),
+                        stdin=slave, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    os.close(slave)
+                    slave = None
+                    os.write(master, b'INSTALL\n')
+                    try:
+                        output, errors = process.communicate(timeout=300)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.communicate()
+                        raise
+                    assert process.returncode == 0, (output, errors)
+                    assert 'abgeschlossen' in output.decode('utf-8')
+                finally:
+                    os.close(master)
+                    if slave is not None:
+                        os.close(slave)
             result = client.call('install-portable-linux', api_args, min_minor=57 if pointer else 31, language='de')
             assert result['state'] == 'recorded_complete' and result['health_verified_at_execution'] is True
             assert result['installation_complete'] is False and result['process_identity_verified'] is False
@@ -739,6 +763,13 @@ def test_fresh_controller_runs_real_portable_product(tmp_path, monkeypatch):
                     reason='Нужен одноразовый тестовый контейнер Python 3.14')
 def test_fresh_controller_runs_real_pointer_product(tmp_path, monkeypatch):
     test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True, pointer=True)
+
+
+@pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
+                    reason='Нужен одноразовый тестовый контейнер Python 3.14')
+def test_interactive_resumes_real_pointer_product(tmp_path, monkeypatch):
+    test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True, pointer=True,
+                                                      interactive=True)
 
 
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',

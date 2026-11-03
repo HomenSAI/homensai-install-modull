@@ -25,6 +25,12 @@ native-ветки (NSIS, build2 — FAIL по откату) ещё не прин
 
 См. [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md), [STATUS.md](STATUS.md).
 
+Актуальное состояние и результаты проверок — в [плане работ](docs/WORK-PLAN.md).
+Для ограниченной первой установки Linux user-systemd разрабатывается
+[интерактивный сценарий](docs/INTERACTIVE-INSTALL.md), использующий подписанный
+пакет и локальный API. Приведённые ниже описания шагов сохраняют историю ранних
+прототипов; они не отражают все последующие возможности и ограничения.
+
 Шаг 1: [контракт манифеста](docs/MANIFEST.md),
 [пример JobPilot](examples/jobpilot.manifest.json),
 [происхождение](docs/PROVENANCE.md). Проверка манифеста и рендер Docker-заготовок

@@ -63,18 +63,68 @@ _TRUSTED_SIDS = {'S-1-5-18', 'S-1-5-32-544'}
 
 
 def _acl_sids(path: Path) -> tuple[str, set[str]]:
-    """Владелец и SID всех записей DACL каталога (через Get-Acl, путь передаётся окружением)."""
-    script = ('$a = Get-Acl -LiteralPath $env:HOMENSAI_ACL_PATH; '
-              '$a.GetOwner([Security.Principal.SecurityIdentifier]).Value; '
-              '$a.Access | ForEach-Object { $_.IdentityReference.Translate('
-              '[Security.Principal.SecurityIdentifier]).Value }')
-    completed = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script],
-                               stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60,
-                               creationflags=_CREATE_NO_WINDOW, env={**os.environ, 'HOMENSAI_ACL_PATH': str(path)})
-    lines = [line.strip() for line in completed.stdout.splitlines() if line.strip()]
-    if completed.returncode != 0 or not lines:
-        raise SetupError('kit.windows_command_failed', command='Get-Acl', code=str(completed.returncode))
-    return lines[0], set(lines[1:])
+    """Владелец и SID всех записей DACL каталога через Win32 API (без запуска PowerShell).
+
+    Запуск PowerShell на загруженной системе занимал больше минуты; GetNamedSecurityInfoW
+    отвечает сразу. Записи DACL иных типов, кроме разрешающих и запрещающих, возвращаются
+    как недоверенные метки, чтобы проверка отклонила такой каталог.
+    """
+    import ctypes
+    from ctypes import wintypes
+    advapi32 = ctypes.WinDLL('advapi32', use_last_error=True)
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    pointer = ctypes.POINTER(ctypes.c_void_p)
+    advapi32.GetNamedSecurityInfoW.argtypes = [wintypes.LPCWSTR, ctypes.c_int, wintypes.DWORD,
+                                               pointer, pointer, pointer, pointer, pointer]
+    advapi32.GetNamedSecurityInfoW.restype = wintypes.DWORD
+    advapi32.ConvertSidToStringSidW.argtypes = [ctypes.c_void_p, pointer]
+    advapi32.ConvertSidToStringSidW.restype = wintypes.BOOL
+    advapi32.GetAclInformation.argtypes = [ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD, ctypes.c_int]
+    advapi32.GetAclInformation.restype = wintypes.BOOL
+    advapi32.GetAce.argtypes = [ctypes.c_void_p, wintypes.DWORD, pointer]
+    advapi32.GetAce.restype = wintypes.BOOL
+    kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+    kernel32.LocalFree.restype = ctypes.c_void_p
+
+    class AclSizeInformation(ctypes.Structure):
+        _fields_ = [('AceCount', wintypes.DWORD), ('AclBytesInUse', wintypes.DWORD),
+                    ('AclBytesFree', wintypes.DWORD)]
+
+    def sid_string(sid) -> str:
+        text = ctypes.c_void_p()
+        if not advapi32.ConvertSidToStringSidW(sid, ctypes.byref(text)):
+            raise SetupError('kit.windows_command_failed', command='ConvertSidToStringSid',
+                             code=str(ctypes.get_last_error()))
+        try:
+            return ctypes.wstring_at(text.value)
+        finally:
+            kernel32.LocalFree(text)
+
+    owner, dacl, descriptor = ctypes.c_void_p(), ctypes.c_void_p(), ctypes.c_void_p()
+    # SE_FILE_OBJECT = 1; OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION = 1 | 4.
+    code = advapi32.GetNamedSecurityInfoW(str(path), 1, 1 | 4, ctypes.byref(owner), None, ctypes.byref(dacl),
+                                          None, ctypes.byref(descriptor))
+    if code != 0:
+        raise SetupError('kit.windows_command_failed', command='GetNamedSecurityInfo', code=str(code))
+    try:
+        sids = set()
+        if dacl.value:
+            information = AclSizeInformation()
+            if not advapi32.GetAclInformation(dacl, ctypes.byref(information), ctypes.sizeof(information), 2):
+                raise SetupError('kit.windows_command_failed', command='GetAclInformation',
+                                 code=str(ctypes.get_last_error()))
+            for index in range(information.AceCount):
+                ace = ctypes.c_void_p()
+                if not advapi32.GetAce(dacl, index, ctypes.byref(ace)):
+                    raise SetupError('kit.windows_command_failed', command='GetAce',
+                                     code=str(ctypes.get_last_error()))
+                ace_type = ctypes.cast(ace, ctypes.POINTER(ctypes.c_ubyte))[0]
+                # ACCESS_ALLOWED_ACE / ACCESS_DENIED_ACE: заголовок 4 байта и маска 4 байта, затем SID.
+                sids.add(sid_string(ctypes.c_void_p(ace.value + 8)) if ace_type in (0, 1)
+                         else 'ACE-TYPE-' + str(ace_type))
+        return sid_string(owner), sids
+    finally:
+        kernel32.LocalFree(descriptor)
 
 
 def secure_owned(path: Path):
@@ -93,7 +143,8 @@ def secure_owned(path: Path):
     secure_directory(path)
     owner, sids = _acl_sids(path)
     for sid in sorted(sids - _TRUSTED_SIDS):
-        _run(['icacls', str(path), '/remove:g', '*' + sid, '/Q'])
+        if sid.startswith('S-'):
+            _run(['icacls', str(path), '/remove', '*' + sid, '/Q'])
     owner, sids = _acl_sids(path)
     if owner not in _TRUSTED_SIDS or not sids <= _TRUSTED_SIDS:
         raise SetupError('kit.unsafe_state')

@@ -16,6 +16,32 @@ from shared.update_prepare import _expected_tree, prepare_signed_linux_update, v
 from shared.writer_guard import CooperativeWriterLock
 
 
+def _reject_version_pinned_portable_group(group, options):
+    """Known v1 units with @release continue to launch the old version after switch."""
+    from shared.systemd_portable import RECIPE_PATH, plan_portable_signed_user_units
+
+    old = verify_signed_package(options['old_package'], options['old_envelope'],
+        trusted_public_key=options['old_key'], expected_product_id=options['product_id'],
+        expected_version=options['old_version'])
+    if not any(item['path'] == RECIPE_PATH for item in old['files']):
+        return
+    from shared.services import component_order
+    selected = set(component_order(old['manifest'], options['modes']))
+    pinned = {old['product_id'] + '-' + component['name'] + '.service'
+              for component in old['manifest']['components'] if component['name'] in selected
+              and any(arg == '@release' or arg.startswith('@release/') for arg in component['cmd'])}
+    if not pinned:
+        return
+    plan = plan_portable_signed_user_units(options['old_package'], options['old_envelope'],
+        options['install_root'], trusted_public_key=options['old_key'],
+        expected_product_id=options['product_id'], expected_version=options['old_version'],
+        modes=options['modes'])
+    expected = {unit['name']: unit['sha256'] for unit in plan['units']}
+    if any(adapter.unit in pinned and expected.get(adapter.unit) == adapter.digest
+           for adapter in group.adapters.values()):
+        raise UpdateError('Службы привязаны к прежнему выпуску')
+
+
 def assemble_prepared_linux_update(*, group, password_provider, interpreter: str,
                                    interpreter_sha256: str, timeout: float, reopen: bool = False,
                                    reconcile_stop_key: str | None = None,
@@ -34,6 +60,8 @@ def assemble_prepared_linux_update(*, group, password_provider, interpreter: str
                 or type(timeout) not in (int, float) or not math.isfinite(timeout)
                 or not 0 < timeout <= 3600):
             raise UpdateError('Недопустимые параметры исполнения')
+        if not reopen:
+            _reject_version_pinned_portable_group(group, options)
         metadata = verify_signed_package(options['new_package'], options['new_envelope'],
             trusted_public_key=options['new_key'], expected_product_id=options['product_id'],
             expected_version=options['new_version'])
@@ -60,6 +88,8 @@ def assemble_prepared_linux_update(*, group, password_provider, interpreter: str
         ports.effects = LinuxSignedUpdateEffects(lifecycle, migration, LocalUpdateHealthPort(plan, ports),
                                                 previous_release=previous, writer_lock=writer_lock)
         result = (verify_started_linux_update(**options) if reopen else prepare_signed_linux_update(**options))
+        if reopen and result['state']['direction'] == 'forward':
+            _reject_version_pinned_portable_group(group, options)
         if reconcile_stop_key is not None:
             state = result['state']
             phases = plan.forward if state['direction'] == 'forward' else plan.rollback

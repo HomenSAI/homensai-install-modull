@@ -125,6 +125,83 @@ def test_assembly_rejects_bad_configuration_before_preparing_payload(assembled):
         assert not list(work.iterdir())
 
 
+def test_assembly_rejects_version_pinned_fresh_units_before_preparation(signed_request, tmp_path):
+    from hashlib import sha256
+    from shared.services import component_order, render_portable_user_services_v1
+    from shared.systemd_portable import RECIPE_PATH, RECIPE_V1
+
+    ed = pytest.importorskip('cryptography.hazmat.primitives.asymmetric.ed25519')
+    ser = pytest.importorskip('cryptography.hazmat.primitives.serialization')
+    query, _, manifest = signed_request
+    manifest['secrets'] = []
+    for name in ('pre_start', 'health_checks', 'post_update'):
+        manifest['hooks'][name] = []
+    for component in manifest['components']:
+        component['cmd'] = ['@runtime/bin/python', '@release/main.py']
+    source = tmp_path / 'payload'
+    recipe = source / RECIPE_PATH
+    recipe.parent.mkdir(parents=True, exist_ok=True)
+    recipe.write_bytes(RECIPE_V1)
+    private = ed.Ed25519PrivateKey.generate()
+    public = private.public_key().public_bytes(ser.Encoding.Raw, ser.PublicFormat.Raw)
+    packages, envelopes = {}, {}
+    for version in ('1', '2'):
+        packages[version] = tmp_path / ('signed-' + version + '.zip')
+        build_package(manifest, version, source, packages[version])
+        envelopes[version] = sign_package(packages[version], private_key=private,
+                                          expected_product_id=manifest['product_id'], expected_version=version)
+    root = query['params']['install_root']
+    prepare_fresh_native(packages['1'], envelopes['1'], root, trusted_public_key=public,
+        expected_product_id=manifest['product_id'], expected_version='1',
+        required_bytes=query['params']['required_bytes'], reserve_bytes=0)
+    modes = ('autonomous',)
+    units = render_portable_user_services_v1(manifest, modes=modes, install_root=root, version='1')
+    adapters = {name: FakeAdapter(manifest, name) for name in component_order(manifest, modes)}
+    for adapter in adapters.values():
+        adapter.digest = sha256(units[adapter.unit].encode()).hexdigest()
+    group = SystemdUserGroup(manifest, modes=modes, adapters=adapters)
+    work = tmp_path / 'work'
+    work.mkdir(mode=0o700)
+    options = dict(new_package=str(packages['2']), new_envelope=envelopes['2'], new_key=public,
+        old_package=str(packages['1']), old_envelope=envelopes['1'], old_key=public,
+        product_id=manifest['product_id'], old_version='1', new_version='2', install_root=root,
+        work_dir=str(work), modes=modes, migration_ids=(), operation_id='a' * 32,
+        group=group, password_provider=lambda: 'synthetic', interpreter='/test/python',
+        interpreter_sha256='a' * 64, timeout=5)
+    from shared.update_assembly import _reject_version_pinned_portable_group
+    with pytest.raises(UpdateError, match='привязаны к прежнему выпуску'):
+        _reject_version_pinned_portable_group(group, options)
+    with pytest.raises(UpdateError):
+        assemble_prepared_linux_update(**options)
+    assert not list(work.iterdir()) and all(adapter.active for adapter in adapters.values())
+    digests = {name: adapter.digest for name, adapter in adapters.items()}
+    for adapter in adapters.values():
+        adapter.digest = 'b' * 64
+    _reject_version_pinned_portable_group(group, options)  # Не подтверждает иные units.
+    for name, adapter in adapters.items():
+        adapter.digest = digests[name]
+    from shared.adapters_fs import FilesystemPorts
+    from shared.update_plan import UpdatePlan
+    from shared.update_prepare import prepare_signed_linux_update
+    prepare = {key: value for key, value in options.items() if key not in
+               ('group', 'password_provider', 'interpreter', 'interpreter_sha256', 'timeout')}
+    prepare_signed_linux_update(**prepare)
+    ports = FilesystemPorts(manifest, Path(root), work_dir=work, payloads={}, effects=None,
+                            password_provider=lambda: 'synthetic')
+    existing = UpdatePlan(manifest, Path(root), ports, release='2', modes=modes,
+                          migration_ids=(), guard_effects=True)
+    state = {'version': 1, 'transaction': 'b' * 32, 'plan': existing.digest, 'old_release': '1',
+             'release': '2', 'direction': 'forward', 'index': 0, 'failed_phase': None,
+             'archive_ready': False, 'outcome': 'running', 'indeterminate': True}
+    existing._save(state)
+    with pytest.raises(UpdateError):
+        assemble_prepared_linux_update(**options, reopen=True)
+    state.update(direction='rollback', index=0, failed_phase='health', archive_ready=True)
+    existing._save(state)
+    assert assemble_prepared_linux_update(**options, reopen=True).status() == state
+    assert all(adapter.active for adapter in adapters.values())
+
+
 def test_assembly_rejects_unsupported_hooks_without_preparing_payload(update):
     options, manifest, _, _ = update
     from shared.services import component_order

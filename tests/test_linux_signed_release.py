@@ -224,6 +224,21 @@ def test_changed_staged_release_cannot_be_switched_or_started(signed, phase):
     assert not any(adapter.active for adapter in adapters.values())
 
 
+@pytest.mark.parametrize('phase', ['switch', 'start'])
+def test_damaged_archive_blocks_switch_and_forward_start(signed, phase):
+    plan, ports, state, adapters, _ = signed
+    invoke(signed, 'stage')
+    if phase == 'start':
+        invoke(signed, 'switch')
+    before = ports.pointer.read_bytes() if ports.pointer.exists() else None
+    archive = ports.archive_path(state['transaction'] + '/archive')
+    archive.write_bytes(b'damaged synthetic archive')
+    with pytest.raises(EffectIndeterminate):
+        invoke(signed, phase)
+    assert (ports.pointer.read_bytes() if ports.pointer.exists() else None) == before
+    assert not any(adapter.active for adapter in adapters.values())
+
+
 def test_rollback_pointer_back_uses_recorded_old_release(signed):
     plan, ports, state, _, _ = signed
     invoke(signed, 'stage')

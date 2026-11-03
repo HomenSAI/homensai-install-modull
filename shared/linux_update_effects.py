@@ -108,6 +108,7 @@ class LinuxSignedUpdateEffects:
         if type(key) is str and key.endswith('/start'):
             self._active_phase(key, 'start', 'forward')
             try:
+                self._verify_original_archive(key)
                 self._verify_release(self.lifecycle.ports.release_path(self.plan.release))
                 self.lifecycle.start(key, components, pre_start)
                 self._verify_release(self.lifecycle.ports.release_path(self.plan.release))
@@ -161,15 +162,18 @@ class LinuxSignedUpdateEffects:
             raise UpdateError('Нет состояния предыдущего выпуска')
         self._verify_release(self.lifecycle.ports.release_path(state['old_release']), previous=True)
 
+    def _verify_original_archive(self, key):
+        ports = self.lifecycle.ports
+        archive = ports.archive_path(key.split('/', 1)[0] + '/archive')
+        if set(ports._verify_archive(archive)['roots']) != set(ports.home.roots):
+            raise UpdateError('Корни исходной копии не соответствуют установке')
+
     def guarded_stage_release(self, key, release, stage):
         self._active_phase(key, 'stage', 'forward')
         if release != self.plan.release or not callable(stage):
             raise UpdateError('Выпуск не соответствует плану')
         try:
-            ports = self.lifecycle.ports
-            archive = ports.archive_path(key.split('/', 1)[0] + '/archive')
-            if set(ports._verify_archive(archive)['roots']) != set(ports.home.roots):
-                raise UpdateError('Корни исходной копии не соответствуют установке')
+            self._verify_original_archive(key)
             source = self.lifecycle.ports.payloads[release]
             self._verify_release(source.directory)
             stage(key, release)
@@ -193,6 +197,7 @@ class LinuxSignedUpdateEffects:
         if release != self.plan.release or not callable(switch):
             raise UpdateError('Выпуск не соответствует плану')
         try:
+            self._verify_original_archive(key)
             self._verify_release(self.lifecycle.ports.release_path(release))
             switch(key, release)
             self._verify_release(self.lifecycle.ports.release_path(release))

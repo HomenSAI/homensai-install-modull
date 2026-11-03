@@ -154,6 +154,33 @@ def test_unverified_backup_blocks_execution(setup, monkeypatch):
     assert calls == []
 
 
+@pytest.mark.parametrize('damaged', ['archive', 'backup:0'])
+def test_real_damaged_encrypted_archive_blocks_migration(tmp_path, monkeypatch, damaged):
+    manifest = load_manifest(ROOT / 'examples/rent.manifest.json')
+    root = tmp_path / 'installation'
+    ports = FilesystemPorts(manifest, root, work_dir=tmp_path / 'work', payloads={}, effects=object(),
+                            password_provider=lambda: 'synthetic password')
+    for directory in ports.home.roots.values():
+        directory.mkdir(parents=True, exist_ok=True)
+    plan = UpdatePlan(manifest, root, ports, release='2', modes=('autonomous',),
+                      migration_ids=('schema-2',), guard_effects=True)
+    for name in ('archive', 'backup:0'):
+        ports._backup(TRANSACTION + '/' + name, name, ())
+    ports.archive_path(TRANSACTION + '/' + damaged).write_bytes(b'damaged synthetic archive')
+    state = {'version': 1, 'transaction': TRANSACTION, 'plan': plan.digest, 'old_release': '1',
+             'release': '2', 'direction': 'forward', 'index': plan.forward.index('migrate:0'),
+             'failed_phase': None, 'archive_ready': True, 'outcome': 'running', 'indeterminate': True}
+    plan._save(state)
+    port = SignedMigrationPort(plan, ports, install_root=str(root), package_path=str(tmp_path / 'synthetic.zip'),
+        envelope=b'synthetic-envelope', trusted_public_key=b'x' * 32, interpreter='/synthetic/python',
+        interpreter_sha256='a' * 64, timeout=1)
+    calls = []
+    monkeypatch.setattr(module, 'run_signed_native_migration', lambda **options: calls.append(options))
+    with pytest.raises(EffectIndeterminate):
+        invoke(plan, port)
+    assert not calls and not ports._path(KEY, '.migration.json').exists()
+
+
 def test_corrupt_receipt_never_reexecutes(setup):
     plan, ports, port, _, calls = setup
     ports._path(KEY, '.migration.json').write_bytes(b'{"status":"pending","status":"done"}')

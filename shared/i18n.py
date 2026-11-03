@@ -85,7 +85,10 @@ def _catalog(language: str) -> dict[str, str]:
         def signature(info):
             if (not stat.S_ISREG(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400):
                 raise LanguageError('Требуется обычный файл словаря')
-            return (info.st_dev, info.st_ino, info.st_mode, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+            # Windows exposes creation time separately and st_ctime may differ
+            # between path and handle; on POSIX retain metadata-change detection.
+            timestamp = info.st_birthtime_ns if os.name == 'nt' else info.st_ctime_ns
+            return (info.st_dev, info.st_ino, info.st_mode, info.st_size, info.st_mtime_ns, timestamp)
         before = signature(path.lstat())
         flags = (os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0)
                  | getattr(os, 'O_BINARY', 0))

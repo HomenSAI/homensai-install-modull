@@ -93,7 +93,8 @@ def test_catalog_metadata_matches_open_handle(tmp_path):
     for path in paths:
         path.write_bytes(b'{}')
     def values(info):
-        return (info.st_dev, info.st_ino, info.st_mode, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+        timestamp = info.st_birthtime_ns if os.name == 'nt' else info.st_ctime_ns
+        return (info.st_dev, info.st_ino, info.st_mode, info.st_size, info.st_mtime_ns, timestamp)
     for _ in range(20):
         for path in paths:
             before = values(path.lstat())

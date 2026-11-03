@@ -104,3 +104,33 @@ def test_logged_install_calls_real_api_dispatch_once(workflow, logfile, tmp_path
     assert response['ok'] and marker.read_text() == 'synthetic' and len(calls) == 1
     assert [json.loads(line)['event'] for line in logfile.read_text().splitlines()] == ['api_started', 'api_succeeded']
     assert str(tmp_path) not in logfile.read_text()
+
+
+def test_client_inspects_counts_without_returning_raw_data(logfile):
+    technical_log.record(logfile, 'install_started')
+    technical_log.record(logfile, 'install_unconfirmed')
+    client = InstallerClient(timeout=60)
+    result = client.call('inspect-technical-log', {'log_path': str(logfile)}, min_minor=64, language='ru')
+    assert result == {'event_count': 2, 'event_counts': {'install_started': 1, 'install_unconfirmed': 1},
+                      'authenticity_verified': False, 'operation_outcomes_verified': False}
+    assert str(logfile) not in json.dumps(result)
+    assert 'inspect-technical-log' in client.capabilities()['mutating_operations']
+
+
+def test_inspecting_a_log_while_recording_it_returns_a_snapshot(logfile):
+    client = InstallerClient(timeout=60)
+    result = client.call('inspect-technical-log', {'log_path': str(logfile)}, min_minor=64,
+                         event_log_path=str(logfile))
+    assert result['event_counts'] == {'api_started': 1} and result['event_count'] == 1
+    assert technical_log.inspect(logfile)['event_counts'] == {'api_started': 1, 'api_succeeded': 1}
+
+
+@pytest.mark.parametrize('language', ['ru', 'en', 'de'])
+def test_api_inspection_sanitizes_missing_path(logfile, language):
+    request = {'api_major': 1, 'request_id': 'test', 'operation': 'inspect-technical-log',
+               'params': {'log_path': str(logfile)}, 'language': language}
+    schema = pytest.importorskip('jsonschema').Draft202012Validator(contract_schema('request'))
+    schema.validate(request)
+    response = api.handle(request)
+    assert response['error']['code'] == 'technical_log_inspection_failed'
+    assert str(logfile) not in json.dumps(response)

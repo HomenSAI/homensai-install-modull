@@ -35,6 +35,7 @@ def test_capabilities_only_advertises_read_only_operations(monkeypatch):
     expected = ["capabilities", "validate", "validate-language-catalog", "preflight-fresh", "check-target", "plan-target-dependencies", "update-plan-status", "plan-update", "inspect-update-recovery", "check-local-health"]
     if sys.platform.startswith('linux'):
         expected.append('check-archive-storage')
+        expected.append('inspect-technical-log')
     if sys.platform.startswith('linux') or sys.platform == 'win32':
         expected.append('check-docker-engine')
     assert response["result"]["operations"] == expected

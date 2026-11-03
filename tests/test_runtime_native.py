@@ -478,6 +478,10 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                 assert [item['event'] for item in events] == ['api_started', 'api_succeeded']
                 assert all(set(item) == {'time_utc', 'event'} for item in events)
                 assert str(tmp_path) not in api_log.read_text()
+                summary = client.call('inspect-technical-log', {'log_path': str(api_log)}, min_minor=64, language='ru')
+                assert summary['event_count'] == 2
+                assert summary['event_counts'] == {'api_started': 1, 'api_succeeded': 1}
+                assert not summary['authenticity_verified'] and not summary['operation_outcomes_verified']
             heartbeat_path = install / 'data/worker-heartbeat.json'
             deadline = time.monotonic() + 15
             while not heartbeat_path.exists() and time.monotonic() < deadline:

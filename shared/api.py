@@ -44,7 +44,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 63
+API_MINOR = 64
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -215,6 +215,8 @@ def _handle(request: Any) -> dict:
             if sys.platform.startswith('linux'):
                 operations.append('check-archive-storage')
                 mutating_operations.append('check-archive-storage')  # Creates an unnamed temporary inode.
+                operations.append('inspect-technical-log')
+                mutating_operations.append('inspect-technical-log')  # Holds a shared lock while reading.
             if sys.platform.startswith('linux') or sys.platform == 'win32':
                 operations.append('check-docker-engine')
                 mutating_operations.append('check-docker-engine')  # Выполняет доверенные внешние программы.
@@ -292,6 +294,18 @@ def _handle(request: Any) -> dict:
             except (ManifestError, RecursionError):
                 return _error(request_id, "invalid_request", "Манифест не соответствует контракту", language, "api.invalid_manifest")
             result = {"product_id": manifest["product_id"], "schema_version": manifest["schema_version"]}
+        elif operation == 'inspect-technical-log':
+            if set(params) != {'log_path'} or type(params['log_path']) is not str or not params['log_path']:
+                raise InvalidRequest()
+            if not sys.platform.startswith('linux'):
+                return _error(request_id, 'unsupported_operation', 'Операция API не поддерживается',
+                              language, 'api.unsupported_operation')
+            from shared.technical_log import TechnicalLogError, inspect
+            try:
+                result = inspect(params['log_path'])
+            except TechnicalLogError:
+                return _error(request_id, 'technical_log_inspection_failed', 'Не удалось прочитать журнал',
+                              language, 'api.technical_log_inspection_failed')
         elif operation == 'validate-language-catalog':
             if set(params) != {'catalog'} or type(params['catalog']) is not dict:
                 raise InvalidRequest()

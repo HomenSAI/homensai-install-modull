@@ -110,6 +110,7 @@
   "interactive.inspection_only": "Inspection only: effects and current health were not verified.",
   "interactive.log_failed": "Event log failed; an operation may have run. Inspect the installation state before retrying.",
   "api.technical_log_failed": "Event log failed; an operation may have run. Inspect the operation state before retrying.",
+  "api.technical_log_inspection_failed": "Could not inspect the event log.",
   "api.operation_unconfirmed": "Operation outcome is unconfirmed. Inspect its state before retrying.",
   "interactive.state_no_checkpoint": "No checkpoint was found; this does not prove that no changes occurred.",
   "interactive.state_pending": "An earlier step may have executed; review its state before continuing.",

@@ -40,6 +40,7 @@ def _check_previous(descriptor, info):
             or (info.st_size, info.st_mtime_ns, info.st_ctime_ns)
             != (after.st_size, after.st_mtime_ns, after.st_ctime_ns)):
         raise TechnicalLogError('Log needs inspection')
+    rows = []
     try:
         for line in data.splitlines():
             row = json.loads(line.decode('ascii'), object_pairs_hook=_unique)
@@ -48,8 +49,52 @@ def _check_previous(descriptor, info):
                     or type(row['time_utc']) is not str or _TIMESTAMP.fullmatch(row['time_utc']) is None):
                 raise TechnicalLogError('Invalid log entry')
             datetime.fromisoformat(row['time_utc'])
+            rows.append(row)
     except (UnicodeError, ValueError, TypeError, RecursionError):
         raise TechnicalLogError('Invalid log entry') from None
+    return rows
+
+
+def inspect(path):
+    """Read validated event counts without claiming authenticity or outcomes."""
+    if (not sys.platform.startswith('linux')
+            or not all(hasattr(os, name) for name in ('getuid', 'O_NOFOLLOW', 'pread'))):
+        raise TechnicalLogError('Unsupported platform')
+    import fcntl
+    descriptor = None
+    try:
+        destination = checked_path(path)
+        parent = destination.parent.lstat()
+        if (not stat.S_ISDIR(parent.st_mode) or parent.st_uid != os.getuid()
+                or stat.S_IMODE(parent.st_mode) != 0o700):
+            raise TechnicalLogError('Untrusted log directory')
+        descriptor = os.open(destination, os.O_RDONLY | os.O_NOFOLLOW | getattr(os, 'O_NONBLOCK', 0))
+        fcntl.flock(descriptor, fcntl.LOCK_SH | fcntl.LOCK_NB)
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or stat.S_IMODE(info.st_mode) != 0o600 or info.st_nlink != 1):
+            raise TechnicalLogError('Untrusted log file')
+        def signature(value):
+            return (value.st_dev, value.st_ino, value.st_mode, value.st_uid, value.st_nlink,
+                    value.st_size, value.st_mtime_ns, value.st_ctime_ns)
+        if signature(destination.lstat()) != signature(info):
+            raise TechnicalLogError('Log file changed')
+        rows = _check_previous(descriptor, info)
+        if signature(destination.lstat()) != signature(info) or signature(os.fstat(descriptor)) != signature(info):
+            raise TechnicalLogError('Log file changed')
+        counts = {}
+        for row in rows:
+            event = row['event']
+            counts[event] = counts.get(event, 0) + 1
+        return {'event_count': len(rows), 'event_counts': dict(sorted(counts.items())),
+                'authenticity_verified': False, 'operation_outcomes_verified': False}
+    except TechnicalLogError:
+        raise
+    except (OSError, ValueError, OverflowError):
+        raise TechnicalLogError('Log inspection failed') from None
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
 
 
 def record(path, event):

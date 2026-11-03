@@ -7,7 +7,7 @@ import sys
 import pytest
 
 from shared.interactive_install import run
-from shared.technical_log import TechnicalLogError, record
+from shared.technical_log import TechnicalLogError, inspect, record
 
 pytestmark = pytest.mark.skipif(not sys.platform.startswith('linux'), reason='Linux-only event log')
 
@@ -30,6 +30,8 @@ def test_log_contains_only_allowlisted_events_and_time(private):
     with pytest.raises(TechnicalLogError):
         record(path, 'password=synthetic-secret')
     assert 'synthetic-secret' not in path.read_text()
+    assert inspect(path) == {'event_count': 2, 'event_counts': {'inspection_started': 1, 'install_recorded': 1},
+                             'authenticity_verified': False, 'operation_outcomes_verified': False}
 
 
 def test_log_rejects_symlink_unsafe_directory_and_partial_tail(private, tmp_path):
@@ -71,6 +73,8 @@ def test_busy_log_does_not_append_or_wait(private):
         fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         with pytest.raises(TechnicalLogError):
             record(path, 'install_started')
+        with pytest.raises(TechnicalLogError):
+            inspect(path)
     assert path.read_bytes() == before
 
 
@@ -87,6 +91,8 @@ def test_log_rejects_unexpected_existing_entries(private, entry):
     path.chmod(0o600)
     with pytest.raises(TechnicalLogError):
         record(path, 'inspection_started')
+    with pytest.raises(TechnicalLogError):
+        inspect(path)
     assert path.read_bytes() == entry
 
 

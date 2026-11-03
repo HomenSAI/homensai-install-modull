@@ -368,7 +368,14 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
             public_file.write_bytes(public)
             answers = [str(package), args['product_id'], args['version'], str(install), str(destination),
                        str(work), ','.join(args['modes']), *(str(args['required_bytes'][name]) for name in NAMES),
-                       str(args['reserve_bytes']), str(signature_file), str(public_file), str(request_file)]
+                       str(args['reserve_bytes'])]
+            if evidence_policy:
+                policy = args['runtime_evidence']
+                answers += ['YES', policy['lock_path'], policy['evidence_path'], policy['evidence_sha256'],
+                            str(policy['max_age_seconds'])]
+            else:
+                answers.append('NO')
+            answers += [str(signature_file), str(public_file), str(request_file)]
             master, slave = pty.openpty()
             try:
                 process = subprocess.Popen([sys.executable, '-m', 'shared.prepare_interactive_request',
@@ -883,6 +890,13 @@ def test_logged_api_resumes_real_pointer_product(tmp_path, monkeypatch):
 def test_evidence_policy_resumes_real_pointer_product(tmp_path, monkeypatch):
     test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True, pointer=True,
                                                       evidence_policy=True)
+
+
+@pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
+                    reason='Нужен одноразовый тестовый контейнер Python 3.14')
+def test_evidence_wizard_resumes_real_pointer_product(tmp_path, monkeypatch):
+    test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True, pointer=True,
+                                                      interactive=True, evidence_policy=True)
 
 
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',

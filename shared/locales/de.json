@@ -135,6 +135,9 @@
   "interactive.wizard_space_hint": "Benötigten Platz in Bytes einschließlich erwarteter Produktdaten eingeben; Werte werden nicht vorausgesetzt.",
   "interactive.wizard_space": "Benötigte Bytes für {name}",
   "interactive.wizard_reserve": "Zusätzliche Reserve in Bytes pro Datenträger",
+  "interactive.wizard_evidence_choice": "OSV-Nachweis für signierte Laufzeit verlangen? YES oder NO eingeben",
+  "interactive.wizard_evidence_intro": "Berichtsquelle und SHA-256 vor der Eingabe unabhängig prüfen.",
+  "interactive.wizard_evidence_skipped": "Die OSV-Nachweisprüfung für die Laufzeit ist für diese Anfrage nicht aktiviert.",
   "interactive.wizard_envelope": "Datei mit Paketsignatur",
   "interactive.wizard_key": "Datei mit vertrautem öffentlichem Ed25519-Schlüssel",
   "interactive.wizard_output": "Neue Anfragedatei"

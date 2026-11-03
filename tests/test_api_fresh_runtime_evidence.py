@@ -9,6 +9,8 @@ from shared import api
 from shared.fresh_controller import FreshControllerError, run_portable_linux_install
 from shared.interactive_install import read_config, run
 from shared.prepare_interactive_request import prepare
+from shared.prepare_interactive_request import wizard
+from shared.preflight import NAMES
 from test_api_signed_preflight import signed_request
 from test_fresh_controller import workflow
 from test_fresh_controller_api import query_for
@@ -67,6 +69,35 @@ def test_template_and_interactive_inspection_preserve_and_show_policy(protected_
     assert run(saved, 'en', ask=lambda _: pytest.fail('unexpected prompt'), write=lines.append, inspect_only=True) == 0
     assert any('policy requested' in line for line in lines)
     assert any(options['runtime_evidence']['evidence_sha256'] in line for line in lines)
+
+
+def test_preparation_rejects_tampered_evidence_before_publishing(protected_workflow, tmp_path):
+    options, evidence = protected_workflow
+    params = query_for(options)['params']
+    template = {key: value for key, value in params.items()
+                if key not in ('envelope', 'trusted_public_key', 'workflow_key', 'keys')}
+    target = tmp_path / 'request.json'
+    evidence.write_bytes(evidence.read_bytes() + b'tampered')
+    with pytest.raises(ValueError):
+        prepare(template, options['envelope'], options['trusted_public_key'], str(target))
+    assert not target.exists()
+
+
+@pytest.mark.parametrize('language', ['en', 'ru', 'de'])
+def test_wizard_prepares_verified_evidence_policy(protected_workflow, tmp_path, language):
+    options, _ = protected_workflow
+    params = query_for(options)['params']
+    policy = params['runtime_evidence']
+    signature, key, target = (tmp_path / name for name in ('signature', 'key', 'request.json'))
+    signature.write_bytes(options['envelope'])
+    key.write_bytes(options['trusted_public_key'])
+    answers = iter([params['package_path'], params['expected_product_id'], params['expected_version'],
+        params['install_root'], params['unit_dir'], params['work_dir'], ','.join(params['modes']),
+        *(str(params['required_bytes'][name]) for name in NAMES), str(params['reserve_bytes']), 'YES',
+        policy['lock_path'], policy['evidence_path'], policy['evidence_sha256'],
+        str(policy['max_age_seconds']), str(signature), str(key), str(target)])
+    wizard(language, ask=lambda _: next(answers), write=lambda _: None)
+    assert read_config(target)['runtime_evidence'] == policy
 
 
 @pytest.mark.parametrize('change', ['null', 'unknown', 'boolean_age', 'bad_digest'])

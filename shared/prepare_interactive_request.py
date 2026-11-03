@@ -49,6 +49,15 @@ def prepare(template, envelope, public_key, output, *, language='en', handle=api
     if (type(response) is not dict or response.get('ok') is not True
             or type(response.get('result')) is not dict or response['result'].get('state') != 'no_checkpoint'):
         raise ValueError('request inspection failed')
+    if 'runtime_evidence' in template:
+        from shared.osv_audit import MAX_RESPONSE
+        from shared.runtime_lock_security import verify_signed_runtime_lock
+        policy = template['runtime_evidence']
+        verify_signed_runtime_lock(package=template['package_path'], envelope=envelope,
+            trusted_public_key=public_key, product_id=template['expected_product_id'],
+            version=template['expected_version'], platform='linux', lock=policy['lock_path'],
+            evidence=read_bounded_file(checked_path(policy['evidence_path']), MAX_RESPONSE),
+            evidence_sha256=policy['evidence_sha256'], max_age_seconds=policy['max_age_seconds'])
     data = (json.dumps(params, ensure_ascii=True, sort_keys=True, indent=2) + '\n').encode('ascii')
     if len(data) > MAX_CONFIG_BYTES:
         raise ValueError('request too large')
@@ -91,6 +100,16 @@ def wizard(language, *, ask, write):
     if not 0 <= reserve <= MAX_BYTES:
         raise ValueError('invalid reserve')
     template['required_bytes'], template['reserve_bytes'] = sizes, reserve
+    choice = prompt('wizard_evidence_choice')
+    if choice == 'YES':
+        write(translate(language, 'interactive.wizard_evidence_intro'))
+        template['runtime_evidence'] = {'lock_path': prompt('evidence_lock'),
+            'evidence_path': prompt('evidence_report'), 'evidence_sha256': prompt('evidence_digest'),
+            'max_age_seconds': int(prompt('evidence_age'))}
+    elif choice == 'NO':
+        write(translate(language, 'interactive.wizard_evidence_skipped'))
+    else:
+        raise ValueError('explicit evidence choice required')
     envelope_file, key_file, output = prompt('wizard_envelope'), prompt('wizard_key'), prompt('wizard_output')
     prepare(template, _read_public_file(envelope_file, MAX_ENVELOPE), _read_public_file(key_file, 32),
             output, language=language)

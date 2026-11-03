@@ -135,6 +135,9 @@
   "interactive.wizard_space_hint": "Введите оценку места в байтах, включая ожидаемые данные продукта; значения не подставляются автоматически.",
   "interactive.wizard_space": "Необходимо байт для {name}",
   "interactive.wizard_reserve": "Дополнительный резерв в байтах на каждый диск",
+  "interactive.wizard_evidence_choice": "Требовать отчёт OSV для подписанного runtime? Введите YES или NO",
+  "interactive.wizard_evidence_intro": "Независимо проверьте источник отчёта и его SHA-256 перед вводом.",
+  "interactive.wizard_evidence_skipped": "Проверка отчёта OSV для runtime в этом запросе не включена.",
   "interactive.wizard_envelope": "Файл подписи пакета",
   "interactive.wizard_key": "Файл доверенного открытого ключа Ed25519",
   "interactive.wizard_output": "Новый файл запроса"

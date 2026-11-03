@@ -135,6 +135,9 @@
   "interactive.wizard_space_hint": "Enter required space estimates in bytes, including expected product data; no values are assumed.",
   "interactive.wizard_space": "Required bytes for {name}",
   "interactive.wizard_reserve": "Additional reserve bytes per volume",
+  "interactive.wizard_evidence_choice": "Require signed runtime OSV evidence? Enter YES or NO",
+  "interactive.wizard_evidence_intro": "Independently verify the report source and its SHA-256 before entering them.",
+  "interactive.wizard_evidence_skipped": "Runtime OSV evidence checking is not enabled for this request.",
   "interactive.wizard_envelope": "Signed envelope file",
   "interactive.wizard_key": "Trusted raw Ed25519 public key file",
   "interactive.wizard_output": "New request file"

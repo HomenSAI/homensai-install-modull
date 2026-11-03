@@ -109,7 +109,7 @@ def test_wizard_creates_request_using_real_api(workflow, tmp_path, language):
     key.write_bytes(workflow['trusted_public_key'])
     values = iter([template['package_path'], template['expected_product_id'], template['expected_version'],
         template['install_root'], template['unit_dir'], template['work_dir'], ','.join(template['modes']),
-        *(str(template['required_bytes'][name]) for name in NAMES), str(template['reserve_bytes']),
+        *(str(template['required_bytes'][name]) for name in NAMES), str(template['reserve_bytes']), 'NO',
         str(signature), str(key), str(output)])
     prompts, lines = [], []
     def ask(prompt):
@@ -118,7 +118,8 @@ def test_wizard_creates_request_using_real_api(workflow, tmp_path, language):
     wizard(language, ask=ask, write=lines.append)
     result = read_config(output)
     assert all(result[key] == value for key, value in template.items())
-    assert len(prompts) == 11 + len(NAMES)
+    assert len(prompts) == 12 + len(NAMES)
+    assert translate(language, 'interactive.wizard_evidence_skipped') in lines
     assert not list(Path(workflow['work_dir']).glob('install-*.json'))
 
 
@@ -129,4 +130,15 @@ def test_wizard_cancel_does_not_create_request(workflow, tmp_path, monkeypatch, 
     monkeypatch.setattr('builtins.input', cancelled)
     assert main(['--wizard', '--language', 'ru']) == 2
     assert capsys.readouterr().err.strip() == translate('ru', 'interactive.request_failed')
+    assert not list(tmp_path.glob('request*.json'))
+
+
+@pytest.mark.parametrize('choice', ['', 'yes', 'maybe'])
+def test_wizard_rejects_ambiguous_evidence_choice(workflow, tmp_path, choice):
+    template = template_for(workflow)
+    values = iter([template['package_path'], template['expected_product_id'], template['expected_version'],
+        template['install_root'], template['unit_dir'], template['work_dir'], ','.join(template['modes']),
+        *(str(template['required_bytes'][name]) for name in NAMES), str(template['reserve_bytes']), choice])
+    with pytest.raises(ValueError):
+        wizard('en', ask=lambda _: next(values), write=lambda _: None)
     assert not list(tmp_path.glob('request*.json'))

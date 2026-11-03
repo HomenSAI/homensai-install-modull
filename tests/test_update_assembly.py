@@ -63,13 +63,28 @@ def assembled(signed_request, tmp_path):
     return options, adapters
 
 
+def _seed_archive_for_stage(plan, transaction):
+    """Изолировать стадию: протокол остановки проверяется в тестах lifecycle."""
+    from shared.update_plan import _atomic_write
+    ports = plan.ports
+    key = transaction + '/archive'
+    ports._backup(key, 'archive', ())
+    lifecycle = ports.effects.lifecycle
+    _atomic_write(ports._path(key, '.quiescence.json'), {
+        'version': 1, 'plan': plan.digest, 'key': key, 'stop_key': transaction + '/stop',
+        'installation_sha256': lifecycle.install_hash, 'units_sha256': lifecycle.units_hash,
+        'status': 'done'})
+    # Доказать, что последующий негативный тест не проходит из-за фикстуры.
+    ports.effects._verify_original_archive(transaction + '/stage')
+
+
 def test_assembled_plan_stages_signed_payload_without_starting_services(assembled):
     options, adapters = assembled
     pointer = Path(options['install_root']) / 'services/active.json'
     before = pointer.read_bytes()
     plan = assemble_prepared_linux_update(**options)
     ports = plan.ports
-    ports._backup('b' * 32 + '/archive', 'archive', ())
+    _seed_archive_for_stage(plan, 'b' * 32)
     assert plan.status() is None and not ports.release_path('2').exists()
     assert all(adapter.active for adapter in adapters.values())
     state = {'version': 1, 'transaction': 'b' * 32, 'plan': plan.digest, 'old_release': '1',
@@ -93,7 +108,7 @@ def test_stage_refuses_unverified_backup_before_publishing(assembled, damage):
     plan = assemble_prepared_linux_update(**options)
     ports = plan.ports
     key = 'b' * 32
-    ports._backup(key + '/archive', 'archive', ())
+    _seed_archive_for_stage(plan, key)
     archive = ports.archive_path(key + '/archive')
     if damage == 'missing':
         archive.unlink()
@@ -256,7 +271,7 @@ def test_new_pointer_policy_blocks_forward_resume_but_not_rollback(assembled, mo
 def test_guarded_stage_rejects_tampered_prepared_payload(assembled):
     options, _ = assembled
     plan = assemble_prepared_linux_update(**options)
-    plan.ports._backup('b' * 32 + '/archive', 'archive', ())
+    _seed_archive_for_stage(plan, 'b' * 32)
     (plan.ports.payloads['2'].directory / 'new.py').write_text('tampered', encoding='utf-8')
     state = {'version': 1, 'transaction': 'b' * 32, 'plan': plan.digest, 'old_release': '1',
              'release': '2', 'direction': 'forward', 'index': plan.forward.index('stage'),
@@ -308,7 +323,7 @@ def test_reopen_after_switch_verifies_both_signed_releases(assembled):
     options, _ = assembled
     plan = assemble_prepared_linux_update(**options)
     ports = plan.ports
-    ports._backup('b' * 32 + '/archive', 'archive', ())
+    _seed_archive_for_stage(plan, 'b' * 32)
     state = {'version': 1, 'transaction': 'b' * 32, 'plan': plan.digest, 'old_release': '1',
              'release': '2', 'direction': 'forward', 'index': plan.forward.index('stage'),
              'failed_phase': None, 'archive_ready': True, 'outcome': 'running', 'indeterminate': True}

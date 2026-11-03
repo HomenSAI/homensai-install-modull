@@ -111,13 +111,16 @@ class FilesystemPorts:
 
     def __init__(self, manifest, install_root: Path, *, work_dir: Path,
                  payloads: Mapping[str, ReleaseSource], effects: InjectedEffects,
-                 allow_unencrypted: bool = False, password_provider=None):
+                 allow_unencrypted: bool = False, password_provider=None, runtime_guard=None):
         self.manifest = validate_manifest(manifest)
         if self.manifest["schema_version"] != 2:
             raise UpdateError("FS-порты требуют явный манифест v2")
         if password_provider is None and allow_unencrypted is not True:
             raise UpdateError("ZIP не зашифрован; требуется явный allow_unencrypted=True")
+        if runtime_guard is not None and not callable(runtime_guard):
+            raise UpdateError("Недопустимая проверка runtime")
         self.password_provider = password_provider
+        self.runtime_guard = runtime_guard
         self.home = resolve_datahome(self.manifest, install_root)
         self.work = checked_path(work_dir)
         if self.work == Path(self.work.anchor) or any(
@@ -454,6 +457,8 @@ class FilesystemPorts:
         transaction = key.split("/", 1)[0]
         if key != transaction + "/restore" or archive_key != transaction + "/archive":
             raise UpdateError("Недопустимые ключи восстановления")
+        if self.runtime_guard is not None:
+            self.runtime_guard()
         # Независимая защита: без проверенной отдельной копии нет живых записей.
         self._verify_archive(self.archive_path(transaction + "/before_rollback"))
         value = {"archive": archive_key}
@@ -477,11 +482,8 @@ class FilesystemPorts:
             for name, target in sorted(self.home.roots.items()):
                 # Pointer-v2 keeps an independently verified immutable runtime;
                 # a generic archive restore does not preserve executable modes.
-                runtime_guard = getattr(self.effects, 'runtime_guard', None)
-                if name == 'runtime' and runtime_guard is not None:
-                    if not callable(runtime_guard):
-                        raise UpdateError('Runtime не подтверждён')
-                    runtime_guard()
+                if name == 'runtime' and self.runtime_guard is not None:
+                    self.runtime_guard()
                     continue
                 preserved = set()
                 if name == "services":
@@ -491,6 +493,8 @@ class FilesystemPorts:
                                          for parent in path.parents if contains(target, parent))
                 self._reconcile(scratch / "roots" / name, target, preserved)
         # Не подтверждать завершение, пока не удалось удалить временное дерево.
+        if self.runtime_guard is not None:
+            self.runtime_guard()
         self._record(key, value)
 
     @staticmethod

@@ -82,7 +82,7 @@ def assemble_prepared_linux_update(*, group, password_provider, interpreter: str
         ports = FilesystemPorts(metadata['manifest'], Path(options['install_root']),
             work_dir=Path(options['work_dir']), payloads={options['new_version']: ReleaseSource(
                 source, {item['path']: item['sha256'] for item in metadata['files']})},
-            effects=None, password_provider=password_provider)
+            effects=None, password_provider=password_provider, runtime_guard=runtime_guard)
         plan = UpdatePlan(metadata['manifest'], Path(options['install_root']), ports,
             release=options['new_version'], modes=options['modes'], migration_ids=options['migration_ids'],
             guard_effects=True)

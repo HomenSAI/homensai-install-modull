@@ -129,3 +129,23 @@ def test_damaged_runtime_blocks_restore_before_live_data_changes(installation, m
     assert state['indeterminate'] and marker.read_text() == 'modified during update'
     assert plan.ports.current_release() == '2'
     assert plan.ports.archive_path(state['transaction'] + '/before_rollback').is_file()
+
+
+def test_restore_preserves_runtime_when_effects_wrapper_hides_guard(installation, monkeypatch):
+    root, _, options, _ = installation
+    plan = assemble_pointer_linux_update(**options)
+    effects = plan.ports.effects
+
+    class Wrapper:
+        def __getattr__(self, name):
+            if name == 'runtime_guard':
+                raise AttributeError(name)
+            return getattr(effects, name)
+
+    plan.ports.effects = Wrapper()
+    def health(key, *_):
+        if key.endswith('/health'):
+            raise RuntimeError('synthetic failure')
+    monkeypatch.setattr(effects.health_port, 'health', health)
+    assert plan.run()['outcome'] == 'rolled_back'
+    assert stat.S_IMODE((root / 'runtime/bin/python').stat().st_mode) == 0o700

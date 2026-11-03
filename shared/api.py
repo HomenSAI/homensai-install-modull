@@ -44,7 +44,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 53
+API_MINOR = 54
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -206,6 +206,8 @@ def handle(request: Any) -> dict:
                     operations.extend(["plan-portable-systemd-user-units", "publish-portable-systemd-user-units",
                                        "load-portable-systemd-user-units"])
                     operations.append('plan-pointer-systemd-user-units')
+                    operations.append('publish-pointer-systemd-user-units')
+                    mutating_operations.append('publish-pointer-systemd-user-units')
                     mutating_operations.extend(["publish-portable-systemd-user-units", "load-portable-systemd-user-units"])
                     operations.extend(["plan-linux-runtime", "prepare-linux-runtime", "verify-linux-runtime"])
                     operations.append("check-portable-linux-start")
@@ -727,20 +729,28 @@ def handle(request: Any) -> dict:
                       'process_target': state['process_target'], 'installation_complete': False}
         elif operation in ("plan-systemd-user-units", "publish-systemd-user-units", "load-systemd-user-units",
                            "plan-portable-systemd-user-units", "publish-portable-systemd-user-units",
-                           "load-portable-systemd-user-units", "plan-pointer-systemd-user-units"):
+                           "load-portable-systemd-user-units", "plan-pointer-systemd-user-units",
+                           "publish-pointer-systemd-user-units"):
             fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id",
                       "expected_version", "install_root", "modes"}
             portable = '-portable-' in operation
             publishing = operation.startswith('publish-')
             loading = operation.startswith('load-')
+            pointer_publishing = operation == 'publish-pointer-systemd-user-units'
             if publishing or loading:
                 fields |= {"unit_dir", "idempotency_key"}
-            if publishing and not portable and 'verify_generated_units' in params:
+            if pointer_publishing:
+                fields |= {'runtime_key', 'reserve_bytes'}
+            if publishing and not portable and not pointer_publishing and 'verify_generated_units' in params:
                 fields.add('verify_generated_units')
-            strings = fields - {"modes", "verify_generated_units"}
+            strings = fields - {"modes", "verify_generated_units", "reserve_bytes"}
             if (set(params) != fields or any(type(params[field]) is not str for field in strings)
                     or type(params['modes']) is not list or not params['modes']
                     or any(type(mode) is not str for mode in params['modes'])
+                    or (pointer_publishing and (type(params['reserve_bytes']) is not int
+                        or not 0 <= params['reserve_bytes'] <= MAX_DISK_BYTES
+                        or re.fullmatch(r'[a-f0-9]{32}', params['runtime_key']) is None
+                        or params['runtime_key'] == params['idempotency_key']))
                     or (publishing and not portable and 'verify_generated_units' in params
                         and type(params['verify_generated_units']) is not bool)):
                 raise InvalidRequest()
@@ -762,6 +772,13 @@ def handle(request: Any) -> dict:
                     plan = plan_pointer_signed_user_units(params['package_path'], envelope, params['install_root'],
                         trusted_public_key=key, expected_product_id=params['expected_product_id'],
                         expected_version=params['expected_version'], modes=tuple(params['modes']))
+                elif pointer_publishing:
+                    from shared.systemd_pointer import publish_pointer_signed_user_units
+                    plan = publish_pointer_signed_user_units(params['package_path'], envelope, params['install_root'],
+                        trusted_public_key=key, expected_product_id=params['expected_product_id'],
+                        expected_version=params['expected_version'], modes=tuple(params['modes']),
+                        unit_dir=params['unit_dir'], runtime_operation_id=params['runtime_key'],
+                        reserve_bytes=params['reserve_bytes'], operation_id=params['idempotency_key'], execute=True)
                 else:
                     function = (load_portable_signed_user_units if loading else publish_portable_signed_user_units) if portable else (
                                load_signed_user_units if loading else publish_signed_user_units)

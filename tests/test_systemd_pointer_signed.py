@@ -1,6 +1,7 @@
 """Signed pointer recipe planning; no service or product code is executed."""
 import base64
 import json
+import os
 from pathlib import Path
 import sys
 
@@ -152,3 +153,157 @@ def test_pointer_plan_rejects_unknown_publisher_without_exposing_key(signed_poin
                        'params': params, 'language': language})
     assert not response['ok'] and response['error']['code'] == 'systemd_plan_failed'
     assert params['trusted_public_key'] not in json.dumps(response)
+
+
+def _pointer_publisher(signed_pointer, tmp_path):
+    from shared.systemd_pointer import publish_pointer_signed_user_units
+    from test_systemd_portable import fake_manager
+    _, options, build = signed_pointer
+    package, envelope, root = build('publish')
+    directory = tmp_path / 'units'
+    directory.mkdir(mode=0o700)
+    runner, calls = fake_manager(directory)
+    def call(**kwargs):
+        return publish_pointer_signed_user_units(package, envelope, str(root), **options,
+            modes=('autonomous',), unit_dir=str(directory), runtime_operation_id='a' * 32,
+            operation_id='b' * 32, reserve_bytes=0, runner=runner, **kwargs)
+    return package, envelope, root, directory, options, call, calls
+
+
+def test_pointer_publication_requires_runtime_and_is_idempotent(signed_pointer, tmp_path):
+    from shared.runtime_native import prepare_signed_linux_runtime
+    package, envelope, root, directory, options, publish, calls = _pointer_publisher(signed_pointer, tmp_path)
+    assert publish()['state'] == 'planned' and not calls and not list(directory.iterdir())
+    with pytest.raises(PortableUnitError):
+        publish(execute=True)
+    assert not calls and not list(directory.iterdir())
+    assert not (root / '.homensai-control/user-systemd-publication.json').exists()
+    prepare_signed_linux_runtime(package, envelope, str(root), **options,
+                                 reserve_bytes=0, operation_id='a' * 32, execute=True)
+    result = publish(execute=True)
+    assert result['state'] == 'published' and result['prepared_runtime_verified']
+    assert result['services_started'] is False
+    contents = {p.name: p.read_bytes() for p in directory.iterdir()}
+    assert contents and all(b'portable_launcher.py' in content for content in contents.values())
+    assert publish(execute=True) == result
+    assert {p.name: p.read_bytes() for p in directory.iterdir()} == contents
+    assert all('start' not in call and 'daemon-reload' not in call for call in calls)
+    (root / 'runtime/lib/homensai/portable_launcher.py').write_text('tampered')
+    with pytest.raises(PortableUnitError):
+        publish(execute=True)
+    assert {p.name: p.read_bytes() for p in directory.iterdir()} == contents
+
+
+def test_pointer_publication_pending_never_repeats(signed_pointer, tmp_path, monkeypatch):
+    import shared.systemd_pointer as pointer
+    from shared.runtime_native import prepare_signed_linux_runtime
+    package, envelope, root, directory, options, publish, calls = _pointer_publisher(signed_pointer, tmp_path)
+    prepare_signed_linux_runtime(package, envelope, str(root), **options,
+                                 reserve_bytes=0, operation_id='a' * 32, execute=True)
+    def interrupted(*args, **kwargs):
+        raise OSError('synthetic interrupted write')
+    monkeypatch.setattr(pointer, '_publish_files', interrupted)
+    with pytest.raises(PortableUnitError):
+        publish(execute=True)
+    receipt = root / '.homensai-control/user-systemd-publication.json'
+    assert json.loads(receipt.read_text())['status'] == 'pending'
+    previous_calls = len(calls)
+    with pytest.raises(PortableUnitError):
+        publish(execute=True)
+    assert len(calls) == previous_calls and not list(directory.iterdir())
+
+
+def test_runtime_tampering_during_publication_leaves_pending_marker(signed_pointer, tmp_path, monkeypatch):
+    import shared.systemd_pointer as pointer
+    from shared.runtime_native import prepare_signed_linux_runtime
+    package, envelope, root, directory, options, publish, calls = _pointer_publisher(signed_pointer, tmp_path)
+    prepare_signed_linux_runtime(package, envelope, str(root), **options,
+                                 reserve_bytes=0, operation_id='a' * 32, execute=True)
+    original = pointer._publish_files
+    def race(directory, names, units, public, product_id, version, verify_again):
+        def tamper_then_check():
+            (root / 'runtime/lib/homensai/portable_launcher.py').write_text('tampered during publication')
+            verify_again()
+        return original(directory, names, units, public, product_id, version, tamper_then_check)
+    monkeypatch.setattr(pointer, '_publish_files', race)
+    with pytest.raises(PortableUnitError):
+        publish(execute=True)
+    receipt = root / '.homensai-control/user-systemd-publication.json'
+    assert json.loads(receipt.read_text())['status'] == 'pending'
+    assert list(directory.glob('*.pending'))
+    assert all('start' not in call and 'daemon-reload' not in call for call in calls)
+    before = {path.name: path.read_bytes() for path in directory.iterdir()}
+    with pytest.raises(PortableUnitError):
+        publish(execute=True)
+    assert {path.name: path.read_bytes() for path in directory.iterdir()} == before
+
+
+def test_api_publishes_pointer_units_only_with_verified_runtime(signed_pointer, tmp_path, monkeypatch):
+    import shared.systemd_pointer as pointer
+    from homensai_installer_client import contract_schema
+    from shared.api import handle
+    from shared.runtime_native import prepare_signed_linux_runtime
+    from test_systemd_portable import fake_manager
+    _, options, build = signed_pointer
+    package, envelope, root = build('api-publish')
+    directory = tmp_path / 'api-units'
+    directory.mkdir(mode=0o700)
+    runner, calls = fake_manager(directory)
+    monkeypatch.setattr(pointer, '_run', runner)
+    params = {'package_path': str(package), 'envelope': base64.b64encode(envelope).decode(),
+              'trusted_public_key': base64.b64encode(options['trusted_public_key']).decode(),
+              'expected_product_id': options['expected_product_id'], 'expected_version': '1',
+              'install_root': str(root), 'modes': ['autonomous'], 'unit_dir': str(directory),
+              'runtime_key': 'a' * 32, 'idempotency_key': 'b' * 32, 'reserve_bytes': 0}
+    request = {'api_major': 1, 'request_id': 'pointer-publish',
+               'operation': 'publish-pointer-systemd-user-units', 'params': params}
+    jsonschema = pytest.importorskip('jsonschema')
+    assert jsonschema.Draft202012Validator(contract_schema('request')).is_valid(request)
+    caps = handle({'api_major': 1, 'request_id': 'caps', 'operation': 'capabilities', 'params': {}})['result']
+    assert caps['api_minor'] >= 54 and request['operation'] in caps['mutating_operations']
+    assert handle(request)['error']['code'] == 'systemd_publish_failed'
+    assert not calls and not list(directory.iterdir())
+    prepare_signed_linux_runtime(package, envelope, str(root), **options,
+                                 reserve_bytes=0, operation_id='a' * 32, execute=True)
+    response = handle(request)
+    assert response['ok'] and response['result']['prepared_runtime_verified']
+    assert response['result']['services_started'] is False and response['result']['installation_complete'] is False
+    assert handle(request) == response
+    params['runtime_key'] = params['idempotency_key']
+    assert handle(request)['error']['code'] == 'invalid_request'
+
+
+@pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
+                    reason='Нужен одноразовый контейнер с user-systemd')
+def test_pointer_publication_with_real_isolated_systemd(signed_pointer, tmp_path):
+    import pwd
+    import subprocess
+    from shared.runtime_native import prepare_signed_linux_runtime
+    from shared.systemd_pointer import publish_pointer_signed_user_units
+    user = pwd.getpwuid(os.getuid())
+    if (os.getuid() == 0 or user.pw_name != 'homenstest' or user.pw_dir != '/home/homenstest'
+            or not Path('/run/.containerenv').is_file() or not tmp_path.is_relative_to(Path(user.pw_dir))):
+        pytest.skip('Защитные условия изолированного теста не выполнены')
+    _, options, build = signed_pointer
+    package, envelope, root = build('real-publish')
+    prepare_signed_linux_runtime(package, envelope, str(root), **options,
+                                 reserve_bytes=0, operation_id='a' * 32, execute=True)
+    directory = Path(user.pw_dir) / '.config/systemd/user'
+    directory.mkdir(parents=True, exist_ok=True)
+    planned = plan_pointer_signed_user_units(package, envelope, str(root), **options, modes=('autonomous',))
+    files = [directory / unit['name'] for unit in planned['units']]
+    assert all(not path.exists() for path in files)
+    try:
+        result = publish_pointer_signed_user_units(package, envelope, str(root), **options,
+            modes=('autonomous',), unit_dir=str(directory), runtime_operation_id='a' * 32,
+            operation_id='b' * 32, reserve_bytes=0, execute=True)
+        assert result['state'] == 'published' and result['prepared_runtime_verified']
+        assert not result['services_started'] and all(path.is_file() for path in files)
+        assert publish_pointer_signed_user_units(package, envelope, str(root), **options,
+            modes=('autonomous',), unit_dir=str(directory), runtime_operation_id='a' * 32,
+            operation_id='b' * 32, reserve_bytes=0, execute=True) == result
+    finally:
+        for path in files:
+            path.unlink(missing_ok=True)
+        subprocess.run(['/usr/bin/systemctl', '--user', 'daemon-reload'],
+                       check=False, capture_output=True, timeout=30)

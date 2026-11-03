@@ -253,7 +253,8 @@ def test_portable_loading_requires_bound_publication(portable_release, portable_
 
 
 @pytest.mark.parametrize('lost_response', [False, True])
-def test_portable_loading_never_replays_reload(portable_release, portable_directory, lost_response):
+def test_portable_loading_reloads_again_only_for_same_pending_key(portable_release, portable_directory,
+                                                                  lost_response):
     publisher, _ = fake_manager(portable_directory)
     portable_publish(portable_release, portable_directory, execute=True, operation_id='a' * 32, runner=publisher)
     manager = FakeReloadManager(portable_directory, lose_response=lost_response)
@@ -263,13 +264,19 @@ def test_portable_loading_never_replays_reload(portable_release, portable_direct
             portable_load(portable_release, portable_directory, **args)
         receipt = portable_release[3][0] / '.homensai-control/user-systemd-reload.json'
         before = receipt.read_bytes()
+        # Повтор того же ключа перепроверяет всё и снова отправляет reload.
         with pytest.raises(UnitLoadError):
             portable_load(portable_release, portable_directory, **args)
+        assert manager.calls.count(['daemon-reload']) == 2
         package, envelope, options, roots = portable_release
         observed = inspect_pending_portable_user_units(package, envelope, str(roots[0]), **options,
                        modes=('autonomous',), unit_dir=str(portable_directory), operation_id='b' * 32, runner=manager)
         assert observed['state'] == 'pending_observed' and observed['reload_completion_verified'] is False
         assert receipt.read_bytes() == before
+        manager.lose_response = False
+        loaded = portable_load(portable_release, portable_directory, **args)
+        assert loaded['state'] == 'loaded' and json.loads(receipt.read_text())['status'] == 'done'
+        assert portable_load(portable_release, portable_directory, **args) == loaded
     else:
         loaded = portable_load(portable_release, portable_directory, **args)
         assert loaded['state'] == 'loaded' and loaded['services_started'] is False
@@ -278,10 +285,11 @@ def test_portable_loading_never_replays_reload(portable_release, portable_direct
         group = portable_signed_user_group(package, envelope, str(roots[0]), **options,
                     modes=('autonomous',), unit_dir=str(portable_directory), operation_id='b' * 32, runner=manager)
         assert tuple(group.order) == ('web', 'bot', 'scheduler')
-    assert manager.calls.count(['daemon-reload']) == 1
+    reloads = 3 if lost_response else 1
+    assert manager.calls.count(['daemon-reload']) == reloads
     with pytest.raises(UnitLoadError):
         portable_load(portable_release, portable_directory, execute=True, operation_id='c' * 32, runner=manager)
-    assert manager.calls.count(['daemon-reload']) == 1
+    assert manager.calls.count(['daemon-reload']) == reloads
 
 
 def test_portable_publication_repeats_without_rewrite_and_rejects_conflict(portable_release, portable_directory):
@@ -304,7 +312,7 @@ def test_portable_publication_repeats_without_rewrite_and_rejects_conflict(porta
     assert json.loads(receipt.read_text())['status'] == 'done'
 
 
-def test_portable_publication_interruption_preserves_pending(portable_release, portable_directory, monkeypatch):
+def test_portable_publication_interruption_resumes_with_same_key(portable_release, portable_directory, monkeypatch):
     manager, _ = fake_manager(portable_directory)
     original = pub._write_exclusive
     writes = []
@@ -320,9 +328,14 @@ def test_portable_publication_interruption_preserves_pending(portable_release, p
     before = receipt.read_bytes()
     assert json.loads(before)['status'] == 'pending'
     monkeypatch.setattr(pub, '_write_exclusive', original)
+    # Другой ключ не продолжает чужой pending.
     with pytest.raises(PortableUnitError):
-        portable_publish(portable_release, portable_directory, execute=True, operation_id='a' * 32, runner=manager)
+        portable_publish(portable_release, portable_directory, execute=True, operation_id='c' * 32, runner=manager)
     assert receipt.read_bytes() == before
+    result = portable_publish(portable_release, portable_directory, execute=True, operation_id='a' * 32,
+                              runner=manager)
+    assert result['state'] == 'published' and json.loads(receipt.read_text())['status'] == 'done'
+    assert not list(portable_directory.glob('.*.pending'))
 
 
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',

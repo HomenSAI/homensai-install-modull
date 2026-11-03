@@ -162,7 +162,7 @@ def stop_portable_fresh(package_path, envelope, install_root, *, trusted_public_
 def _start_portable_fresh(package_path, envelope, install_root, *, trusted_public_key,
                          expected_product_id, expected_version, modes, unit_dir,
                          load_key, runtime_key, reserve_bytes, operation_id, runner=None, reconcile=False, pointer=False):
-    """Однократно отправить start; pending никогда автоматически не повторяется."""
+    """Отправить start с отметкой; повтор после pending — только для устойчивой группы."""
     if (any(type(key) is not str or re.fullmatch(r'[a-f0-9]{32}', key) is None
             for key in (load_key, runtime_key, operation_id))
             or len({load_key, runtime_key, operation_id}) != 3
@@ -189,12 +189,16 @@ def _start_portable_fresh(package_path, envelope, install_root, *, trusted_publi
         done = {**pending, 'status': 'done'}
         receipt = checked_path(control / 'user-systemd-start.json')
         old = _publication_receipt(receipt)
+        # Обычный повтор того же ключа и привязки после pending продолжает запуск:
+        # группа должна быть устойчивой (active или inactive/dead), start
+        # отправляется только неактивным units; failed/activating — отказ.
+        resume = not reconcile and old == pending
         if ((reconcile and old not in (pending, done)) or
-                (not reconcile and old is not None and old != done)):
+                (not reconcile and not resume and old is not None and old != done)):
             raise FreshStartError('Предыдущий запуск требует проверки')
         options = dict(trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
                        expected_version=expected_version)
-        if old is None and not reconcile:
+        if (old is None or resume) and not reconcile:
             audit_signed_wheels(package_path, envelope, **options)
         verify_signed_linux_runtime(package_path, envelope, str(root), **options,
                                     operation_id=runtime_key, reserve_bytes=reserve_bytes)
@@ -214,15 +218,20 @@ def _start_portable_fresh(package_path, envelope, install_root, *, trusted_publi
                     directory=directory, load_key=load_key, runtime_key=runtime_key,
                     reserve_bytes=reserve_bytes, runner=runner, pointer=pointer, require_active=True)
         else:
+            stable = {'_require_stable': True} if resume else {}
             if pointer:
                 group = pointer_signed_runtime_user_group(package_path, envelope, str(root), **options,
                     modes=modes, unit_dir=str(directory), operation_id=load_key,
-                    runtime_operation_id=runtime_key, reserve_bytes=reserve_bytes, runner=runner)
+                    runtime_operation_id=runtime_key, reserve_bytes=reserve_bytes, runner=runner, **stable)
             else:
                 group = portable_signed_runtime_user_group(package_path, envelope, str(root), **options,
                     modes=modes, unit_dir=str(directory), operation_id=load_key,
-                    runtime_operation_id=runtime_key, runtime_reserve_bytes=reserve_bytes, runner=runner)
-            _new_publication_receipt(receipt, pending)
+                    runtime_operation_id=runtime_key, runtime_reserve_bytes=reserve_bytes, runner=runner,
+                    **stable)
+            if old is None:
+                _new_publication_receipt(receipt, pending)
+            elif _publication_receipt(receipt) != pending:
+                raise FreshStartError('Отметка запуска изменилась')
             group.command('start', execute=True)
             if _publication_receipt(receipt) != pending:
                 raise FreshStartError('Отметка запуска изменилась')

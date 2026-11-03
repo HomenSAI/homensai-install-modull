@@ -109,7 +109,7 @@ def test_runtime_repeat_refuses_modified_tree(runtime_release, change):
     assert json.loads((root / '.homensai-control/linux-runtime.json').read_text())['status'] == 'done'
 
 
-def test_runtime_preserves_pending_after_interruption(runtime_release, monkeypatch):
+def test_runtime_pending_after_interruption_resumes_only_with_same_key(runtime_release, monkeypatch):
     import shared.runtime_native as runtime
     original = runtime._inspect_runtime
     def interrupted(*args, **kwargs):
@@ -123,8 +123,10 @@ def test_runtime_preserves_pending_after_interruption(runtime_release, monkeypat
     assert json.loads(before)['status'] == 'pending'
     monkeypatch.setattr(runtime, '_inspect_runtime', original)
     with pytest.raises(NativeRuntimeError):
-        call(runtime_release, execute=True, operation_id='a' * 32)
+        call(runtime_release, execute=True, operation_id='b' * 32)
     assert receipt.read_bytes() == before
+    assert call(runtime_release, execute=True, operation_id='a' * 32)['state'] == 'prepared'
+    assert json.loads(receipt.read_text())['status'] == 'done'
 
 
 def test_runtime_refuses_existing_foreign_files_without_writing(runtime_release):

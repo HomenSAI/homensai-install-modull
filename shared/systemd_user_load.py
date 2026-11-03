@@ -2,7 +2,9 @@
 """Ограниченная загрузка подписанных user-units без enable/start.
 
 Это глобальный daemon-reload пользовательского менеджера, не полный установщик.
-При неизвестном результате журнал pending запрещает автоматический повтор.
+При неизвестном результате остаётся pending. Повтор переносимой или pointer-
+загрузки с тем же ключом заново проверяет файлы и состояние служб и повторяет
+daemon-reload; для прежнего варианта без ключа повтор запрещён.
 """
 from __future__ import annotations
 
@@ -229,7 +231,12 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
                 old = _read_receipt(receipt)
                 if require_done and old != done:
                     raise UnitLoadError('Загрузка служб не подтверждена')
-                if (inspect_pending and old != pending) or (not inspect_pending and old not in (None, done)):
+                # Pending той же переносимой/pointer-операции (привязка включает ключ)
+                # продолжается: проверки повторяются, затем повторный daemon-reload
+                # лишь перечитывает те же проверенные файлы.
+                resume = (portable or pointer) and not inspect_pending and not require_done and old == pending
+                if (inspect_pending and old != pending) or (not inspect_pending and not resume
+                                                            and old not in (None, done)):
                     raise UnitLoadError('Результат предыдущей загрузки требует проверки')
                 paths = _manager_call(runner, ['show', '--property=UnitPath', '--value'], timeout)
                 if str(directory) not in paths.split():
@@ -242,10 +249,11 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
                     if not _absent(directory / (name + '.d')):
                         raise UnitLoadError('Обнаружен drop-in службы')
                     _trusted_file(directory / name, digest)
-                    if old is None:
+                    if old is None or resume:
                         _before_reload(runner, directory, name, timeout)
                 if old is None:
                     _new_receipt(receipt, pending)
+                if old is None or resume:
                     _manager_call(runner, ['daemon-reload'], timeout)
                 for item in plan['units']:
                     component = item['name'][len(expected_product_id) + 1:-len('.service')]
@@ -270,7 +278,7 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
                         raise UnitLoadError('Runtime изменился')
                     _inspect_runtime(checked_path(home.roots['runtime']), runtime_definition[6],
                                      set(runtime_definition[5]['executables']))
-                if old is None:
+                if old is None or resume:
                     if _read_receipt(receipt) != pending:
                         raise UnitLoadError('Отметка изменилась')
                     _atomic_write(receipt, done)
@@ -396,13 +404,15 @@ def _pointer_signed_user_group(package_path, envelope, install_root, *, trusted_
 
 def pointer_signed_runtime_user_group(package_path, envelope, install_root, *, trusted_public_key,
                                       expected_product_id, expected_version, modes, unit_dir,
-                                      operation_id, runtime_operation_id, reserve_bytes, runner=None, timeout=30):
+                                      operation_id, runtime_operation_id, reserve_bytes, runner=None, timeout=30,
+                                      _require_stable=False):
     """Return a verified fresh group with runtime and wheel checks before start."""
     from shared.systemd_runtime_group import RuntimeCheckedUserGroup
     group = _pointer_signed_user_group(package_path, envelope, install_root,
         trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
         expected_version=expected_version, modes=modes, unit_dir=unit_dir, operation_id=operation_id,
-        runtime_operation_id=runtime_operation_id, reserve_bytes=reserve_bytes, runner=runner, timeout=timeout)
+        runtime_operation_id=runtime_operation_id, reserve_bytes=reserve_bytes, runner=runner, timeout=timeout,
+        _require_stable=_require_stable)
     return RuntimeCheckedUserGroup(group, package_path, envelope, install_root,
         trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
         expected_version=expected_version, runtime_operation_id=runtime_operation_id, reserve_bytes=reserve_bytes)
@@ -466,25 +476,26 @@ def signed_user_group(package_path, envelope, install_root, *, trusted_public_ke
 
 def portable_signed_user_group(package_path, envelope, install_root, *, trusted_public_key,
                                expected_product_id, expected_version, modes, unit_dir,
-                               operation_id, runner=None, timeout=30):
+                               operation_id, runner=None, timeout=30, _require_stable=False):
     """Построить группу из подтверждённого переносимого рецепта без запуска."""
     return signed_user_group(package_path, envelope, install_root,
         trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
         expected_version=expected_version, modes=modes, unit_dir=unit_dir,
-        operation_id=operation_id, portable=True, runner=runner, timeout=timeout)
+        operation_id=operation_id, portable=True, runner=runner, timeout=timeout,
+        _require_stable=_require_stable)
 
 
 def portable_signed_runtime_user_group(package_path, envelope, install_root, *, trusted_public_key,
                                        expected_product_id, expected_version, modes, unit_dir,
                                        operation_id, runtime_operation_id, runtime_reserve_bytes,
-                                       runner=None, timeout=30):
+                                       runner=None, timeout=30, _require_stable=False):
     """Свежая группа: проверять runtime перед каждым явным start, но не stop."""
     from shared.systemd_runtime_group import RuntimeCheckedUserGroup
 
     group = portable_signed_user_group(package_path, envelope, install_root,
         trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
         expected_version=expected_version, modes=modes, unit_dir=unit_dir,
-        operation_id=operation_id, runner=runner, timeout=timeout)
+        operation_id=operation_id, runner=runner, timeout=timeout, _require_stable=_require_stable)
     return RuntimeCheckedUserGroup(group, package_path, envelope, install_root,
         trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
         expected_version=expected_version, runtime_operation_id=runtime_operation_id,

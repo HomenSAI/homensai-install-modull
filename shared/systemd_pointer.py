@@ -14,7 +14,8 @@ from shared.services import render_pointer_user_services_v2
 from shared.systemd_portable import MAX_UNIT_BYTES, PortableUnitError, _publication_binding
 from shared.systemd_user import _run
 from shared.systemd_user_publish import (_confirm_manager, _confirm_published, _existing_lock,
-    _new_publication_receipt, _publication_receipt, _publish_files, _read_unit, _require_absent, _unit_directory)
+    _new_publication_receipt, _publication_receipt, _publish_files, _read_unit, _require_absent,
+    _resume_publish_files, _unit_directory)
 from shared.update_plan import _atomic_write
 
 RECIPE_PATH = 'systemd-user/pointer-v2.json'
@@ -73,7 +74,11 @@ def publish_pointer_signed_user_units(package_path, envelope, install_root, *, t
                                      expected_product_id, expected_version, modes, unit_dir,
                                      runtime_operation_id, reserve_bytes, operation_id,
                                      execute=False, runner=None, timeout=30):
-    """Publish only after verifying the exact prepared runtime; never reload or start."""
+    """Publish only after verifying the exact prepared runtime; never reload or start.
+
+    A pending receipt of the same operation and binding is resumed only for
+    verifiably own files (see _resume_publish_files); anything else refuses.
+    """
     if (type(execute) is not bool or type(timeout) not in (int, float) or not math.isfinite(timeout)
             or not 0 < timeout <= 120 or (runner is not None and not callable(runner))
             or any(type(key) is not str or re.fullmatch(r'[a-f0-9]{32}', key) is None
@@ -139,11 +144,17 @@ def publish_pointer_signed_user_units(package_path, envelope, install_root, *, t
                     if _publication_receipt(receipt) != done:
                         raise PortableUnitError('Отметка публикации изменилась')
                     return public
-                if old is not None:
+                if old is not None and old != pending:
                     raise PortableUnitError('Публикация требует восстановления')
-                _confirm_manager(runner, directory, names, timeout)
-                _new_publication_receipt(receipt, pending)
-                _publish_files(directory, names, units, public, expected_product_id, expected_version, verify_again)
+                if old is None:
+                    _confirm_manager(runner, directory, names, timeout)
+                    _new_publication_receipt(receipt, pending)
+                    _publish_files(directory, names, units, public, expected_product_id, expected_version, verify_again)
+                else:
+                    # Та же операция и привязка: продолжить только проверяемо свою запись.
+                    _confirm_manager(runner, directory, names, timeout, own_fragments=True)
+                    _resume_publish_files(directory, names, units, public, expected_product_id,
+                                          expected_version, verify_again)
                 if _publication_receipt(receipt) != pending:
                     raise PortableUnitError('Отметка публикации изменилась')
                 _atomic_write(receipt, done)

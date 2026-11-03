@@ -82,7 +82,7 @@ def test_repeat_confirmed_start_does_not_send_command(scenario):
     assert calls == [('start', True)]
 
 
-def test_failed_start_leaves_pending_and_refuses_retry(scenario, monkeypatch):
+def test_failed_start_leaves_pending_and_same_key_retry_resumes(scenario, monkeypatch):
     root, args, calls, group = scenario
     def fail(action, *, execute=False):
         calls.append((action, execute))
@@ -94,9 +94,29 @@ def test_failed_start_leaves_pending_and_refuses_retry(scenario, monkeypatch):
     receipt = root / '.homensai-control/user-systemd-start.json'
     before = receipt.read_bytes()
     assert json.loads(before)['status'] == 'pending'
+    # Другая привязка не продолжает чужой pending.
+    with pytest.raises(start.FreshStartError):
+        start.start_portable_fresh('package', b'envelope', str(root), **{**args, 'reserve_bytes': 1})
+    assert calls == [('start', True)] and receipt.read_bytes() == before
+    # Неустойчивая группа (failed/activating) — отказ без команды.
+    def unstable(*a, **kw):
+        raise RuntimeError('failed unit')
+    monkeypatch.setattr(start, 'portable_signed_runtime_user_group', unstable)
     with pytest.raises(start.FreshStartError):
         start.start_portable_fresh('package', b'envelope', str(root), **args)
     assert calls == [('start', True)] and receipt.read_bytes() == before
+    requested = []
+    def stable(*a, **kw):
+        requested.append(kw.get('_require_stable'))
+        return group
+    monkeypatch.setattr(start, 'portable_signed_runtime_user_group', stable)
+    monkeypatch.setattr(group, 'command', lambda action, execute=False: calls.append((action, execute)))
+    result = start.start_portable_fresh('package', b'envelope', str(root), **args)
+    assert result['state'] == 'started' and requested == [True]
+    assert calls == [('start', True), ('start', True)]
+    assert json.loads(receipt.read_text())['status'] == 'done'
+    assert start.start_portable_fresh('package', b'envelope', str(root), **args) == result
+    assert calls == [('start', True), ('start', True)]
 
 
 def test_parallel_requests_issue_at_most_one_start(scenario, monkeypatch):

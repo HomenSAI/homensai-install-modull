@@ -17,7 +17,7 @@ from shared.services import render_portable_user_services_v1
 from shared.systemd_user import SystemdUserError, _run
 from shared.systemd_user_publish import (UnitPublicationError, _confirm_manager, _confirm_published,
     _existing_lock, _new_publication_receipt, _publication_receipt, _publish_files, _read_unit,
-    _require_absent, _unit_directory)
+    _require_absent, _resume_publish_files, _unit_directory)
 from shared.update_plan import UpdateError, _atomic_write
 
 RECIPE_PATH = 'systemd-user/portable-v1.json'
@@ -83,8 +83,9 @@ def publish_portable_signed_user_units(package_path, envelope, install_root, *, 
                                        execute=False, operation_id=None, runner=None, timeout=30):
     """Опубликовать units из подписанного рецепта без reload, enable или start.
 
-    Запись доступна только с ключом операции. При pending автоматический повтор
-    запрещён; done проверяет опубликованные файлы без повторной записи.
+    Запись доступна только с ключом операции. Pending той же операции и
+    привязки продолжается только для проверяемо своих файлов; иначе отказ.
+    done проверяет опубликованные файлы без повторной записи.
     """
     if (type(execute) is not bool or type(timeout) not in (int, float) or not 0 < timeout <= 120
             or (runner is not None and not callable(runner))
@@ -144,14 +145,19 @@ def publish_portable_signed_user_units(package_path, envelope, install_root, *, 
                     if _publication_receipt(receipt) != done:
                         raise PortableUnitError('Отметка публикации изменилась')
                     return public
-                if old is not None:
+                if old is not None and old != pending:
                     raise PortableUnitError('Публикация требует восстановления')
                 try:
-                    _confirm_manager(runner, directory, names, timeout)
+                    _confirm_manager(runner, directory, names, timeout, own_fragments=old is not None)
                 except Exception:
                     raise PortableUnitError('Менеджер служб не подтвердил публикацию') from None
-                _new_publication_receipt(receipt, pending)
-                _publish_files(directory, names, units, public, expected_product_id, expected_version, verify_again)
+                if old is None:
+                    _new_publication_receipt(receipt, pending)
+                    _publish_files(directory, names, units, public, expected_product_id, expected_version, verify_again)
+                else:
+                    # Та же операция и привязка: продолжить только проверяемо свою запись.
+                    _resume_publish_files(directory, names, units, public, expected_product_id,
+                                          expected_version, verify_again)
                 if _publication_receipt(receipt) != pending:
                     raise PortableUnitError('Отметка публикации изменилась')
                 _atomic_write(receipt, done)

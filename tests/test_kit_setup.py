@@ -3,6 +3,7 @@ import base64
 import hashlib
 import json
 from pathlib import Path
+import stat
 
 import pytest
 
@@ -355,3 +356,85 @@ def test_interrupted_installer_swap_is_restored(env):
     with setup(kit).locked():
         pass
     assert (state_dir / 'installer/setup.sh').is_file() and not (state_dir / '.installer.old').exists()
+
+
+class ParentCheckingClient(FakeClient):
+    """Фиксирует, существовал ли родитель корня в момент вызова установки."""
+
+    def __init__(self):
+        super().__init__()
+        self.parents = []
+
+    def call(self, operation, params, **kwargs):
+        if operation == 'install-portable-linux':
+            parent = Path(params['install_root']).parent
+            self.parents.append((parent, parent.is_dir() and not parent.is_symlink()))
+        return super().call(operation, params, **kwargs)
+
+
+def test_default_root_parents_are_created_before_api_call(env):
+    base, _, setup = env
+    kit = make_kit(base)
+    client = ParentCheckingClient()
+    instance = setup(kit)
+    instance._client = client
+    assert not (base / 'home/.local/share').exists()
+    assert instance.install() == 0
+    parent = install_root(base).parent
+    assert client.parents == [(parent, True)]
+    for path in (base / 'home/.local/share', parent):
+        info = path.lstat()
+        assert stat.S_ISDIR(info.st_mode) and stat.S_IMODE(info.st_mode) == 0o700
+    assert not install_root(base).exists()  # корень создаёт подготовка выпуска, а не установщик
+
+
+def test_explicit_root_parents_are_created_and_existing_kept(env):
+    base, _, setup = env
+    kit = make_kit(base)
+    existing = base / 'home/apps'
+    existing.mkdir(mode=0o750)
+    client = ParentCheckingClient()
+    instance = setup(kit)
+    instance._client = client
+    root = existing / 'nested/deeper/demo'
+    assert instance.install(root=str(root)) == 0
+    assert client.parents == [(root.parent, True)]
+    assert stat.S_IMODE(existing.stat().st_mode) == 0o750
+    assert stat.S_IMODE((existing / 'nested').stat().st_mode) == 0o700
+    assert stat.S_IMODE(root.parent.stat().st_mode) == 0o700
+
+
+@pytest.mark.parametrize('problem', ['symlink', 'group-writable', 'file'])
+def test_unsafe_root_ancestor_is_refused_before_api_call(env, problem):
+    base, client, setup = env
+    kit = make_kit(base)
+    share = base / 'home/.local/share'
+    share.parent.mkdir(parents=True, exist_ok=True)
+    if problem == 'symlink':
+        target = base / 'elsewhere'
+        target.mkdir(mode=0o700)
+        share.symlink_to(target)
+    elif problem == 'group-writable':
+        share.mkdir(mode=0o700)
+        share.chmod(0o770)
+    else:
+        share.write_text('not a directory')
+    with pytest.raises(SetupError) as refused:
+        setup(kit).install()
+    assert refused.value.key == 'kit.unsafe_root_parent'
+    assert not [call for call in client.calls if call[0] == 'install-portable-linux']
+    if problem == 'symlink':
+        assert not list((base / 'elsewhere').iterdir())
+
+
+def test_resume_of_saved_install_creates_missing_parent(env):
+    """Состояние, сохранённое прежней версией до создания родителя, продолжается."""
+    base, client, setup = env
+    kit = make_kit(base)
+    client.fail.add('install-portable-linux')
+    with pytest.raises(SetupError):
+        setup(kit).install()
+    parent = install_root(base).parent
+    parent.rmdir()
+    assert setup(kit).install() == 0
+    assert parent.is_dir()

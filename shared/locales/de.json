@@ -158,6 +158,7 @@
   "kit.unknown_mode": "Unbekannter Modus; verwenden Sie die in kit.json aufgeführten Modi.",
   "kit.reinstall_version": "Die erhaltenen Daten gehören zu Version {version}; installieren Sie zuerst diese Version neu und aktualisieren Sie dann.",
   "kit.root_exists": "Das Installationsverzeichnis existiert bereits: {path}. Wählen Sie mit --root ein anderes.",
+  "kit.unsafe_root_parent": "Das übergeordnete Verzeichnis des Installationsverzeichnisses ist unsicher oder kann nicht erstellt werden: {path}. Es muss ein Verzeichnis ohne Verknüpfungen sein, das Ihnen oder root gehört und für Gruppe und andere nicht beschreibbar ist.",
   "kit.summary_root": "Installationsverzeichnis: {path}",
   "kit.summary_units": "Verzeichnis der Benutzerdienste: {path}",
   "kit.summary_modes": "Modi: {modes}",

@@ -138,12 +138,121 @@ def _inspect_runtime(directory, files, executables):
         raise NativeRuntimeError('Состав runtime не совпадает')
 
 
+def _copy_runtime_file(source, destination, item, executable):
+    """Скопировать один подписанный файл в новый файл с проверкой байтов."""
+    incoming_fd = os.open(source, os.O_RDONLY | os.O_NOFOLLOW | getattr(os, 'O_NONBLOCK', 0))
+    with os.fdopen(incoming_fd, 'rb') as incoming:
+        before = os.fstat(incoming.fileno())
+        if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.getuid()
+                or before.st_mode & 0o022 or before.st_nlink != 1 or before.st_size != item['size']):
+            raise NativeRuntimeError('Исходный файл runtime недоступен')
+        outgoing_fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(outgoing_fd, 'wb') as outgoing:
+            digest, size = hashlib.sha256(), 0
+            while block := incoming.read(1024 * 1024):
+                size += len(block)
+                if size > item['size']:
+                    raise NativeRuntimeError('Исходный файл runtime изменился')
+                digest.update(block)
+                outgoing.write(block)
+            after = os.fstat(incoming.fileno())
+            current = source.lstat()
+            if (size != item['size'] or digest.hexdigest() != item['sha256']
+                    or (current.st_dev, current.st_ino) != (before.st_dev, before.st_ino)
+                    or (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns)
+                    != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns)):
+                raise NativeRuntimeError('Исходный файл runtime изменился')
+            os.fchmod(outgoing.fileno(), 0o700 if executable else 0o600)
+            outgoing.flush()
+            os.fsync(outgoing.fileno())
+
+
+def _own_runtime_copy(path, source, item, executable):
+    """True — готовая копия, False — своя прерванная копия; иначе отказ.
+
+    Своей считается только единственная ссылка текущего пользователя с правами
+    0600 (до fchmod) или итоговыми, байты которой совпадают с началом
+    подписанного исходника. Содержимое после потери питания (нули, мусор) не
+    принимается.
+    """
+    final = 0o700 if executable else 0o600
+    flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, 'O_NONBLOCK', 0)
+    with os.fdopen(os.open(path, flags), 'rb') as stream:
+        before = os.fstat(stream.fileno())
+        if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.getuid() or before.st_nlink != 1
+                or stat.S_IMODE(before.st_mode) not in (0o600, final) or before.st_size > item['size']):
+            raise NativeRuntimeError('Посторонний файл в runtime')
+        with os.fdopen(os.open(source, flags), 'rb') as incoming:
+            origin = os.fstat(incoming.fileno())
+            if (not stat.S_ISREG(origin.st_mode) or origin.st_uid != os.getuid() or origin.st_mode & 0o022
+                    or origin.st_nlink != 1 or origin.st_size != item['size']):
+                raise NativeRuntimeError('Исходный файл runtime недоступен')
+            digest, remaining = hashlib.sha256(), before.st_size
+            while remaining:
+                block = stream.read(min(1024 * 1024, remaining))
+                if not block or incoming.read(len(block)) != block:
+                    raise NativeRuntimeError('Файл runtime не является копией выпуска')
+                digest.update(block)
+                remaining -= len(block)
+            if stream.read(1):
+                raise NativeRuntimeError('Файл runtime изменился')
+        after = os.fstat(stream.fileno())
+    current = path.lstat()
+    if ((before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns)
+            != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns)
+            or (current.st_dev, current.st_ino) != (before.st_dev, before.st_ino)):
+        raise NativeRuntimeError('Файл runtime изменился')
+    return (before.st_size == item['size'] and digest.hexdigest() == item['sha256']
+            and stat.S_IMODE(before.st_mode) == final)
+
+
+def _resume_runtime(directory, release, files, executables):
+    """Разобрать runtime после pending той же операции; вернуть готовые файлы.
+
+    Сначала проверяется всё дерево: только ожидаемые каталоги без доступа
+    группе/остальным и ожидаемые файлы текущего пользователя без ссылок.
+    Затем удаляются лишь свои прерванные копии (см. _own_runtime_copy) для
+    повторного копирования. Посторонний объект — отказ без изменений.
+    """
+    expected_dirs = _directories(files)
+    complete, partial = set(), []
+    pending = [directory]
+    while pending:
+        path = pending.pop()
+        relative = path.relative_to(directory).as_posix()
+        relative = '' if relative == '.' else relative
+        info = path.lstat()
+        if info.st_uid != os.getuid() or stat.S_ISLNK(info.st_mode):
+            raise NativeRuntimeError('Недопустимый владелец или ссылка runtime')
+        if stat.S_ISDIR(info.st_mode):
+            if relative not in expected_dirs or info.st_mode & 0o077:
+                raise NativeRuntimeError('Недопустимый каталог runtime')
+            with os.scandir(path) as children:
+                pending.extend(Path(child.path) for child in children)
+        elif stat.S_ISREG(info.st_mode) and relative in files:
+            item = files[relative]
+            if _own_runtime_copy(path, checked_path(release / item['path']), item, relative in executables):
+                complete.add(relative)
+            else:
+                partial.append((path, info.st_dev, info.st_ino))
+        else:
+            raise NativeRuntimeError('Посторонний объект в runtime')
+    for path, device, inode in partial:
+        current = path.lstat()
+        if (current.st_dev, current.st_ino) != (device, inode):
+            raise NativeRuntimeError('Файл runtime изменился')
+        path.unlink()
+    return complete
+
+
 def _prepare_signed_linux_runtime(package_path, envelope, install_root, *, trusted_public_key,
                                   expected_product_id, expected_version, execute=False,
                                   operation_id=None, reserve_bytes=64 * 1024 * 1024, verify_only=False):
     """Проверить или скопировать runtime в пустой каталог без запуска кода.
 
-    При прерывании pending остаётся и повтор запрещён; done проверяет дерево.
+    При прерывании остаётся pending. Повтор с тем же ключом и привязкой
+    продолжает только проверяемо свою копию (_resume_runtime); иной ключ,
+    привязка или посторонние файлы — отказ. done проверяет дерево.
     Подпись не гарантирует, что runtime является Python или безопасен.
     """
     if (type(execute) is not bool or type(verify_only) is not bool or (verify_only and not execute)
@@ -193,45 +302,35 @@ def _prepare_signed_linux_runtime(package_path, envelope, install_root, *, trust
                             or _publication_receipt(receipt) != done):
                         raise NativeRuntimeError('Данные изменились при проверке')
                     return public
-                if old is not None:
+                if old is not None and old != pending:
                     raise NativeRuntimeError('Результат подготовки требует восстановления')
-                with os.scandir(runtime) as children:
-                    if next(children, None) is not None:
-                        raise NativeRuntimeError('Каталог runtime не пуст')
-                _space(runtime, total + reserve_bytes)
-                _new_publication_receipt(receipt, pending)
+                if old is None:
+                    with os.scandir(runtime) as children:
+                        if next(children, None) is not None:
+                            raise NativeRuntimeError('Каталог runtime не пуст')
+                    _space(runtime, total + reserve_bytes)
+                    _new_publication_receipt(receipt, pending)
+                    complete = set()
+                else:
+                    # Та же операция и привязка: продолжить только проверяемо свою копию.
+                    complete = _resume_runtime(runtime, release, files, set(recipe['executables']))
+                    _space(runtime, sum(item['size'] for name, item in files.items() if name not in complete)
+                           + reserve_bytes)
                 for name in sorted(_directories(files) - {''}, key=lambda item: (item.count('/'), item)):
                     path = checked_path(runtime / name)
-                    path.mkdir(mode=0o700)
+                    try:
+                        path.mkdir(mode=0o700)
+                    except FileExistsError:
+                        if old is None:
+                            raise
+                        info = path.lstat()
+                        if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+                            raise NativeRuntimeError('Недопустимый каталог runtime') from None
                     os.chmod(path, 0o700, follow_symlinks=False)
                 for name, item in sorted(files.items()):
-                    source = checked_path(release / item['path'])
-                    destination = checked_path(runtime / name)
-                    incoming_fd = os.open(source, os.O_RDONLY | os.O_NOFOLLOW | getattr(os, 'O_NONBLOCK', 0))
-                    with os.fdopen(incoming_fd, 'rb') as incoming:
-                        before = os.fstat(incoming.fileno())
-                        if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.getuid()
-                                or before.st_mode & 0o022 or before.st_nlink != 1 or before.st_size != item['size']):
-                            raise NativeRuntimeError('Исходный файл runtime недоступен')
-                        outgoing_fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
-                        with os.fdopen(outgoing_fd, 'wb') as outgoing:
-                            digest, size = hashlib.sha256(), 0
-                            while block := incoming.read(1024 * 1024):
-                                size += len(block)
-                                if size > item['size']:
-                                    raise NativeRuntimeError('Исходный файл runtime изменился')
-                                digest.update(block)
-                                outgoing.write(block)
-                            after = os.fstat(incoming.fileno())
-                            current = source.lstat()
-                            if (size != item['size'] or digest.hexdigest() != item['sha256']
-                                    or (current.st_dev, current.st_ino) != (before.st_dev, before.st_ino)
-                                    or (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns)
-                                    != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns)):
-                                raise NativeRuntimeError('Исходный файл runtime изменился')
-                            os.fchmod(outgoing.fileno(), 0o700 if name in recipe['executables'] else 0o600)
-                            outgoing.flush()
-                            os.fsync(outgoing.fileno())
+                    if name not in complete:
+                        _copy_runtime_file(checked_path(release / item['path']), checked_path(runtime / name),
+                                           item, name in recipe['executables'])
                 for name in sorted(_directories(files), key=lambda item: (item.count('/'), len(item)), reverse=True):
                     fd = os.open(runtime / name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
                     try:

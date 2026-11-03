@@ -7,6 +7,7 @@ from pathlib import Path
 
 from shared.runtime_native import NativeRuntimeError, verify_signed_linux_runtime
 from shared.systemd_group import SystemdGroupError, SystemdUserGroup
+from shared.wheel_audit import WheelAuditError, audit_signed_wheels
 
 
 class RuntimeCheckedUserGroup:
@@ -30,7 +31,11 @@ class RuntimeCheckedUserGroup:
     def command(self, action, *, execute=False):
         if action == 'start' and execute is True:
             try:
+                audit_signed_wheels(self._package_path, self._envelope,
+                    trusted_public_key=self._options['trusted_public_key'],
+                    expected_product_id=self._options['expected_product_id'],
+                    expected_version=self._options['expected_version'])
                 verify_signed_linux_runtime(self._package_path, self._envelope, self._install_root, **self._options)
-            except NativeRuntimeError:
+            except (NativeRuntimeError, WheelAuditError):
                 raise SystemdGroupError('Не удалось подтвердить runtime перед запуском') from None
         return self._group.command(action, execute=execute)

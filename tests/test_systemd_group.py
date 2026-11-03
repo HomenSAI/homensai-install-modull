@@ -120,6 +120,7 @@ def test_runtime_checked_group_refuses_start_but_still_allows_stop(monkeypatch):
     def reject(*args, **kwargs):
         events.append(('verify', kwargs['operation_id']))
         raise NativeRuntimeError('SECRET-SENTINEL')
+    monkeypatch.setattr('shared.systemd_runtime_group.audit_signed_wheels', lambda *a, **kw: None)
     monkeypatch.setattr('shared.systemd_runtime_group.verify_signed_linux_runtime', reject)
     guarded = RuntimeCheckedUserGroup(subject, '/package', b'envelope', '/install',
         trusted_public_key=b'x' * 32, expected_product_id=MANIFEST['product_id'],
@@ -132,3 +133,22 @@ def test_runtime_checked_group_refuses_start_but_still_allows_stop(monkeypatch):
     guarded.command('stop', execute=True)
     assert ('stop', 'web') in events
     assert not any(action == 'start' for action, _ in events)
+
+
+def test_runtime_checked_group_rejects_wheel_before_start_but_allows_stop(monkeypatch):
+    from shared.systemd_runtime_group import RuntimeCheckedUserGroup
+    from shared.wheel_audit import WheelAuditError
+
+    events = []
+    subject, _ = group(events)
+    def reject(*args, **kwargs):
+        raise WheelAuditError('invalid wheel')
+    monkeypatch.setattr('shared.systemd_runtime_group.audit_signed_wheels', reject)
+    guarded = RuntimeCheckedUserGroup(subject, '/package', b'envelope', '/install',
+        trusted_public_key=b'x' * 32, expected_product_id=MANIFEST['product_id'],
+        expected_version='1', runtime_operation_id='a' * 32, reserve_bytes=0)
+    with pytest.raises(SystemdGroupError):
+        guarded.command('start', execute=True)
+    assert not events
+    guarded.command('stop', execute=True)
+    assert ('stop', 'web') in events

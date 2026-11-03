@@ -14,6 +14,7 @@ from shared.runtime_native import verify_signed_linux_runtime
 from shared.systemd_user_load import signed_user_group, portable_signed_runtime_user_group
 from shared.systemd_user_publish import _new_publication_receipt, _publication_receipt
 from shared.update_plan import _atomic_write
+from shared.wheel_audit import audit_signed_wheels
 
 
 class FreshStartError(RuntimeError):
@@ -175,6 +176,8 @@ def _start_portable_fresh(package_path, envelope, install_root, *, trusted_publi
             raise FreshStartError('Предыдущий запуск требует проверки')
         options = dict(trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
                        expected_version=expected_version)
+        if old is None and not reconcile:
+            audit_signed_wheels(package_path, envelope, **options)
         verify_signed_linux_runtime(package_path, envelope, str(root), **options,
                                     operation_id=runtime_key, reserve_bytes=reserve_bytes)
         if old == done or reconcile:

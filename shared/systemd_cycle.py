@@ -2,6 +2,8 @@
 """Повторяемый цикл пользовательских служб после первого подтверждённого stop."""
 from __future__ import annotations
 
+from shared.wheel_audit import audit_signed_wheels
+
 import json
 import os
 import re
@@ -137,6 +139,8 @@ def cycle_portable(package_path, envelope, install_root, *, trusted_public_key, 
             options = dict(trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
                            expected_version=expected_version)
             if action == 'start':
+                if not same and not reconcile:
+                    audit_signed_wheels(package_path, envelope, **options)
                 verify_signed_linux_runtime(package_path, envelope, str(root), **options,
                                             operation_id=runtime_key, reserve_bytes=reserve_bytes)
             if same or reconcile:

@@ -24,12 +24,25 @@ def scenario(tmp_path, monkeypatch):
             calls.append((action, execute))
     group = Group()
     monkeypatch.setattr(start, 'verify_signed_linux_runtime', lambda *a, **kw: None)
+    monkeypatch.setattr(start, 'audit_signed_wheels', lambda *a, **kw: None)
     monkeypatch.setattr(start, 'portable_signed_runtime_user_group', lambda *a, **kw: group)
     monkeypatch.setattr(start, 'signed_user_group', lambda *a, **kw: group)
     args = dict(trusted_public_key=b'x' * 32, expected_product_id='example', expected_version='1',
                 modes=('autonomous',), unit_dir=str(units), load_key='c' * 32, runtime_key='a' * 32,
                 reserve_bytes=0, operation_id='d' * 32)
     return root, args, calls, group
+
+
+def test_unsafe_wheel_rejected_before_start_receipt(scenario, monkeypatch):
+    from shared.wheel_audit import WheelAuditError
+    root, args, calls, _ = scenario
+    def reject(*a, **kw):
+        raise WheelAuditError('invalid wheel')
+    monkeypatch.setattr(start, 'audit_signed_wheels', reject)
+    with pytest.raises(start.FreshStartError):
+        start.start_portable_fresh('package', b'envelope', str(root), **args)
+    assert not calls
+    assert not (root / '.homensai-control/user-systemd-start.json').exists()
 
 
 def test_repeat_confirmed_start_does_not_send_command(scenario):
@@ -204,11 +217,25 @@ def cycle_scenario(scenario, monkeypatch):
     stop_args = {**args, 'start_key': args['operation_id'], 'operation_id': 'e' * 32}
     start.stop_portable_fresh('package', b'envelope', str(root), **stop_args)
     monkeypatch.setattr(cycle, 'verify_signed_linux_runtime', lambda *a, **kw: None)
+    monkeypatch.setattr(cycle, 'audit_signed_wheels', lambda *a, **kw: None)
     monkeypatch.setattr(cycle, 'portable_signed_runtime_user_group', lambda *a, **kw: group)
     monkeypatch.setattr(cycle, 'signed_user_group', lambda *a, **kw: group)
     cycle_args = {**args, 'initial_start_key': 'd' * 32, 'initial_stop_key': 'e' * 32}
     calls.clear()
     return cycle, root, cycle_args, calls, group
+
+
+def test_cycle_rejects_unsafe_wheel_before_writing(cycle_scenario, monkeypatch):
+    from shared.wheel_audit import WheelAuditError
+    cycle, root, args, calls, _ = cycle_scenario
+    def reject(*a, **kw):
+        raise WheelAuditError('invalid wheel')
+    monkeypatch.setattr(cycle, 'audit_signed_wheels', reject)
+    with pytest.raises(start.FreshStartError):
+        cycle.cycle_portable('package', b'envelope', str(root),
+                             **{**args, 'operation_id': '1' * 32, 'action': 'start'})
+    assert not calls
+    assert not (root / '.homensai-control/user-systemd-cycle-v2.json').exists()
 
 
 def test_multiple_cycles_and_stale_keys(cycle_scenario):

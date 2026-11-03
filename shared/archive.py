@@ -312,10 +312,22 @@ def restore_archive(path: str | Path, target: str | Path, *, expected_product_id
     автоматической очистки или записи в живые продуктовые пути нет.
     """
     try:
+        with _open_regular(path) as stream:
+            return _restore_stream(stream, target, expected_product_id=expected_product_id)
+    except (OSError, DataHomeError, zipfile.BadZipFile, UnicodeError, ValueError, RecursionError) as error:
+        if isinstance(error, ArchiveError):
+            raise
+        raise ArchiveError("Восстановление не завершено") from None
+
+
+def _restore_stream(stream, target: str | Path, *, expected_product_id: str | None = None) -> dict:
+    """Восстановить проверенный seekable поток в отдельный пустой каталог."""
+    try:
         target = checked_path(target)
         if not target.is_dir() or any(target.iterdir()):
             raise ArchiveError("Восстановление требует существующий пустой каталог")
-        with _open_regular(path) as stream, zipfile.ZipFile(stream, "r") as archive:
+        stream.seek(0)
+        with zipfile.ZipFile(stream, "r") as archive:
             manifest = _verify(archive, expected_product_id)
             _space(target, sum(item["size"] for item in manifest["files"])
                    + 4096 * (len(manifest["directories"]) + len(manifest["files"]) + 1))

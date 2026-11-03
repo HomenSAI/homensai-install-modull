@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import getpass
 import hashlib
 import hmac
@@ -136,6 +136,18 @@ def _temporary(parent):
         path.unlink(missing_ok=True)
 
 
+@contextmanager
+def _anonymous_temporary(parent):
+    """Linux O_TMPFILE без опасного отката на файл с именем."""
+    if not hasattr(os, 'O_TMPFILE'):
+        raise ArchiveCryptoError('Безымянный временный ZIP недоступен')
+    descriptor = os.open(parent, os.O_TMPFILE | os.O_RDWR | getattr(os, 'O_CLOEXEC', 0), 0o600)
+    with os.fdopen(descriptor, 'w+b') as stream:
+        if os.fstat(stream.fileno()).st_nlink != 0:
+            raise ArchiveCryptoError('Не удалось создать безымянный временный ZIP')
+        yield stream
+
+
 def _destination(path):
     path = checked_path(path)
     if path.exists() or not path.parent.is_dir():
@@ -219,6 +231,16 @@ def decrypted_archive(path: str | Path, *, password_provider,
     Временный plaintext удаляется при выходе, в том числе после ошибки restore.
     Каталог шифрованного архива должен быть доступен для временной записи.
     """
+    with _decrypted_archive(path, password_provider=password_provider,
+                            expected_product_id=expected_product_id,
+                            expected_ciphertext_sha256=expected_ciphertext_sha256,
+                            anonymous=False) as result:
+        yield result
+
+
+@contextmanager
+def _decrypted_archive(path, *, password_provider, expected_product_id,
+                       expected_ciphertext_sha256, anonymous):
     if (expected_ciphertext_sha256 is not None and (type(expected_ciphertext_sha256) is not str
             or re.fullmatch(r'[a-f0-9]{64}', expected_ciphertext_sha256) is None)):
         raise ArchiveCryptoError('Недопустимый хэш шифрованного архива')
@@ -235,9 +257,9 @@ def decrypted_archive(path: str | Path, *, password_provider,
                 raise ArchiveCryptoError("Шифрованный архив обрезан или содержит лишние блоки")
             cipher = aesgcm(_key(password_provider, header["salt"]))
             plain._space(path.parent, header["size"])
-            with _temporary(path.parent) as temporary:
+            with (_anonymous_temporary(path.parent) if anonymous else _temporary(path.parent)) as temporary:
                 digest = hashlib.sha256()
-                with temporary.open("wb") as output:
+                with (nullcontext(temporary) if anonymous else temporary.open("w+b")) as output:
                     for length, nonce, aad in _frames(header):
                         block = incoming.read(length + TAG_SIZE)
                         if len(block) != length + TAG_SIZE:
@@ -256,8 +278,20 @@ def decrypted_archive(path: str | Path, *, password_provider,
                         raise ArchiveCryptoError('Шифрованный архив отличается от ожидаемого снимка')
                     output.flush()
                     os.fsync(output.fileno())
-                manifest = plain.verify_archive(temporary, expected_product_id=expected_product_id)
-                yield temporary, manifest
+                    if anonymous:
+                        output.seek(0)
+                        try:
+                            with zipfile.ZipFile(output, 'r') as archive:
+                                manifest = plain._verify(archive, expected_product_id)
+                        except (zipfile.BadZipFile, UnicodeError, ValueError, RecursionError) as error:
+                            if isinstance(error, plain.ArchiveError):
+                                raise
+                            raise ArchiveCryptoError('Архив повреждён или недоступен') from None
+                        output.seek(0)
+                        yield output, manifest
+                if not anonymous:
+                    manifest = plain.verify_archive(temporary, expected_product_id=expected_product_id)
+                    yield temporary, manifest
     except (OSError, DataHomeError):
         raise ArchiveCryptoError("Не удалось расшифровать или прочитать архив") from None
 
@@ -273,12 +307,7 @@ def build_encrypted_archive(home, destination: str | Path, *, password_provider)
         if sys.platform.startswith('linux'):
             # O_TMPFILE avoids even a short-lived name before unlink, including
             # the crash window inside tempfile.TemporaryFile's fallback.
-            if not hasattr(os, 'O_TMPFILE'):
-                raise ArchiveCryptoError('Безымянный временный ZIP недоступен')
-            descriptor = os.open(destination.parent, os.O_TMPFILE | os.O_RDWR | getattr(os, 'O_CLOEXEC', 0), 0o600)
-            with os.fdopen(descriptor, 'w+b') as source:
-                if os.fstat(source.fileno()).st_nlink != 0:
-                    raise ArchiveCryptoError('Не удалось создать безымянный временный ZIP')
+            with _anonymous_temporary(destination.parent) as source:
                 plain._write_archive(home, source, destination.parent)
                 source.seek(0)
                 return _encrypt_stream(source, destination, password_provider=password_provider,
@@ -307,9 +336,10 @@ def verify_archive(path: str | Path, *, password_provider=None,
         raise ArchiveCryptoError('Недопустимый режим проверки архива')
     if not require_encrypted and not is_encrypted(path):
         return plain.verify_archive(path, expected_product_id=expected_product_id)
-    with decrypted_archive(path, password_provider=password_provider,
-                           expected_product_id=expected_product_id,
-                           expected_ciphertext_sha256=expected_ciphertext_sha256) as (_, manifest):
+    with _decrypted_archive(path, password_provider=password_provider,
+                            expected_product_id=expected_product_id,
+                            expected_ciphertext_sha256=expected_ciphertext_sha256,
+                            anonymous=sys.platform.startswith('linux')) as (_, manifest):
         return manifest
 
 
@@ -321,7 +351,11 @@ def restore_archive(path: str | Path, target: str | Path, *, password_provider=N
         raise ArchiveCryptoError('Недопустимый режим восстановления архива')
     if not require_encrypted and not is_encrypted(path):
         return plain.restore_archive(path, target, expected_product_id=expected_product_id)
-    with decrypted_archive(path, password_provider=password_provider,
-                           expected_product_id=expected_product_id,
-                           expected_ciphertext_sha256=expected_ciphertext_sha256) as (temporary, _):
+    anonymous = sys.platform.startswith('linux')
+    with _decrypted_archive(path, password_provider=password_provider,
+                            expected_product_id=expected_product_id,
+                            expected_ciphertext_sha256=expected_ciphertext_sha256,
+                            anonymous=anonymous) as (temporary, _):
+        if anonymous:
+            return plain._restore_stream(temporary, target, expected_product_id=expected_product_id)
         return plain.restore_archive(temporary, target, expected_product_id=expected_product_id)

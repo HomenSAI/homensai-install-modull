@@ -363,11 +363,58 @@ def test_restore_io_failure_cleans_plaintext(aes, tmp_path, home, monkeypatch):
     crypto.build_encrypted_archive(home, encrypted, password_provider=lambda: PASSWORD)
     def failed(*args, **kwargs):
         raise OSError(PASSWORD)
-    monkeypatch.setattr(plain, "restore_archive", failed)
+    monkeypatch.setattr(plain, "_restore_stream" if __import__('sys').platform.startswith('linux')
+                        else "restore_archive", failed)
     with pytest.raises(crypto.ArchiveCryptoError) as error:
         crypto.restore_archive(encrypted, tmp_path / "target", password_provider=lambda: PASSWORD)
     assert PASSWORD not in str(error.value)
     no_scratch(tmp_path)
+
+
+@pytest.mark.skipif(not __import__('sys').platform.startswith('linux'), reason='Linux O_TMPFILE and fork')
+@pytest.mark.parametrize('operation', ['verify', 'restore'])
+def test_sigkill_after_decryption_leaves_no_named_plaintext(aes, tmp_path, home, operation):
+    import os
+    import select
+    import signal
+
+    encrypted = tmp_path / 'encrypted'
+    crypto.build_encrypted_archive(home, encrypted, password_provider=lambda: PASSWORD)
+    target = tmp_path / 'target'
+    target.mkdir()
+    read_fd, write_fd = os.pipe()
+    pid = os.fork()
+    if pid == 0:
+        os.close(read_fd)
+        def stop_after_decryption(archive, expected_product_id):
+            assert os.fstat(archive.fp.fileno()).st_nlink == 0
+            os.write(write_fd, b'R')
+            signal.pause()
+        plain._verify = stop_after_decryption
+        try:
+            if operation == 'verify':
+                crypto.verify_archive(encrypted, password_provider=lambda: PASSWORD, require_encrypted=True)
+            else:
+                crypto.restore_archive(encrypted, target, password_provider=lambda: PASSWORD, require_encrypted=True)
+        except BaseException:
+            os.write(write_fd, b'E')
+        os._exit(1)
+    os.close(write_fd)
+    reaped = False
+    try:
+        ready, _, _ = select.select([read_fd], [], [], 20)
+        assert ready and os.read(read_fd, 1) == b'R'
+        os.kill(pid, signal.SIGKILL)
+        _, status = os.waitpid(pid, 0)
+        reaped = True
+        assert os.WIFSIGNALED(status) and os.WTERMSIG(status) == signal.SIGKILL
+        assert not list(tmp_path.glob('.archive-crypto-*'))
+        assert not list(target.iterdir())
+    finally:
+        os.close(read_fd)
+        if not reaped:
+            os.kill(pid, signal.SIGKILL)
+            os.waitpid(pid, 0)
 
 
 def test_cli_encrypted_roundtrip_and_env_provider(aes, tmp_path, home, monkeypatch, capsys):

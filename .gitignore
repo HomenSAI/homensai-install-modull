@@ -7,3 +7,5 @@ secrets/
 dist/
 build/
 .test-tmp/
+examples/kit_demo/installer/wheelhouse/
+examples/kit_demo/installer/inputs/

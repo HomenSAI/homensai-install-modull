@@ -1,0 +1,7 @@
+# Зависимости вымышленного продукта для CPython 3.14 Windows x86-64.
+--require-hashes
+--only-binary=:all:
+cffi==2.1.1 \
+    --hash=sha256:3222ba5d678f80a030e6afbcc33dc1ae5cb45facabb61cee2c7016b8432fde48
+pycparser==3.0 \
+    --hash=sha256:b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992

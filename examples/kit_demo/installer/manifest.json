@@ -1,0 +1,43 @@
+{
+  "schema_version": 2,
+  "product_name": "HomenS.AI Kit Demo (вымышленный)",
+  "product_id": "homensai-kit-demo",
+  "archive_before_replace": true,
+  "components": [
+    {
+      "name": "web",
+      "cmd": ["@module", "kitdemo.web", "--data-dir", "@data", "--port", "18431"],
+      "after": [],
+      "heartbeat": {"file": "heartbeats/web.json", "interval": 60, "timeout": 180},
+      "restart": {"delay": 5, "max": 5, "window": 600}
+    },
+    {
+      "name": "worker",
+      "cmd": ["@module", "kitdemo.worker", "--data-dir", "@data"],
+      "after": ["web"],
+      "heartbeat": {"file": "worker-heartbeat.json", "interval": 1, "timeout": 30},
+      "restart": {"delay": 5, "max": 5, "window": 600}
+    }
+  ],
+  "web": {"host": "127.0.0.1", "port": 18431, "healthz": "/healthz"},
+  "secrets": [],
+  "modes": [{"name": "default", "components": ["web", "worker"]}],
+  "mutual_exclusion": [],
+  "migrations": {
+    "cmd": ["@module", "kitdemo.migrate", "--data-dir", "@DATA_DIR@", "--migration", "@MIGRATION_ID@"],
+    "backup_before_each": true,
+    "new_db_no_backup": false
+  },
+  "backup": {"cmd": ["@module", "kitdemo.backup"], "encrypted": true},
+  "restore": {"cmd": ["@module", "kitdemo.restore"]},
+  "update": {
+    "staged_releases": true,
+    "pointer_file": "active.json",
+    "state_file": "update.json",
+    "health_wait": 30,
+    "backup_before_rollback": true,
+    "retain_previous_release": true,
+    "retain_runtime": true
+  },
+  "hooks": {"pre_start": [], "health_checks": [], "post_update": []}
+}

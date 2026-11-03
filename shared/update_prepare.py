@@ -25,6 +25,32 @@ class UpdatePrepareError(RuntimeError):
     """Подготовка не подтверждена; состояние может требовать ручной проверки."""
 
 
+def _check_pointer_runtime_compatibility(old_metadata, new_metadata):
+    """Pointer-v2 updates retain the signed runtime and unit recipe exactly."""
+    from shared.systemd_pointer import LAUNCHER_PATH, LAUNCHER_SHA256, RECIPE_PATH, RECIPE_V2
+
+    old = {item['path']: item for item in old_metadata['files']}
+    new = {item['path']: item for item in new_metadata['files']}
+    if RECIPE_PATH not in old and RECIPE_PATH not in new:
+        return False
+    expected_recipe = hashlib.sha256(RECIPE_V2).hexdigest()
+    for entries in (old, new):
+        recipe = entries.get(RECIPE_PATH)
+        launcher = entries.get(LAUNCHER_PATH)
+        if (recipe is None or recipe['size'] != len(RECIPE_V2) or recipe['sha256'] != expected_recipe
+                or launcher is None or launcher['sha256'] != LAUNCHER_SHA256
+                or 'runtime-linux/bin/python' not in entries or 'runtime-linux/runtime-v1.json' not in entries
+                or any(path.startswith('systemd-user/') and path != RECIPE_PATH for path in entries)):
+            raise UpdatePrepareError('Рецепт или загрузчик обновления не подтверждены')
+    old_runtime = {path: (item['size'], item['sha256']) for path, item in old.items()
+                   if path.startswith('runtime-linux/')}
+    new_runtime = {path: (item['size'], item['sha256']) for path, item in new.items()
+                   if path.startswith('runtime-linux/')}
+    if old_runtime != new_runtime:
+        raise UpdatePrepareError('Замена runtime пока не поддерживается')
+    return True
+
+
 def _expected_tree(metadata):
     files = {item['path']: item['sha256'] for item in metadata['files']}
     directories = {'.'}
@@ -87,6 +113,10 @@ def prepare_signed_linux_update(*, new_package: str, new_envelope: bytes, new_ke
                 or check_target(new_metadata['manifest'], native_target())['status'] != 'supported'
                 or check_target(old_metadata['manifest'], native_target())['status'] != 'supported'):
             raise UpdatePrepareError('Подписанные выпуски несовместимы')
+        if _check_pointer_runtime_compatibility(old_metadata, new_metadata):
+            from shared.systemd_pointer import plan_pointer_signed_user_units
+            # Validate the old signed recipe and source runtime before writing a checkpoint.
+            plan_pointer_signed_user_units(old_path, old_envelope, str(root), **old_options, modes=modes)
         from shared.wheel_audit import audit_signed_wheels
         # Новый выпуск проверяется до создания checkpoint и извлечения payload.
         # Прежний выпуск не блокируем, чтобы не исключить его восстановление.

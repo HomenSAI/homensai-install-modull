@@ -13,6 +13,7 @@ import zipfile
 import pytest
 
 from test_api_signed_preflight import signed_request
+from test_systemd_pointer_signed import signed_pointer
 from examples.demo_product.installer_client import InstallerClient
 from shared import api
 from shared.effect_receipt import read_effect_receipt
@@ -24,6 +25,51 @@ from shared.systemd_fresh_start import _lifecycle_lock
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update
 
 pytestmark = pytest.mark.skipif(not sys.platform.startswith('linux'), reason='Подготовка рассчитана на Linux')
+
+
+@pytest.mark.parametrize('change', ['none', 'runtime-binary', 'runtime-extra', 'missing-recipe',
+                                    'conflicting-recipe', 'launcher', 'adopt-pointer'])
+def test_pointer_update_requires_identical_signed_runtime(signed_pointer, tmp_path, change):
+    from shared.systemd_pointer import LAUNCHER_PATH, RECIPE_PATH
+    payload, trusted, build = signed_pointer
+    if change == 'adopt-pointer':
+        recipe = (payload / RECIPE_PATH).read_bytes()
+        (payload / RECIPE_PATH).unlink()
+    old, old_envelope, root = build('old')
+    if change == 'adopt-pointer':
+        (payload / RECIPE_PATH).write_bytes(recipe)
+    if change == 'runtime-binary':
+        (payload / 'runtime-linux/bin/python').write_bytes(b'different synthetic interpreter')
+    elif change == 'runtime-extra':
+        (payload / 'runtime-linux/extra').write_text('synthetic change')
+    elif change == 'missing-recipe':
+        (payload / RECIPE_PATH).unlink()
+    elif change == 'conflicting-recipe':
+        (payload / 'systemd-user/portable-v1.json').write_text('conflicting')
+    elif change == 'launcher':
+        (payload / LAUNCHER_PATH).write_text('modified synthetic launcher')
+    new, new_envelope, _ = build('new', version='2')
+    work = tmp_path / 'pointer-update-work'
+    work.mkdir(mode=0o700)
+    options = dict(new_package=str(new), new_envelope=new_envelope, new_key=trusted['trusted_public_key'],
+        old_package=str(old), old_envelope=old_envelope, old_key=trusted['trusted_public_key'],
+        product_id=trusted['expected_product_id'], old_version='1', new_version='2',
+        install_root=str(root), work_dir=str(work), modes=('autonomous',), migration_ids=(), operation_id='f' * 32)
+    pointer = root / 'services/active.json'
+    before = pointer.read_bytes()
+    if change == 'none':
+        result = prepare_signed_linux_update(**options)
+        assert result['state'] == 'prepared' and not result['update_started']
+        response = api.handle(api_query(options))
+        assert response['ok'] and response['result'] == result
+    else:
+        with pytest.raises(UpdatePrepareError):
+            prepare_signed_linux_update(**options)
+        response = api.handle(api_query(options))
+        assert response['error']['code'] == 'update_prepare_failed'
+        assert str(root) not in json.dumps(response)
+        assert not list(work.iterdir())
+    assert pointer.read_bytes() == before and not (root / 'services/update.json').exists()
 
 
 @pytest.fixture

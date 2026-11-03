@@ -233,6 +233,26 @@ def test_reopen_refuses_when_new_package_wheel_audit_fails(assembled, monkeypatc
     assert verify_started_linux_update(**inspect_options)['state'] == state
 
 
+def test_new_pointer_policy_blocks_forward_resume_but_not_rollback(assembled, monkeypatch):
+    from shared.update_prepare import UpdatePrepareError
+    options, adapters = assembled
+    plan = assemble_prepared_linux_update(**options)
+    state = {'version': 1, 'transaction': 'b' * 32, 'plan': plan.digest, 'old_release': '1',
+             'release': '2', 'direction': 'forward', 'index': 0, 'failed_phase': None,
+             'archive_ready': False, 'outcome': 'running', 'indeterminate': True}
+    plan._save(state)
+    def reject(*args):
+        raise UpdatePrepareError('new synthetic policy')
+    monkeypatch.setattr('shared.update_assembly._check_pointer_runtime_compatibility', reject)
+    with pytest.raises(UpdateError):
+        assemble_prepared_linux_update(**options, reopen=True)
+    assert plan.status() == state and all(adapter.active for adapter in adapters.values())
+    state.update(direction='rollback', index=0, failed_phase='health', archive_ready=True)
+    plan._save(state)
+    assert assemble_prepared_linux_update(**options, reopen=True).status() == state
+    assert all(adapter.active for adapter in adapters.values())
+
+
 def test_guarded_stage_rejects_tampered_prepared_payload(assembled):
     options, _ = assembled
     plan = assemble_prepared_linux_update(**options)

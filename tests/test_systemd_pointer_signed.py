@@ -43,13 +43,13 @@ def signed_pointer(signed_request, tmp_path):
     private = ed.Ed25519PrivateKey.generate()
     public = private.public_key().public_bytes(ser.Encoding.Raw, ser.PublicFormat.Raw)
     options = dict(trusted_public_key=public, expected_product_id=manifest['product_id'], expected_version='1')
-    def build(name):
+    def build(name, version='1'):
         package = tmp_path / (name + '.zip')
-        build_package(manifest, '1', payload, package)
+        build_package(manifest, version, payload, package)
         envelope = sign_package(package, private_key=private, expected_product_id=manifest['product_id'],
-                                expected_version='1')
+                                expected_version=version)
         root = tmp_path / (name + '-installation')
-        prepare_fresh_native(package, envelope, root, **options,
+        prepare_fresh_native(package, envelope, root, **{**options, 'expected_version': version},
             required_bytes=query['params']['required_bytes'], reserve_bytes=0)
         return package, envelope, root
     return payload, options, build

@@ -12,7 +12,8 @@ from shared.signed_migration_port import SignedMigrationPort
 from shared.systemd_lifecycle_port import SystemdLifecyclePort
 from shared.update_health_port import LocalUpdateHealthPort
 from shared.update_plan import UpdateError, UpdatePlan
-from shared.update_prepare import _expected_tree, prepare_signed_linux_update, verify_started_linux_update
+from shared.update_prepare import (_check_pointer_runtime_compatibility, _expected_tree,
+                                   prepare_signed_linux_update, verify_started_linux_update)
 from shared.writer_guard import CooperativeWriterLock
 
 
@@ -90,6 +91,10 @@ def assemble_prepared_linux_update(*, group, password_provider, interpreter: str
         result = (verify_started_linux_update(**options) if reopen else prepare_signed_linux_update(**options))
         if reopen and result['state']['direction'] == 'forward':
             _reject_version_pinned_portable_group(group, options)
+            previous_metadata = verify_signed_package(options['old_package'], options['old_envelope'],
+                trusted_public_key=options['old_key'], expected_product_id=options['product_id'],
+                expected_version=options['old_version'])
+            _check_pointer_runtime_compatibility(previous_metadata, metadata)
         if reconcile_stop_key is not None:
             state = result['state']
             phases = plan.forward if state['direction'] == 'forward' else plan.rollback

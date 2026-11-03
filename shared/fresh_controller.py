@@ -71,6 +71,15 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
         if check_target(metadata['manifest'], native_target())['status'] != 'supported':
             raise FreshControllerError()
         component_order(metadata['manifest'], modes)
+        from shared.systemd_pointer import LAUNCHER_PATH, LAUNCHER_SHA256, RECIPE_PATH, RECIPE_V2
+        entries = {item['path']: item for item in metadata['files']}
+        pointer = RECIPE_PATH in entries
+        if pointer:
+            recipe, launcher = entries[RECIPE_PATH], entries.get(LAUNCHER_PATH)
+            if (recipe['size'] != len(RECIPE_V2) or recipe['sha256'] != hashlib.sha256(RECIPE_V2).hexdigest()
+                    or launcher is None or launcher['sha256'] != LAUNCHER_SHA256
+                    or any(name.startswith('systemd-user/') and name != RECIPE_PATH for name in entries)):
+                raise FreshControllerError()
         if not inspect_only:
             from shared.wheel_audit import WheelAuditError, audit_signed_wheels
             try:
@@ -85,17 +94,21 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
         start = {**services, 'load_key': keys['load'], 'runtime_key': keys['runtime'],
                  'reserve_bytes': reserve_bytes, 'idempotency_key': keys['start']}
         web = metadata['manifest']['web']
+        publish_name = 'publish-pointer-systemd-user-units' if pointer else 'publish-portable-systemd-user-units'
+        load_name = 'load-pointer-systemd-user-units' if pointer else 'load-portable-systemd-user-units'
+        start_name = 'start-pointer-linux' if pointer else 'start-portable-linux'
+        runtime_binding = {'runtime_key': keys['runtime'], 'reserve_bytes': reserve_bytes} if pointer else {}
         steps = [
             ('prepare-native-release', {**common, 'required_bytes': required_bytes,
                                        'reserve_bytes': reserve_bytes, 'idempotency_key': keys['release']},
              'status', 'prepared'),
             ('prepare-linux-runtime', {**common, 'reserve_bytes': reserve_bytes,
                                        'idempotency_key': keys['runtime']}, 'state', 'prepared'),
-            ('publish-portable-systemd-user-units', {**services, 'idempotency_key': keys['publish']},
+            (publish_name, {**services, **runtime_binding, 'idempotency_key': keys['publish']},
              'state', 'published'),
-            ('load-portable-systemd-user-units', {**services, 'idempotency_key': keys['load']},
+            (load_name, {**services, **runtime_binding, 'idempotency_key': keys['load']},
              'state', 'loaded'),
-            ('start-portable-linux', start, 'state', 'started'),
+            (start_name, start, 'state', 'started'),
             ('check-local-health', {'port': web['port'], 'path': web['healthz'],
                                     'product_id': product_id, 'version': version, 'timeout_seconds': 3},
              'health_response_matches', True),

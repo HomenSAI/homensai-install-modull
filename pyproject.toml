@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "homensai-installer-client"
-version = "0.17.0"
+version = "0.18.0"
 description = "Experimental local JSON client for the HomenS.AI installer"
 requires-python = ">=3.14"
 dependencies = []

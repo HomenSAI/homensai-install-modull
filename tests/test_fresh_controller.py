@@ -6,6 +6,7 @@ import pytest
 
 from test_api_signed_preflight import signed_request
 from test_update_assembly import assembled
+from test_systemd_pointer_signed import signed_pointer
 from shared import api
 from shared.fresh_controller import FreshControllerError, run_portable_linux_install
 from shared.preflight import NAMES
@@ -55,6 +56,65 @@ def test_failed_phase_is_resumed_with_same_key_without_replaying_completed_steps
         'load-portable-systemd-user-units', 'start-portable-linux', 'check-local-health']
     assert calls[3][1] == calls[4][1] == workflow['keys']['load']
     assert run_portable_linux_install(**workflow, language='ru') == result and len(calls) == 7
+
+
+def _pointer_workflow(signed_pointer, tmp_path, monkeypatch):
+    from shared.datahome import checked_path
+    monkeypatch.setattr('shared.fresh_controller._unit_directory', checked_path)
+    _, options, build = signed_pointer
+    package, envelope, _ = build('controller-source')
+    work, directory = tmp_path / 'pointer-work', tmp_path / 'pointer-units'
+    work.mkdir(mode=0o700)
+    directory.mkdir(mode=0o700)
+    return dict(package_path=str(package), envelope=envelope, trusted_public_key=options['trusted_public_key'],
+                product_id=options['expected_product_id'], version='1', install_root=str(tmp_path / 'new-install'),
+                unit_dir=str(directory), work_dir=str(work), modes=('autonomous',),
+                required_bytes={name: 0 for name in NAMES}, reserve_bytes=0, workflow_key='f' * 32,
+                keys=dict(zip(('release', 'runtime', 'publish', 'load', 'start'), (ch * 32 for ch in '12345'))))
+
+
+def test_pointer_controller_resumes_without_replaying_completed_steps(signed_pointer, tmp_path, monkeypatch):
+    workflow = _pointer_workflow(signed_pointer, tmp_path, monkeypatch)
+    calls, fail = [], [True]
+    results = {'prepare-native-release': {'status': 'prepared'}, 'prepare-linux-runtime': {'state': 'prepared'},
+               'publish-pointer-systemd-user-units': {'state': 'published'},
+               'load-pointer-systemd-user-units': {'state': 'loaded'},
+               'start-pointer-linux': {'state': 'started'}, 'check-local-health': {'health_response_matches': True}}
+    def handle(request):
+        calls.append(request)
+        if request['operation'] == 'load-pointer-systemd-user-units' and fail.pop():
+            return {'ok': False, 'error': {'code': 'systemd_load_failed'}}
+        return {'ok': True, 'result': results[request['operation']]}
+    monkeypatch.setattr(api, 'handle', handle)
+    with pytest.raises(FreshControllerError) as error:
+        run_portable_linux_install(**workflow)
+    assert error.value.code == 'systemd_load_failed'
+    observed = run_portable_linux_install(**workflow, inspect_only=True)
+    assert observed['current_step'] == 'load-pointer-systemd-user-units' and observed['completed_steps'] == 3
+    fail.append(False)
+    result = run_portable_linux_install(**workflow, language='de')
+    assert result['state'] == 'recorded_complete' and not result['installation_complete']
+    assert [call['operation'] for call in calls] == ['prepare-native-release', 'prepare-linux-runtime',
+        'publish-pointer-systemd-user-units', 'load-pointer-systemd-user-units',
+        'load-pointer-systemd-user-units', 'start-pointer-linux', 'check-local-health']
+    for call in calls[2:5]:
+        assert call['params']['runtime_key'] == workflow['keys']['runtime'] and call['params']['reserve_bytes'] == 0
+    assert calls[3]['params']['idempotency_key'] == calls[4]['params']['idempotency_key'] == workflow['keys']['load']
+
+
+@pytest.mark.parametrize('change', ['launcher', 'recipe', 'conflicting-recipe'])
+def test_pointer_controller_rejects_signed_bad_recipe_before_checkpoint(signed_pointer, tmp_path, monkeypatch, change):
+    from shared.systemd_pointer import LAUNCHER_PATH, RECIPE_PATH
+    payload, _, _ = signed_pointer
+    name = (LAUNCHER_PATH if change == 'launcher' else RECIPE_PATH if change == 'recipe'
+            else 'systemd-user/portable-v1.json')
+    (payload / name).write_bytes(b'synthetic tampering')
+    workflow = _pointer_workflow(signed_pointer, tmp_path, monkeypatch)
+    calls = []
+    monkeypatch.setattr(api, 'handle', lambda request: calls.append(request))
+    with pytest.raises(FreshControllerError):
+        run_portable_linux_install(**workflow)
+    assert not calls and not list(Path(workflow['work_dir']).iterdir())
 
 
 def test_controller_rejects_changed_request_corrupt_journal_and_busy_lock(workflow, monkeypatch):

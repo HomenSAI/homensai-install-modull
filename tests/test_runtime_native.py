@@ -211,7 +211,7 @@ def test_runtime_api_plans_prepares_and_verifies_without_reexecution(runtime_rel
 
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Нужен одноразовый тестовый контейнер Python 3.14')
-def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=False):
+def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=False, pointer=False):
     import base64
     import pwd
     import shutil
@@ -290,9 +290,14 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
     recipe = {'format': 1, 'target': {'os': 'linux', 'architecture': 'x86_64'},
               'python_version': f'3.14.{sys.version_info.micro}', 'executables': ['bin/python']}
     (payload / RECIPE_PATH).write_text(json.dumps(recipe))
-    service_recipe = payload / SERVICE_RECIPE_PATH
+    if pointer:
+        from shared.systemd_pointer import RECIPE_PATH as POINTER_RECIPE_PATH, RECIPE_V2
+        launcher = runtime / 'lib/homensai/portable_launcher.py'
+        launcher.parent.mkdir(parents=True)
+        shutil.copyfile(ROOT / 'shared/portable_launcher.py', launcher)
+    service_recipe = payload / (POINTER_RECIPE_PATH if pointer else SERVICE_RECIPE_PATH)
     service_recipe.parent.mkdir()
-    service_recipe.write_bytes(SERVICE_RECIPE_V1)
+    service_recipe.write_bytes(RECIPE_V2 if pointer else SERVICE_RECIPE_V1)
     demo = payload / 'demo'
     demo.mkdir()
     source = (ROOT / 'examples/demo_product/main.py').read_text()
@@ -309,6 +314,7 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
     if controller:
         from shared.fresh_controller import run_portable_linux_install
         from shared.systemd_portable import plan_portable_signed_user_units
+        from shared.systemd_pointer import plan_pointer_signed_user_units
         def loopback_only(address, timeout, source_address=None):
             if address != ('127.0.0.1', port) or source_address is not None:
                 raise AssertionError('Разрешён только loopback тестового продукта')
@@ -358,15 +364,15 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
             api_args['modes'] = list(args['modes'])
             from examples.demo_product.installer_client import InstallerClient
             client = InstallerClient(timeout=300)
-            observed = client.call('inspect-portable-linux-install', api_args, min_minor=32, language='de')
+            observed = client.call('inspect-portable-linux-install', api_args, min_minor=57 if pointer else 32, language='de')
             assert observed['state'] == 'pending' and observed['completed_steps'] == 1
             assert observed['current_step'] == 'prepare-linux-runtime' and observed['step_may_have_executed'] is True
             assert observed['resume_authorized'] is False and json.loads(marker_file.read_text())['index'] == 1
-            result = client.call('install-portable-linux', api_args, min_minor=31, language='de')
+            result = client.call('install-portable-linux', api_args, min_minor=57 if pointer else 31, language='de')
             assert result['state'] == 'recorded_complete' and result['health_verified_at_execution'] is True
             assert result['installation_complete'] is False and result['process_identity_verified'] is False
-            assert client.call('install-portable-linux', api_args, min_minor=31, language='ru') == result
-            completed = client.call('inspect-portable-linux-install', api_args, min_minor=32, language='ru')
+            assert client.call('install-portable-linux', api_args, min_minor=57 if pointer else 31, language='ru') == result
+            completed = client.call('inspect-portable-linux-install', api_args, min_minor=57 if pointer else 32, language='ru')
             assert completed['state'] == 'recorded_complete' and completed['completed_steps'] == 6
             assert completed['effects_verified'] is False and completed['current_health_verified'] is False
             heartbeat_path = install / 'data/worker-heartbeat.json'
@@ -375,7 +381,8 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                 time.sleep(0.1)
             heartbeat = json.loads(heartbeat_path.read_text())
             assert heartbeat['release'] == '1'
-            plan = plan_portable_signed_user_units(package, envelope, str(install), **options, modes=('autonomous',))
+            plan_function = plan_pointer_signed_user_units if pointer else plan_portable_signed_user_units
+            plan = plan_function(package, envelope, str(install), **options, modes=('autonomous',))
             expected_units = {name: text.encode('utf-8') for name, text in plan['unit_texts'].items()}
         finally:
             subprocess.run(['/usr/bin/systemctl', '--user', 'stop', '--', *names], env=env,
@@ -545,3 +552,9 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                     reason='Нужен одноразовый тестовый контейнер Python 3.14')
 def test_fresh_controller_runs_real_portable_product(tmp_path, monkeypatch):
     test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True)
+
+
+@pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
+                    reason='Нужен одноразовый тестовый контейнер Python 3.14')
+def test_fresh_controller_runs_real_pointer_product(tmp_path, monkeypatch):
+    test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True, pointer=True)

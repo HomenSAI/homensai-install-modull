@@ -87,6 +87,10 @@ def prepare_signed_linux_update(*, new_package: str, new_envelope: bytes, new_ke
                 or check_target(new_metadata['manifest'], native_target())['status'] != 'supported'
                 or check_target(old_metadata['manifest'], native_target())['status'] != 'supported'):
             raise UpdatePrepareError('Подписанные выпуски несовместимы')
+        from shared.wheel_audit import audit_signed_wheels
+        # Новый выпуск проверяется до создания checkpoint и извлечения payload.
+        # Прежний выпуск не блокируем, чтобы не исключить его восстановление.
+        audit_signed_wheels(new_path, new_envelope, **new_options)
         ports = FilesystemPorts(new_metadata['manifest'], root, work_dir=work, payloads={},
                                 effects=None, password_provider=lambda: None)
         plan = UpdatePlan(new_metadata['manifest'], root, ports, release=new_version,

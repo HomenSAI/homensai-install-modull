@@ -37,6 +37,11 @@ def assemble_prepared_linux_update(*, group, password_provider, interpreter: str
         metadata = verify_signed_package(options['new_package'], options['new_envelope'],
             trusted_public_key=options['new_key'], expected_product_id=options['product_id'],
             expected_version=options['new_version'])
+        if reopen:
+            from shared.wheel_audit import audit_signed_wheels
+            audit_signed_wheels(options['new_package'], options['new_envelope'],
+                trusted_public_key=options['new_key'], expected_product_id=options['product_id'],
+                expected_version=options['new_version'])
         source = Path(options['work_dir']) / ('payload-' + options['operation_id'])
         ports = FilesystemPorts(metadata['manifest'], Path(options['install_root']),
             work_dir=Path(options['work_dir']), payloads={options['new_version']: ReleaseSource(

@@ -1,11 +1,14 @@
 """Подготовка подписанного обновления без запуска и сетевых обращений."""
 import base64
 from copy import deepcopy
+import hashlib
+import io
 import json
 from pathlib import Path
 import signal
 import subprocess
 import sys
+import zipfile
 
 import pytest
 
@@ -100,6 +103,33 @@ def test_invalid_publisher_and_existing_destination_never_write(update):
         prepare_signed_linux_update(**options)
     assert (existing / 'keep').read_bytes() == b'preserve'
     assert not (work / ('prepare-' + options['operation_id'] + '.json')).exists()
+
+
+def test_signed_update_rejects_unsafe_wheel_before_preparation(update, tmp_path, monkeypatch):
+    options, original_manifest, private, payload = update
+    manifest = deepcopy(original_manifest)
+    data = io.BytesIO()
+    with zipfile.ZipFile(data, 'w') as archive:
+        archive.writestr('../../escape', 'synthetic unsafe path')
+    artifact = manifest['runtime']['vendor_wheels'][0]
+    (payload / artifact['file']).write_bytes(data.getvalue())
+    artifact['sha256'] = hashlib.sha256(data.getvalue()).hexdigest()
+    package = tmp_path / 'unsafe-update.zip'
+    build_package(manifest, '2', payload, package)
+    envelope = sign_package(package, private_key=private, expected_product_id=manifest['product_id'], expected_version='2')
+    options = {**options, 'new_package': str(package), 'new_envelope': envelope}
+    pointer = Path(options['install_root']) / 'services/active.json'
+    before = pointer.read_bytes()
+    def forbidden(*args, **kwargs):
+        pytest.fail('payload extraction occurred before wheel audit')
+    monkeypatch.setattr('shared.update_prepare.prepare_native_signed_package', forbidden)
+    with pytest.raises(UpdatePrepareError):
+        prepare_signed_linux_update(**options)
+    response = api.handle(api_query(options, language='de'))
+    assert response['error']['code'] == 'update_prepare_failed'
+    assert str(tmp_path) not in json.dumps(response)
+    assert pointer.read_bytes() == before and not list(Path(options['work_dir']).iterdir())
+    assert not (tmp_path / 'escape').exists()
 
 
 def test_existing_update_state_blocks_new_preparation(update):

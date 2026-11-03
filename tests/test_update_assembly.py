@@ -105,6 +105,26 @@ def test_assembly_rejects_unsupported_hooks_without_preparing_payload(update):
     assert not list(Path(options['work_dir']).iterdir())
 
 
+def test_reopen_refuses_when_new_package_wheel_audit_fails(assembled, monkeypatch):
+    from shared.wheel_audit import WheelAuditError
+    options, adapters = assembled
+    plan = assemble_prepared_linux_update(**options)
+    state = {'version': 1, 'transaction': 'b' * 32, 'plan': plan.digest, 'old_release': '1',
+             'release': '2', 'direction': 'forward', 'index': 0, 'failed_phase': None,
+             'archive_ready': False, 'outcome': 'running', 'indeterminate': True}
+    plan._save(state)
+    def fail(*args, **kwargs):
+        raise WheelAuditError('synthetic')
+    monkeypatch.setattr('shared.wheel_audit.audit_signed_wheels', fail)
+    with pytest.raises(UpdateError):
+        assemble_prepared_linux_update(**options, reopen=True)
+    assert plan.status() == state and all(adapter.active for adapter in adapters.values())
+    from shared.update_prepare import verify_started_linux_update
+    inspect_options = {key: value for key, value in options.items() if key not in
+                       ('group', 'password_provider', 'interpreter', 'interpreter_sha256', 'timeout')}
+    assert verify_started_linux_update(**inspect_options)['state'] == state
+
+
 def test_guarded_stage_rejects_tampered_prepared_payload(assembled):
     options, _ = assembled
     plan = assemble_prepared_linux_update(**options)

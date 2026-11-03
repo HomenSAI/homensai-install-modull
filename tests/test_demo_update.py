@@ -9,6 +9,7 @@ from hashlib import sha256
 from contextlib import contextmanager, nullcontext
 from copy import deepcopy
 import json
+import io
 import os
 from pathlib import Path
 import sqlite3
@@ -406,9 +407,12 @@ def test_real_demo_migration_update_and_rollback(tmp_path, request, monkeypatch,
             text = script.read_text()
             assert text.count('homensai-test-demo') == 1
             script.write_text(text.replace('homensai-test-demo', systemd_product))
+    wheel_buffer = io.BytesIO()
+    with zipfile.ZipFile(wheel_buffer, 'w') as wheel:
+        wheel.writestr('fictional_demo/__init__.py', '# synthetic, not executed')
     synthetic = {"locks/windows.lock": b"synthetic windows lock",
                  "locks/linux.lock": b"synthetic linux lock",
-                 "vendor/demo-0-py3-none-any.whl": b"synthetic wheel placeholder"}
+                 "vendor/demo-0-py3-none-any.whl": wheel_buffer.getvalue()}
     payloads = {}
     for version in ("1", "2"):
         path = source / ("app-" + version)

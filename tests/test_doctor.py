@@ -170,6 +170,30 @@ def test_cli_human_doctor(tmp_path, capsys, facts):
     assert "HEARTBEAT_OK [worker]: Пульс компонента актуален" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize('language,db,heartbeat', [
+    ('en', 'Database opens', 'Component heartbeat is current'),
+    ('de', 'Datenbank lässt sich öffnen', 'Heartbeat der Komponente ist aktuell'),
+])
+def test_cli_localizes_human_diagnostics_without_changing_json(tmp_path, capsys, facts, language, db, heartbeat):
+    path = tmp_path / 'facts.json'
+    path.write_text(json.dumps(facts), encoding='utf-8')
+    assert ctl.main(['--language', language, 'doctor-eval', '--facts', str(path)]) == 0
+    output = capsys.readouterr().out
+    assert 'DB_OK: ' + db in output and 'HEARTBEAT_OK [worker]: ' + heartbeat in output
+    assert ctl.main(['--language', language, 'doctor-eval', '--facts', str(path), '--json']) == 0
+    assert json.loads(capsys.readouterr().out)['data']['report'] == evaluate_health(facts)
+
+
+def test_every_diagnostic_code_has_all_translations():
+    from shared.i18n import translate
+    codes = ('INVALID_FACTS', 'DB_OK', 'DB_FAILED', 'SCHEMA_OK', 'SCHEMA_FAILED', 'DATA_DIR_OK',
+             'DATA_DIR_FAILED', 'DISK_OK', 'DISK_LOW', 'HEARTBEAT_MISSING', 'HEARTBEAT_OK',
+             'HEARTBEAT_STALE', 'CRASH_LOOP', 'CRASH_OK', 'ARCHIVE_MISSING', 'ARCHIVE_OK', 'ARCHIVE_STALE')
+    for language in ('en', 'de', 'ru'):
+        for code in codes:
+            assert translate(language, 'doctor.' + code.lower())
+
+
 @pytest.mark.parametrize("body", ['{"now":1,"now":2}', '{"now":NaN}', 'secret-sentinel',
     '{"password":"secret-sentinel"}', '[]'])
 def test_cli_invalid_facts_no_leak(tmp_path, capsys, body):

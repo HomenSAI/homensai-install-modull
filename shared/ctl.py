@@ -355,6 +355,14 @@ _MESSAGE_KEYS = {
 
 
 def _emit(code: int, message: str, data: dict, as_json: bool, language: str | None = None) -> int:
+    def localized(key, fallback, **variables):
+        if language is None or language == 'ru':
+            return fallback
+        try:
+            return translate(language, key, **variables)
+        except LanguageError:
+            return fallback
+
     if language is not None and language != 'ru':
         key = _MESSAGE_KEYS.get(message)
         if key is None and code:
@@ -370,36 +378,42 @@ def _emit(code: int, message: str, data: dict, as_json: bool, language: str | No
     else:
         print(message, file=sys.stderr if code else sys.stdout)
         if "directories" in data:
-            print("Каталоги:")
+            print(localized('cli.label_directories', 'Каталоги:'))
             for path in data["directories"]:
                 print("  " + path)
         if "files" in data:
-            print("Файлы:")
+            print(localized('cli.label_files', 'Файлы:'))
             for path in data["files"]:
                 print("  " + path)
         if "report" in data:
             for check in data["report"]["checks"]:
                 component = " [" + check["component"] + "]" if "component" in check else ""
-                print(check["code"] + component + ": " + check["message"])
+                check_message = localized('doctor.' + check['code'].lower(), check['message'])
+                print(check["code"] + component + ": " + check_message)
         if "product_id" in data:
-            print("Продукт: " + data["product_id"])
+            print(localized('cli.label_product', 'Продукт:') + " " + data["product_id"])
         if "argv" in data:
             # JSON-массив явно сохраняет границы аргументов; это не shell-строка.
             print("argv: " + json.dumps(data["argv"], ensure_ascii=True))
         if "docker" in data:
             print("Docker: " + json.dumps(data["docker"], ensure_ascii=True, sort_keys=True))
         if "schema_version" in data:
-            print("Версия схемы: " + str(data["schema_version"]))
+            print(localized('cli.label_schema', 'Версия схемы:') + " " + str(data["schema_version"]))
         if "file_count" in data:
-            protection = "AES-256-GCM" if data["encrypted"] else "ZIP без шифрования"
-            print(f"Файлов: {data['file_count']}; каталогов: {data['directory_count']}; {protection}")
+            protection = ("AES-256-GCM" if data["encrypted"] else
+                          localized('cli.plain_zip', 'ZIP без шифрования'))
+            counts = f"Файлов: {data['file_count']}; каталогов: {data['directory_count']}; {protection}"
+            print(localized('cli.archive_counts', counts, files=str(data['file_count']),
+                            directories=str(data['directory_count']), protection=protection))
         if data.get("state") is not None:
             state = data["state"]
-            print(f"Направление: {state['direction']}; индекс следующего шага: {state['index']}; "
-                  f"результат: {state['outcome']}")
-            print(f"Выпуск: {state['old_release']} → {state['release']}")
+            summary = (f"Направление: {state['direction']}; индекс следующего шага: {state['index']}; "
+                       f"результат: {state['outcome']}")
+            print(localized('cli.update_summary', summary, direction=state['direction'],
+                            index=str(state['index']), outcome=state['outcome']))
+            print(localized('cli.label_release', 'Выпуск:') + f" {state['old_release']} → {state['release']}")
             if state["failed_phase"] is not None:
-                print("Фаза сбоя: " + state["failed_phase"])
+                print(localized('cli.label_failed_phase', 'Фаза сбоя:') + " " + state["failed_phase"])
     return code
 
 

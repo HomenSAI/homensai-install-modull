@@ -160,6 +160,16 @@ def test_human_plan_is_russian_text_without_writes(tmp_path, capsys):
     assert not list(tmp_path.iterdir())
 
 
+@pytest.mark.parametrize('language,directories,files', [('en', 'Directories:', 'Files:'),
+                                                         ('de', 'Verzeichnisse:', 'Dateien:')])
+def test_human_plan_localizes_labels(tmp_path, capsys, language, directories, files):
+    assert ctl.main(['--language', language, '--manifest', str(EXAMPLES / 'rent.manifest.json'),
+                     'plan-install', '--install-root', str(tmp_path), '--platform', 'linux', '--mode', 'platform']) == 0
+    output = capsys.readouterr().out
+    assert directories in output and files in output
+    assert 'homensai-rent-demo-core-server.service' in output and not list(tmp_path.iterdir())
+
+
 @pytest.mark.parametrize("modes", [[], ["unknown"], ["autonomous", "platform"],
                                   ["platform", "platform"]])
 def test_plan_invalid_modes_does_not_write(tmp_path, capsys, modes):

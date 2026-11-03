@@ -453,3 +453,41 @@ def test_inspection_can_report_completed_update_without_replaying(installation, 
     pointer.write_text(json.dumps({'release': '2' if rollback else '1'}))
     with pytest.raises(UpdateError):
         inspect_started_pointer_group(**args)
+
+
+def test_terminal_group_holds_locks_and_requires_bound_scope(installation, monkeypatch):
+    from contextvars import copy_context
+    from shared.pointer_terminal import _verified_terminal_group
+    from shared.update_plan import LockBusy, operation_lock
+    from shared.update_prepare import UpdatePrepareError, verify_started_linux_update
+    root, _, options, manager = installation
+    plan = assemble_pointer_linux_update(**options)
+    monkeypatch.setattr(plan.ports.effects.health_port, 'health', lambda *_: None)
+    state = plan.run()
+    excluded = {'unit_dir', 'load_key', 'runtime_key', 'runtime_reserve_bytes', 'runner',
+                'password_provider', 'interpreter', 'interpreter_sha256', 'timeout'}
+    common = {name: value for name, value in options.items() if name not in excluded}
+    with pytest.raises(UpdatePrepareError):
+        verify_started_linux_update(**common, _allow_terminal=True, _locks_held=True)
+    group_args = {name: value for name, value in options.items() if name not in
+                  ('password_provider', 'interpreter', 'interpreter_sha256', 'timeout')}
+    before = len(manager.calls)
+    with _verified_terminal_group(**group_args) as (group, observed):
+        assert observed['state'] == state and len(group.order) == 3
+        assert verify_started_linux_update(**common, _allow_terminal=True, _locks_held=True)['state'] == state
+        saved_context = copy_context()
+        with pytest.raises(LockBusy):
+            with operation_lock(plan.lock_path):
+                pass
+    assert all(call[0] == 'show' for call in manager.calls[before:])
+    assert plan.status() == state
+    with pytest.raises(UpdatePrepareError):
+        verify_started_linux_update(**common, _allow_terminal=True, _locks_held=True)
+    with pytest.raises(UpdatePrepareError):
+        saved_context.run(lambda: verify_started_linux_update(**common, _allow_terminal=True, _locks_held=True))
+    with pytest.raises(UpdateError):
+        with _verified_terminal_group(**group_args):
+            (root / 'runtime/lib/homensai/portable_launcher.py').write_text('tampered')
+    with operation_lock(plan.lock_path):
+        pass
+    assert plan.status() == state

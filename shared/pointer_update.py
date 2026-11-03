@@ -64,7 +64,7 @@ class _RuntimeEvidence:
             raise UpdateError('Отметка runtime изменилась')
 
 
-def inspect_started_pointer_runtime(*, runtime_key, runtime_reserve_bytes, **options):
+def inspect_started_pointer_runtime(*, runtime_key, runtime_reserve_bytes, _locks_held=False, **options):
     """Inspect a started or recorded-complete update's runtime without effects.
 
     Trusted packages, keys, operation ID and writer isolation are caller-owned.
@@ -75,7 +75,7 @@ def inspect_started_pointer_runtime(*, runtime_key, runtime_reserve_bytes, **opt
                 or type(runtime_reserve_bytes) is not int or not 0 <= runtime_reserve_bytes <= 2**63 - 1
                 or runtime_key == options['operation_id']):
             raise UpdateError('Недопустимые параметры runtime')
-        started = verify_started_linux_update(**options, _allow_terminal=True)
+        started = verify_started_linux_update(**options, _allow_terminal=True, _locks_held=_locks_held)
         old_options = dict(trusted_public_key=options['old_key'], expected_product_id=options['product_id'],
                            expected_version=options['old_version'])
         new_options = dict(trusted_public_key=options['new_key'], expected_product_id=options['product_id'],
@@ -98,7 +98,7 @@ def inspect_started_pointer_runtime(*, runtime_key, runtime_reserve_bytes, **opt
             raise UpdateError('Отметка runtime не подтверждена')
         _inspect_runtime(runtime, files, set(recipe['executables']))
         if (_publication_receipt(receipt_path) != expected
-                or verify_started_linux_update(**options, _allow_terminal=True) != started
+                or verify_started_linux_update(**options, _allow_terminal=True, _locks_held=_locks_held) != started
                 or status_fresh_native(options['old_package'], options['old_envelope'], options['install_root'],
                                        **old_options) != fresh):
             raise UpdateError('Состояние изменилось во время проверки')

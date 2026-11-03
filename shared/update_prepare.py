@@ -4,6 +4,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from contextlib import contextmanager, nullcontext
+from contextvars import ContextVar
 from pathlib import Path
 import re
 import stat
@@ -23,6 +25,29 @@ from shared.update_plan import UpdatePlan, _atomic_write, operation_lock
 
 class UpdatePrepareError(RuntimeError):
     """Подготовка не подтверждена; состояние может требовать ручной проверки."""
+
+
+_UPDATE_LOCK_SCOPE = ContextVar('homensai_update_lock_scope', default=None)
+
+
+class _UpdateLease:
+    def __init__(self, root, lock_path):
+        self.root, self.lock_path, self.active = str(root), str(lock_path), True
+
+
+@contextmanager
+def _locked_update_scope(root, lock_path):
+    """Acquire both update locks and bind the lease to this execution context."""
+    root, lock_path = checked_path(root), checked_path(lock_path)
+    with _lifecycle_lock(str(root)):
+        with operation_lock(lock_path):
+            lease = _UpdateLease(root, lock_path)
+            token = _UPDATE_LOCK_SCOPE.set(lease)
+            try:
+                yield
+            finally:
+                lease.active = False
+                _UPDATE_LOCK_SCOPE.reset(token)
 
 
 def _check_pointer_runtime_compatibility(old_metadata, new_metadata):
@@ -173,14 +198,14 @@ def verify_started_linux_update(*, new_package: str, new_envelope: bytes, new_ke
                                 product_id: str, old_version: str, new_version: str,
                                 install_root: str, work_dir: str, modes: tuple[str, ...],
                                 migration_ids: tuple[str, ...], operation_id: str,
-                                _allow_terminal: bool = False) -> dict:
+                                _allow_terminal: bool = False, _locks_held: bool = False) -> dict:
     """Сверить подготовку и checkpoint, не продолжая транзакцию.
 
     Закрытое расширение _allow_terminal применяется для наблюдения результата;
     сам checkpoint не подтверждает текущее здоровье продукта.
     """
     try:
-        if (type(_allow_terminal) is not bool
+        if (type(_allow_terminal) is not bool or type(_locks_held) is not bool
                 or type(operation_id) is not str or re.fullmatch(r'[a-f0-9]{32}', operation_id) is None
                 or type(old_key) is not bytes or len(old_key) != 32
                 or type(new_key) is not bytes or len(new_key) != 32
@@ -214,37 +239,41 @@ def verify_started_linux_update(*, new_package: str, new_envelope: bytes, new_ke
                           modes=modes, migration_ids=migration_ids, guard_effects=True)
         marker = checked_path(work / ('prepare-' + operation_id + '.json'))
         destination = checked_path(work / ('payload-' + operation_id))
-        with _lifecycle_lock(str(root)):
-            with operation_lock(plan.lock_path):
-                fresh = status_fresh_native(old_path, old_envelope, str(root), **old_options)
-                state = plan.status()
-                if (fresh['reported_status'] != 'prepared' or state is None
-                        or state['old_release'] != old_version
-                        or (state['outcome'] != 'running' and not _allow_terminal)):
-                    raise UpdatePrepareError('Нет начатого обновления')
-                digest = _binding(root=root, work=work, old_path=old_path, new_path=new_path,
-                    old_envelope=old_envelope, new_envelope=new_envelope, old_key=old_key, new_key=new_key,
-                    old_transaction=fresh['transaction'], old_metadata=old_metadata,
-                    new_metadata=new_metadata, plan=plan, operation_id=operation_id)
-                done = {'version': 1, 'operation_id': operation_id, 'binding': digest, 'status': 'done'}
-                receipt = read_effect_receipt(marker)
-                current = ports.current_release()
-                if (receipt is None or type(receipt.get('version')) is not int or receipt != done
-                        or _tree(destination) != _expected_tree(new_metadata)
-                        or _tree(ports.release_path(old_version)) != _expected_tree(old_metadata)
-                        or current not in (old_version, new_version)):
-                    raise UpdatePrepareError('Подготовка или установка изменились')
-                new_release = ports.release_path(new_version)
-                if new_release.exists() and _tree(new_release) != _expected_tree(new_metadata):
-                    raise UpdatePrepareError('Новый выпуск изменился')
-                if ((state['outcome'] == 'updated' and (current != new_version or not new_release.is_dir()))
-                        or (state['outcome'] == 'rolled_back' and current != old_version)):
-                    raise UpdatePrepareError('Результат обновления не соответствует указателю')
-                if (plan.status() != state or ports.current_release() != current
-                        or read_effect_receipt(marker) != done
-                        or status_fresh_native(old_path, old_envelope, str(root), **old_options) != fresh
-                        or verify_signed_package(new_path, new_envelope, **new_options) != new_metadata):
-                    raise UpdatePrepareError('Состояние изменилось во время проверки')
+        if _locks_held:
+            lease = _UPDATE_LOCK_SCOPE.get()
+            if (not isinstance(lease, _UpdateLease) or not lease.active
+                    or lease.root != str(root) or lease.lock_path != str(plan.lock_path)):
+                raise UpdatePrepareError('Блокировка не подтверждена')
+        with nullcontext() if _locks_held else _locked_update_scope(root, plan.lock_path):
+            fresh = status_fresh_native(old_path, old_envelope, str(root), **old_options)
+            state = plan.status()
+            if (fresh['reported_status'] != 'prepared' or state is None
+                    or state['old_release'] != old_version
+                    or (state['outcome'] != 'running' and not _allow_terminal)):
+                raise UpdatePrepareError('Нет начатого обновления')
+            digest = _binding(root=root, work=work, old_path=old_path, new_path=new_path,
+                old_envelope=old_envelope, new_envelope=new_envelope, old_key=old_key, new_key=new_key,
+                old_transaction=fresh['transaction'], old_metadata=old_metadata,
+                new_metadata=new_metadata, plan=plan, operation_id=operation_id)
+            done = {'version': 1, 'operation_id': operation_id, 'binding': digest, 'status': 'done'}
+            receipt = read_effect_receipt(marker)
+            current = ports.current_release()
+            if (receipt is None or type(receipt.get('version')) is not int or receipt != done
+                    or _tree(destination) != _expected_tree(new_metadata)
+                    or _tree(ports.release_path(old_version)) != _expected_tree(old_metadata)
+                    or current not in (old_version, new_version)):
+                raise UpdatePrepareError('Подготовка или установка изменились')
+            new_release = ports.release_path(new_version)
+            if new_release.exists() and _tree(new_release) != _expected_tree(new_metadata):
+                raise UpdatePrepareError('Новый выпуск изменился')
+            if ((state['outcome'] == 'updated' and (current != new_version or not new_release.is_dir()))
+                    or (state['outcome'] == 'rolled_back' and current != old_version)):
+                raise UpdatePrepareError('Результат обновления не соответствует указателю')
+            if (plan.status() != state or ports.current_release() != current
+                    or read_effect_receipt(marker) != done
+                    or status_fresh_native(old_path, old_envelope, str(root), **old_options) != fresh
+                    or verify_signed_package(new_path, new_envelope, **new_options) != new_metadata):
+                raise UpdatePrepareError('Состояние изменилось во время проверки')
         return {'state': state, 'payload_name': destination.name, 'plan_sha256': plan.digest}
     except Exception:
         raise UpdatePrepareError('Не удалось подтвердить начатое обновление') from None

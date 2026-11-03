@@ -469,6 +469,25 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                     assert not inspection['resume_authorized'] and not inspection['process_identity_verified']
                 else:
                     outcome = update.run()
+                if update_case == 'terminal_cycle':
+                    from shared.pointer_terminal_cycle import cycle_terminal_pointer
+                    cycle_args = {name: value for name, value in update_args.items() if name not in
+                                  ('password_provider', 'interpreter', 'interpreter_sha256', 'timeout')}
+                    assert cycle_terminal_pointer(**cycle_args, action='stop', cycle_key='2' * 32)['state'] == 'stopped'
+                    assert cycle_terminal_pointer(**cycle_args, action='stop', cycle_key='2' * 32)['state'] == 'stopped'
+                    assert cycle_terminal_pointer(**cycle_args, action='start', cycle_key='3' * 32)['state'] == 'started'
+                    deadline = time.monotonic() + 30
+                    while True:
+                        try:
+                            ready = client.call('check-local-health', {'port': port, 'product_id': manifest['product_id'],
+                                'version': '2', 'path': '/health', 'timeout_seconds': 2}, min_minor=12)
+                            if ready['health_response_matches']:
+                                break
+                        except InstallerClientError:
+                            pass
+                        if time.monotonic() >= deadline:
+                            pytest.fail('Продукт не ответил после повторного запуска')
+                        time.sleep(0.2)
                 expected_version = '1' if update_case == 'rollback' else '2'
                 assert outcome['outcome'] == ('rolled_back' if update_case == 'rollback' else 'updated')
                 if update is None:
@@ -665,7 +684,7 @@ def test_fresh_controller_runs_real_pointer_product(tmp_path, monkeypatch):
 
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Нужен одноразовый тестовый контейнер Python 3.14')
-@pytest.mark.parametrize('update_case', ['updated', 'rollback', 'recover_stop', 'api_start'])
+@pytest.mark.parametrize('update_case', ['updated', 'rollback', 'recover_stop', 'api_start', 'terminal_cycle'])
 def test_real_pointer_product_update_and_rollback(tmp_path, monkeypatch, update_case):
     test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True,
                                                       pointer=True, update_case=update_case)

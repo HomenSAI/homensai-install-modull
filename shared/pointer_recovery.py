@@ -19,7 +19,7 @@ from shared.update_plan import UpdateError
 
 
 def _inspect_started_pointer_group(*, unit_dir, load_key, runtime_key, runtime_reserve_bytes,
-                                   runner=None, timeout=30, **options):
+                                   runner=None, timeout=30, _locks_held=False, **options):
     """Observe signed units and systemd state, without authorizing any effect.
 
     Caller must independently trust the keys, manager, local installer and all
@@ -33,7 +33,7 @@ def _inspect_started_pointer_group(*, unit_dir, load_key, runtime_key, runtime_r
                 or (runner is not None and not callable(runner))):
             raise UpdateError('Недопустимые параметры служб')
         runtime = inspect_started_pointer_runtime(runtime_key=runtime_key,
-            runtime_reserve_bytes=runtime_reserve_bytes, **options)
+            runtime_reserve_bytes=runtime_reserve_bytes, _locks_held=_locks_held, **options)
         old_options = dict(trusted_public_key=options['old_key'], expected_product_id=options['product_id'],
                            expected_version=options['old_version'])
         old = verify_signed_package(options['old_package'], options['old_envelope'], **old_options)
@@ -92,7 +92,7 @@ def _inspect_started_pointer_group(*, unit_dir, load_key, runtime_key, runtime_r
                 or not _absent(directory / ('.' + options['product_id'] + '.homensai-units.pending'))
                 or any(not _absent(directory / (item['name'] + '.d')) for item in plan['units'])
                 or inspect_started_pointer_runtime(runtime_key=runtime_key,
-                    runtime_reserve_bytes=runtime_reserve_bytes, **options) != runtime):
+                    runtime_reserve_bytes=runtime_reserve_bytes, _locks_held=_locks_held, **options) != runtime):
             raise UpdateError('Состояние изменилось во время проверки')
         for adapter, previous in zip(adapters, observed):
             current = adapter.inspect()

@@ -192,3 +192,60 @@ contention и оба E2E-исхода: код 0, `4 passed in 11.05s`. Для о
 заблокированного байта operation.lock архиватором, исправлено сменой диапазона
 блокировки. Настройки безопасности не менялись.
 
+
+## Настоящий Docker Engine без root (тестовое окружение)
+
+`tests/docker_env.sh` поднимает rootless Docker из официальных статических
+архивов в `~/.cache/homensai-docker`, не затрагивая `/usr/bin/docker`
+(эмуляция Podman), Podman и системные службы:
+
+- Docker Engine/CLI 29.9.2: `docker-29.9.2.tgz`
+  (`9ac225999fd5e863f7694c728ef23d480616b1e5639328fa309befd4243d69eb`),
+  `docker-rootless-extras-29.9.2.tgz`
+  (`f2663b230a7afc13dea88fc589685331d01f5f3fc458b92ab40e2388db452ed2`);
+  download.docker.com не публикует для них `.sha256`, хэши закреплены в скрипте.
+- Compose plugin с GitHub, сверка с опубликованным `.sha256`: v2.40.3
+  (`dba9d98e…fd372`, по умолчанию) и v5.7.0 (`7758048a…2a12a2`).
+
+Команды: `tests/docker_env.sh start` (идемпотентно; выводит путь CLI, его
+SHA-256 и socket `$XDG_RUNTIME_DIR/homensai-docker.sock`), `status`, `stop`.
+Демон: `dockerd-rootless.sh` (RootlessKit, сеть slirp4netns, порт-драйвер
+builtin), `--data-root ~/.cache/homensai-docker/data`, exec-root в
+`$XDG_RUNTIME_DIR/homensai-docker-exec`. Нужны subuid/subgid, `newuidmap` и
+системный `slirp4netns`.
+
+Модуль запускает CLI с пустой временной `DOCKER_CONFIG`, поэтому Compose plugin
+ищется только в системных каталогах (`/usr/local/lib/docker/cli-plugins` и
+т. п.). Без root их заменяет `tests/docker_env.sh run -- КОМАНДА`: команда
+выполняется во вложенных user/mount namespace с прежними UID/GID, где plugin
+наложен overlay на `/usr/local/lib`. Версию выбирает
+`HOMENSAI_COMPOSE_VERSION=2.40.3|5.7.0`.
+
+```sh
+tests/docker_env.sh start
+tests/docker_env.sh run -- ~/.cache/homensai-api31-venv/bin/python -m shared.ctl \
+  docker-check --executable ~/.cache/homensai-docker/bin/docker \
+  --executable-sha256 <cli_sha256> --socket-path "$XDG_RUNTIME_DIR/homensai-docker.sock" \
+  --timeout-seconds 10 --json
+tests/docker_env.sh stop
+```
+
+3 ноября 2026 года на загруженном хосте (load average ≈ 25) через
+`python -m shared.api` с Compose v2.40.3 успешно выполнены
+`check-docker-engine`, `prepare-signed-compose`, `inspect-signed-compose-images`,
+`control-signed-compose start` (три сервиса, ~4 мин), `check-signed-compose-health`,
+`control-signed-compose stop` и `compose-control-status`. Образ демо собран
+настоящим Docker (`DOCKER_BUILDKIT=0`, buildx в архиве нет) с отдельно
+полученным базовым образом. Ограничения и найденные расхождения:
+
+- Compose v5.7.0 отклоняется `control-signed-compose` (`docker_control_failed`):
+  `shared/docker_lifecycle.py` принимает только версию `2.x`.
+- Демонстрационный `Containerfile` не создаёт `/data` с владельцем 10001;
+  Docker (в отличие от Podman) оставляет новый именованный том владельцу root,
+  и сервисы завершаются `PermissionError`. Для опыта использовался локальный
+  вариант образа с `RUN mkdir /data && chown 10001:10001 /data`.
+- При таймауте 5 с `docker-check` под нагрузкой возвращал
+  `compose_flags_present: false` без ошибки; при 10 с — `true`.
+
+Это одиночный опыт на rootless Docker, не приёмка: rootful Docker, Windows,
+обновление, откат и восстановление контейнерной установки не проверялись.

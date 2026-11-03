@@ -2,5 +2,7 @@
 FROM docker.io/library/python@sha256:930e1abba7c4e8f96ed93e8012c35d174d7732752731bbd5e8e757d7ec6f3966
 WORKDIR /opt/demo
 COPY main.py /opt/demo/main.py
+# Docker копирует владельца точки монтирования в новый именованный том: /data для UID 10001.
+RUN mkdir /data && chown 10001:10001 /data
 USER 10001:10001
 CMD ["python", "-B", "main.py", "serve", "--data-dir", "/data", "--port", "8080", "--listen", "0.0.0.0"]

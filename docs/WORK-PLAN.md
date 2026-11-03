@@ -142,6 +142,14 @@ Docker CLI, без Windows-хоста и без учётных данных дл
   платформ, импорт двоичных зависимостей из `pydeps` работает; для установки
   Rent нужен адаптер на стороне Rent (раскладка `src/`, отдельный
   readiness-эндпоинт, секреты, модель миграций). Репозиторий Rent не менялся.
+- Шаги 77–78 (Docker): субагент поднял настоящий rootless Docker Engine 29.9.2 +
+  Compose v2.40.3 без root (`tests/docker_env.sh`, [E2E](E2E.md)); на нём
+  через API прошли `check-docker-engine`, `prepare-signed-compose`,
+  `inspect-signed-compose-images`, `control-signed-compose` start/stop,
+  `check-signed-compose-health`, `compose-control-status`. Найдено и
+  исправлено: демо-образ не создавал `/data` для UID 10001 (на Docker,
+  в отличие от Podman, сервисы падали с `PermissionError`). Compose v5
+  модулем пока отклоняется (принимается только 2.x).
 - Не выполнено: Docker-комплект (обновление и восстановление контейнеров,
   шаги 79, 93, 95), секреты Windows (73), восстановление на другой
   физической системе (97), выпуск (99–100).

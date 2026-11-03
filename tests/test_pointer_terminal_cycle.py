@@ -197,3 +197,18 @@ def test_api_stops_damaged_runtime_and_refuses_restart(completed, monkeypatch):
     assert not manager.active
     launcher.write_bytes(original)
     assert api.handle(request)['result']['state'] == 'started'
+
+
+def test_missing_runtime_allows_stop_but_not_start(completed):
+    root, plan, args, manager = completed
+    runtime = root / 'runtime'
+    saved = root / 'runtime-offline'
+    runtime.rename(saved)
+    try:
+        assert cycle_terminal_pointer(**args, action='stop', cycle_key='e' * 32)['state'] == 'stopped'
+        with pytest.raises(UpdateError):
+            cycle_terminal_pointer(**args, action='start', cycle_key='f' * 32)
+        assert not manager.active and plan.status()['outcome'] == 'updated'
+    finally:
+        saved.rename(runtime)
+    assert cycle_terminal_pointer(**args, action='start', cycle_key='f' * 32)['state'] == 'started'

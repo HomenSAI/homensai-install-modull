@@ -45,6 +45,31 @@ def test_unsafe_wheel_rejected_before_start_receipt(scenario, monkeypatch):
     assert not (root / '.homensai-control/user-systemd-start.json').exists()
 
 
+@pytest.mark.parametrize('entry,allowed', [('demo/__init__.py', True), ('../escape.py', False)])
+def test_api_start_audits_real_signed_wheel(scenario, tmp_path, monkeypatch, entry, allowed):
+    from shared.api import handle
+    from shared.wheel_audit import audit_signed_wheels
+    from test_wheel_audit import make_signed
+
+    root, args, calls, _ = scenario
+    params, package, marker = make_signed(tmp_path, entry=entry)
+    monkeypatch.setattr(start, 'audit_signed_wheels', audit_signed_wheels)
+    request = {'api_major': 1, 'request_id': 'signed-wheel-start', 'operation': 'start-portable-linux',
+               'params': {**params, 'install_root': str(root), 'modes': list(args['modes']),
+                          'unit_dir': args['unit_dir'], 'load_key': args['load_key'],
+                          'runtime_key': args['runtime_key'], 'reserve_bytes': args['reserve_bytes'],
+                          'idempotency_key': args['operation_id']}}
+    response = handle(request)
+    receipt = root / '.homensai-control/user-systemd-start.json'
+    if allowed:
+        assert response['ok'] and calls == [('start', True)]
+        assert json.loads(receipt.read_text())['status'] == 'done'
+    else:
+        assert not response['ok'] and response['error']['code'] == 'linux_start_failed'
+        assert not calls and not receipt.exists()
+    assert package.is_file() and not marker.exists() and not (tmp_path / 'escape.py').exists()
+
+
 def test_repeat_confirmed_start_does_not_send_command(scenario):
     root, args, calls, _ = scenario
     first = start.start_portable_fresh('package', b'envelope', str(root), **args)

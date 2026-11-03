@@ -460,6 +460,13 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                                            secret_env_name='HOMENSAI_SECRET_POINTER_PASSWORD')
                     assert 'synthetic-test-password' not in json.dumps(response)
                     outcome = response['state']
+                    monkeypatch.delenv('HOMENSAI_SECRET_POINTER_PASSWORD')
+                    ignored = {'password_env', 'action', 'reconcile_stop_key', 'interpreter',
+                               'interpreter_sha256', 'timeout_seconds'}
+                    inspection = client.call('inspect-started-pointer-update',
+                        {key: value for key, value in api_update.items() if key not in ignored}, min_minor=59)
+                    assert inspection['state'] == outcome and inspection['runtime_verified']
+                    assert not inspection['resume_authorized'] and not inspection['process_identity_verified']
                 else:
                     outcome = update.run()
                 expected_version = '1' if update_case == 'rollback' else '2'

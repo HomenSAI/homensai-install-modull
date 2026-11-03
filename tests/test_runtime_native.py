@@ -416,7 +416,7 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                         calls.append(argv[4:])
                         return _run(argv, **kwargs)
                     update_args['runner'] = record_systemctl
-                update = None if update_case in ('api_start', 'guarded_writer_api') else assemble_pointer_linux_update(**update_args)
+                update = None if update_case in ('api_start', 'guarded_writer_api', 'guarded_writer_success_api') else assemble_pointer_linux_update(**update_args)
                 if update_case == 'rollback':
                     original_health = update.ports.effects.health_port.health
                     def fail_forward_health(key, *values):
@@ -446,7 +446,7 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                         update.run()
                     outcome = update.run(resume_indeterminate=True)
                     assert sum(call[0] == 'stop' for call in calls) == stops
-                elif update_case in ('api_start', 'guarded_writer_api'):
+                elif update_case in ('api_start', 'guarded_writer_api', 'guarded_writer_success_api'):
                     monkeypatch.setenv('HOMENSAI_SECRET_POINTER_PASSWORD', 'synthetic-test-password')
                     api_update = {key: value for key, value in update_args.items() if key not in
                         ('password_provider', 'timeout', 'operation_id')}
@@ -456,11 +456,12 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                         migration_ids=list(update_args['migration_ids']))
                     for key in ('old_key', 'new_key', 'old_envelope', 'new_envelope'):
                         api_update[key] = base64.b64encode(api_update[key]).decode('ascii')
-                    if update_case == 'guarded_writer_api':
+                    if update_case in ('guarded_writer_api', 'guarded_writer_success_api'):
                         lock_dir = tmp_path / 'cooperative-writers'
                         lock_dir.mkdir(mode=0o700)
                         lock_path = lock_dir / 'writers.lock'
                         api_update['writer_lock_path'] = str(lock_path)
+                    if update_case == 'guarded_writer_api':
                         code = ("import sys\nfrom homensai_installer_client import CooperativeWriterLock\n"
                                 "with CooperativeWriterLock(sys.argv[1]).hold(exclusive=False):\n"
                                 " print('locked', flush=True)\n sys.stdin.read()\n")
@@ -489,7 +490,8 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                                 writer.stdin.close()
                             writer.wait(timeout=10)
                         return
-                    response = client.call('run-pointer-linux-update', api_update, min_minor=60,
+                    response = client.call('run-pointer-linux-update', api_update,
+                                           min_minor=62 if update_case == 'guarded_writer_success_api' else 60,
                                            secret_env_name='HOMENSAI_SECRET_POINTER_PASSWORD')
                     assert 'synthetic-test-password' not in json.dumps(response)
                     outcome = response['state']
@@ -497,7 +499,8 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                     ignored = {'password_env', 'action', 'reconcile_stop_key', 'interpreter',
                                'interpreter_sha256', 'timeout_seconds'}
                     inspection = client.call('inspect-started-pointer-update',
-                        {key: value for key, value in api_update.items() if key not in ignored}, min_minor=59)
+                        {key: value for key, value in api_update.items() if key not in ignored},
+                        min_minor=62 if update_case == 'guarded_writer_success_api' else 59)
                     assert inspection['state'] == outcome and inspection['runtime_verified']
                     assert not inspection['resume_authorized'] and not inspection['process_identity_verified']
                 else:
@@ -741,7 +744,8 @@ def test_fresh_controller_runs_real_pointer_product(tmp_path, monkeypatch):
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Нужен одноразовый тестовый контейнер Python 3.14')
 @pytest.mark.parametrize('update_case', ['updated', 'rollback', 'recover_stop', 'api_start',
-                                        'terminal_cycle', 'terminal_cycle_api', 'guarded_writer_api'])
+                                        'terminal_cycle', 'terminal_cycle_api', 'guarded_writer_api',
+                                        'guarded_writer_success_api'])
 def test_real_pointer_product_update_and_rollback(tmp_path, monkeypatch, update_case):
     test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True,
                                                       pointer=True, update_case=update_case)

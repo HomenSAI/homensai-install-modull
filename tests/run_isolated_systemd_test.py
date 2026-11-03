@@ -55,15 +55,20 @@ def main() -> int:
                             ['--run', '--pointer-controller'], ['--run', '--pointer-update'],
                             ['--run', '--pointer-recovery'], ['--run', '--pointer-api'],
                             ['--run', '--pointer-cycle'], ['--run', '--pointer-cycle-api'],
-                            ['--run', '--pointer-writer-api']) or not hasattr(os, 'getuid') or os.getuid() == 0:
-        print('Нужны непривилегированный пользователь и --run [--runtime|--update|--assembled|--fresh-controller|--pointer|--pointer-publish|--pointer-start|--pointer-controller|--pointer-update|--pointer-recovery|--pointer-api|--pointer-cycle|--pointer-cycle-api|--pointer-writer-api]', file=sys.stderr)
+                            ['--run', '--pointer-writer-api'], ['--run', '--pointer-writer-success-api'],
+                            ['--run', '--unicode']) or not hasattr(os, 'getuid') or os.getuid() == 0:
+        print('Нужны непривилегированный пользователь и --run [--runtime|--update|--assembled|--fresh-controller|--pointer|--pointer-publish|--pointer-start|--pointer-controller|--pointer-update|--pointer-recovery|--pointer-api|--pointer-cycle|--pointer-cycle-api|--pointer-writer-api|--pointer-writer-success-api|--unicode]', file=sys.stderr)
         return 2
     with tempfile.TemporaryDirectory(prefix='homensai-isolated-systemd-') as temp:
         harness = Path(temp)
         harness.chmod(0o755)  # Скрипты не содержат секретов; их читает тестовый uid контейнера.
         (harness / 'setup.sh').write_text(SETUP, encoding='utf-8')
         session = SESSION
-        if sys.argv[1:] == ['--run', '--runtime']:
+        if sys.argv[1:] == ['--run', '--unicode']:
+            session = SESSION.rsplit('python -m pytest', 1)[0] + (
+                'mkdir -p /home/homenstest/tmp\nexport TMPDIR=/home/homenstest/tmp\n'
+                'python -m pytest -q -ra --tb=short -x -p no:cacheprovider tests/test_isolated_signed_demo.py\n')
+        elif sys.argv[1:] == ['--run', '--runtime']:
             session = SESSION.rsplit('python -m pytest', 1)[0] + (
                 'python -m pytest -q -p no:cacheprovider tests/test_runtime_native.py tests/test_systemd_group.py tests/test_systemd_fresh_start.py tests/test_api.py tests/test_api_signed_preflight.py tests/test_i18n.py\n')
         elif sys.argv[1:] == ['--run', '--update']:
@@ -115,6 +120,10 @@ def main() -> int:
             session = SESSION.rsplit('python -m pytest', 1)[0] + (
                 'mkdir -p /home/homenstest/tmp\nexport TMPDIR=/home/homenstest/tmp\n'
                 "python -m pytest -q -ra --tb=short -x -p no:cacheprovider 'tests/test_runtime_native.py::test_real_pointer_product_update_and_rollback[guarded_writer_api]'\n")
+        elif sys.argv[1:] == ['--run', '--pointer-writer-success-api']:
+            session = SESSION.rsplit('python -m pytest', 1)[0] + (
+                'mkdir -p /home/homenstest/tmp\nexport TMPDIR=/home/homenstest/tmp\n'
+                "python -m pytest -q -ra --tb=short -x -p no:cacheprovider 'tests/test_runtime_native.py::test_real_pointer_product_update_and_rollback[guarded_writer_success_api]'\n")
         (harness / 'session.sh').write_text(session, encoding='utf-8')
         cidfile = harness / 'container.cid'
         command = ['podman', 'run', '--rm', '--cidfile', str(cidfile), '--systemd=always',

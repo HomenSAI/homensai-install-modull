@@ -1,6 +1,7 @@
 """Полная цепочка до запуска синтетического продукта в отдельном user-systemd."""
 import base64
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -9,6 +10,7 @@ import subprocess
 import sys
 import time
 import uuid
+import zipfile
 
 import pytest
 
@@ -46,6 +48,11 @@ def test_signed_demo_prepared_published_loaded_and_started(tmp_path):
     payload.mkdir()
     for index, artifact in enumerate([*manifest['runtime']['lock_files'].values(), *manifest['runtime']['vendor_wheels']]):
         data = ('synthetic runtime ' + str(index)).encode()
+        if artifact['file'].endswith('.whl'):
+            output = io.BytesIO()
+            with zipfile.ZipFile(output, 'w') as wheel:
+                wheel.writestr('synthetic/__init__.py', '')
+            data = output.getvalue()
         path = payload / artifact['file']
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
@@ -56,7 +63,7 @@ def test_signed_demo_prepared_published_loaded_and_started(tmp_path):
     demo.mkdir()
     (demo / 'main.py').write_text(source.replace('homensai-test-demo', product))
     (demo / 'release.json').write_bytes((ROOT / 'examples/demo_product/releases/1/release.json').read_bytes())
-    install = tmp_path / 'install with spaces'
+    install = tmp_path / 'установка с пробелами'
     data_dir = install / 'data'
     program = install / 'releases/app-1/demo/main.py'
     probe = subprocess.run([sys.executable, '-B', '-c',

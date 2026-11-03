@@ -189,6 +189,10 @@ def test_transferred_backup_resumes_guarded_signed_rollback(signed, tmp_path, mo
         source.backup(key, 'archive', ())
     source_archive = source.archive_path(key)
     expected = hashlib.sha256(source_archive.read_bytes()).hexdigest()
+    # Сценарий моделирует потерю исходной копии на целевой установке.
+    destination.archive_path(key).unlink()
+    destination._path(key, '.archive.json').unlink()
+    destination._path(key, '.quiescence.json').unlink()
     state.update(direction='rollback', index=plan.rollback.index('rollback_stop'), failed_phase='health',
                  archive_ready=True, indeterminate=True)
     plan._save(state)

@@ -166,7 +166,7 @@ def audit(paths, *, send=_send, crypto_wheelhouse=None):
             'publisher_provenance_verified': False, 'malware_scanned': False, 'release_safe': False}
 
 
-def verify_clean_evidence(raw, *, expected_sha256, locks, max_age_seconds, now=None):
+def verify_clean_evidence(raw, *, expected_sha256, locks, max_age_seconds, now=None, crypto_wheelhouse=None):
     """Verify bounded OSV evidence against an independently trusted digest.
 
     The caller must authenticate the digest and the original audit process.
@@ -202,12 +202,18 @@ def verify_clean_evidence(raw, *, expected_sha256, locks, max_age_seconds, now=N
         packages, sources = read_locks(paths)
         if report['locks'] != sources or type(report['packages']) is not list:
             raise AuditError('evidence lock mismatch')
+        block = _crypto_block(crypto_wheelhouse, packages, sources) if crypto_wheelhouse is not None else None
+        if block is not None and report['crypto_wheelhouse'] != block:
+            raise AuditError('evidence crypto block mismatch')
         expected_packages = [{'name': name, 'version': packages[name], 'advisories': []}
                              for name in sorted(packages)]
         if report['packages'] != expected_packages or read_locks(paths) != (packages, sources):
             raise AuditError('findings, incomplete inventory or changed lock')
+        if block is not None and _crypto_block(crypto_wheelhouse, packages, sources) != block:
+            raise AuditError('wheelhouse changed during verification')
         return {'checked_at': report['checked_at'], 'package_count': len(packages),
-                'evidence_sha256': expected_sha256, 'complete_dependency_inventory': False,
+                'evidence_sha256': expected_sha256, 'crypto_wheelhouse_verified': block is not None,
+                'complete_dependency_inventory': False,
                 'publisher_provenance_verified': False, 'malware_scanned': False, 'release_safe': False}
     except (OSError, UnicodeError, ValueError, TypeError, KeyError, RecursionError):
         raise AuditError('could not verify OSV evidence') from None
@@ -222,8 +228,8 @@ def main():
     parser.add_argument('locks', nargs='+', help='Explicit hash-pinned pip lock files (names are sent to OSV)')
     args = parser.parse_args()
     if args.verify_evidence is not None:
-        if args.crypto_wheelhouse is not None or args.evidence_sha256 is None or args.max_age_seconds is None:
-            parser.error('offline evidence verification needs its digest and maximum age, without --crypto-wheelhouse')
+        if args.evidence_sha256 is None or args.max_age_seconds is None:
+            parser.error('offline evidence verification needs its digest and maximum age')
     elif args.evidence_sha256 is not None or args.max_age_seconds is not None:
         parser.error('evidence digest and age require --verify-evidence')
     try:
@@ -231,7 +237,8 @@ def main():
             with Path(args.verify_evidence).open('rb') as source:
                 raw = source.read(MAX_RESPONSE + 1)
             report = verify_clean_evidence(raw, expected_sha256=args.evidence_sha256,
-                                           locks=args.locks, max_age_seconds=args.max_age_seconds)
+                                           locks=args.locks, max_age_seconds=args.max_age_seconds,
+                                           crypto_wheelhouse=args.crypto_wheelhouse)
         else:
             report = audit(args.locks, crypto_wheelhouse=args.crypto_wheelhouse)
     except (AuditError, OSError, UnicodeError, ValueError, RecursionError, urllib.error.URLError):

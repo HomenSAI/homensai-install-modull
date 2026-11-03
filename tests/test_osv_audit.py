@@ -184,11 +184,63 @@ def test_cli_rejects_partial_evidence_parameters(monkeypatch):
     for arguments in (['--verify-evidence', 'report.json', 'lock.txt'],
                       ['--evidence-sha256', 'a' * 64, 'lock.txt'],
                       ['--verify-evidence', 'report.json', '--evidence-sha256', 'a' * 64,
-                       '--max-age-seconds', '60', '--crypto-wheelhouse', 'block', 'lock.txt']):
+                       '--crypto-wheelhouse', 'block', 'lock.txt']):
         monkeypatch.setattr('sys.argv', ['osv_audit', *arguments])
         with pytest.raises(SystemExit) as error:
             osv.main()
         assert error.value.code == 2
+
+
+def test_offline_evidence_rechecks_exact_crypto_block(sample, tmp_path, monkeypatch, capsys):
+    from shared import crypto_wheelhouse as wh
+    source, filename, lock = sample
+    block = tmp_path / 'block'
+    wh.build_wheelhouse(source, block)
+    report = osv.audit([str(lock)], crypto_wheelhouse=block, send=lambda _: {'results': [{}]})
+    raw = json.dumps(report).encode()
+    digest = hashlib.sha256(raw).hexdigest()
+    unchecked = osv.verify_clean_evidence(raw, expected_sha256=digest, locks=[str(lock)], max_age_seconds=60)
+    assert unchecked['crypto_wheelhouse_verified'] is False
+    checked = osv.verify_clean_evidence(raw, expected_sha256=digest, locks=[str(lock)], max_age_seconds=60,
+                                        crypto_wheelhouse=block)
+    assert checked['crypto_wheelhouse_verified'] is True and checked['release_safe'] is False
+    unbound = json.dumps(osv.audit([str(lock)], send=lambda _: {'results': [{}]})).encode()
+    with pytest.raises(osv.AuditError):
+        osv.verify_clean_evidence(unbound, expected_sha256=hashlib.sha256(unbound).hexdigest(),
+                                  locks=[str(lock)], max_age_seconds=60, crypto_wheelhouse=block)
+    path = tmp_path / 'report.json'
+    path.write_bytes(raw)
+    monkeypatch.setattr('sys.argv', ['osv_audit', '--verify-evidence', str(path), '--evidence-sha256', digest,
+        '--max-age-seconds', '60', '--crypto-wheelhouse', str(block), str(lock)])
+    assert osv.main() == 0 and json.loads(capsys.readouterr().out)['crypto_wheelhouse_verified']
+    (block / 'vendor' / filename).write_bytes(b'tampered')
+    with pytest.raises(osv.AuditError):
+        osv.verify_clean_evidence(raw, expected_sha256=digest, locks=[str(lock)], max_age_seconds=60,
+                                  crypto_wheelhouse=block)
+    assert osv.main() == 2 and capsys.readouterr().out == ''
+
+
+def test_offline_evidence_rejects_wheel_changed_between_checks(sample, tmp_path, monkeypatch):
+    from shared import crypto_wheelhouse as wh
+    source, filename, lock = sample
+    block = tmp_path / 'block'
+    wh.build_wheelhouse(source, block)
+    raw = json.dumps(osv.audit([str(lock)], crypto_wheelhouse=block,
+                              send=lambda _: {'results': [{}]})).encode()
+    original = osv._crypto_block
+    count = 0
+    def mutate_after_first(*args):
+        nonlocal count
+        count += 1
+        result = original(*args)
+        if count == 1:
+            (block / 'vendor' / filename).write_bytes(b'tampered')
+        return result
+    monkeypatch.setattr(osv, '_crypto_block', mutate_after_first)
+    with pytest.raises(osv.AuditError):
+        osv.verify_clean_evidence(raw, expected_sha256=hashlib.sha256(raw).hexdigest(),
+                                  locks=[str(lock)], max_age_seconds=60, crypto_wheelhouse=block)
+    assert count == 2
 
 
 def test_optional_wheelhouse_matches_lock_and_checks_real_artifacts(sample, tmp_path):

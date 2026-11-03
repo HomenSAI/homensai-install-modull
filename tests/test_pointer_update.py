@@ -9,6 +9,7 @@ from test_api_signed_preflight import signed_request
 from test_systemd_pointer_signed import signed_pointer
 from test_systemd_portable import FakeReloadManager, fake_manager
 from shared.pointer_update import assemble_pointer_linux_update, inspect_started_pointer_runtime
+from shared.pointer_recovery import inspect_started_pointer_group
 from shared.runtime_native import prepare_signed_linux_runtime
 from shared.systemd_pointer import publish_pointer_signed_user_units
 from shared.systemd_user_load import load_pointer_signed_user_units
@@ -181,4 +182,35 @@ def test_inspect_interrupted_runtime_after_pointer_switch(installation, monkeypa
     (root / 'releases/app-1/runtime-linux/runtime-v1.json').write_text('damaged')
     with pytest.raises(UpdateError):
         inspect_started_pointer_runtime(**args)
+    assert plan.status() == before and plan.ports.current_release() == '2'
+
+
+def test_inspect_interrupted_group_after_pointer_switch(installation, monkeypatch):
+    root, _, options, manager = installation
+    plan = assemble_pointer_linux_update(**options)
+    def interrupt_start(*_):
+        raise EffectIndeterminate('synthetic interruption')
+    monkeypatch.setattr(plan.ports.effects, 'start', interrupt_start)
+    with pytest.raises(UpdateIndeterminate):
+        plan.run()
+    excluded = {'password_provider', 'interpreter', 'interpreter_sha256', 'timeout'}
+    args = {name: value for name, value in options.items() if name not in excluded}
+    before = plan.status()
+    calls = len(manager.calls)
+    observed = inspect_started_pointer_group(**args)
+    assert observed['state'] == before and len(observed['units']) == 3
+    assert all(unit['active_state'] == 'inactive' for unit in observed['units'])
+    assert not observed['process_identity_verified'] and not observed['resume_authorized']
+    assert all(call[0] == 'show' for call in manager.calls[calls:])
+    with pytest.raises(UpdateError):
+        inspect_started_pointer_group(**{**args, 'load_key': 'f' * 32})
+    unit = next((root.parent / 'units').glob('*.service'))
+    dropin = unit.with_name(unit.name + '.d')
+    dropin.mkdir()
+    with pytest.raises(UpdateError):
+        inspect_started_pointer_group(**args)
+    dropin.rmdir()
+    unit.write_text('tampered')
+    with pytest.raises(UpdateError):
+        inspect_started_pointer_group(**args)
     assert plan.status() == before and plan.ports.current_release() == '2'

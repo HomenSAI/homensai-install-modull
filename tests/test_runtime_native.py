@@ -211,7 +211,8 @@ def test_runtime_api_plans_prepares_and_verifies_without_reexecution(runtime_rel
 
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Нужен одноразовый тестовый контейнер Python 3.14')
-def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=False, pointer=False):
+def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=False, pointer=False,
+                                                      update_case=None):
     import base64
     import pwd
     import shutil
@@ -237,6 +238,11 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
     manifest['paths'] = {name: name for name in NAMES}
     manifest['compatibility'] = {'targets': [dict(TARGET)]}
     manifest['secrets'] = []
+    if update_case is not None:
+        for hook in ('pre_start', 'health_checks', 'post_update'):
+            manifest['hooks'][hook] = []
+        manifest['migrations']['cmd'] = ['python', 'demo/main.py', 'migrate', '--data-dir', '@DATA_DIR@',
+                                         '--migration', '@MIGRATION_ID@']
     manifest['components'] = [item for item in manifest['components'] if item['name'] != 'scheduler']
     manifest['modes'][0]['components'] = ['web', 'bot']
     probe = subprocess.run([sys.executable, '-B', '-c',
@@ -384,6 +390,45 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
             plan_function = plan_pointer_signed_user_units if pointer else plan_portable_signed_user_units
             plan = plan_function(package, envelope, str(install), **options, modes=('autonomous',))
             expected_units = {name: text.encode('utf-8') for name, text in plan['unit_texts'].items()}
+            if update_case is not None:
+                import sqlite3
+                from shared.pointer_update import assemble_pointer_linux_update
+                (demo / 'release.json').write_bytes((ROOT / 'examples/demo_product/releases/2/release.json').read_bytes())
+                newer = tmp_path / 'real-runtime-v2.zip'
+                build_package(manifest, '2', payload, newer)
+                new_envelope = sign_package(newer, private_key=private,
+                    expected_product_id=manifest['product_id'], expected_version='2')
+                update_work = tmp_path / 'pointer-update-work'
+                update_work.mkdir(mode=0o700)
+                interpreter = Path(sys.executable).resolve()
+                update = assemble_pointer_linux_update(new_package=str(newer), new_envelope=new_envelope,
+                    new_key=public, old_package=str(package), old_envelope=envelope, old_key=public,
+                    product_id=manifest['product_id'], old_version='1', new_version='2', install_root=str(install),
+                    work_dir=str(update_work), modes=('autonomous',), migration_ids=('schema-2',),
+                    operation_id='e' * 32, unit_dir=str(destination), load_key=args['keys']['load'],
+                    runtime_key=args['keys']['runtime'], runtime_reserve_bytes=0,
+                    password_provider=lambda: 'synthetic-test-password', interpreter=str(interpreter),
+                    interpreter_sha256=hashlib.sha256(interpreter.read_bytes()).hexdigest(), timeout=30)
+                if update_case == 'rollback':
+                    original_health = update.ports.effects.health_port.health
+                    def fail_forward_health(key, *values):
+                        if key.endswith('/health'):
+                            raise RuntimeError('synthetic forward health failure')
+                        return original_health(key, *values)
+                    monkeypatch.setattr(update.ports.effects.health_port, 'health', fail_forward_health)
+                outcome = update.run()
+                expected_version = '1' if update_case == 'rollback' else '2'
+                assert outcome['outcome'] == ('rolled_back' if update_case == 'rollback' else 'updated')
+                assert update.ports.current_release() == expected_version
+                result = client.call('check-local-health', {'port': port, 'product_id': manifest['product_id'],
+                    'version': expected_version, 'path': '/health', 'timeout_seconds': 3}, min_minor=12)
+                assert result['health_response_matches'] and not result['process_identity_verified']
+                with sqlite3.connect(install / 'data/demo.sqlite3') as database:
+                    count = database.execute("SELECT count(*) FROM migrations WHERE name='schema-2'").fetchone()[0]
+                assert count == (0 if update_case == 'rollback' else 1)
+                assert (install / 'runtime/bin/python').stat().st_mode & 0o777 == 0o700
+                if update_case == 'rollback':
+                    assert update.ports.archive_path(update.status()['transaction'] + '/before_rollback').is_file()
         finally:
             subprocess.run(['/usr/bin/systemctl', '--user', 'stop', '--', *names], env=env,
                            stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=False)
@@ -558,3 +603,11 @@ def test_fresh_controller_runs_real_portable_product(tmp_path, monkeypatch):
                     reason='Нужен одноразовый тестовый контейнер Python 3.14')
 def test_fresh_controller_runs_real_pointer_product(tmp_path, monkeypatch):
     test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True, pointer=True)
+
+
+@pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
+                    reason='Нужен одноразовый тестовый контейнер Python 3.14')
+@pytest.mark.parametrize('update_case', ['updated', 'rollback'])
+def test_real_pointer_product_update_and_rollback(tmp_path, monkeypatch, update_case):
+    test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True,
+                                                      pointer=True, update_case=update_case)

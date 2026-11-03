@@ -52,8 +52,8 @@ def main() -> int:
     if sys.argv[1:] not in (['--run'], ['--run', '--runtime'], ['--run', '--update'],
                             ['--run', '--assembled'], ['--run', '--fresh-controller'], ['--run', '--pointer'],
                             ['--run', '--pointer-publish'], ['--run', '--pointer-start'],
-                            ['--run', '--pointer-controller']) or not hasattr(os, 'getuid') or os.getuid() == 0:
-        print('Нужны непривилегированный пользователь и --run [--runtime|--update|--assembled|--fresh-controller|--pointer|--pointer-publish|--pointer-start|--pointer-controller]', file=sys.stderr)
+                            ['--run', '--pointer-controller'], ['--run', '--pointer-update']) or not hasattr(os, 'getuid') or os.getuid() == 0:
+        print('Нужны непривилегированный пользователь и --run [--runtime|--update|--assembled|--fresh-controller|--pointer|--pointer-publish|--pointer-start|--pointer-controller|--pointer-update]', file=sys.stderr)
         return 2
     with tempfile.TemporaryDirectory(prefix='homensai-isolated-systemd-') as temp:
         harness = Path(temp)
@@ -88,6 +88,10 @@ def main() -> int:
             session = SESSION.rsplit('python -m pytest', 1)[0] + (
                 'mkdir -p /home/homenstest/tmp\nexport TMPDIR=/home/homenstest/tmp\n'
                 'python -m pytest -q -ra --tb=short -x -p no:cacheprovider tests/test_runtime_native.py -k fresh_controller_runs_real_pointer_product\n')
+        elif sys.argv[1:] == ['--run', '--pointer-update']:
+            session = SESSION.rsplit('python -m pytest', 1)[0] + (
+                'mkdir -p /home/homenstest/tmp\nexport TMPDIR=/home/homenstest/tmp\n'
+                'python -m pytest -q -ra --tb=short -x -p no:cacheprovider tests/test_runtime_native.py -k real_pointer_product_update_and_rollback\n')
         (harness / 'session.sh').write_text(session, encoding='utf-8')
         cidfile = harness / 'container.cid'
         command = ['podman', 'run', '--rm', '--cidfile', str(cidfile), '--systemd=always',

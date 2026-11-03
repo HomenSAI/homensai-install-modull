@@ -475,6 +475,14 @@ class FilesystemPorts:
                                                 expected_product_id=self.home.product_id, require_encrypted=True,
                                                 expected_ciphertext_sha256=binding['sha256'])
             for name, target in sorted(self.home.roots.items()):
+                # Pointer-v2 keeps an independently verified immutable runtime;
+                # a generic archive restore does not preserve executable modes.
+                runtime_guard = getattr(self.effects, 'runtime_guard', None)
+                if name == 'runtime' and runtime_guard is not None:
+                    if not callable(runtime_guard):
+                        raise UpdateError('Runtime не подтверждён')
+                    runtime_guard()
+                    continue
                 preserved = set()
                 if name == "services":
                     for path in (self.pointer, self.state, self.lock):

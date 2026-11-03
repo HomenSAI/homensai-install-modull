@@ -52,6 +52,7 @@ def signed_pointer(signed_request, tmp_path):
         prepare_fresh_native(package, envelope, root, **{**options, 'expected_version': version},
             required_bytes=query['params']['required_bytes'], reserve_bytes=0)
         return package, envelope, root
+    build.manifest = manifest
     return payload, options, build
 
 

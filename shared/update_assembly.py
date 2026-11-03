@@ -46,7 +46,7 @@ def _reject_version_pinned_portable_group(group, options):
 def assemble_prepared_linux_update(*, group, password_provider, interpreter: str,
                                    interpreter_sha256: str, timeout: float, reopen: bool = False,
                                    reconcile_stop_key: str | None = None,
-                                   writer_lock: CooperativeWriterLock | None = None, **options) -> UpdatePlan:
+                                   writer_lock: CooperativeWriterLock | None = None, runtime_guard=None, **options) -> UpdatePlan:
     """Связать проверенную подготовку и порты; не исполнять план или процессы.
 
     Группа, источники ключей, пароль, runtime и отсутствие сторонних писателей
@@ -59,13 +59,20 @@ def assemble_prepared_linux_update(*, group, password_provider, interpreter: str
                 or not Path(interpreter).is_absolute() or type(interpreter_sha256) is not str
                 or re.fullmatch(r'[a-f0-9]{64}', interpreter_sha256) is None
                 or type(timeout) not in (int, float) or not math.isfinite(timeout)
-                or not 0 < timeout <= 3600):
+                or not 0 < timeout <= 3600 or (runtime_guard is not None and not callable(runtime_guard))):
             raise UpdateError('Недопустимые параметры исполнения')
         if not reopen:
             _reject_version_pinned_portable_group(group, options)
         metadata = verify_signed_package(options['new_package'], options['new_envelope'],
             trusted_public_key=options['new_key'], expected_product_id=options['product_id'],
             expected_version=options['new_version'])
+        previous_metadata = verify_signed_package(options['old_package'], options['old_envelope'],
+            trusted_public_key=options['old_key'], expected_product_id=options['product_id'],
+            expected_version=options['old_version'])
+        from shared.systemd_pointer import RECIPE_PATH as POINTER_RECIPE_PATH
+        if (runtime_guard is None and any(item['path'] == POINTER_RECIPE_PATH
+                for package in (previous_metadata, metadata) for item in package['files'])):
+            raise UpdateError('Для pointer-v2 требуется проверка runtime')
         if reopen:
             from shared.wheel_audit import audit_signed_wheels
             audit_signed_wheels(options['new_package'], options['new_envelope'],
@@ -87,13 +94,11 @@ def assemble_prepared_linux_update(*, group, password_provider, interpreter: str
             interpreter_sha256=interpreter_sha256, timeout=timeout)
         previous = PreviousSignedRelease(options['old_package'], options['old_envelope'], options['old_key'])
         ports.effects = LinuxSignedUpdateEffects(lifecycle, migration, LocalUpdateHealthPort(plan, ports),
-                                                previous_release=previous, writer_lock=writer_lock)
+                                                previous_release=previous, writer_lock=writer_lock,
+                                                runtime_guard=runtime_guard)
         result = (verify_started_linux_update(**options) if reopen else prepare_signed_linux_update(**options))
         if reopen and result['state']['direction'] == 'forward':
             _reject_version_pinned_portable_group(group, options)
-            previous_metadata = verify_signed_package(options['old_package'], options['old_envelope'],
-                trusted_public_key=options['old_key'], expected_product_id=options['product_id'],
-                expected_version=options['old_version'])
             _check_pointer_runtime_compatibility(previous_metadata, metadata)
         if reconcile_stop_key is not None:
             state = result['state']

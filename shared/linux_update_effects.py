@@ -53,7 +53,7 @@ class LinuxSignedUpdateEffects:
     Вызывающий код отвечает за доверенный выпуск, группу, runtime и остановку
     всех остальных писателей. Произвольные hooks не поддерживаются.
     """
-    def __init__(self, lifecycle, migration, health, *, previous_release=None, writer_lock=None):
+    def __init__(self, lifecycle, migration, health, *, previous_release=None, writer_lock=None, runtime_guard=None):
         if (not isinstance(lifecycle, SystemdLifecyclePort)
                 or not isinstance(migration, SignedMigrationPort)
                 or not isinstance(health, LocalUpdateHealthPort)
@@ -61,7 +61,8 @@ class LinuxSignedUpdateEffects:
                 or lifecycle.ports is not migration.ports or lifecycle.ports is not health.ports
                 or lifecycle.plan.manifest['hooks']['post_update']
                 or (previous_release is not None and type(previous_release) is not PreviousSignedRelease)
-                or (writer_lock is not None and type(writer_lock) is not CooperativeWriterLock)):
+                or (writer_lock is not None and type(writer_lock) is not CooperativeWriterLock)
+                or (runtime_guard is not None and not callable(runtime_guard))):
             raise UpdateError('Несовместимые порты обновления')
         if writer_lock is not None:
             home = lifecycle.ports.home
@@ -72,6 +73,7 @@ class LinuxSignedUpdateEffects:
         self.lifecycle, self.migration, self.health_port = lifecycle, migration, health
         self.previous_release = previous_release
         self.writer_lock = writer_lock
+        self.runtime_guard = runtime_guard
 
     @contextmanager
     def operation_guard(self):
@@ -109,17 +111,25 @@ class LinuxSignedUpdateEffects:
             self._active_phase(key, 'start', 'forward')
             try:
                 self._verify_original_archive(key)
+                if self.runtime_guard is not None:
+                    self.runtime_guard()
                 self._verify_release(self.lifecycle.ports.release_path(self.plan.release))
                 self.lifecycle.start(key, components, pre_start)
                 self._verify_release(self.lifecycle.ports.release_path(self.plan.release))
+                if self.runtime_guard is not None:
+                    self.runtime_guard()
             except Exception:
                 raise EffectIndeterminate('Подписанный выпуск или запуск не подтверждён') from None
             return
         self._active_phase(key, 'rollback_start', 'rollback')
         try:
             self._verify_previous()
+            if self.runtime_guard is not None:
+                self.runtime_guard()
             self.lifecycle.start(key, components, pre_start)
             self._verify_previous()
+            if self.runtime_guard is not None:
+                self.runtime_guard()
         except Exception:
             raise EffectIndeterminate('Прежний выпуск или запуск не подтверждены') from None
 
@@ -210,8 +220,12 @@ class LinuxSignedUpdateEffects:
             raise UpdateError('Восстановление не соответствует плану')
         try:
             self._verify_previous()
+            if self.runtime_guard is not None:
+                self.runtime_guard()
             restore(key, archive_key, command)
             self._verify_previous()
+            if self.runtime_guard is not None:
+                self.runtime_guard()
         except Exception:
             raise EffectIndeterminate('Прежний выпуск или восстановление не подтверждены') from None
 

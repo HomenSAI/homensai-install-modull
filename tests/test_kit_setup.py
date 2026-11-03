@@ -320,3 +320,38 @@ def test_accepted_new_publisher_key_is_pinned_after_update(env, monkeypatch):
     assert removal['trusted_public_key'] == base64.b64encode(b'k' * 32).decode()
     state = json.loads((base / 'home/.local/state/homensai/demo/state.json').read_text())
     assert state['public_key'] == base64.b64encode(b'n' * 32).decode()
+
+
+def test_installer_publication_failure_is_finished_by_same_command(env, monkeypatch):
+    base, client, setup = env
+    kit = make_kit(base)
+    original = kit_setup.Setup.store_installer
+    monkeypatch.setattr(kit_setup.Setup, 'store_installer', lambda self: (_ for _ in ()).throw(OSError('ENOSPC')))
+    with pytest.raises(OSError):
+        with setup(kit).locked():
+            setup(kit).install()
+    state_dir = base / 'home/.local/state/homensai/demo'
+    state = json.loads((state_dir / 'state.json').read_text())
+    assert state['status'] == 'installed' and state['pending_installer'] == '1'
+    assert not (state_dir / 'installer').exists()
+    monkeypatch.setattr(kit_setup.Setup, 'store_installer', original)
+    instance = setup(kit)
+    with instance.locked():
+        assert instance.install() == 0
+    assert (state_dir / 'installer/setup.sh').is_file()
+    assert 'pending_installer' not in json.loads((state_dir / 'state.json').read_text())
+    with pytest.raises(SetupError) as again:
+        with setup(kit).locked():
+            setup(kit).install()
+    assert again.value.key == 'kit.already_installed'
+
+
+def test_interrupted_installer_swap_is_restored(env):
+    base, client, setup = env
+    kit = make_kit(base)
+    setup(kit).install()
+    state_dir = base / 'home/.local/state/homensai/demo'
+    (state_dir / 'installer').rename(state_dir / '.installer.old')  # сбой между переносом и публикацией
+    with setup(kit).locked():
+        pass
+    assert (state_dir / 'installer/setup.sh').is_file() and not (state_dir / '.installer.old').exists()

@@ -161,6 +161,7 @@ class Setup:
         self.state_dir = (state_dir or base / 'homensai' / kit.product_id).resolve()
         self.state_file = self.state_dir / 'state.json'
         self._client = client
+        self.finalized = False
 
     # --- служебное -----------------------------------------------------------------
     def t(self, key, **variables):
@@ -205,6 +206,7 @@ class Setup:
         self.prepare_state_dir()
         try:
             with operation_lock(self.state_dir / 'setup.lock'):
+                self.finish_installer()
                 yield
         except LockBusy:
             raise SetupError('kit.busy') from None
@@ -266,6 +268,28 @@ class Setup:
         os.replace(staging, target)
         shutil.rmtree(previous, ignore_errors=True)
 
+    def publish_installer(self, state):
+        """Финализация после сохранённого итогового статуса: отметка уже записана."""
+        self.store_installer()
+        state.pop('pending_installer', None)
+        self.save(state)
+
+    def finish_installer(self):
+        """Довести прерванную публикацию сохранённого установщика (A-06).
+
+        Сбой между переносом installer → .installer.old и публикацией новой копии
+        восстанавливается из .installer.old; незавершённая публикация версии этого
+        комплекта выполняется заново. Возвращает True, если что-то было завершено.
+        """
+        target, previous = self.state_dir / 'installer', self.state_dir / '.installer.old'
+        if not target.exists() and previous.is_dir():
+            os.replace(previous, target)
+        state = self.state()
+        self.finalized = state is not None and state.get('pending_installer') == self.kit.version
+        if self.finalized:
+            self.publish_installer(state)
+        return self.finalized
+
     def manifest(self, package: str, envelope: str, version: str, key: bytes | None = None) -> dict:
         from shared.package_signing import verify_signed_package
         return verify_signed_package(package, Path(envelope).read_bytes(),
@@ -322,6 +346,9 @@ class Setup:
             raise SetupError('kit.key_mismatch')
         state = self.state()
         if state is not None and state['status'] == 'installed':
+            if self.finalized and state['version'] == self.kit.version:
+                self.out(self.t('kit.installed', version=self.kit.version))
+                return 0
             raise SetupError('kit.already_installed', version=state['version'])
         if state is not None and state['status'] == 'uninstalled' and state.get('data_policy') == 'purge':
             state = None
@@ -391,12 +418,12 @@ class Setup:
             'load_key': pending['keys']['load'], 'runtime_key': pending['keys']['runtime'],
             'reserve_bytes': params['reserve_bytes']},
             applied_migrations=list(release['migrations']), public_key=_b64(self.kit.public_key),
-            history=state.get('history', []) + [
+            pending_installer=self.kit.version, history=state.get('history', []) + [
                 {'action': 'install', 'version': self.kit.version, 'time': int(time.time())}])
         state.pop('install', None)
         state.pop('data_policy', None)
         self.save(state)
-        self.store_installer()
+        self.publish_installer(state)
         self.out(self.t('kit.installed', version=self.kit.version))
         healthy = self.health(state, self.kit.version, wait=30)
         self.out(self.t('kit.health_ok') if healthy else self.t('kit.health_unknown'))
@@ -428,6 +455,9 @@ class Setup:
         if pending is not None and pending['new_version'] != self.kit.version:
             raise SetupError('kit.pending_other_version', version=pending['new_version'])
         if pending is None and self.kit.version == state['version']:
+            if self.finalized:
+                self.out(self.t('kit.updated', version=self.kit.version))
+                return 0
             raise SetupError('kit.same_version', version=state['version'])
         old = state['releases'][state['version']]
         old_key = self.release_key(state, old)
@@ -505,7 +535,8 @@ class Setup:
         if outcome == 'updated':
             state['releases'][self.kit.version] = release
             state.update(status='installed', version=self.kit.version, public_key=_b64(self.kit.public_key),
-                         applied_migrations=applied + list(pending['migration_ids']))
+                         applied_migrations=applied + list(pending['migration_ids']),
+                         pending_installer=self.kit.version)
             history.append({'action': 'update', 'version': self.kit.version, 'time': int(time.time())})
             code = 0
         elif outcome == 'rolled_back':
@@ -568,8 +599,8 @@ class Setup:
             'reserve_bytes': self.kit.meta['reserve_bytes']})
         state.pop('consolidate', None)
         self.save(state)
-        if state['version'] == self.kit.version:
-            self.store_installer()
+        if state.get('pending_installer') == self.kit.version:
+            self.publish_installer(state)
         healthy = self.health(state, state['version'], wait=30)
         self.out(self.t('kit.health_ok') if healthy else self.t('kit.health_unknown'))
         return state.get('last_update', {}).get('code', 0)

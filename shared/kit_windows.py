@@ -448,6 +448,9 @@ class WindowsSetup(Setup):
             raise SetupError('kit.unsupported_host')
         state = self.state()
         if state is not None and state['status'] == 'installed':
+            if self.finalized and state['version'] == self.kit.version:
+                self.out(self.t('kit.installed', version=self.kit.version))
+                return 0
             raise SetupError('kit.already_installed', version=state['version'])
         if state is not None and state['status'] == 'uninstalled' and state.get('data_policy') == 'purge':
             state = None
@@ -522,12 +525,12 @@ class WindowsSetup(Setup):
         state['releases'][self.kit.version] = release
         state.update(status='installed', version=self.kit.version, base=self.kit.version,
                      public_key=self._b64key(), applied_migrations=list(release['migrations']),
-                     history=state.get('history', []) + [
+                     pending_installer=self.kit.version, history=state.get('history', []) + [
                          {'action': 'install', 'version': self.kit.version, 'time': int(time.time())}])
         state.pop('install', None)
         state.pop('data_policy', None)
         self.save(state)
-        self.store_installer()
+        self.publish_installer(state)
         self.out(self.t('kit.installed', version=self.kit.version))
         healthy = http_health(manifest, self.kit.product_id, self.kit.version, 60)
         self.out(self.t('kit.health_ok') if healthy else self.t('kit.health_unknown'))
@@ -550,6 +553,9 @@ class WindowsSetup(Setup):
         if pending is not None and pending['new_version'] != self.kit.version:
             raise SetupError('kit.pending_other_version', version=pending['new_version'])
         if pending is None and self.kit.version == state['version']:
+            if self.finalized:
+                self.out(self.t('kit.updated', version=self.kit.version))
+                return 0
             raise SetupError('kit.same_version', version=state['version'])
         applied = state.get('applied_migrations', [])
         kit_migrations = signed_release_info(self.kit.package, self.kit.envelope.read_bytes(), self.kit.public_key,
@@ -640,7 +646,8 @@ class WindowsSetup(Setup):
         if outcome == 'updated':
             state['releases'][self.kit.version] = release
             state.update(version=self.kit.version, base=self.kit.version, public_key=self._b64key(),
-                         applied_migrations=applied + list(pending['migration_ids']))
+                         applied_migrations=applied + list(pending['migration_ids']),
+                         pending_installer=self.kit.version)
             history.append({'action': 'update', 'version': self.kit.version, 'time': int(time.time())})
             code = 0
         else:
@@ -653,7 +660,7 @@ class WindowsSetup(Setup):
         self.save(state)
         shutil.rmtree(payload, ignore_errors=True)
         if outcome == 'updated':
-            self.store_installer()
+            self.publish_installer(state)
             self.out(self.t('kit.updated', version=self.kit.version))
         else:
             self.out(self.t('kit.rolled_back', version=state['version']))

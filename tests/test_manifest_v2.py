@@ -289,6 +289,34 @@ def test_validation_does_not_execute_commands_or_inspect_layout(manifest, monkey
     assert validate_manifest(manifest) == manifest
 
 
+@pytest.mark.parametrize('change', ['missing-data', 'secret-value', 'unencrypted-backup',
+                                    'empty-migration', 'external-health'])
+def test_api_rejects_invalid_data_backup_migration_and_health(manifest, change):
+    from shared.api import handle
+    sentinel = 'FICTIONAL-SECRET-DO-NOT-ECHO'
+    if change == 'missing-data':
+        del manifest['paths']['data']
+    elif change == 'secret-value':
+        manifest['secrets'][0]['value'] = sentinel
+    elif change == 'unencrypted-backup':
+        manifest['backup']['encrypted'] = False
+    elif change == 'empty-migration':
+        manifest['migrations']['cmd'] = []
+    else:
+        manifest['web']['host'] = '0.0.0.0'
+    response = handle({'api_major': 1, 'request_id': 'manifest-contract', 'operation': 'validate',
+                       'params': {'manifest': manifest}})
+    assert not response['ok'] and response['error']['code'] == 'invalid_request'
+    assert sentinel not in json.dumps(response)
+
+
+def test_api_accepts_manifest_with_data_backup_migrations_and_health(manifest):
+    from shared.api import handle
+    response = handle({'api_major': 1, 'request_id': 'manifest-contract', 'operation': 'validate',
+                       'params': {'manifest': manifest}})
+    assert response['ok'] and response['result'] == {'product_id': manifest['product_id'], 'schema_version': 2}
+
+
 def test_v2_is_not_silently_rendered_as_single_process_v1(manifest):
     with pytest.raises(ManifestError, match="только v1"):
         render_docker(manifest)

@@ -17,7 +17,7 @@ from shared.signed_migration_port import SignedMigrationPort
 from shared.systemd_lifecycle_port import SystemdLifecyclePort
 from shared.update_health_port import LocalUpdateHealthPort
 from shared.update_plan import EffectIndeterminate, LockBusy, UpdateError, _ACTIVE_EFFECT, _atomic_write
-from shared.writer_guard import CooperativeWriterLock
+from shared.writer_guard import CooperativeWriterLock, writer_lock_digest
 
 _BACKUP_KEY = re.compile(r'([a-f0-9]{32})/(archive|backup:(?:0|[1-9][0-9]{0,5})|before_rollback)\Z')
 
@@ -66,7 +66,8 @@ class LinuxSignedUpdateEffects:
             raise UpdateError('Несовместимые порты обновления')
         if writer_lock is not None:
             home = lifecycle.ports.home
-            protected = [home.app, home.releases, *home.roots.values(), lifecycle.ports.work]
+            protected = [checked_path(migration.install_root), home.app, home.releases,
+                         *home.roots.values(), lifecycle.ports.work]
             if any(contains(checked_path(path), writer_lock.path) for path in protected):
                 raise UpdateError('Блокировка пересекается с выпуском, данными или архивом')
         self.plan = lifecycle.plan
@@ -74,6 +75,12 @@ class LinuxSignedUpdateEffects:
         self.previous_release = previous_release
         self.writer_lock = writer_lock
         self.runtime_guard = runtime_guard
+
+    def _check_writer_binding(self):
+        expected = self.plan.writer_lock_sha256
+        if expected is not None and (self.writer_lock is None
+                or writer_lock_digest(str(self.writer_lock.path)) != expected):
+            raise UpdateError('Блокировка писателей не соответствует плану')
 
     @contextmanager
     def operation_guard(self):
@@ -89,6 +96,7 @@ class LinuxSignedUpdateEffects:
         if type(key) is str and key.endswith('/stop'):
             self._active_phase(key, 'stop', 'forward')
             try:
+                self._check_writer_binding()
                 self._verify_previous()
                 if self.lifecycle.ports.password_provider is not None:
                     from shared import archive_crypto
@@ -253,6 +261,10 @@ class LinuxSignedUpdateEffects:
                    'installation_sha256': self.lifecycle.install_hash,
                    'units_sha256': self.lifecycle.units_hash}
         writer_lock = self.writer_lock
+        try:
+            self._check_writer_binding()
+        except Exception:
+            raise EffectIndeterminate('Блокировка писателей не подтверждена') from None
         if writer_lock is not None:
             binding['writer_lock_sha256'] = hashlib.sha256(str(writer_lock.path).encode('utf-8')).hexdigest()
         stop_binding = {'version': 1, 'plan': self.plan.digest, 'key': binding['stop_key'],

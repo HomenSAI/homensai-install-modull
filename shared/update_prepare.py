@@ -152,7 +152,8 @@ def prepare_signed_linux_update(*, new_package: str, new_envelope: bytes, new_ke
                                 effects=None, password_provider=lambda: None)
         plan = UpdatePlan(new_metadata['manifest'], root, ports, release=new_version,
                           modes=modes, migration_ids=migration_ids, guard_effects=True,
-                          writer_lock_sha256=writer_lock_digest(writer_lock_path))
+                          writer_lock_sha256=writer_lock_digest(writer_lock_path, forbidden_roots=(
+                              root, work, ports.home.app, ports.home.releases, *ports.home.roots.values())))
         old_verified = verify_fresh_release(old_path, old_envelope, str(root), **old_options)
         digest = _binding(root=root, work=work, old_path=old_path, new_path=new_path,
             old_envelope=old_envelope, new_envelope=new_envelope, old_key=old_key, new_key=new_key,
@@ -241,7 +242,8 @@ def verify_started_linux_update(*, new_package: str, new_envelope: bytes, new_ke
                                 effects=None, password_provider=lambda: None)
         plan = UpdatePlan(new_metadata['manifest'], root, ports, release=new_version,
                           modes=modes, migration_ids=migration_ids, guard_effects=True,
-                          writer_lock_sha256=writer_lock_digest(writer_lock_path))
+                          writer_lock_sha256=writer_lock_digest(writer_lock_path, forbidden_roots=(
+                              root, work, ports.home.app, ports.home.releases, *ports.home.roots.values())))
         marker = checked_path(work / ('prepare-' + operation_id + '.json'))
         destination = checked_path(work / ('payload-' + operation_id))
         if _locks_held:

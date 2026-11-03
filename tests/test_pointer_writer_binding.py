@@ -91,3 +91,55 @@ def test_api_keeps_writer_binding_and_rejects_live_writer(installation, monkeypa
     assert api.handle(inspect)['error']['code'] == 'update_inspect_failed'
     inspect['params']['writer_lock_path'] = lock_path
     assert api.handle(inspect)['result']['state'] == result['result']['state']
+
+
+@pytest.mark.parametrize('relative', ['.homensai-control/writers.lock', '.homensai-bootstrap.lock'])
+def test_writer_lock_inside_install_control_is_rejected_before_preparation(installation, relative):
+    from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update
+    root, work, options, manager = installation
+    guard = CooperativeWriterLock(str(root / relative))
+    before = len(manager.calls)
+    excluded = {'unit_dir', 'load_key', 'runtime_key', 'runtime_reserve_bytes', 'runner',
+                'password_provider', 'interpreter', 'interpreter_sha256', 'timeout'}
+    prepare = {name: value for name, value in options.items() if name not in excluded}
+    with pytest.raises(UpdatePrepareError):
+        prepare_signed_linux_update(**prepare, writer_lock_path=str(guard.path))
+    assert not list(work.iterdir()) and len(manager.calls) == before
+    with pytest.raises(UpdateError):
+        assemble_pointer_linux_update(**options, writer_lock=guard)
+    assert not list(work.iterdir()) and all(call[0] == 'show' for call in manager.calls[before:])
+
+
+def test_bound_writer_guard_cannot_be_removed_before_stop(installation):
+    root, _, options, manager = installation
+    directory = root.parent / 'writer-locks'
+    directory.mkdir(mode=0o700)
+    guard = CooperativeWriterLock(str(directory / 'writers.lock'))
+    plan = assemble_pointer_linux_update(**options, writer_lock=guard)
+    plan.ports.effects.writer_lock = None
+    before = len(manager.calls)
+    with pytest.raises(UpdateIndeterminate):
+        plan.run()
+    state = plan.status()
+    assert state['indeterminate'] and plan.forward[state['index']] == 'stop'
+    assert all(call[0] == 'show' for call in manager.calls[before:])
+    assert len(manager.active) == 3
+
+
+def test_bound_writer_guard_cannot_be_removed_before_archive(installation, monkeypatch):
+    root, work, options, manager = installation
+    directory = root.parent / 'writer-locks'
+    directory.mkdir(mode=0o700)
+    guard = CooperativeWriterLock(str(directory / 'writers.lock'))
+    plan = assemble_pointer_linux_update(**options, writer_lock=guard)
+    lifecycle = plan.ports.effects.lifecycle
+    stop = lifecycle.stop
+    def remove_guard_after_stop(*args):
+        stop(*args)
+        plan.ports.effects.writer_lock = None
+    monkeypatch.setattr(lifecycle, 'stop', remove_guard_after_stop)
+    with pytest.raises(UpdateIndeterminate):
+        plan.run()
+    state = plan.status()
+    assert state['indeterminate'] and plan.forward[state['index']] == 'archive'
+    assert not state['archive_ready'] and not list(work.glob('*.hsac')) and not manager.active

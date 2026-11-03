@@ -44,7 +44,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 66
+API_MINOR = 67
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -244,6 +244,8 @@ def _handle(request: Any) -> dict:
                     mutating_operations.append('compose-control-status')  # Служебные блокировки на диске.
                     operations.extend(['install-portable-linux', 'inspect-portable-linux-install'])
                     mutating_operations.extend(['install-portable-linux', 'inspect-portable-linux-install'])
+                    operations.extend(['plan-portable-linux-uninstall', 'uninstall-portable-linux'])
+                    mutating_operations.append('uninstall-portable-linux')
                     operations.extend(['prepare-signed-linux-update', 'inspect-signed-linux-update'])
                     operations.append('inspect-started-pointer-update')
                     operations.append('run-pointer-linux-update')
@@ -792,7 +794,8 @@ def _handle(request: Any) -> dict:
                       'workflow_key', 'keys'}
             strings = fields - {'modes', 'required_bytes', 'reserve_bytes', 'keys'}
             names = ('release', 'runtime', 'publish', 'load', 'start')
-            if (set(params) not in (fields, fields | {'runtime_evidence'})
+            if (set(params) - {'reuse_preserved_data'} not in (fields, fields | {'runtime_evidence'})
+                    or params.get('reuse_preserved_data', True) is not True
                     or any(type(params[name]) is not str or not params[name] for name in strings)
                     or type(params['modes']) is not list or not params['modes']
                     or any(type(item) is not str or not item for item in params['modes'])
@@ -834,7 +837,8 @@ def _handle(request: Any) -> dict:
                     modes=tuple(params['modes']), required_bytes=params['required_bytes'],
                     reserve_bytes=params['reserve_bytes'], workflow_key=params['workflow_key'], keys=params['keys'],
                     language=language or 'en', inspect_only=(operation == 'inspect-portable-linux-install'),
-                    runtime_evidence=params.get('runtime_evidence'))
+                    runtime_evidence=params.get('runtime_evidence'),
+                    reuse_preserved_data='reuse_preserved_data' in params)
             except FreshControllerError as error:
                 if error.code == 'runtime_evidence_failed':
                     return _error(request_id, 'runtime_evidence_failed', 'Не удалось проверить свидетельство runtime',
@@ -844,11 +848,53 @@ def _handle(request: Any) -> dict:
                                   language, 'api.wheel_audit_failed')
                 return _error(request_id, 'fresh_controller_failed', 'Не удалось подтвердить установку',
                               language, 'api.fresh_controller_failed')
+        elif operation in ('plan-portable-linux-uninstall', 'uninstall-portable-linux'):
+            fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id', 'expected_version',
+                      'install_root', 'unit_dir', 'modes', 'operation_id', 'data_policy'}
+            strings = fields - {'modes'}
+            if (set(params) not in (fields, fields | {'confirm_product_id'})
+                    or any(type(params[name]) is not str or not params[name] for name in strings)
+                    or type(params['modes']) is not list or not params['modes']
+                    or any(type(item) is not str or not item for item in params['modes'])
+                    or len(set(params['modes'])) != len(params['modes'])
+                    or params['data_policy'] not in ('keep', 'purge')
+                    or ('confirm_product_id' in params) != (params['data_policy'] == 'purge')
+                    or ('confirm_product_id' in params and params['confirm_product_id'] != params['expected_product_id'])
+                    or re.fullmatch(r'[a-f0-9]{32}', params['operation_id']) is None
+                    or re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,62}', params['expected_product_id']) is None
+                    or re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', params['expected_version']) is None):
+                raise InvalidRequest()
+            if not _signature_available() or not _systemd_plan_available():
+                return _error(request_id, 'unsupported_operation', 'Операция API не поддерживается',
+                              language, 'api.unsupported_operation')
+            envelope = _base64(params['envelope'], MAX_ENVELOPE)
+            key = _base64(params['trusted_public_key'], 32)
+            if len(key) != 32:
+                raise InvalidRequest()
+            from shared.uninstall_linux import UninstallError, uninstall_portable_linux
+            try:
+                result = uninstall_portable_linux(params['package_path'], envelope, params['install_root'],
+                    trusted_public_key=key, expected_product_id=params['expected_product_id'],
+                    expected_version=params['expected_version'], modes=tuple(params['modes']),
+                    unit_dir=params['unit_dir'], operation_id=params['operation_id'],
+                    data_policy=params['data_policy'], confirm_product_id=params.get('confirm_product_id'),
+                    execute=(operation == 'uninstall-portable-linux'))
+            except UninstallError as error:
+                if error.code == 'update_in_progress':
+                    return _error(request_id, 'update_in_progress', 'Незавершённая операция мешает удалению',
+                                  language, 'api.uninstall_update_in_progress')
+                if error.code == 'uninstall_conflict':
+                    return _error(request_id, 'uninstall_conflict', 'Начато другое удаление',
+                                  language, 'api.uninstall_conflict')
+                return _error(request_id, 'uninstall_failed', 'Не удалось подтвердить удаление',
+                              language, 'api.uninstall_failed')
         elif operation == "prepare-native-release":
             fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version",
                       "install_root", "required_bytes", "reserve_bytes", "idempotency_key"}
             strings = fields - {"required_bytes", "reserve_bytes"}
-            if set(params) != fields or any(type(params[field]) is not str for field in strings):
+            if (set(params) not in (fields, fields | {'reuse_preserved_data'})
+                    or any(type(params[field]) is not str for field in strings)
+                    or params.get('reuse_preserved_data', True) is not True):
                 raise InvalidRequest()
             sizes, reserve = params['required_bytes'], params['reserve_bytes']
             if (type(sizes) is not dict or set(sizes) != set(PATH_NAMES)
@@ -873,7 +919,8 @@ def _handle(request: Any) -> dict:
                                                   expected_version=params['expected_version'],
                                                   required_bytes=params['required_bytes'],
                                                   reserve_bytes=params['reserve_bytes'],
-                                                  operation_id=params['idempotency_key'])
+                                                  operation_id=params['idempotency_key'],
+                                                  reuse_preserved='reuse_preserved_data' in params)
             except FreshConflict:
                 return _error(request_id, "conflict", "Запрос не соответствует операции", language, "api.operation_conflict")
             except FreshPrepareError:

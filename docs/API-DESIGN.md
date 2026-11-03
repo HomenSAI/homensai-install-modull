@@ -195,6 +195,24 @@ API 1.66 позволяет явно включить такую проверк�
 хэшу, часам и издателю остаётся ответственностью интегратора. Проверка не
 охватывает все зависимости, лицензии или вредоносный код.
 
+API 1.67 добавляет на Linux удаление user-systemd установки:
+`plan-portable-linux-uninstall` (без изменений) и `uninstall-portable-linux`.
+Параметры: подписанный пакет первой установки, конверт, ключ, ID и версия
+этого пакета, `install_root`, `unit_dir`, `modes`, `operation_id` (32 hex) и
+`data_policy` (`keep` или `purge`). Для `purge` обязателен
+`confirm_product_id`, совпадающий с ID продукта; при `keep` он запрещён.
+Удаляются только units, побайтно совпадающие с отрисованными из пакета,
+каталоги программы и служебные файлы; данные, копии и настройки при `keep`
+сохраняются. Незавершённое обновление даёт `update_in_progress`, другое
+начатое удаление — `uninstall_conflict`, прочие отказы — `uninstall_failed`.
+Подробности — [UNINSTALL](UNINSTALL.md).
+
+Тот же minor добавляет необязательный `reuse_preserved_data: true` в
+`prepare-native-release`, `install-portable-linux` и
+`inspect-portable-linux-install`. Он разрешает переустановку в корень,
+оставленный удалением с `keep`, только для версии, активной при удалении.
+Флаг входит в привязку операции: продолжить её без флага нельзя.
+
 API 1.61 добавляет экспериментальную операцию `cycle-updated-pointer-linux`.
 К параметрам `inspect-started-pointer-update` добавляются `action` (`stop` или
 `start`), отдельный `cycle_key` и логический `reconcile`. После завершённого

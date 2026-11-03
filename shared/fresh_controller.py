@@ -5,7 +5,6 @@ import base64
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
 import stat
 import time
@@ -38,7 +37,7 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
                                work_dir: str, modes: tuple[str, ...], required_bytes: dict,
                                reserve_bytes: int, workflow_key: str, keys: dict,
                                language: str = 'en', inspect_only: bool = False,
-                               runtime_evidence: dict | None = None) -> dict:
+                               runtime_evidence: dict | None = None, reuse_preserved_data: bool = False) -> dict:
     """Выполнить последовательность API с долговечным checkpoint каждого шага.
 
     Ключи и workspace заранее сохраняет вызывающая сторона. Pending не доказывает
@@ -46,7 +45,8 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
     самостоятельно решает, возможно ли продолжение. Никаких секретов не принимает.
     """
     try:
-        if (type(inspect_only) is not bool or type(workflow_key) is not str or _KEY.fullmatch(workflow_key) is None
+        if (type(inspect_only) is not bool or type(reuse_preserved_data) is not bool
+                or type(workflow_key) is not str or _KEY.fullmatch(workflow_key) is None
                 or type(keys) is not dict or set(keys) != set(_NAMES)
                 or any(type(value) is not str or _KEY.fullmatch(value) is None for value in keys.values())
                 or len({workflow_key, *keys.values()}) != len(_NAMES) + 1
@@ -128,10 +128,13 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
         load_name = 'load-pointer-systemd-user-units' if pointer else 'load-portable-systemd-user-units'
         start_name = 'start-pointer-linux' if pointer else 'start-portable-linux'
         runtime_binding = {'runtime_key': keys['runtime'], 'reserve_bytes': reserve_bytes} if pointer else {}
+        release = {**common, 'required_bytes': required_bytes, 'reserve_bytes': reserve_bytes,
+                   'idempotency_key': keys['release']}
+        if reuse_preserved_data:
+            # Флаг входит в шаги и, значит, в привязку журнала контроллера.
+            release['reuse_preserved_data'] = True
         steps = [
-            ('prepare-native-release', {**common, 'required_bytes': required_bytes,
-                                       'reserve_bytes': reserve_bytes, 'idempotency_key': keys['release']},
-             'status', 'prepared'),
+            ('prepare-native-release', release, 'status', 'prepared'),
             ('prepare-linux-runtime', {**common, 'reserve_bytes': reserve_bytes,
                                        'idempotency_key': keys['runtime']}, 'state', 'prepared'),
             (publish_name, {**services, **runtime_binding, 'idempotency_key': keys['publish']},

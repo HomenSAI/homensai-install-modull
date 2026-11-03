@@ -695,6 +695,68 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                 assert (install / 'runtime/bin/python').stat().st_mode & 0o777 == 0o700
                 if update_case == 'rollback':
                     assert update.ports.archive_path(update.status()['transaction'] + '/before_rollback').is_file()
+                if update_case == 'lifecycle':
+                    def manager_state(name):
+                        shown = subprocess.run(['/usr/bin/systemctl', '--user', 'show', '--property=LoadState,ActiveState',
+                            '--', name], env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                            timeout=30, check=True).stdout
+                        return dict(line.split('=', 1) for line in shown.splitlines())
+                    def health(version):
+                        try:
+                            return client.call('check-local-health', {'port': port, 'product_id': manifest['product_id'],
+                                'version': version, 'path': '/health', 'timeout_seconds': 2},
+                                min_minor=12)['health_response_matches']
+                        except InstallerClientError:
+                            return False
+                    removal = {'package_path': str(package), 'envelope': base64.b64encode(envelope).decode(),
+                               'trusted_public_key': base64.b64encode(public).decode(),
+                               'expected_product_id': manifest['product_id'], 'expected_version': '1',
+                               'install_root': str(install), 'unit_dir': str(destination),
+                               'modes': ['autonomous'], 'operation_id': '7' * 32, 'data_policy': 'keep'}
+                    planned = client.call('plan-portable-linux-uninstall', removal, min_minor=67)
+                    assert planned['units'] == names and set(planned['preserved_paths']) == {'data', 'backup', 'config'}
+                    assert all(manager_state(name)['ActiveState'] == 'active' for name in names)
+                    removed = client.call('uninstall-portable-linux', removal, min_minor=67, language='ru')
+                    assert removed['state'] == 'uninstalled' and removed['services_stopped']
+                    assert not any(path.exists() for path in paths)
+                    assert all(manager_state(name) == {'LoadState': 'not-found', 'ActiveState': 'inactive'}
+                               for name in names)
+                    assert not health('2')
+                    assert sorted(item.name for item in install.iterdir()) == [
+                        '.homensai-bootstrap.lock', '.homensai-uninstall.json', 'backup', 'config', 'data']
+                    with sqlite3.connect(install / 'data/demo.sqlite3') as database:
+                        assert database.execute("SELECT count(*) FROM migrations WHERE name='schema-2'").fetchone()[0] == 1
+                    assert client.call('uninstall-portable-linux', removal, min_minor=67) == removed
+                    # Reinstall the version that was active at removal on the preserved data.
+                    reinstall_work = tmp_path / 'reinstall-workflow'
+                    reinstall_work.mkdir(mode=0o700)
+                    reinstall = {**api_args, 'package_path': str(newer),
+                                 'envelope': base64.b64encode(new_envelope).decode('ascii'),
+                                 'expected_version': '2', 'work_dir': str(reinstall_work),
+                                 'workflow_key': '6' * 32, 'reuse_preserved_data': True,
+                                 'keys': dict(zip(('release', 'runtime', 'publish', 'load', 'start'),
+                                                  (key * 32 for key in '23458')))}
+                    reinstall.pop('runtime_evidence', None)
+                    with pytest.raises(InstallerClientError):
+                        client.call('install-portable-linux', {**reinstall, 'workflow_key': '9' * 32,
+                            'expected_version': '1', 'package_path': str(package),
+                            'envelope': base64.b64encode(envelope).decode('ascii')}, min_minor=67)
+                    assert (install / '.homensai-uninstall.json').exists()
+                    reinstalled = client.call('install-portable-linux', reinstall, min_minor=67, language='de')
+                    assert reinstalled['state'] == 'recorded_complete' and health('2')
+                    assert not (install / '.homensai-uninstall.json').exists()
+                    with sqlite3.connect(install / 'data/demo.sqlite3') as database:
+                        assert database.execute("SELECT count(*) FROM migrations WHERE name='schema-2'").fetchone()[0] == 1
+                    purge = {**removal, 'package_path': str(newer), 'expected_version': '2',
+                             'envelope': base64.b64encode(new_envelope).decode('ascii'),
+                             'operation_id': '0' * 32, 'data_policy': 'purge'}
+                    with pytest.raises(InstallerClientError):
+                        client.call('uninstall-portable-linux', purge, min_minor=67)
+                    purge['confirm_product_id'] = manifest['product_id']
+                    assert client.call('uninstall-portable-linux', purge, min_minor=67)['state'] == 'uninstalled'
+                    assert sorted(item.name for item in install.iterdir()) == [
+                        '.homensai-bootstrap.lock', '.homensai-uninstall.json']
+                    assert not any(path.exists() for path in paths) and not health('2')
         finally:
             subprocess.run(['/usr/bin/systemctl', '--user', 'stop', '--', *names], env=env,
                            stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=False)
@@ -903,7 +965,7 @@ def test_evidence_wizard_resumes_real_pointer_product(tmp_path, monkeypatch):
                     reason='Нужен одноразовый тестовый контейнер Python 3.14')
 @pytest.mark.parametrize('update_case', ['updated', 'rollback', 'recover_stop', 'api_start',
                                         'terminal_cycle', 'terminal_cycle_api', 'guarded_writer_api',
-                                        'guarded_writer_success_api'])
+                                        'guarded_writer_success_api', 'lifecycle'])
 def test_real_pointer_product_update_and_rollback(tmp_path, monkeypatch, update_case):
     test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True,
                                                       pointer=True, update_case=update_case)

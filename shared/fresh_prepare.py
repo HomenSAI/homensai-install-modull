@@ -1,13 +1,16 @@
 # HomenS.AI · © 2026 Serhii Khomenko
 """Экспериментальная подготовка первой нативной установки без запуска продукта.
 
-Начало требует отсутствующего корня. Частичный корень сохраняется; отдельное
-возобновление допускает только проверенное состояние. Код продукта не запускается.
+Начало требует отсутствующего корня либо, для переустановки, корня, в котором
+подтверждённое удаление оставило данные, копии и настройки той же версии.
+Частичный корень сохраняется; отдельное возобновление допускает только
+проверенное состояние. Код продукта не запускается.
 """
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -34,6 +37,60 @@ class FreshConflict(FreshPrepareError):
     """Идентификатор операции уже связан с другим запросом."""
 
 
+PREVIOUS_UNINSTALL = 'previous-uninstall.json'
+
+
+def _preserved_roots(manifest, root, control, product_id, version):
+    """Корни, сохранённые удалением той же версии; None — квитанции нет.
+
+    Квитанция лежит в корне до начала переустановки и переносится в каталог
+    управления сразу после записи журнала, чтобы последующее удаление
+    проверяло уже новую установку.
+    """
+    from shared.uninstall_linux import RECEIPT_NAME, UninstallError, _read_receipt
+
+    candidates = [path for path in (root / RECEIPT_NAME, control / PREVIOUS_UNINSTALL) if os.path.lexists(path)]
+    if not candidates:
+        return None
+    try:
+        receipts = [_read_receipt(path) for path in candidates]
+    except (UninstallError, OSError, ValueError, UnicodeError, RecursionError):
+        raise FreshPrepareError('Квитанция удаления недоступна') from None
+    home = resolve_datahome(manifest, root)
+    kept = {name: home.roots[name] for name in ('data', 'backup', 'config') if name in home.roots}
+    if any(receipt != receipts[0] for receipt in receipts) or any(
+            receipt['status'] != 'done' or receipt['product_id'] != product_id
+            or receipt['release'] != version or not receipt['preserved']
+            or sorted(receipt['preserved']) != sorted(path.relative_to(root).as_posix() for path in kept.values())
+            for receipt in receipts):
+        raise FreshPrepareError('Сохранённые данные не соответствуют переустановке')
+    for path in kept.values():
+        info = path.lstat()
+        if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+            raise FreshPrepareError('Сохранённый каталог недоступен')
+    return frozenset(kept)
+
+
+def _move_uninstall_receipt(root, control):
+    from shared.uninstall_linux import RECEIPT_NAME
+
+    source = root / RECEIPT_NAME
+    if os.path.lexists(source):
+        target = control / PREVIOUS_UNINSTALL
+        if os.path.lexists(target):
+            if source.read_bytes() != target.read_bytes():
+                raise FreshPrepareError('Квитанции удаления различаются')
+            source.unlink()
+        else:
+            os.replace(source, target)
+        for directory in (root, control):
+            descriptor = os.open(directory, os.O_RDONLY)
+            try:
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+
+
 def _plan(root, metadata, key, target):
     value = {'root': str(root), 'key': hashlib.sha256(key).hexdigest(),
              'metadata': metadata, 'target': target}
@@ -41,14 +98,16 @@ def _plan(root, metadata, key, target):
                                      separators=(',', ':')).encode('ascii')).hexdigest()
 
 
-def _request_hash(package_path, envelope, required_bytes, reserve_bytes):
-    if (type(envelope) is not bytes or type(required_bytes) is not dict
+def _request_hash(package_path, envelope, required_bytes, reserve_bytes, reuse_preserved=False):
+    if (type(reuse_preserved) is not bool or type(envelope) is not bytes or type(required_bytes) is not dict
             or set(required_bytes) != set(NAMES)
             or any(type(value) is not int or not 0 <= value <= MAX_BYTES for value in required_bytes.values())
             or type(reserve_bytes) is not int or not 0 <= reserve_bytes <= MAX_BYTES):
         raise FreshPrepareError('Некорректный запрос подготовки')
     value = {'package_path': str(checked_path(package_path)), 'envelope': hashlib.sha256(envelope).hexdigest(),
              'required_bytes': required_bytes, 'reserve_bytes': reserve_bytes}
+    if reuse_preserved:
+        value['reuse_preserved_data'] = True
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=True,
                                      separators=(',', ':')).encode('ascii')).hexdigest()
 
@@ -88,11 +147,14 @@ def _check_fresh_storage(package_path, metadata, root, reserve_bytes):
 
 def prepare_fresh_native(package_path, envelope, install_root, *, trusted_public_key,
                          expected_product_id, expected_version, required_bytes, reserve_bytes,
-                         transaction_id=None, request_hash=None):
+                         transaction_id=None, request_hash=None, reuse_preserved=False):
     """Подготовить каталоги и указатель из подписанного пакета; код не запускать.
 
     Не создаёт службы, runtime или БД и не подтверждает пригодность продукта.
     Частичные каталоги не удаляются и не используются повторно автоматически.
+    reuse_preserved=True разрешает только корень после подтверждённого удаления
+    той же версии; сохранённые данные не изменяются и не проверяются на
+    совместимость с продуктом.
     """
     try:
         if ((transaction_id is None) != (request_hash is None)
@@ -101,7 +163,9 @@ def prepare_fresh_native(package_path, envelope, install_root, *, trusted_public
                     or type(request_hash) is not str or re.fullmatch(r'[a-f0-9]{64}', request_hash) is None))):
             raise FreshPrepareError('Некорректный идентификатор запроса')
         root = checked_path(install_root)
-        if root == Path(root.anchor) or root.exists() or not root.parent.is_dir():
+        if type(reuse_preserved) is not bool or root == Path(root.anchor) or not root.parent.is_dir():
+            raise FreshPrepareError('Требуется новый корень установки')
+        if root.exists() != reuse_preserved:
             raise FreshPrepareError('Требуется новый корень установки')
         options = dict(trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
                        expected_version=expected_version)
@@ -112,11 +176,35 @@ def prepare_fresh_native(package_path, envelope, install_root, *, trusted_public
             raise FreshPrepareError('Платформа не подтверждена')
         from shared.wheel_audit import audit_signed_wheels
         audit_signed_wheels(package_path, envelope, **options)
-        preflight_fresh(manifest, root, required_bytes=required_bytes, reserve_bytes=reserve_bytes)
-        _check_fresh_storage(package_path, metadata, root, reserve_bytes)
         home, paths, control, marker = _layout(manifest, root)
-        root.mkdir(mode=0o700)
-        with operation_lock(root / '.homensai-bootstrap.lock'):
+
+        def preserved_roots():
+            if not reuse_preserved:
+                return frozenset()
+            from shared.uninstall_linux import RECEIPT_NAME
+            info = root.lstat()
+            if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+                raise FreshPrepareError('Корень переустановки не защищён')
+            names = _preserved_roots(manifest, root, control, expected_product_id, expected_version)
+            if names is None or not (root / RECEIPT_NAME).is_file():
+                raise FreshPrepareError('Нет квитанции удаления с сохранёнными данными')
+            allowed = {RECEIPT_NAME, '.homensai-bootstrap.lock'} | {
+                home.roots[name].relative_to(root).parts[0] for name in names}
+            if any(entry not in allowed for entry in os.listdir(root)):
+                raise FreshPrepareError('В корне переустановки есть посторонние файлы')
+            return names
+
+        preserved = preserved_roots()
+        preflight_fresh(manifest, root, required_bytes=required_bytes, reserve_bytes=reserve_bytes,
+                        preserved=preserved)
+        _check_fresh_storage(package_path, metadata, root, reserve_bytes)
+        if not reuse_preserved:
+            root.mkdir(mode=0o700)
+        with operation_lock(root / '.homensai-bootstrap.lock') as stale:
+            if stale and reuse_preserved:
+                raise FreshPrepareError('Прерванная операция требует восстановления')
+            if preserved_roots() != preserved:
+                raise FreshPrepareError('Сохранённые данные изменились')
             _check_fresh_storage(package_path, metadata, root, reserve_bytes)
             transaction = transaction_id or uuid.uuid4().hex
             state = {'format': 4 if transaction_id else 3, 'transaction': transaction, 'product_id': expected_product_id,
@@ -126,13 +214,16 @@ def prepare_fresh_native(package_path, envelope, install_root, *, trusted_public
                 state['request_hash'] = request_hash
             _atomic_write(marker, state)
             control.mkdir(mode=0o700)
+            if reuse_preserved:
+                _move_uninstall_receipt(root, control)
             prepared = control / 'prepared'
             receipt = prepare_native_signed_package(package_path, envelope, prepared, **options)
             inventory = {item['path']: item['sha256'] for item in metadata['files']}
             if receipt['manifest'] != manifest or receipt['files'] != inventory or receipt['process_target'] != target:
                 raise FreshPrepareError('Пакет изменился во время подготовки')
             # После создания корня повторяем проверку до создания путей продукта.
-            preflight_fresh(manifest, root, required_bytes=required_bytes, reserve_bytes=reserve_bytes)
+            preflight_fresh(manifest, root, required_bytes=required_bytes, reserve_bytes=reserve_bytes,
+                            preserved=preserved)
             for path in paths:
                 checked_path(path).mkdir(parents=True, exist_ok=True, mode=0o700)
             # Никакое резервное копирование здесь не вызывается; provider не выдаёт пароль.
@@ -265,15 +356,15 @@ def _check_lock(path):
         raise FreshPrepareError('Неизвестный формат блокировки')
 
 
-def _check_resume_files(home, ports, prepared, inventory, version):
+def _check_resume_files(home, ports, prepared, inventory, version, preserved=frozenset()):
     expected_dirs = {'.'}
     for name in inventory:
         parts = name.split('/')
         expected_dirs.update('/'.join(parts[:index]) for index in range(1, len(parts)))
     if not prepared.is_dir() or _tree(prepared) != (expected_dirs, inventory):
         raise FreshPrepareError('Подготовленная копия повреждена или неполна')
-    for root in (home.app, home.roots['data'], home.roots['backup'],
-                 home.roots['config'], home.roots['runtime']):
+    for root in (home.app, *(home.roots[name] for name in ('data', 'backup', 'config') if name not in preserved),
+                 home.roots['runtime']):
         if root.exists() and (not root.is_dir() or any(root.iterdir())):
             raise FreshPrepareError('Каталоги продукта не пусты')
     release = ports.release_path(version)
@@ -341,10 +432,14 @@ def resume_fresh_native(package_path, envelope, install_root, *, trusted_public_
                 raise FreshPrepareError('Состояние изменилось')
             prepared = checked_path(control / 'prepared')
             inventory = {item['path']: item['sha256'] for item in metadata['files']}
+            preserved = _preserved_roots(manifest, root, control, expected_product_id, expected_version) or frozenset()
+            if preserved:
+                control.mkdir(mode=0o700, exist_ok=True)
+                _move_uninstall_receipt(root, control)
             if not prepared.exists():
                 # Продуктовые пути обязаны оставаться свежими; посторонние данные не трогаем.
                 preflight_fresh(manifest, root, required_bytes={name: 0 for name in NAMES},
-                                reserve_bytes=reserve_bytes)
+                                reserve_bytes=reserve_bytes, preserved=preserved)
                 _check_fresh_storage(package_path, metadata, root, reserve_bytes)
                 control.mkdir(mode=0o700, exist_ok=True)
                 receipt = prepare_native_signed_package(package_path, envelope, prepared, **options)
@@ -354,12 +449,12 @@ def resume_fresh_native(package_path, envelope, install_root, *, trusted_public_
             ports = FilesystemPorts(manifest, root, work_dir=control / 'work',
                                     payloads={expected_version: ReleaseSource(prepared, inventory)},
                                     effects=None, password_provider=lambda: None)
-            _check_resume_files(home, ports, prepared, inventory, expected_version)
+            _check_resume_files(home, ports, prepared, inventory, expected_version, preserved)
             checked_path(home.roots['services']).mkdir(parents=True, exist_ok=True, mode=0o700)
             with operation_lock(ports.lock):
                 if _read_state(marker, plan, expected_product_id, expected_version) != state:
                     raise FreshPrepareError('Состояние изменилось')
-                _check_resume_files(home, ports, prepared, inventory, expected_version)
+                _check_resume_files(home, ports, prepared, inventory, expected_version, preserved)
                 release = ports.release_path(expected_version)
                 needed = 0 if release.exists() else sum(item['size'] for item in metadata['files'])
                 if needed + reserve_bytes > MAX_BYTES or shutil.disk_usage(_nearest_directory(home.releases)).free < needed + reserve_bytes:
@@ -381,19 +476,20 @@ def resume_fresh_native(package_path, envelope, install_root, *, trusted_public_
 
 def prepare_idempotent_native(package_path, envelope, install_root, *, trusted_public_key,
                               expected_product_id, expected_version, required_bytes, reserve_bytes,
-                              operation_id):
+                              operation_id, reuse_preserved=False):
     """Начать или повторить ту же подготовку; другие запросы с ключом запрещены."""
     try:
         if type(operation_id) is not str or re.fullmatch(r'[a-f0-9]{32}', operation_id) is None:
             raise FreshPrepareError('Некорректный идентификатор операции')
-        request_hash = _request_hash(package_path, envelope, required_bytes, reserve_bytes)
+        request_hash = _request_hash(package_path, envelope, required_bytes, reserve_bytes, reuse_preserved)
         root = checked_path(install_root)
         options = dict(trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
                        expected_version=expected_version)
-        if not root.exists():
+        if not root.exists() or (reuse_preserved and not os.path.lexists(root / '.homensai-fresh.json')):
             return prepare_fresh_native(package_path, envelope, root, **options,
                                         required_bytes=required_bytes, reserve_bytes=reserve_bytes,
-                                        transaction_id=operation_id, request_hash=request_hash)
+                                        transaction_id=operation_id, request_hash=request_hash,
+                                        reuse_preserved=reuse_preserved)
         if root == Path(root.anchor) or not root.is_dir():
             raise FreshPrepareError('Корень недоступен')
         metadata = verify_signed_package(package_path, envelope, **options)

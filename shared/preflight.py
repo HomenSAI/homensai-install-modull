@@ -36,11 +36,14 @@ def _nearest_directory(path: Path) -> Path:
 
 
 def preflight_fresh(manifest: dict[str, Any], install_root: str | Path, *,
-                    required_bytes: dict[str, int], reserve_bytes: int = 64 * 1024 * 1024) -> dict:
+                    required_bytes: dict[str, int], reserve_bytes: int = 64 * 1024 * 1024,
+                    preserved: frozenset = frozenset()) -> dict:
     """Проверить свободные пути и расчёт места для одного свежего v2-сценария.
 
     Нет mkdir, записи, установки, создания блокировки, анализа прав или payload.
     Вызывающий код обязан заново проверить состояние под блокировкой до записи.
+    preserved — данные, копии и настройки, оставленные подтверждённым удалением;
+    только они могут быть непустыми.
     """
     try:
         manifest = validate_manifest(manifest)
@@ -50,6 +53,8 @@ def preflight_fresh(manifest: dict[str, Any], install_root: str | Path, *,
                 or any(type(value) is not int or not 0 <= value <= MAX_BYTES for value in required_bytes.values())
                 or type(reserve_bytes) is not int or not 0 <= reserve_bytes <= MAX_BYTES):
             raise PreflightError("Требуется полный допустимый расчёт пространства")
+        if type(preserved) is not frozenset or not preserved <= {"data", "backup", "config"}:
+            raise PreflightError("Недопустимый набор сохранённых каталогов")
         root = checked_path(install_root)
         if root == Path(root.anchor):
             raise PreflightError("Корень диска не может быть корнем установки")
@@ -65,9 +70,10 @@ def preflight_fresh(manifest: dict[str, Any], install_root: str | Path, *,
             if path.exists():
                 if not path.is_dir():
                     raise PreflightError("Путь продукта не является каталогом")
-                with os.scandir(path) as entries:
-                    if next(entries, None) is not None:
-                        raise PreflightError("Каталог продукта не пуст; свежая установка запрещена")
+                if name not in preserved:
+                    with os.scandir(path) as entries:
+                        if next(entries, None) is not None:
+                            raise PreflightError("Каталог продукта не пуст; свежая установка запрещена")
             parent = _nearest_directory(path)
             device = os.stat(parent).st_dev
             free = shutil.disk_usage(parent).free

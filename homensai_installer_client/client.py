@@ -225,6 +225,10 @@ class InstallerClient:
         required_minor = max(min_minor, 63) if event_log_path is not None else min_minor
         if operation in ('install-portable-linux', 'inspect-portable-linux-install') and 'runtime_evidence' in params:
             required_minor = max(required_minor, 66)
+        if operation in ('plan-portable-linux-uninstall', 'uninstall-portable-linux') or (
+                operation in ('install-portable-linux', 'inspect-portable-linux-install', 'prepare-native-release')
+                and 'reuse_preserved_data' in params):
+            required_minor = max(required_minor, 67)
         if (capabilities['api_minor'] < required_minor or operation not in capabilities['operations']
                 or (language is not None and language not in capabilities['languages'])):
             raise InstallerClientError('incompatible_api', 'Required installer capability is unavailable')

@@ -448,6 +448,17 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
             completed = client.call('inspect-portable-linux-install', api_args, min_minor=57 if pointer else 32, language='ru')
             assert completed['state'] == 'recorded_complete' and completed['completed_steps'] == 6
             assert completed['effects_verified'] is False and completed['current_health_verified'] is False
+            if interactive:
+                api_log_dir = tmp_path / 'api-log'
+                api_log_dir.mkdir(mode=0o700)
+                api_log = api_log_dir / 'events.jsonl'
+                logged = client.call('inspect-portable-linux-install', api_args, min_minor=63, language='ru',
+                                     event_log_path=str(api_log))
+                assert logged['state'] == 'recorded_complete'
+                events = [json.loads(line) for line in api_log.read_text().splitlines()]
+                assert [item['event'] for item in events] == ['api_started', 'api_succeeded']
+                assert all(set(item) == {'time_utc', 'event'} for item in events)
+                assert str(tmp_path) not in api_log.read_text()
             heartbeat_path = install / 'data/worker-heartbeat.json'
             deadline = time.monotonic() + 15
             while not heartbeat_path.exists() and time.monotonic() < deadline:

@@ -149,11 +149,13 @@ class InstallerClient:
         self._timeout = timeout
         self._api_root = api_root
 
-    def _call(self, operation: str, params: dict, language: str | None, *, secret_env_name=None) -> dict:
+    def _call(self, operation: str, params: dict, language: str | None, *, secret_env_name=None, event_log_path=None) -> dict:
         request_id = uuid.uuid4().hex
         request = {'api_major': 1, 'request_id': request_id, 'operation': operation, 'params': params}
         if language is not None:
             request['language'] = language
+        if event_log_path is not None:
+            request['event_log_path'] = event_log_path
         try:
             body = json.dumps(request, ensure_ascii=True, allow_nan=False, separators=(',', ':')).encode('utf-8')
             if len(body) > _MAX_BYTES:
@@ -206,10 +208,13 @@ class InstallerClient:
         return value
 
     def call(self, operation: str, params: dict, *, min_minor: int = 0,
-             language: str | None = None, secret_env_name: str | None = None) -> dict:
+             language: str | None = None, secret_env_name: str | None = None,
+             event_log_path: str | None = None) -> dict:
         if (type(operation) is not str or not operation or type(params) is not dict
                 or type(min_minor) is not int or min_minor < 0
-                or (language is not None and type(language) is not str)):
+                or (language is not None and type(language) is not str)
+                or (event_log_path is not None and (type(event_log_path) is not str
+                    or not os.path.isabs(event_log_path) or len(event_log_path) > 8192))):
             raise ValueError('invalid API request')
         if secret_env_name is not None and (type(secret_env_name) is not str
                 or _SECRET_ENV.fullmatch(secret_env_name) is None
@@ -217,9 +222,10 @@ class InstallerClient:
                 or params.get('password_env') != secret_env_name):
             raise ValueError('invalid secret channel')
         capabilities = self.capabilities()
-        if (capabilities['api_minor'] < min_minor or operation not in capabilities['operations']
+        required_minor = max(min_minor, 63) if event_log_path is not None else min_minor
+        if (capabilities['api_minor'] < required_minor or operation not in capabilities['operations']
                 or (language is not None and language not in capabilities['languages'])):
             raise InstallerClientError('incompatible_api', 'Required installer capability is unavailable')
         # In particular, do not retry modifying operations or invent their
         # idempotency keys; their owner retains the exact request and key.
-        return self._call(operation, params, language, secret_env_name=secret_env_name)
+        return self._call(operation, params, language, secret_env_name=secret_env_name, event_log_path=event_log_path)

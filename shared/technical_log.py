@@ -12,7 +12,8 @@ from shared.datahome import checked_path
 
 MAX_BYTES = 1024 * 1024
 EVENTS = frozenset({'inspection_started', 'inspection_failed', 'inspection_succeeded',
-                    'install_cancelled', 'install_started', 'install_unconfirmed', 'install_recorded'})
+                    'install_cancelled', 'install_started', 'install_unconfirmed', 'install_recorded',
+                    'api_started', 'api_succeeded', 'api_failed', 'api_unconfirmed'})
 _TIMESTAMP = re.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00\Z')
 
 

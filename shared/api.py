@@ -44,7 +44,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 62
+API_MINOR = 63
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -139,6 +139,48 @@ def _base64(value: Any, max_decoded: int) -> bytes:
 
 
 def handle(request: Any) -> dict:
+    """Optionally record fixed events around one external API operation."""
+    if type(request) is not dict or 'event_log_path' not in request:
+        return _handle(request)
+    candidate = request.get('request_id')
+    request_id = candidate if type(candidate) is str and _ID.fullmatch(candidate) else None
+    language = request.get('language') if type(request.get('language')) is str else None
+    try:
+        _check_tree(request)
+        path = request['event_log_path']
+        required = {'api_major', 'operation', 'request_id', 'params'}
+        if (not required <= request.keys() or request.keys() - required - {'language', 'event_log_path'}
+                or request_id is None or type(path) is not str or not path or len(path) > MAX_STRING):
+            raise InvalidRequest()
+    except (InvalidRequest, RecursionError):
+        return _error(None, 'invalid_request', 'Неверный запрос API')
+    from shared.technical_log import TechnicalLogError, record
+    def log_failure():
+        return _error(request_id, 'technical_log_failed',
+            'Журнал недоступен; действие могло выполниться. Проверьте состояние перед повтором',
+            language, 'api.technical_log_failed')
+    try:
+        record(path, 'api_started')
+    except TechnicalLogError:
+        return log_failure()
+    try:
+        result = _handle({key: value for key, value in request.items() if key != 'event_log_path'})
+    except Exception:
+        try:
+            record(path, 'api_unconfirmed')
+        except TechnicalLogError:
+            return log_failure()
+        return _error(request_id, 'api_operation_unconfirmed',
+            'Результат действия не подтверждён; проверьте состояние перед повтором',
+            language, 'api.operation_unconfirmed')
+    try:
+        record(path, 'api_succeeded' if result.get('ok') is True else 'api_failed')
+    except TechnicalLogError:
+        return log_failure()
+    return result
+
+
+def _handle(request: Any) -> dict:
     """Обработать локальный запрос; health обращается к 127.0.0.1."""
     request_id = None
     language = None

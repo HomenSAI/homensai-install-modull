@@ -216,14 +216,30 @@ def verify_clean_evidence(raw, *, expected_sha256, locks, max_age_seconds, now=N
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--crypto-wheelhouse', help='Optional prepared crypto block to verify before and after lookup')
+    parser.add_argument('--verify-evidence', help='Verify a previously saved OSV report without network')
+    parser.add_argument('--evidence-sha256', help='Independently trusted SHA-256 of the saved report')
+    parser.add_argument('--max-age-seconds', type=int, help='Maximum evidence age in seconds (up to 31 days)')
     parser.add_argument('locks', nargs='+', help='Explicit hash-pinned pip lock files (names are sent to OSV)')
     args = parser.parse_args()
+    if args.verify_evidence is not None:
+        if args.crypto_wheelhouse is not None or args.evidence_sha256 is None or args.max_age_seconds is None:
+            parser.error('offline evidence verification needs its digest and maximum age, without --crypto-wheelhouse')
+    elif args.evidence_sha256 is not None or args.max_age_seconds is not None:
+        parser.error('evidence digest and age require --verify-evidence')
     try:
-        report = audit(args.locks, crypto_wheelhouse=args.crypto_wheelhouse)
+        if args.verify_evidence is not None:
+            with Path(args.verify_evidence).open('rb') as source:
+                raw = source.read(MAX_RESPONSE + 1)
+            report = verify_clean_evidence(raw, expected_sha256=args.evidence_sha256,
+                                           locks=args.locks, max_age_seconds=args.max_age_seconds)
+        else:
+            report = audit(args.locks, crypto_wheelhouse=args.crypto_wheelhouse)
     except (AuditError, OSError, UnicodeError, ValueError, RecursionError, urllib.error.URLError):
         print('OSV check failed or is incomplete', file=sys.stderr)
         return 2
     print(json.dumps(report, ensure_ascii=True, indent=2))
+    if args.verify_evidence is not None:
+        return 0
     return 1 if any(item['advisories'] for item in report['packages']) else 0
 
 

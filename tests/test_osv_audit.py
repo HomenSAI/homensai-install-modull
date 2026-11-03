@@ -156,6 +156,41 @@ def test_cli_does_not_report_clean_on_network_failure(monkeypatch, capsys):
     assert captured.out == '' and 'incomplete' in captured.err
 
 
+def test_cli_verifies_evidence_offline_and_rejects_tampering(tmp_path, monkeypatch, capsys):
+    lock = tmp_path / 'lock.txt'
+    lock.write_text('example==1 --hash=sha256:' + HASH)
+    raw = json.dumps(osv.audit([str(lock)], send=lambda _: {'results': [{}]})).encode()
+    report_path = tmp_path / 'evidence.json'
+    report_path.write_bytes(raw)
+    digest = hashlib.sha256(raw).hexdigest()
+    def no_network(*_, **__):
+        raise AssertionError('offline verification must not query OSV')
+    monkeypatch.setattr(osv, 'audit', no_network)
+    arguments = ['osv_audit', '--verify-evidence', str(report_path), '--evidence-sha256', digest,
+                 '--max-age-seconds', '3600', str(lock)]
+    monkeypatch.setattr('sys.argv', arguments)
+    assert osv.main() == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result['package_count'] == 1 and not result['malware_scanned'] and not result['release_safe']
+    report_path.write_bytes(raw + b' ')
+    assert osv.main() == 2
+    assert capsys.readouterr().out == ''
+    arguments[2] = ''
+    assert osv.main() == 2
+    assert capsys.readouterr().out == ''
+
+
+def test_cli_rejects_partial_evidence_parameters(monkeypatch):
+    for arguments in (['--verify-evidence', 'report.json', 'lock.txt'],
+                      ['--evidence-sha256', 'a' * 64, 'lock.txt'],
+                      ['--verify-evidence', 'report.json', '--evidence-sha256', 'a' * 64,
+                       '--max-age-seconds', '60', '--crypto-wheelhouse', 'block', 'lock.txt']):
+        monkeypatch.setattr('sys.argv', ['osv_audit', *arguments])
+        with pytest.raises(SystemExit) as error:
+            osv.main()
+        assert error.value.code == 2
+
+
 def test_optional_wheelhouse_matches_lock_and_checks_real_artifacts(sample, tmp_path):
     from shared import crypto_wheelhouse as wh
     source, filename, lock = sample

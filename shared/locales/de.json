@@ -207,6 +207,8 @@
   "kit.windows_admin_required": "Führen Sie setup.cmd als Administrator aus: Das Produkt wird als Windows-Dienste installiert.",
   "kit.windows_command_failed": "Systembefehl {command} ist fehlgeschlagen (Code {code}).",
   "kit.windows_service_state": "Der Dienst {service} hat den Zustand {state} nicht erreicht.",
+  "kit.windows_service_foreign": "Der Dienst {service} existiert bereits, gehört aber nicht zu dieser Installation (anderes Programm); es wurde nichts geändert.",
+  "kit.windows_hooks_unsupported": "Die Version deklariert Hooks, die unter Windows nicht unterstützt werden ({hooks}); es wurde nichts geändert.",
   "kit.release_mismatch": "Die Dateien in {path} weichen vom signierten Paket ab; entfernen Sie sie oder stellen Sie sie aus dem Archiv wieder her.",
   "kit.busy": "Für dieses Produkt läuft bereits ein anderer Installer-Vorgang; warten Sie, bis er beendet ist.",
   "kit.unexpected": "Unerwarteter Installer-Fehler ({error}). Es gibt keine automatische Wiederholung; wiederholen Sie denselben Befehl oder prüfen Sie status."

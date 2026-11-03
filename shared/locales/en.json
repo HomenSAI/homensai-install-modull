@@ -207,6 +207,8 @@
   "kit.windows_admin_required": "Run setup.cmd as administrator: the product is installed as Windows services.",
   "kit.windows_command_failed": "System command {command} failed (code {code}).",
   "kit.windows_service_state": "Service {service} did not reach state {state}.",
+  "kit.windows_service_foreign": "Service {service} already exists but does not belong to this installation (another program); nothing was changed.",
+  "kit.windows_hooks_unsupported": "The release declares hooks not supported on Windows ({hooks}); nothing was changed.",
   "kit.release_mismatch": "Files in {path} differ from the signed package; remove them or restore from the archive.",
   "kit.busy": "Another installer run for this product is in progress; wait for it to finish.",
   "kit.unexpected": "Unexpected installer error ({error}). Nothing is retried automatically; run the same command again or check status."

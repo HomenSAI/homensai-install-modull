@@ -19,6 +19,11 @@ PRODUCT = 'homensai-kit-demo'
 PYTHON_BYTES = b'synthetic python.exe'
 
 
+def sid(component, product=PRODUCT):
+    """ID службы по правилу WindowsServices (метод вызывается без построения установки)."""
+    return WindowsServices.service_id(SimpleNamespace(product_id=product), component)
+
+
 def demo_manifest(extra_modes=(), components=None):
     template = json.loads((ROOT / 'examples/kit_demo/installer/manifest.json').read_text(encoding='utf-8'))
     template['modes'] += [dict(mode) for mode in extra_modes]
@@ -31,23 +36,34 @@ def demo_manifest(extra_modes=(), components=None):
 
 
 class FakeWinSW:
-    """Заменяет _run: конечный автомат служб WinSW 2.x по имени exe; icacls лишь записывается."""
+    """Заменяет _run и чтение реестра SCM: конечный автомат служб WinSW 2.x по имени exe.
+
+    images — ImagePath зарегистрированных служб по ID (как в реестре SCM): install
+    записывает путь вызванной обёртки, uninstall удаляет запись.
+    """
 
     def __init__(self, stuck=()):
-        self.calls, self.states, self.stuck, self.fail = [], {}, set(stuck), set()
+        self.calls, self.states, self.stuck, self.fail, self.images = [], {}, set(stuck), set(), {}
 
     def __call__(self, argv, *, timeout=120, check=True):
         name, verb = Path(str(argv[0])).stem, str(argv[1])
         if verb == 'status':
             return SimpleNamespace(returncode=0, stdout='INFO - WinSW 2.12.0\n' + self.states.get(name, 'NonExistent') + '\n')
-        self.calls.append((name.removeprefix(PRODUCT + '-'), verb))
+        self.calls.append((name.removeprefix(sid('')), verb))
         if (name, verb) in self.fail:
             self.fail.discard((name, verb))
             raise SetupError('kit.windows_command_failed', command=name, code='1')
         if name not in self.stuck:
             self.states[name] = {'install': 'Stopped', 'start': 'Started', 'stop': 'Stopped',
                                  'uninstall': 'NonExistent'}[verb]
+            if verb == 'install':
+                self.images[name] = '"' + str(argv[0]) + '"'
+            elif verb == 'uninstall':
+                self.images.pop(name, None)
         return SimpleNamespace(returncode=0, stdout='')
+
+    def image(self, service_id):
+        return self.images.get(service_id)
 
     def actions(self):
         return list(self.calls)
@@ -77,6 +93,7 @@ def clock(monkeypatch):
 def winsw(monkeypatch, clock):
     fake = FakeWinSW()
     monkeypatch.setattr(kit_windows, '_run', fake)
+    monkeypatch.setattr(kit_windows, '_service_image_path', fake.image, raising=False)
     return fake
 
 
@@ -148,8 +165,8 @@ def test_expand_templates(tmp_path):
 
 def test_service_ids_and_paths(services):
     assert services.components == ('web', 'worker')
-    assert services.service_id('web') == PRODUCT + '-web'
-    assert services.exe('worker') == services.home.app / 'services' / (PRODUCT + '-worker.exe')
+    assert services.service_id('web') == sid('web') == 'homensai.' + PRODUCT + '.web'
+    assert services.exe('worker') == services.home.app / 'services' / (sid('worker') + '.exe')
     assert services.logs == services.home.app / 'logs'
 
 
@@ -181,19 +198,19 @@ def test_write_copies_winsw_only_when_bytes_differ(services, tmp_path, monkeypat
     monkeypatch.setattr(kit_windows.shutil, 'copyfile', lambda src, dst: (copies.append(Path(dst).name),
                                                                           real_copy(src, dst)))
     services.write('1', source)
-    assert copies == [PRODUCT + '-web.exe', PRODUCT + '-worker.exe']
+    assert copies == [sid('web') + '.exe', sid('worker') + '.exe']
     assert services.logs.is_dir()
     for component in ('web', 'worker'):
         assert services.exe(component).read_bytes() == b'winsw v1'
         xml = services.exe(component).with_suffix('.xml').read_text(encoding='utf-8')
-        assert f'<id>{PRODUCT}-{component}</id>' in xml and 'app-1' in xml
+        assert f'<id>{sid(component)}</id>' in xml and 'app-1' in xml
     copies.clear()
     services.write('2', source)
     assert copies == []
     assert 'app-2' in services.exe('web').with_suffix('.xml').read_text(encoding='utf-8')
     source.write_bytes(b'winsw v2')
     services.write('2', source)
-    assert copies == [PRODUCT + '-web.exe', PRODUCT + '-worker.exe']
+    assert copies == [sid('web') + '.exe', sid('worker') + '.exe']
     assert services.exe('worker').read_bytes() == b'winsw v2'
 
 
@@ -203,7 +220,7 @@ def test_write_only_selected_components(tmp_path):
     source = tmp_path / 'WinSW-x64.exe'
     source.write_bytes(b'winsw')
     services.write('1', source)
-    assert sorted(path.name for path in services.directory.iterdir()) == [PRODUCT + '-web.exe', PRODUCT + '-web.xml']
+    assert sorted(path.name for path in services.directory.iterdir()) == [sid('web') + '.exe', sid('web') + '.xml']
 
 
 def test_state_parsing(services, monkeypatch):
@@ -222,7 +239,7 @@ def test_state_parsing(services, monkeypatch):
 
 def test_install_only_nonexistent(services, winsw):
     create_exes(services)
-    winsw.states[PRODUCT + '-worker'] = 'Stopped'
+    winsw.states[sid('worker')] = 'Stopped'
     services.install()
     assert winsw.actions() == [('web', 'install')]
 
@@ -236,14 +253,14 @@ def test_start_in_dependency_order_and_skip_started(services, winsw, clock):
     winsw.calls.clear()
     services.start()
     assert winsw.actions() == []
-    winsw.states[PRODUCT + '-worker'] = 'Stopped'
+    winsw.states[sid('worker')] = 'Stopped'
     services.start(('worker',))
     assert winsw.actions() == [('worker', 'start')]
 
 
 def test_stop_in_reverse_order_and_skip_stopped(services, winsw):
     create_exes(services)
-    winsw.states.update({PRODUCT + '-web': 'Started', PRODUCT + '-worker': 'Started'})
+    winsw.states.update({sid('web'): 'Started', sid('worker'): 'Started'})
     services.stop()
     assert winsw.actions() == [('worker', 'stop'), ('web', 'stop')]
     winsw.calls.clear()
@@ -253,7 +270,7 @@ def test_stop_in_reverse_order_and_skip_stopped(services, winsw):
 
 def test_uninstall_stops_then_removes_in_reverse_order(services, winsw):
     create_exes(services)
-    winsw.states.update({PRODUCT + '-web': 'Started', PRODUCT + '-worker': 'Started'})
+    winsw.states.update({sid('web'): 'Started', sid('worker'): 'Started'})
     services.uninstall()
     assert winsw.actions() == [('worker', 'stop'), ('web', 'stop'), ('worker', 'uninstall'), ('web', 'uninstall')]
     winsw.calls.clear()
@@ -263,13 +280,14 @@ def test_uninstall_stops_then_removes_in_reverse_order(services, winsw):
 
 def test_wait_times_out_with_service_state_error(services, monkeypatch, clock):
     create_exes(services)
-    fake = FakeWinSW(stuck={PRODUCT + '-web'})
-    fake.states[PRODUCT + '-web'] = 'Stopped'
+    fake = FakeWinSW(stuck={sid('web')})
+    fake.states[sid('web')] = 'Stopped'
     monkeypatch.setattr(kit_windows, '_run', fake)
+    monkeypatch.setattr(kit_windows, '_service_image_path', fake.image, raising=False)
     with pytest.raises(SetupError) as failure:
         services.start()
     assert failure.value.key == 'kit.windows_service_state'
-    assert failure.value.variables == {'service': PRODUCT + '-web', 'state': 'Started'}
+    assert failure.value.variables == {'service': sid('web'), 'state': 'Started'}
     assert clock.now > 60 and fake.actions() == [('web', 'start')]
 
 
@@ -571,7 +589,7 @@ def test_setup_status(win):
     win.setup(kit).install()
     win.lines.clear()
     assert win.setup(kit).status() == 0
-    assert f'  {PRODUCT}-web: Started' in win.lines and f'  {PRODUCT}-worker: Started' in win.lines
+    assert f'  {sid("web")}: Started' in win.lines and f'  {sid("worker")}: Started' in win.lines
     win.health['value'] = False
     assert win.setup(kit).status() == 1
 
@@ -610,7 +628,7 @@ def test_setup_uninstall_keep_reinstall_and_purge(win):
 def test_setup_uninstall_resume_keeps_data_policy(win):
     kit = make_kit(win.base)
     win.setup(kit).install()
-    win.winsw.fail.add((PRODUCT + '-web', 'uninstall'))
+    win.winsw.fail.add((sid('web'), 'uninstall'))
     with pytest.raises(SetupError):
         win.setup(kit).uninstall()
     state = read_state(win)
@@ -650,3 +668,214 @@ def test_setup_update_refusals_before_any_effect(win):
     state = read_state(win)
     assert state['status'] == 'installed' and 'update' not in state and state['version'] == '1'
     assert win.winsw.calls == []
+
+
+# --- Регрессии аудита: A-01 состав режимов, A-02 ID и принадлежность служб, A-04 хуки ---------
+
+def _forbid_effects(monkeypatch):
+    """Любой шаг транзакции UpdatePlan после отказа — ошибка теста (BaseException не глотается)."""
+    from shared.adapters_fs import FilesystemPorts
+    for name in ('backup', 'stage_release', 'migrate', 'switch_pointer', 'restore'):
+        monkeypatch.setattr(FilesystemPorts, name, lambda *args, _name=name: pytest.fail(_name + ' must not run'))
+
+
+def test_update_refuses_mode_composition_change_before_any_effect(win, monkeypatch):
+    """A-01: выпуск 2 исключает worker из выбранного режима default — отказ до остановки служб."""
+    old = demo_manifest(extra_modes=[{'name': 'all', 'components': ['web', 'worker']}])
+    new = json.loads(json.dumps(old))
+    new['modes'][0]['components'] = ['web']
+    assert [item['name'] for item in old['components']] == [item['name'] for item in new['components']]
+    win.manifests.update({'1': old, '2': new})
+    win.setup(make_kit(win.base)).install()
+    monkeypatch.setenv(PASSWORD_ENV, 'synthetic-password')
+    _forbid_effects(monkeypatch)
+    win.winsw.calls.clear()
+    with pytest.raises(SetupError) as changed:
+        win.setup(make_kit(win.base, '2', ('m-1', 'm-2'))).update()
+    assert changed.value.key == 'kit.components_changed'
+    # Выбранный режим исчез из нового манифеста — тоже изменение состава, а не сбой разбора.
+    win.manifests['2'] = json.loads(json.dumps(old))
+    win.manifests['2']['modes'] = [{'name': 'other', 'components': ['web', 'worker']}]
+    with pytest.raises(SetupError) as missing:
+        win.setup(make_kit(win.base / 'missing', '2', ('m-1', 'm-2'))).update()
+    assert missing.value.key == 'kit.components_changed'
+    assert win.winsw.calls == []
+    assert win.winsw.states == {sid('web'): 'Started', sid('worker'): 'Started'}
+    state = read_state(win)
+    assert state['status'] == 'installed' and state['version'] == '1' and 'update' not in state
+
+
+def test_effects_stop_covers_whole_previous_selection(tmp_path, winsw):
+    """A-01, защита в глубину: остановка — весь выбранный набор прежнего выпуска его манифестом."""
+    old = demo_manifest(extra_modes=[{'name': 'all', 'components': ['web', 'worker']}])
+    new = json.loads(json.dumps(old))
+    new['modes'][0]['components'] = ['web']
+    home = resolve_datahome(old, tmp_path / 'root')
+    previous = WindowsServices(old, home, ['default'], PRODUCT)
+    target = WindowsServices(new, home, ['default'], PRODUCT)
+    create_exes(previous)
+    previous.install()
+    previous.start()
+    source = tmp_path / 'WinSW-x64.exe'
+    source.write_bytes(b'winsw')
+    ports = FakePorts('1')
+    effects = WindowsEffects(target, lambda: ports, product_id=PRODUCT, target_release='2', winsw=source,
+                             previous=('1', previous, source))
+    winsw.calls.clear()
+    effects.stop('key', ('web',))
+    assert winsw.actions() == [('worker', 'stop'), ('web', 'stop')]
+    assert winsw.states == {sid('web'): 'Stopped', sid('worker'): 'Stopped'}
+
+
+def _single_component(tmp_path, product, component):
+    from shared.manifest import validate_manifest
+    manifest = demo_manifest(components=['web'])
+    manifest['product_id'] = product
+    manifest['components'][0]['name'] = component
+    manifest['modes'][0]['components'] = [component]
+    manifest = validate_manifest(manifest)
+    return WindowsServices(manifest, resolve_datahome(manifest, tmp_path / product), ['default'], product)
+
+
+def test_service_ids_of_different_products_never_collide(tmp_path, winsw):
+    """A-02: пары audit-a/b-web и audit-a-b/web раньше давали один ID audit-a-b-web."""
+    first = _single_component(tmp_path, 'audit-a', 'b-web')
+    second = _single_component(tmp_path, 'audit-a-b', 'web')
+    assert first.service_id('b-web') != second.service_id('web')
+    assert first.service_id('b-web') == 'homensai.audit-a.b-web'
+    assert second.service_id('web') == 'homensai.audit-a-b.web'
+    source = tmp_path / 'winsw.exe'
+    source.write_bytes(b'synthetic WinSW')
+    for services in (first, second):
+        services.write('1', source)
+        services.install()
+        services.start()
+    second.uninstall()
+    assert winsw.states == {'homensai.audit-a.b-web': 'Started', 'homensai.audit-a-b.web': 'NonExistent'}
+    for product in ('a.b', 'A', '-a', ''):
+        with pytest.raises(SetupError) as invalid:
+            WindowsServices(demo_manifest(), resolve_datahome(demo_manifest(), tmp_path / 'x'), ['default'], product)
+        assert invalid.value.key == 'kit.kit_unreadable'
+
+
+@pytest.mark.parametrize('operation', ['install', 'start', 'stop', 'uninstall'])
+def test_foreign_service_with_same_id_is_never_touched(services, winsw, operation):
+    """A-02: служба с нашим ID, но с чужим ImagePath — отказ до любого действия над всем набором."""
+    create_exes(services)
+    winsw.images[sid('web')] = r'"C:\Other Product\services\foreign.exe"'
+    winsw.states[sid('web')] = 'Started'
+    with pytest.raises(SetupError) as foreign:
+        getattr(services, operation)()
+    assert foreign.value.key == 'kit.windows_service_foreign'
+    assert foreign.value.variables == {'service': sid('web')}
+    assert winsw.calls == [] and winsw.states == {sid('web'): 'Started'}
+
+
+def test_own_service_image_path_is_recognised(services, winsw):
+    create_exes(services)
+    for image in ('"' + str(services.exe('web')).upper() + '"', str(services.exe('web')),
+                  '  "' + str(services.exe('web')) + '"  '):
+        winsw.images[sid('web')] = image
+        assert services.registered('web') is True
+    assert services.registered('worker') is False
+    for image in ('', '"', '"' + str(services.exe('worker')) + '"', str(services.exe('web')) + ' --extra'):
+        winsw.images[sid('web')] = image
+        with pytest.raises(SetupError) as foreign:
+            services.registered('web')
+        assert foreign.value.key == 'kit.windows_service_foreign'
+
+
+class _FakeRegistryKey:
+    def __init__(self, values):
+        self.values = values
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def test_service_image_path_reads_scm_registry(monkeypatch):
+    import sys
+    prefix = 'SYSTEM\\CurrentControlSet\\Services\\'
+    entries = {prefix + 'plain': {'ImagePath': ('C:\\a b\\x.exe', 1)},
+               prefix + 'expand': {'ImagePath': ('"%ProgramData%\\x.exe"', 2)},
+               prefix + 'binary': {'ImagePath': (b'x', 3)},
+               prefix + 'empty': {}}
+
+    def open_key(root, path):
+        assert root == 'HKLM'
+        if path not in entries:
+            raise FileNotFoundError(path)
+        return _FakeRegistryKey(entries[path])
+
+    def query(key, name):
+        if name not in key.values:
+            raise FileNotFoundError(name)
+        return key.values[name]
+    fake = SimpleNamespace(HKEY_LOCAL_MACHINE='HKLM', REG_EXPAND_SZ=2, OpenKey=open_key, QueryValueEx=query,
+                           ExpandEnvironmentStrings=lambda value: value.replace('%ProgramData%', 'C:\\ProgramData'))
+    monkeypatch.setitem(sys.modules, 'winreg', fake)
+    assert kit_windows._service_image_path('missing') is None
+    assert kit_windows._service_image_path('plain') == 'C:\\a b\\x.exe'
+    assert kit_windows._service_image_path('expand') == '"C:\\ProgramData\\x.exe"'
+    assert kit_windows._service_image_path('binary') == ''
+    assert kit_windows._service_image_path('empty') == ''
+
+
+def test_setup_install_refuses_foreign_service(win):
+    """A-02: установка не регистрирует и не запускает поверх чужой службы с тем же ID."""
+    win.winsw.images[sid('worker')] = '"C:\\Other\\worker.exe"'
+    win.winsw.states[sid('worker')] = 'Started'
+    with pytest.raises(SetupError) as foreign:
+        win.setup(make_kit(win.base)).install()
+    assert foreign.value.key == 'kit.windows_service_foreign'
+    assert win.winsw.calls == [] and win.winsw.states == {sid('worker'): 'Started'}
+    assert read_state(win)['status'] == 'installing'
+
+
+def test_setup_uninstall_refuses_foreign_service(win):
+    """A-02: удаление не останавливает и не удаляет службу, подменённую другой программой."""
+    kit = make_kit(win.base)
+    win.setup(kit).install()
+    win.winsw.images[sid('web')] = '"C:\\Other\\web.exe"'
+    win.winsw.calls.clear()
+    with pytest.raises(SetupError) as foreign:
+        win.setup(kit).uninstall()
+    assert foreign.value.key == 'kit.windows_service_foreign'
+    assert win.winsw.calls == [] and win.winsw.states == {sid('web'): 'Started', sid('worker'): 'Started'}
+
+
+def _with_hook(name):
+    from shared.manifest import validate_manifest
+    manifest = demo_manifest()
+    manifest['hooks'][name] = [['python', 'tools/hook.py']]
+    return validate_manifest(manifest)
+
+
+@pytest.mark.parametrize('hook', ['pre_start', 'health_checks', 'post_update'])
+def test_setup_install_refuses_windows_hooks_before_any_effect(win, hook):
+    """A-04: хуки не пропускаются молча — установка отклоняется до изменений."""
+    win.manifests['1'] = _with_hook(hook)
+    with pytest.raises(SetupError) as refused:
+        win.setup(make_kit(win.base)).install()
+    assert refused.value.key == 'kit.windows_hooks_unsupported'
+    assert refused.value.variables == {'hooks': hook}
+    assert win.winsw.calls == [] and win.staged == [] and not win.root.exists()
+    assert not (win.state_dir / 'state.json').exists()
+
+
+def test_setup_update_with_new_hook_refused_before_stop(win, monkeypatch):
+    """A-04: новый pre_start раньше обнаруживался после миграций и блокировал откат."""
+    win.manifests.update({'1': demo_manifest(), '2': _with_hook('pre_start')})
+    win.setup(make_kit(win.base)).install()
+    monkeypatch.setenv(PASSWORD_ENV, 'synthetic-password')
+    _forbid_effects(monkeypatch)
+    win.winsw.calls.clear()
+    with pytest.raises(SetupError) as refused:
+        win.setup(make_kit(win.base, '2', ('m-1', 'm-2'))).update()
+    assert refused.value.key == 'kit.windows_hooks_unsupported'
+    assert win.winsw.calls == [] and win.winsw.states == {sid('web'): 'Started', sid('worker'): 'Started'}
+    state = read_state(win)
+    assert state['status'] == 'installed' and state['version'] == '1' and 'update' not in state

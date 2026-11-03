@@ -471,6 +471,10 @@ def build_kit(config_path, *, version: str, signing_key, output, passphrase_env=
             shutil.copyfile(config['winsw']['exe'], payload / 'windows/WinSW-x64.exe')
             shutil.copyfile(config['winsw']['license'], payload / 'windows/WinSW-LICENSE.txt')
         manifest = render_manifest(template, config, lock_entries, wheels)
+        used_hooks = [name for name in ('pre_start', 'health_checks', 'post_update') if manifest['hooks'][name]]
+        if 'windows-x86_64' in config['targets'] and used_hooks:
+            # Установщик Windows хуки не исполняет: такой комплект отклоняется при сборке.
+            raise KitError('hooks: ' + ', '.join(used_hooks) + ' не поддерживаются для цели windows-x86_64')
         if not manifest['runtime']['vendor_wheels']:
             raise KitError('Манифест v2 требует хотя бы одну зависимость в lock-файле')
         modes = config['modes'] or [manifest['modes'][0]['name']]

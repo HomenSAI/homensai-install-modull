@@ -26,7 +26,7 @@ $env:PYTHONIOENCODING = 'utf-8'
 $base = 'C:\hsi\e2e'
 $log = '\\host.lan\Data\jobs\@NAME@.log'
 function Write-Output($message) { Add-Content -Path $log -Value $message -Encoding UTF8 }
-function Fail($message) { Write-Output "E2E FAIL: $message"; Write-Output (Get-Service 'homensai-kit-demo-*' | Format-Table -AutoSize | Out-String); exit 1 }
+function Fail($message) { Write-Output "E2E FAIL: $message"; Write-Output (Get-Service 'homensai.homensai-kit-demo.*' -ErrorAction SilentlyContinue | Format-Table -AutoSize | Out-String); exit 1 }
 function Step($message) { Write-Output "=== $message" }
 function Health() { try { return (Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 'http://127.0.0.1:18431/healthz').Content } catch { return '' } }
 function Notes() { try { return (Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 'http://127.0.0.1:18431/notes').Content } catch { return '' } }
@@ -39,8 +39,8 @@ function Setup($kit, [string[]]$arguments) {
     & cmd.exe /c $cmd @arguments 2>&1 | ForEach-Object { Write-Output "    $_" }
     return $LASTEXITCODE
 }
-# Тестовая ВМ: убрать остатки прежних прогонов (службы, состояние, каталог установки).
-foreach ($s in Get-Service "homensai-kit-demo-*" -ErrorAction SilentlyContinue) { Stop-Service $s.Name -Force -ErrorAction SilentlyContinue; & sc.exe delete $s.Name | Out-Null }
+# Тестовая ВМ: убрать остатки прежних прогонов (службы, в том числе со старой схемой ID, состояние, каталог установки).
+foreach ($s in Get-Service 'homensai.homensai-kit-demo.*', 'homensai-kit-demo-*' -ErrorAction SilentlyContinue) { Stop-Service $s.Name -Force -ErrorAction SilentlyContinue; & sc.exe delete $s.Name | Out-Null }
 Get-Process python -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*kit demo*" -or $_.Path -like "*HomenSAI*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 3
 foreach ($p in "C:\ProgramData\HomenSAI\.state\homensai-kit-demo", "C:\Программы HomenSAI") { if (Test-Path $p) { & takeown.exe /F $p /R /D Y | Out-Null; & icacls.exe $p /grant "*S-1-5-32-544:(OI)(CI)F" /T /Q | Out-Null; Remove-Item -Recurse -Force $p } }
@@ -61,7 +61,7 @@ if ((Setup $K1 @('--yes', '--language', 'ru', 'install', '--root', $root)) -ne 0
 if (-not (WaitRelease '1')) { Fail 'health v1' }
 if ((Notes) -ne '[]') { Fail ('новая база должна быть пустой: ' + (Notes)) }
 if (-not ((Get-Content "$root\data\deps.json" -Raw) -match '"sizeof_int": 4')) { Fail 'двоичная зависимость cffi' }
-$service = Get-Service 'homensai-kit-demo-web'
+$service = Get-Service 'homensai.homensai-kit-demo.web'
 if ($service.Status -ne 'Running' -or $service.StartType -ne 'Automatic') { Fail 'служба web' }
 if ((Setup $stored @('--language', 'en', 'status')) -ne 0) { Fail 'status из сохранённого установщика' }
 if ((Setup $K1 @('--yes', 'install')) -eq 0) { Fail 'повторная установка должна отказать' }
@@ -93,7 +93,7 @@ Remove-Item Env:HOMENSAI_ARCHIVE_PASSWORD
 
 Step 'удаление с сохранением данных'
 if ((Setup $stored @('--yes', '--language', 'ru', 'uninstall')) -ne 0) { Fail 'uninstall keep' }
-if (Get-Service 'homensai-kit-demo-web' -ErrorAction SilentlyContinue) { Fail 'служба должна быть удалена' }
+if (Get-Service 'homensai.homensai-kit-demo.web' -ErrorAction SilentlyContinue) { Fail 'служба должна быть удалена' }
 if (Health) { Fail 'служба должна быть остановлена' }
 if (-not (Test-Path "$root\data\kitdemo.sqlite3")) { Fail 'данные должны сохраниться' }
 
@@ -106,7 +106,7 @@ if (-not ((Notes) -match 'migrated notes-3')) { Fail 'данные после п
 Step 'полное удаление'
 if ((Setup $stored @('--yes', 'uninstall', '--purge')) -ne 0) { Fail 'purge' }
 if (Test-Path "$root\data") { Fail 'данные должны быть удалены' }
-if (Get-Service 'homensai-kit-demo-*' -ErrorAction SilentlyContinue) { Fail 'службы после purge' }
+if (Get-Service 'homensai.homensai-kit-demo.*' -ErrorAction SilentlyContinue) { Fail 'службы после purge' }
 Write-Output 'E2E OK'
 exit 0
 '''

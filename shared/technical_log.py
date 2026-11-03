@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import json
 import os
+import re
 import stat
 import sys
 
@@ -12,10 +13,42 @@ from shared.datahome import checked_path
 MAX_BYTES = 1024 * 1024
 EVENTS = frozenset({'inspection_started', 'inspection_failed', 'inspection_succeeded',
                     'install_cancelled', 'install_started', 'install_unconfirmed', 'install_recorded'})
+_TIMESTAMP = re.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00\Z')
 
 
 class TechnicalLogError(RuntimeError):
     """The event could not be durably recorded; it may already be present."""
+
+
+def _unique(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise TechnicalLogError('Invalid log entry')
+        result[key] = value
+    return result
+
+
+def _check_previous(descriptor, info):
+    """Reject unexpected content, not just a missing newline at the end."""
+    if info.st_size > MAX_BYTES:
+        raise TechnicalLogError('Log needs inspection')
+    data = os.pread(descriptor, info.st_size + 1, 0)
+    after = os.fstat(descriptor)
+    if (len(data) != info.st_size or (data and not data.endswith(b'\n'))
+            or (info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+            != (after.st_size, after.st_mtime_ns, after.st_ctime_ns)):
+        raise TechnicalLogError('Log needs inspection')
+    try:
+        for line in data.splitlines():
+            row = json.loads(line.decode('ascii'), object_pairs_hook=_unique)
+            if (type(row) is not dict or set(row) != {'time_utc', 'event'}
+                    or type(row['event']) is not str or row['event'] not in EVENTS
+                    or type(row['time_utc']) is not str or _TIMESTAMP.fullmatch(row['time_utc']) is None):
+                raise TechnicalLogError('Invalid log entry')
+            datetime.fromisoformat(row['time_utc'])
+    except (UnicodeError, ValueError, TypeError, RecursionError):
+        raise TechnicalLogError('Invalid log entry') from None
 
 
 def record(path, event):
@@ -42,10 +75,10 @@ def record(path, event):
         if (info.st_dev, info.st_ino) != (current.st_dev, current.st_ino):
             raise TechnicalLogError('Log file changed')
         info = os.fstat(descriptor)
+        _check_previous(descriptor, info)
         body = (json.dumps({'time_utc': datetime.now(timezone.utc).isoformat(timespec='seconds'),
                             'event': event}, sort_keys=True, separators=(',', ':')) + '\n').encode('ascii')
-        if (info.st_size + len(body) > MAX_BYTES
-                or (info.st_size and os.pread(descriptor, 1, info.st_size - 1) != b'\n')):
+        if info.st_size + len(body) > MAX_BYTES:
             raise TechnicalLogError('Log needs inspection')
         if os.write(descriptor, body) != len(body):
             raise TechnicalLogError('Partial event')

@@ -74,6 +74,22 @@ def test_busy_log_does_not_append_or_wait(private):
     assert path.read_bytes() == before
 
 
+@pytest.mark.parametrize('entry', [
+    b'{"event":"inspection_started","time_utc":"2026-11-03T12:00:00+00:00","secret":"hidden"}\n',
+    b'{"event":"inspection_started","event":"install_recorded","time_utc":"2026-11-03T12:00:00+00:00"}\n',
+    b'{"event":"inspection_started","time_utc":"2026-99-03T12:00:00+00:00"}\n',
+    b'{"event":"unknown","time_utc":"2026-11-03T12:00:00+00:00"}\n',
+    b'not json\n',
+])
+def test_log_rejects_unexpected_existing_entries(private, entry):
+    path = private / 'events'
+    path.write_bytes(entry)
+    path.chmod(0o600)
+    with pytest.raises(TechnicalLogError):
+        record(path, 'inspection_started')
+    assert path.read_bytes() == entry
+
+
 def test_confirmed_install_emits_only_fixed_events(private):
     params = {'expected_product_id': 'demo', 'expected_version': '1', 'install_root': '/secret-location',
               'package_path': '/secret-package', 'unit_dir': '/units', 'work_dir': '/work',

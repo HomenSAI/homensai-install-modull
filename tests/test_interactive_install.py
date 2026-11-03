@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from shared import api
-from shared.interactive_install import read_config, run
+from shared.interactive_install import main, read_config, run
 from test_api_signed_preflight import signed_request
 from test_fresh_controller import workflow
 from test_fresh_controller_api import query_for
@@ -86,3 +86,8 @@ def test_config_rejects_duplicates_and_symlinks(tmp_path):
     link.symlink_to(config)
     with pytest.raises(OSError):
         read_config(link)
+
+
+def test_invalid_arguments_never_echo_accidental_secret(capsys):
+    assert main(['--request-file', 'valid.json', '--password', 'synthetic-secret']) == 2
+    assert 'synthetic-secret' not in capsys.readouterr().err

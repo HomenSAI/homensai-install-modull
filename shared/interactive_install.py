@@ -16,6 +16,12 @@ from shared.i18n import LanguageError, available_languages, translate
 MAX_CONFIG_BYTES = 1024 * 1024
 
 
+class _Parser(argparse.ArgumentParser):
+    def error(self, message):
+        # Do not echo arbitrary arguments, which may accidentally contain secrets.
+        raise ValueError('invalid arguments')
+
+
 def _unique(pairs):
     result = {}
     for key, value in pairs:
@@ -99,11 +105,11 @@ def run(params, language, *, ask, write, handle=api.handle):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description='Interactive experimental Linux installation')
+    parser = _Parser(description='Interactive experimental Linux installation', allow_abbrev=False)
     parser.add_argument('--request-file', required=True, help='JSON parameters for install-portable-linux')
     parser.add_argument('--language', default='en', help='Installed language code')
-    args = parser.parse_args(argv)
     try:
+        args = parser.parse_args(argv)
         if not sys.stdin.isatty():
             raise ValueError('interactive terminal required')
         params = read_config(Path(args.request_file))

@@ -119,5 +119,13 @@
   "interactive.recorded": "The workflow was recorded complete. Current health and process identity are not verified.",
   "interactive.request_saved": "Request saved. Keep it for recovery.",
   "interactive.request_failed": "Request not confirmed; inspect the output before retrying.",
-  "interactive.input_failed": "Unable to read request, language, or terminal input."
+  "interactive.input_failed": "Unable to read request, language, or terminal input.",
+  "interactive.wizard_intro": "Enter public installation details. Verify the publisher key independently.",
+  "interactive.wizard_modes": "Modes, separated by commas",
+  "interactive.wizard_space_hint": "Enter required space estimates in bytes, including expected product data; no values are assumed.",
+  "interactive.wizard_space": "Required bytes for {name}",
+  "interactive.wizard_reserve": "Additional reserve bytes per volume",
+  "interactive.wizard_envelope": "Signed envelope file",
+  "interactive.wizard_key": "Trusted raw Ed25519 public key file",
+  "interactive.wizard_output": "New request file"
 }

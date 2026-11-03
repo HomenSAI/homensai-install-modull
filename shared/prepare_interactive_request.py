@@ -15,6 +15,7 @@ from shared.datahome import checked_path
 from shared.i18n import LanguageError, available_languages, translate
 from shared.interactive_install import MAX_CONFIG_BYTES, _Parser, read_config
 from shared.package_signing import MAX_ENVELOPE
+from shared.preflight import MAX_BYTES, NAMES
 
 _FIELDS = {'package_path', 'expected_product_id', 'expected_version', 'install_root', 'unit_dir',
            'work_dir', 'modes', 'required_bytes', 'reserve_bytes'}
@@ -75,12 +76,39 @@ def prepare(template, envelope, public_key, output, *, language='en', handle=api
         os.unlink(temporary)
 
 
+def wizard(language, *, ask, write):
+    """Collect explicit product inputs without creating or running the product."""
+    def prompt(key):
+        return ask(translate(language, 'interactive.' + key) + ': ').strip()
+    write(translate(language, 'interactive.wizard_intro'))
+    template = {'package_path': prompt('package'), 'expected_product_id': prompt('product'),
+                'expected_version': prompt('version'), 'install_root': prompt('root'),
+                'unit_dir': prompt('units'), 'work_dir': prompt('work')}
+    template['modes'] = [item.strip() for item in prompt('wizard_modes').split(',') if item.strip()]
+    write(translate(language, 'interactive.wizard_space_hint'))
+    sizes = {}
+    for name in NAMES:
+        size = int(ask(translate(language, 'interactive.wizard_space', name=name) + ': '))
+        if not 0 <= size <= MAX_BYTES:
+            raise ValueError('invalid space')
+        sizes[name] = size
+    reserve = int(prompt('wizard_reserve'))
+    if not 0 <= reserve <= MAX_BYTES:
+        raise ValueError('invalid reserve')
+    template['required_bytes'], template['reserve_bytes'] = sizes, reserve
+    envelope_file, key_file, output = prompt('wizard_envelope'), prompt('wizard_key'), prompt('wizard_output')
+    prepare(template, _read_public_file(envelope_file, MAX_ENVELOPE), _read_public_file(key_file, 32),
+            output, language=language)
+
+
 def main(argv=None):
     parser = _Parser(description='Prepare an experimental Linux installation request', allow_abbrev=False)
-    parser.add_argument('--template', required=True, help='JSON parameters without keys or signatures')
-    parser.add_argument('--envelope-file', required=True, help='Raw signed envelope file')
-    parser.add_argument('--public-key-file', required=True, help='Independently trusted raw 32-byte Ed25519 key')
-    parser.add_argument('--output', required=True, help='New absolute request file')
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument('--template', help='JSON parameters without keys or signatures')
+    source.add_argument('--wizard', action='store_true', help='Prompt for inputs in a terminal')
+    parser.add_argument('--envelope-file', help='Raw signed envelope file')
+    parser.add_argument('--public-key-file', help='Independently trusted raw 32-byte Ed25519 key')
+    parser.add_argument('--output', help='New absolute request file')
     parser.add_argument('--language', default='en', help='Installed language code')
     language = 'en'
     try:
@@ -88,11 +116,18 @@ def main(argv=None):
         if args.language not in available_languages():
             raise ValueError('unknown language')
         language = args.language
-        prepare(read_config(args.template), _read_public_file(args.envelope_file, MAX_ENVELOPE),
-                _read_public_file(args.public_key_file, 32), args.output, language=args.language)
+        if args.wizard:
+            if not sys.stdin.isatty() or any((args.envelope_file, args.public_key_file, args.output)):
+                raise ValueError('terminal required')
+            wizard(language, ask=input, write=print)
+        else:
+            if not all((args.envelope_file, args.public_key_file, args.output)):
+                raise ValueError('missing input')
+            prepare(read_config(args.template), _read_public_file(args.envelope_file, MAX_ENVELOPE),
+                    _read_public_file(args.public_key_file, 32), args.output, language=language)
         print(translate(language, 'interactive.request_saved'))
         return 0
-    except (OSError, ValueError, UnicodeError, RecursionError, LanguageError):
+    except (OSError, ValueError, UnicodeError, RecursionError, LanguageError, EOFError, KeyboardInterrupt):
         try:
             message = translate(language, 'interactive.request_failed')
         except LanguageError:

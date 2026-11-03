@@ -8,7 +8,8 @@ import pytest
 from shared import api
 from shared.interactive_install import read_config
 from shared.i18n import translate
-from shared.prepare_interactive_request import main, prepare
+from shared.prepare_interactive_request import main, prepare, wizard
+from shared.preflight import NAMES
 from test_api_signed_preflight import signed_request
 from test_fresh_controller import workflow
 from test_fresh_controller_api import query_for
@@ -98,3 +99,34 @@ def test_preparation_failure_is_localized_and_sanitized(tmp_path, capsys, langua
                    '--public-key-file', '/missing-key', '--output', str(tmp_path / 'output'), '--language', language])
     assert result == 2
     assert capsys.readouterr().err.strip() == translate(language, 'interactive.request_failed')
+
+
+@pytest.mark.parametrize('language', ['ru', 'en', 'de'])
+def test_wizard_creates_request_using_real_api(workflow, tmp_path, language):
+    template = template_for(workflow)
+    signature, key, output = (tmp_path / name for name in ('signature', 'key', 'request.json'))
+    signature.write_bytes(workflow['envelope'])
+    key.write_bytes(workflow['trusted_public_key'])
+    values = iter([template['package_path'], template['expected_product_id'], template['expected_version'],
+        template['install_root'], template['unit_dir'], template['work_dir'], ','.join(template['modes']),
+        *(str(template['required_bytes'][name]) for name in NAMES), str(template['reserve_bytes']),
+        str(signature), str(key), str(output)])
+    prompts, lines = [], []
+    def ask(prompt):
+        prompts.append(prompt)
+        return next(values)
+    wizard(language, ask=ask, write=lines.append)
+    result = read_config(output)
+    assert all(result[key] == value for key, value in template.items())
+    assert len(prompts) == 11 + len(NAMES)
+    assert not list(Path(workflow['work_dir']).glob('install-*.json'))
+
+
+def test_wizard_cancel_does_not_create_request(workflow, tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr('sys.stdin.isatty', lambda: True)
+    def cancelled(_):
+        raise EOFError()
+    monkeypatch.setattr('builtins.input', cancelled)
+    assert main(['--wizard', '--language', 'ru']) == 2
+    assert capsys.readouterr().err.strip() == translate('ru', 'interactive.request_failed')
+    assert not list(tmp_path.glob('request*.json'))

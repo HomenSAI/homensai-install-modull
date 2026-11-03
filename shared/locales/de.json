@@ -119,5 +119,13 @@
   "interactive.recorded": "Der Ablauf wurde als abgeschlossen vermerkt. Aktueller Zustand und Prozessidentität wurden nicht geprüft.",
   "interactive.request_saved": "Anfrage gespeichert. Für die Wiederherstellung aufbewahren.",
   "interactive.request_failed": "Anfrage nicht bestätigt; Datei vor einem erneuten Versuch prüfen.",
-  "interactive.input_failed": "Anfrage, Sprache oder Terminaleingabe konnten nicht gelesen werden."
+  "interactive.input_failed": "Anfrage, Sprache oder Terminaleingabe konnten nicht gelesen werden.",
+  "interactive.wizard_intro": "Öffentliche Installationsdaten eingeben. Vertrauen in den Herausgeberschlüssel separat prüfen.",
+  "interactive.wizard_modes": "Modi, durch Kommas getrennt",
+  "interactive.wizard_space_hint": "Benötigten Platz in Bytes einschließlich erwarteter Produktdaten eingeben; Werte werden nicht vorausgesetzt.",
+  "interactive.wizard_space": "Benötigte Bytes für {name}",
+  "interactive.wizard_reserve": "Zusätzliche Reserve in Bytes pro Datenträger",
+  "interactive.wizard_envelope": "Datei mit Paketsignatur",
+  "interactive.wizard_key": "Datei mit vertrautem öffentlichem Ed25519-Schlüssel",
+  "interactive.wizard_output": "Neue Anfragedatei"
 }

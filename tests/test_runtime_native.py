@@ -348,14 +348,34 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                     keys=dict(zip(('release', 'runtime', 'publish', 'load', 'start'),
                                   (key * 32 for key in '1abcd'))))
         if interactive:
+            import pty
             from shared.interactive_install import read_config
-            from shared.prepare_interactive_request import prepare
             request_file = tmp_path / 'interactive-request.json'
-            template = {name: value for name, value in args.items() if name not in
-                        ('product_id', 'version', 'envelope', 'trusted_public_key', 'workflow_key', 'keys')}
-            template.update(expected_product_id=args['product_id'], expected_version=args['version'],
-                            modes=list(args['modes']))
-            prepare(template, envelope, public, str(request_file), language='de')
+            signature_file, public_file = tmp_path / 'signature.json', tmp_path / 'publisher.key'
+            signature_file.write_bytes(envelope)
+            public_file.write_bytes(public)
+            answers = [str(package), args['product_id'], args['version'], str(install), str(destination),
+                       str(work), ','.join(args['modes']), *(str(args['required_bytes'][name]) for name in NAMES),
+                       str(args['reserve_bytes']), str(signature_file), str(public_file), str(request_file)]
+            master, slave = pty.openpty()
+            try:
+                process = subprocess.Popen([sys.executable, '-m', 'shared.prepare_interactive_request',
+                    '--wizard', '--language', 'de'], cwd=str(ROOT), stdin=slave,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                os.close(slave)
+                slave = None
+                os.write(master, ('\n'.join(answers) + '\n').encode('utf-8'))
+                try:
+                    output, errors = process.communicate(timeout=120)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.communicate()
+                    raise
+                assert process.returncode == 0, (output, errors)
+            finally:
+                os.close(master)
+                if slave is not None:
+                    os.close(slave)
             generated = read_config(request_file)
             args['workflow_key'], args['keys'] = generated['workflow_key'], generated['keys']
         try:

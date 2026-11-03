@@ -44,7 +44,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 54
+API_MINOR = 55
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -208,6 +208,8 @@ def handle(request: Any) -> dict:
                     operations.append('plan-pointer-systemd-user-units')
                     operations.append('publish-pointer-systemd-user-units')
                     mutating_operations.append('publish-pointer-systemd-user-units')
+                    operations.extend(['load-pointer-systemd-user-units', 'inspect-pending-pointer-systemd-user-units'])
+                    mutating_operations.extend(['load-pointer-systemd-user-units', 'inspect-pending-pointer-systemd-user-units'])
                     mutating_operations.extend(["publish-portable-systemd-user-units", "load-portable-systemd-user-units"])
                     operations.extend(["plan-linux-runtime", "prepare-linux-runtime", "verify-linux-runtime"])
                     operations.append("check-portable-linux-start")
@@ -730,16 +732,19 @@ def handle(request: Any) -> dict:
         elif operation in ("plan-systemd-user-units", "publish-systemd-user-units", "load-systemd-user-units",
                            "plan-portable-systemd-user-units", "publish-portable-systemd-user-units",
                            "load-portable-systemd-user-units", "plan-pointer-systemd-user-units",
-                           "publish-pointer-systemd-user-units"):
+                           "publish-pointer-systemd-user-units", "load-pointer-systemd-user-units",
+                           "inspect-pending-pointer-systemd-user-units"):
             fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id",
                       "expected_version", "install_root", "modes"}
             portable = '-portable-' in operation
             publishing = operation.startswith('publish-')
             loading = operation.startswith('load-')
             pointer_publishing = operation == 'publish-pointer-systemd-user-units'
-            if publishing or loading:
+            pointer_inspect = operation == 'inspect-pending-pointer-systemd-user-units'
+            pointer_action = pointer_publishing or operation == 'load-pointer-systemd-user-units' or pointer_inspect
+            if publishing or loading or pointer_inspect:
                 fields |= {"unit_dir", "idempotency_key"}
-            if pointer_publishing:
+            if pointer_action:
                 fields |= {'runtime_key', 'reserve_bytes'}
             if publishing and not portable and not pointer_publishing and 'verify_generated_units' in params:
                 fields.add('verify_generated_units')
@@ -747,7 +752,7 @@ def handle(request: Any) -> dict:
             if (set(params) != fields or any(type(params[field]) is not str for field in strings)
                     or type(params['modes']) is not list or not params['modes']
                     or any(type(mode) is not str for mode in params['modes'])
-                    or (pointer_publishing and (type(params['reserve_bytes']) is not int
+                    or (pointer_action and (type(params['reserve_bytes']) is not int
                         or not 0 <= params['reserve_bytes'] <= MAX_DISK_BYTES
                         or re.fullmatch(r'[a-f0-9]{32}', params['runtime_key']) is None
                         or params['runtime_key'] == params['idempotency_key']))
@@ -759,7 +764,7 @@ def handle(request: Any) -> dict:
             if (not params['package_path'] or not params['install_root']
                     or re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,62}", params['expected_product_id']) is None
                     or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", params['expected_version']) is None
-                    or ((publishing or loading) and (not params['unit_dir']
+                    or ((publishing or loading or pointer_inspect) and (not params['unit_dir']
                         or re.fullmatch(r'[a-f0-9]{32}', params['idempotency_key']) is None))):
                 raise InvalidRequest()
             envelope = _base64(params['envelope'], MAX_ENVELOPE)
@@ -779,6 +784,14 @@ def handle(request: Any) -> dict:
                         expected_version=params['expected_version'], modes=tuple(params['modes']),
                         unit_dir=params['unit_dir'], runtime_operation_id=params['runtime_key'],
                         reserve_bytes=params['reserve_bytes'], operation_id=params['idempotency_key'], execute=True)
+                elif pointer_action:
+                    from shared.systemd_user_load import load_pointer_signed_user_units, inspect_pending_pointer_user_units
+                    function = inspect_pending_pointer_user_units if pointer_inspect else load_pointer_signed_user_units
+                    plan = function(params['package_path'], envelope, params['install_root'],
+                        trusted_public_key=key, expected_product_id=params['expected_product_id'],
+                        expected_version=params['expected_version'], modes=tuple(params['modes']),
+                        unit_dir=params['unit_dir'], runtime_operation_id=params['runtime_key'],
+                        reserve_bytes=params['reserve_bytes'], operation_id=params['idempotency_key'])
                 else:
                     function = (load_portable_signed_user_units if loading else publish_portable_signed_user_units) if portable else (
                                load_signed_user_units if loading else publish_signed_user_units)
@@ -789,7 +802,7 @@ def handle(request: Any) -> dict:
                         unit_dir=params['unit_dir'] if publishing or loading else '', execute=publishing or loading,
                         operation_id=params['idempotency_key'] if publishing or loading else None, **generated_policy)
             except (UnitPublicationError, UnitLoadError, PortableUnitError):
-                if loading:
+                if loading or pointer_inspect:
                     return _error(request_id, 'systemd_load_failed', 'Не удалось подтвердить загрузку служб',
                                   language, 'api.systemd_load_failed')
                 if publishing:
@@ -797,7 +810,7 @@ def handle(request: Any) -> dict:
                                   language, 'api.systemd_publish_failed')
                 return _error(request_id, 'systemd_plan_failed', 'Не удалось проверить состав служб',
                               language, 'api.systemd_plan_failed')
-            result = ({**plan, 'installation_complete': False} if publishing or loading else
+            result = ({**plan, 'installation_complete': False} if publishing or loading or pointer_inspect else
                       {**plan, 'manager_checked': False, 'publication_readiness_verified': False})
         elif operation in ("fresh-status", "verify-native-release"):
             fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id", "expected_version", "install_root"}

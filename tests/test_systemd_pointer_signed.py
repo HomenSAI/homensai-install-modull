@@ -238,6 +238,117 @@ def test_runtime_tampering_during_publication_leaves_pending_marker(signed_point
     assert {path.name: path.read_bytes() for path in directory.iterdir()} == before
 
 
+@pytest.mark.parametrize('lost_response', [False, True])
+def test_pointer_reload_is_bound_to_runtime_and_never_replayed(signed_pointer, tmp_path, lost_response):
+    from shared.runtime_native import prepare_signed_linux_runtime
+    from shared.systemd_user_load import (UnitLoadError, load_pointer_signed_user_units,
+                                         inspect_pending_pointer_user_units)
+    from test_systemd_portable import FakeReloadManager
+    package, envelope, root, directory, options, publish, _ = _pointer_publisher(signed_pointer, tmp_path)
+    prepare_signed_linux_runtime(package, envelope, str(root), **options,
+                                 reserve_bytes=0, operation_id='a' * 32, execute=True)
+    publish(execute=True)
+    manager = FakeReloadManager(directory, lose_response=lost_response)
+    args = dict(**options, modes=('autonomous',), unit_dir=str(directory),
+                runtime_operation_id='a' * 32, reserve_bytes=0, operation_id='c' * 32, runner=manager)
+    if lost_response:
+        with pytest.raises(UnitLoadError):
+            load_pointer_signed_user_units(package, envelope, str(root), **args)
+        with pytest.raises(UnitLoadError):
+            load_pointer_signed_user_units(package, envelope, str(root), **args)
+        (root / 'runtime/lib/homensai/portable_launcher.py').write_text('damaged')
+        observed = inspect_pending_pointer_user_units(package, envelope, str(root), **args)
+        assert observed['state'] == 'pending_observed' and not observed['reload_completion_verified']
+    else:
+        result = load_pointer_signed_user_units(package, envelope, str(root), **args)
+        assert result['state'] == 'loaded' and not result['services_started']
+        assert load_pointer_signed_user_units(package, envelope, str(root), **args) == result
+    assert manager.calls.count(['daemon-reload']) == 1
+    assert all('start' not in call for call in manager.calls)
+
+
+def test_pointer_reload_refuses_corrupt_runtime_before_manager(signed_pointer, tmp_path):
+    from shared.runtime_native import prepare_signed_linux_runtime
+    from shared.systemd_user_load import UnitLoadError, load_pointer_signed_user_units
+    from test_systemd_portable import FakeReloadManager
+    package, envelope, root, directory, options, publish, _ = _pointer_publisher(signed_pointer, tmp_path)
+    prepare_signed_linux_runtime(package, envelope, str(root), **options,
+                                 reserve_bytes=0, operation_id='a' * 32, execute=True)
+    publish(execute=True)
+    (root / 'runtime/lib/homensai/portable_launcher.py').write_text('damaged')
+    manager = FakeReloadManager(directory)
+    with pytest.raises(UnitLoadError):
+        load_pointer_signed_user_units(package, envelope, str(root), **options, modes=('autonomous',),
+            unit_dir=str(directory), runtime_operation_id='a' * 32, reserve_bytes=0,
+            operation_id='c' * 32, runner=manager)
+    assert not manager.calls and not (root / '.homensai-control/user-systemd-reload.json').exists()
+
+
+def test_pointer_reload_detects_runtime_change_during_reload(signed_pointer, tmp_path):
+    from shared.runtime_native import prepare_signed_linux_runtime
+    from shared.systemd_user_load import UnitLoadError, load_pointer_signed_user_units
+    from test_systemd_portable import FakeReloadManager
+    package, envelope, root, directory, options, publish, _ = _pointer_publisher(signed_pointer, tmp_path)
+    prepare_signed_linux_runtime(package, envelope, str(root), **options,
+                                 reserve_bytes=0, operation_id='a' * 32, execute=True)
+    publish(execute=True)
+    class TamperingManager(FakeReloadManager):
+        def __call__(self, argv, *, timeout, env):
+            result = super().__call__(argv, timeout=timeout, env=env)
+            if argv[4:] == ['daemon-reload']:
+                (root / 'runtime/lib/homensai/portable_launcher.py').write_text('damaged after reload')
+            return result
+    manager = TamperingManager(directory)
+    with pytest.raises(UnitLoadError):
+        load_pointer_signed_user_units(package, envelope, str(root), **options, modes=('autonomous',),
+            unit_dir=str(directory), runtime_operation_id='a' * 32, reserve_bytes=0,
+            operation_id='c' * 32, runner=manager)
+    receipt = root / '.homensai-control/user-systemd-reload.json'
+    assert json.loads(receipt.read_text())['status'] == 'pending'
+    assert manager.calls.count(['daemon-reload']) == 1 and all('start' not in x for x in manager.calls)
+
+
+@pytest.mark.parametrize('lost_response', [False, True])
+def test_api_pointer_reload_and_pending_inspection(signed_pointer, tmp_path, monkeypatch, lost_response):
+    import shared.systemd_user_load as loader
+    from homensai_installer_client import contract_schema
+    from shared.api import handle
+    from shared.runtime_native import prepare_signed_linux_runtime
+    from test_systemd_portable import FakeReloadManager
+    package, envelope, root, directory, options, publish, _ = _pointer_publisher(signed_pointer, tmp_path)
+    prepare_signed_linux_runtime(package, envelope, str(root), **options,
+                                 reserve_bytes=0, operation_id='a' * 32, execute=True)
+    publish(execute=True)
+    manager = FakeReloadManager(directory, lose_response=lost_response)
+    monkeypatch.setattr(loader, '_run', manager)
+    params = {'package_path': str(package), 'envelope': base64.b64encode(envelope).decode(),
+              'trusted_public_key': base64.b64encode(options['trusted_public_key']).decode(),
+              'expected_product_id': options['expected_product_id'], 'expected_version': '1',
+              'install_root': str(root), 'modes': ['autonomous'], 'unit_dir': str(directory),
+              'runtime_key': 'a' * 32, 'idempotency_key': 'c' * 32, 'reserve_bytes': 0}
+    request = {'api_major': 1, 'request_id': 'pointer-load', 'operation': 'load-pointer-systemd-user-units',
+               'params': params}
+    jsonschema = pytest.importorskip('jsonschema')
+    validator = jsonschema.Draft202012Validator(contract_schema('request'))
+    caps = handle({'api_major': 1, 'request_id': 'caps', 'operation': 'capabilities', 'params': {}})['result']
+    assert validator.is_valid(request) and caps['api_minor'] >= 55
+    assert request['operation'] in caps['mutating_operations']
+    first = handle(request)
+    if lost_response:
+        assert first['error']['code'] == 'systemd_load_failed'
+        assert handle(request)['error']['code'] == 'systemd_load_failed'
+        (root / 'runtime/lib/homensai/portable_launcher.py').write_text('damaged')
+        request['operation'] = 'inspect-pending-pointer-systemd-user-units'
+        assert validator.is_valid(request) and request['operation'] in caps['mutating_operations']
+        observed = handle(request)
+        assert observed['ok'] and observed['result']['state'] == 'pending_observed'
+        assert not observed['result']['reload_completion_verified']
+    else:
+        assert first['ok'] and first['result']['state'] == 'loaded' and not first['result']['services_started']
+        assert handle(request) == first
+    assert manager.calls.count(['daemon-reload']) == 1
+
+
 def test_api_publishes_pointer_units_only_with_verified_runtime(signed_pointer, tmp_path, monkeypatch):
     import shared.systemd_pointer as pointer
     from homensai_installer_client import contract_schema
@@ -275,11 +386,12 @@ def test_api_publishes_pointer_units_only_with_verified_runtime(signed_pointer, 
 
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Нужен одноразовый контейнер с user-systemd')
-def test_pointer_publication_with_real_isolated_systemd(signed_pointer, tmp_path):
+def test_pointer_publication_and_reload_with_real_isolated_systemd(signed_pointer, tmp_path):
     import pwd
     import subprocess
     from shared.runtime_native import prepare_signed_linux_runtime
     from shared.systemd_pointer import publish_pointer_signed_user_units
+    from shared.systemd_user_load import load_pointer_signed_user_units
     user = pwd.getpwuid(os.getuid())
     if (os.getuid() == 0 or user.pw_name != 'homenstest' or user.pw_dir != '/home/homenstest'
             or not Path('/run/.containerenv').is_file() or not tmp_path.is_relative_to(Path(user.pw_dir))):
@@ -302,6 +414,13 @@ def test_pointer_publication_with_real_isolated_systemd(signed_pointer, tmp_path
         assert publish_pointer_signed_user_units(package, envelope, str(root), **options,
             modes=('autonomous',), unit_dir=str(directory), runtime_operation_id='a' * 32,
             operation_id='b' * 32, reserve_bytes=0, execute=True) == result
+        loaded = load_pointer_signed_user_units(package, envelope, str(root), **options,
+            modes=('autonomous',), unit_dir=str(directory), runtime_operation_id='a' * 32,
+            operation_id='c' * 32, reserve_bytes=0)
+        assert loaded['state'] == 'loaded' and not loaded['services_started']
+        assert load_pointer_signed_user_units(package, envelope, str(root), **options,
+            modes=('autonomous',), unit_dir=str(directory), runtime_operation_id='a' * 32,
+            operation_id='c' * 32, reserve_bytes=0) == loaded
     finally:
         for path in files:
             path.unlink(missing_ok=True)

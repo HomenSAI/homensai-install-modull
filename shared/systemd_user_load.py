@@ -17,6 +17,7 @@ from shared.fresh_prepare import FreshPrepareError, verify_fresh_release
 from shared.manifest import ManifestError
 from shared.package import PackageError
 from shared.package_signing import verify_signed_package
+from shared.runtime_native import NativeRuntimeError
 from shared.services import component_order
 from shared.systemd_user import SystemdUserAdapter, SystemdUserError, _PROPERTIES, _run, _trusted_file
 from shared.systemd_user_publish import (UnitPublicationError, _existing_lock, _manager_environment,
@@ -105,8 +106,10 @@ def _before_reload(runner, directory, name, timeout):
 def _load_signed_user_units(package_path, envelope, install_root, *, trusted_public_key,
                             expected_product_id, expected_version, modes, unit_dir,
                             execute=False, inspect_pending=False, require_done=False, operation_id=None, portable=False,
-                            runner=None, timeout=30, require_active=False, require_stable=False):
-    if (type(execute) is not bool or type(portable) is not bool or type(modes) is not tuple or not modes
+                            runner=None, timeout=30, require_active=False, require_stable=False,
+                            pointer=False, runtime_operation_id=None, reserve_bytes=None):
+    if (type(execute) is not bool or type(portable) is not bool or type(pointer) is not bool
+            or (pointer and portable) or type(modes) is not tuple or not modes
             or type(inspect_pending) is not bool or (inspect_pending and not execute)
             or type(require_done) is not bool or (require_done and (not execute or inspect_pending))
             or type(require_active) is not bool or (require_active and not require_done)
@@ -115,21 +118,32 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
             or (runner is not None and not callable(runner))
             or (operation_id is not None and (type(operation_id) is not str
                 or re.fullmatch(r'[a-f0-9]{32}', operation_id) is None))
-            or (portable and execute and operation_id is None)):
+            or ((portable or pointer) and execute and operation_id is None)
+            or (pointer and (type(runtime_operation_id) is not str
+                or re.fullmatch(r'[a-f0-9]{32}', runtime_operation_id) is None
+                or operation_id == runtime_operation_id or type(reserve_bytes) is not int
+                or not 0 <= reserve_bytes <= 2**63 - 1))):
         raise UnitLoadError('Недопустимые параметры загрузки')
     try:
         options = dict(trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
                        expected_version=expected_version)
-        plan = (plan_portable_signed_user_units(package_path, envelope, install_root, **options, modes=modes)
-                if portable else publish_signed_user_units(package_path, envelope, install_root, **options,
-                                                          modes=modes, unit_dir=unit_dir))
+        if pointer:
+            from shared.systemd_pointer import plan_pointer_signed_user_units, _pointer_publication_binding
+            plan_function = plan_pointer_signed_user_units
+        elif portable:
+            plan_function = plan_portable_signed_user_units
+        else:
+            plan_function = None
+        plan = (plan_function(package_path, envelope, install_root, **options, modes=modes)
+                if plan_function else publish_signed_user_units(package_path, envelope, install_root, **options,
+                                                               modes=modes, unit_dir=unit_dir))
         metadata = verify_signed_package(package_path, envelope, **options)
         verified = verify_fresh_release(package_path, envelope, install_root, **options)
         manifest = metadata['manifest']
         expected_names = [expected_product_id + '-' + item + '.service' for item in component_order(manifest, modes)]
         inventory = {item['path']: item['sha256'] for item in metadata['files']}
         if ([item['name'] for item in plan['units']] != expected_names
-                or (not portable and any(inventory.get('systemd-user/' + item['name']) != item['sha256']
+                or (not portable and not pointer and any(inventory.get('systemd-user/' + item['name']) != item['sha256']
                                          for item in plan['units']))):
             raise UnitLoadError('Состав служб изменился')
         root = checked_path(install_root)
@@ -151,6 +165,20 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
         receipt = checked_path(control / 'user-systemd-reload.json')
         runner = _run if runner is None else runner
         directory = _unit_directory(unit_dir)
+        runtime_receipt_path = None
+        runtime_definition = None
+        if pointer and not inspect_pending:
+            from shared.runtime_native import _definition, _inspect_runtime, verify_signed_linux_runtime
+            runtime_definition = _definition(package_path, envelope, install_root, options)
+            runtime_receipt_path = checked_path(control / 'linux-runtime.json')
+            runtime_receipt = _publication_receipt(runtime_receipt_path)
+            if (runtime_receipt is None or runtime_receipt['status'] != 'done'
+                    or runtime_receipt['operation_id'] != runtime_operation_id):
+                raise UnitLoadError('Runtime не подтверждён')
+            verify_signed_linux_runtime(package_path, envelope, install_root, **options,
+                                        operation_id=runtime_operation_id, reserve_bytes=reserve_bytes)
+            if _publication_receipt(runtime_receipt_path) != runtime_receipt:
+                raise UnitLoadError('Отметка runtime изменилась')
         context = {'product_id': expected_product_id, 'version': expected_version,
                    'transaction': verified['transaction'], 'units': plan['units'],
                    'install_sha256': hashlib.sha256(str(root).encode()).hexdigest(),
@@ -159,26 +187,37 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
         if operation_id is not None:
             context['operation_id'] = operation_id
             context['modes'] = modes
-        if portable:
+        if portable or pointer:
             context['generator'] = plan['generator']
+        if pointer:
+            context['runtime_operation_id'] = runtime_operation_id
+            context['reserve_bytes'] = reserve_bytes
         binding = hashlib.sha256(json.dumps(context, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
         pending, done = {'version': 1, 'binding': binding, 'status': 'pending'}, {'version': 1, 'binding': binding, 'status': 'done'}
         with _existing_lock(bootstrap):
             with _existing_lock(service_lock):
                 if (verify_signed_package(package_path, envelope, **options) != metadata
                         or verify_fresh_release(package_path, envelope, install_root, **options) != verified
-                        or (portable and plan_portable_signed_user_units(package_path, envelope, install_root,
-                                                      **options, modes=modes) != plan)):
+                        or (plan_function and plan_function(package_path, envelope, install_root,
+                                                            **options, modes=modes) != plan)):
                     raise UnitLoadError('Выпуск изменился')
+                if runtime_definition is not None:
+                    if (_definition(package_path, envelope, install_root, options) != runtime_definition
+                            or _publication_receipt(runtime_receipt_path) != runtime_receipt):
+                        raise UnitLoadError('Runtime изменился')
+                    _inspect_runtime(checked_path(home.roots['runtime']), runtime_definition[6],
+                                     set(runtime_definition[5]['executables']))
                 publication = _publication_receipt(control / 'user-systemd-publication.json')
                 if publication is not None and publication['status'] != 'done':
                     raise UnitLoadError('Публикация служб не подтверждена')
                 if publication is not None and operation_id is not None and publication['operation_id'] == operation_id:
                     raise UnitLoadError('Ключ уже использован для публикации')
-                if portable:
-                    expected_publication = _publication_binding(product_id=expected_product_id,
+                if portable or pointer:
+                    binding_function = _pointer_publication_binding if pointer else _publication_binding
+                    extra = {'runtime_operation_id': runtime_operation_id, 'reserve_bytes': reserve_bytes} if pointer else {}
+                    expected_publication = binding_function(product_id=expected_product_id,
                         version=expected_version, transaction=verified['transaction'], plan=plan,
-                        modes=modes, root=root, directory=directory, trusted_public_key=trusted_public_key)
+                        modes=modes, root=root, directory=directory, trusted_public_key=trusted_public_key, **extra)
                     if publication is None or publication['status'] != 'done' or publication['binding'] != expected_publication:
                         raise UnitLoadError('Публикация переносимых служб не подтверждена')
                 update_state = checked_path(home.roots['services'] / manifest['update']['state_file'].replace('\\', '/'))
@@ -219,9 +258,15 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
                         raise UnitLoadError('Служба активна или её состояние не подтверждено')
                 if (verify_signed_package(package_path, envelope, **options) != metadata
                         or verify_fresh_release(package_path, envelope, install_root, **options) != verified
-                        or (portable and plan_portable_signed_user_units(package_path, envelope, install_root,
-                                                      **options, modes=modes) != plan)):
+                        or (plan_function and plan_function(package_path, envelope, install_root,
+                                                            **options, modes=modes) != plan)):
                     raise UnitLoadError('Выпуск изменился')
+                if runtime_definition is not None:
+                    if (_definition(package_path, envelope, install_root, options) != runtime_definition
+                            or _publication_receipt(runtime_receipt_path) != runtime_receipt):
+                        raise UnitLoadError('Runtime изменился')
+                    _inspect_runtime(checked_path(home.roots['runtime']), runtime_definition[6],
+                                     set(runtime_definition[5]['executables']))
                 if old is None:
                     if _read_receipt(receipt) != pending:
                         raise UnitLoadError('Отметка изменилась')
@@ -232,7 +277,7 @@ def _load_signed_user_units(package_path, envelope, install_root, *, trusted_pub
                     raise UnitLoadError('Отметка изменилась')
         return public
     except (OSError, ValueError, TypeError, KeyError, RecursionError, DataHomeError, ManifestError,
-            PackageError, FreshPrepareError, SystemdUserError, UnitPublicationError, PortableUnitError, UpdateError):
+            PackageError, FreshPrepareError, NativeRuntimeError, SystemdUserError, UnitPublicationError, PortableUnitError, UpdateError):
         raise UnitLoadError('Не удалось подтвердить загрузку служб') from None
 
 
@@ -274,6 +319,28 @@ def inspect_pending_portable_user_units(package_path, envelope, install_root, *,
         trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
         expected_version=expected_version, modes=modes, unit_dir=unit_dir,
         execute=True, inspect_pending=True, operation_id=operation_id, portable=True, runner=runner, timeout=timeout)
+
+
+def load_pointer_signed_user_units(package_path, envelope, install_root, *, trusted_public_key,
+                                   expected_product_id, expected_version, modes, unit_dir,
+                                   runtime_operation_id, reserve_bytes, operation_id, runner=None, timeout=30):
+    """Load published pointer units after verifying runtime; never start services."""
+    return _load_signed_user_units(package_path, envelope, install_root,
+        trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
+        expected_version=expected_version, modes=modes, unit_dir=unit_dir, execute=True,
+        operation_id=operation_id, pointer=True, runtime_operation_id=runtime_operation_id,
+        reserve_bytes=reserve_bytes, runner=runner, timeout=timeout)
+
+
+def inspect_pending_pointer_user_units(package_path, envelope, install_root, *, trusted_public_key,
+                                       expected_product_id, expected_version, modes, unit_dir,
+                                       runtime_operation_id, reserve_bytes, operation_id, runner=None, timeout=30):
+    """Observe pending reload without replay or installed-runtime verification."""
+    return _load_signed_user_units(package_path, envelope, install_root,
+        trusted_public_key=trusted_public_key, expected_product_id=expected_product_id,
+        expected_version=expected_version, modes=modes, unit_dir=unit_dir, execute=True, inspect_pending=True,
+        operation_id=operation_id, pointer=True, runtime_operation_id=runtime_operation_id,
+        reserve_bytes=reserve_bytes, runner=runner, timeout=timeout)
 
 
 def signed_user_group(package_path, envelope, install_root, *, trusted_public_key,

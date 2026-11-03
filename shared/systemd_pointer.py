@@ -24,6 +24,11 @@ LAUNCHER_PATH = 'runtime-linux/lib/homensai/portable_launcher.py'
 LAUNCHER_SHA256 = '643a39c67d920a5baf157066c6f00844f05ab0310e18231939729cb30e82f006'
 
 
+def _pointer_publication_binding(*, runtime_operation_id, reserve_bytes, **options):
+    base = _publication_binding(**options)
+    return hashlib.sha256((base + ':' + runtime_operation_id + ':' + str(reserve_bytes)).encode('ascii')).hexdigest()
+
+
 def plan_pointer_signed_user_units(package_path, envelope, install_root, *, trusted_public_key,
                                    expected_product_id, expected_version, modes):
     """Verify signed recipe and launcher bytes; return texts without publishing.
@@ -105,10 +110,10 @@ def publish_pointer_signed_user_units(package_path, envelope, install_root, *, t
         units = [(item['name'], item['sha256'], plan['unit_texts'][item['name']].encode('utf-8'))
                  for item in plan['units']]
         names = [item[0] for item in units]
-        base = _publication_binding(product_id=expected_product_id, version=expected_version,
+        binding = _pointer_publication_binding(product_id=expected_product_id, version=expected_version,
             transaction=verified['transaction'], plan=plan, modes=modes, root=root,
-            directory=directory, trusted_public_key=trusted_public_key)
-        binding = hashlib.sha256((base + ':' + runtime_operation_id + ':' + str(reserve_bytes)).encode('ascii')).hexdigest()
+            directory=directory, trusted_public_key=trusted_public_key,
+            runtime_operation_id=runtime_operation_id, reserve_bytes=reserve_bytes)
         receipt = checked_path(control / 'user-systemd-publication.json')
         pending = {'version': 1, 'operation_id': operation_id, 'binding': binding, 'status': 'pending'}
         done = {**pending, 'status': 'done'}

@@ -108,6 +108,14 @@ API 1.54 добавляет `publish-pointer-systemd-user-units`: парамет
 runtime и загрузчик под блокировками перед записью units. Повтор `done`
 сверяет файлы; `pending` требует разбора. Она не выполняет daemon-reload,
 enable или start и не подтверждает готовность установки.
+API 1.55 добавляет `load-pointer-systemd-user-units` и
+`inspect-pending-pointer-systemd-user-units` с теми же полями, что публикация,
+но с отдельным ключом загрузки `idempotency_key`. Загрузка повторно проверяет
+публикацию, runtime и units, выполняет один `daemon-reload` и не запускает
+службы. При неизвестном результате автоматический повтор запрещён. Операция
+наблюдения показывает `pending` без повторного reload и проверки установленного
+runtime; `reload_completion_verified: false` не подтверждает исход команды.
+Обе операции относятся к изменяющим: запрос состояния к systemd может загрузить unit.
 Полная установка и обновление через API пока недоступны.
 
 `start-portable-linux` принимает поля `check-portable-linux-start` и отдельный

@@ -30,8 +30,10 @@
   YAML проверен. В первом прогоне GitHub Ubuntu прошёл, Windows обнаружила
   семь ошибок обнаружения языковых каталогов (384 passed, 1 skipped).
   Диагностика показала несовпадение Windows `st_ctime` для пути и открытого
-  файла; сравнение заменено на `st_birthtime_ns` на Windows. На Linux выбранный
-  набор после исправления: 393 passed. Повторная проверка на Windows необходима.
+  файла; сравнение заменено на `st_birthtime_ns` на Windows. Для коммита
+  `b509d50` повторный GitHub Actions прогон прошёл на Ubuntu и Windows:
+  Windows 392 passed, 1 skipped (POSIX), локальный Linux — 393 passed.
+  Результат: https://github.com/HomenSAI/homensai-install-modull/actions/runs/41580433288
   Это не проверка установки или защищённая сборка выпуска.
 
 ### 03.11.2026 — правила отбора источников

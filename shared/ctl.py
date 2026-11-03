@@ -202,6 +202,18 @@ def _write_rendered(rendered: dict[str, str], destination: str) -> list[str]:
     return [str(path) for path in files]
 
 
+def _localize_report(report: dict, language: str | None) -> dict:
+    """Локализовать только сообщения; коды, факты и исходный отчёт не менять."""
+    if language is None or language == 'ru':
+        return report
+    try:
+        checks = [{**check, 'message': translate(language, 'doctor.' + check['code'].lower())}
+                  for check in report['checks']]
+    except LanguageError:
+        return report
+    return {**report, 'checks': checks}
+
+
 def _execute(manifest, args, *, password_provider=None) -> tuple[str, dict]:
     name = args.command
     if name == 'docker-check':
@@ -222,7 +234,7 @@ def _execute(manifest, args, *, password_provider=None) -> tuple[str, dict]:
 
         facts = json.loads(_file(args.facts).read_text(encoding="utf-8-sig"),
                            object_pairs_hook=unique_object, parse_constant=constant)
-        report = evaluate_health(facts)
+        report = _localize_report(evaluate_health(facts), args.language)
         return "Продукт исправен" if report["ok"] else "Обнаружены проблемы продукта", {"report": report}
     if name == "render-linux":
         rendered = render_linux(manifest, modes=tuple(args.mode), install_root=args.install_root,

@@ -174,14 +174,30 @@ def test_cli_human_doctor(tmp_path, capsys, facts):
     ('en', 'Database opens', 'Component heartbeat is current'),
     ('de', 'Datenbank lässt sich öffnen', 'Heartbeat der Komponente ist aktuell'),
 ])
-def test_cli_localizes_human_diagnostics_without_changing_json(tmp_path, capsys, facts, language, db, heartbeat):
+def test_cli_localizes_diagnostics_and_preserves_json_codes(tmp_path, capsys, facts, language, db, heartbeat):
     path = tmp_path / 'facts.json'
     path.write_text(json.dumps(facts), encoding='utf-8')
     assert ctl.main(['--language', language, 'doctor-eval', '--facts', str(path)]) == 0
     output = capsys.readouterr().out
     assert 'DB_OK: ' + db in output and 'HEARTBEAT_OK [worker]: ' + heartbeat in output
     assert ctl.main(['--language', language, 'doctor-eval', '--facts', str(path), '--json']) == 0
-    assert json.loads(capsys.readouterr().out)['data']['report'] == evaluate_health(facts)
+    translated = json.loads(capsys.readouterr().out)['data']['report']
+    original = evaluate_health(facts)
+    assert translated['ok'] == original['ok'] and translated['exit_code'] == original['exit_code']
+    assert [{k: v for k, v in check.items() if k != 'message'} for check in translated['checks']] == [
+        {k: v for k, v in check.items() if k != 'message'} for check in original['checks']]
+    assert translated['checks'][0]['message'] == db
+    assert next(item for item in translated['checks'] if item['code'] == 'HEARTBEAT_OK')['message'] == heartbeat
+
+
+@pytest.mark.parametrize('language,expected', [('en', 'Invalid or incomplete diagnostic facts'),
+                                                ('de', 'Ungültige oder unvollständige Diagnosedaten')])
+def test_cli_localizes_invalid_facts_in_json(tmp_path, capsys, language, expected):
+    path = tmp_path / 'facts.json'
+    path.write_text('{}', encoding='utf-8')
+    assert ctl.main(['--language', language, 'doctor-eval', '--facts', str(path), '--json']) == 1
+    check = json.loads(capsys.readouterr().out)['data']['report']['checks'][0]
+    assert check == {'code': 'INVALID_FACTS', 'ok': False, 'message': expected}
 
 
 def test_every_diagnostic_code_has_all_translations():

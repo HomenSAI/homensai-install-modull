@@ -32,6 +32,12 @@ class ArchiveError(ValueError):
     """Операция не завершена; исключение не содержит содержимое файлов."""
 
 
+def _stat_signature(info):
+    # Windows st_ctime may differ between lstat and fstat for the same file.
+    timestamp = info.st_birthtime_ns if os.name == 'nt' else info.st_ctime_ns
+    return (info.st_dev, info.st_ino, info.st_mode, info.st_size, info.st_mtime_ns, timestamp)
+
+
 def _safe_name(name: str, *, directory: bool = False) -> str:
     if not isinstance(name, str) or not name or "\\" in name:
         raise ArchiveError("Недопустимый путь ZIP")
@@ -54,8 +60,7 @@ def _signature(path: Path) -> tuple[int, ...]:
         raise ArchiveError("Ссылки и reparse points не архивируются")
     if not (stat.S_ISREG(info.st_mode) or stat.S_ISDIR(info.st_mode)):
         raise ArchiveError("Поддерживаются только обычные файлы и каталоги")
-    return (info.st_dev, info.st_ino, info.st_mode, info.st_size,
-            info.st_mtime_ns, info.st_ctime_ns)
+    return _stat_signature(info)
 
 
 @contextmanager
@@ -71,8 +76,7 @@ def _open_regular(path: str | Path):
     with os.fdopen(descriptor, 'rb') as stream:
         def current():
             info = os.fstat(stream.fileno())
-            return (info.st_dev, info.st_ino, info.st_mode, info.st_size,
-                    info.st_mtime_ns, info.st_ctime_ns)
+            return _stat_signature(info)
         if current() != signature or _signature(path) != signature:
             raise ArchiveError('Файл архива изменился при открытии')
         yield stream

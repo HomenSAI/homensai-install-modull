@@ -79,7 +79,7 @@ def _verify_compose(path: Path, expected: bytes) -> None:
             after = os.fstat(stream.fileno())
         current = _compose_path(path).lstat()
         signature = lambda item: (item.st_dev, item.st_ino, item.st_mode, item.st_size,
-                                  item.st_mtime_ns, item.st_ctime_ns)
+                                  item.st_mtime_ns, item.st_birthtime_ns if os.name == 'nt' else item.st_ctime_ns)
         if (signature(before) != signature(after) or signature(after) != signature(current)
                 or len(body) != before.st_size
                 or body not in (expected, expected.replace(b'\n', b'\r\n'))):

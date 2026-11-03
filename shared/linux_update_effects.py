@@ -166,6 +166,10 @@ class LinuxSignedUpdateEffects:
         if release != self.plan.release or not callable(stage):
             raise UpdateError('Выпуск не соответствует плану')
         try:
+            ports = self.lifecycle.ports
+            archive = ports.archive_path(key.split('/', 1)[0] + '/archive')
+            if set(ports._verify_archive(archive)['roots']) != set(ports.home.roots):
+                raise UpdateError('Корни исходной копии не соответствуют установке')
             source = self.lifecycle.ports.payloads[release]
             self._verify_release(source.directory)
             stage(key, release)

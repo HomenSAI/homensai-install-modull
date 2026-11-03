@@ -69,6 +69,7 @@ def test_assembled_plan_stages_signed_payload_without_starting_services(assemble
     before = pointer.read_bytes()
     plan = assemble_prepared_linux_update(**options)
     ports = plan.ports
+    ports._backup('b' * 32 + '/archive', 'archive', ())
     assert plan.status() is None and not ports.release_path('2').exists()
     assert all(adapter.active for adapter in adapters.values())
     state = {'version': 1, 'transaction': 'b' * 32, 'plan': plan.digest, 'old_release': '1',
@@ -82,6 +83,36 @@ def test_assembled_plan_stages_signed_payload_without_starting_services(assemble
         _ACTIVE_EFFECT.reset(token)
     assert _tree(ports.release_path('2')) == _tree(ports.payloads['2'].directory)
     assert pointer.read_bytes() == before and all(adapter.active for adapter in adapters.values())
+
+
+@pytest.mark.parametrize('damage', ['missing', 'modified', 'wrong-password'])
+def test_stage_refuses_unverified_backup_before_publishing(assembled, damage):
+    options, adapters = assembled
+    pointer = Path(options['install_root']) / 'services/active.json'
+    before = pointer.read_bytes()
+    plan = assemble_prepared_linux_update(**options)
+    ports = plan.ports
+    key = 'b' * 32
+    ports._backup(key + '/archive', 'archive', ())
+    archive = ports.archive_path(key + '/archive')
+    if damage == 'missing':
+        archive.unlink()
+    elif damage == 'modified':
+        archive.write_bytes(b'damaged synthetic archive')
+    else:
+        ports.password_provider = lambda: 'wrong synthetic password'
+    state = {'version': 1, 'transaction': key, 'plan': plan.digest, 'old_release': '1',
+             'release': '2', 'direction': 'forward', 'index': plan.forward.index('stage'),
+             'failed_phase': None, 'archive_ready': True, 'outcome': 'running', 'indeterminate': True}
+    plan._save(state)
+    token = _ACTIVE_EFFECT.set((plan, key, 'stage'))
+    try:
+        with pytest.raises(EffectIndeterminate):
+            ports.stage_release(key + '/stage', '2')
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+    assert not ports.release_path('2').exists() and pointer.read_bytes() == before
+    assert all(adapter.active for adapter in adapters.values()) and plan.status() == state
 
 
 def test_assembly_rejects_bad_configuration_before_preparing_payload(assembled):
@@ -128,6 +159,7 @@ def test_reopen_refuses_when_new_package_wheel_audit_fails(assembled, monkeypatc
 def test_guarded_stage_rejects_tampered_prepared_payload(assembled):
     options, _ = assembled
     plan = assemble_prepared_linux_update(**options)
+    plan.ports._backup('b' * 32 + '/archive', 'archive', ())
     (plan.ports.payloads['2'].directory / 'new.py').write_text('tampered', encoding='utf-8')
     state = {'version': 1, 'transaction': 'b' * 32, 'plan': plan.digest, 'old_release': '1',
              'release': '2', 'direction': 'forward', 'index': plan.forward.index('stage'),
@@ -179,6 +211,7 @@ def test_reopen_after_switch_verifies_both_signed_releases(assembled):
     options, _ = assembled
     plan = assemble_prepared_linux_update(**options)
     ports = plan.ports
+    ports._backup('b' * 32 + '/archive', 'archive', ())
     state = {'version': 1, 'transaction': 'b' * 32, 'plan': plan.digest, 'old_release': '1',
              'release': '2', 'direction': 'forward', 'index': plan.forward.index('stage'),
              'failed_phase': None, 'archive_ready': True, 'outcome': 'running', 'indeterminate': True}

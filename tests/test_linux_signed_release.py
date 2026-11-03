@@ -87,6 +87,9 @@ def signed(tmp_path):
                                              previous_release=previous)
     plan.state_path.parent.mkdir(parents=True)
     shutil.copytree(old_source, ports.release_path('1'))
+    for directory in ports.home.roots.values():
+        directory.mkdir(parents=True, exist_ok=True)
+    ports._backup('a' * 32 + '/archive', 'archive', ())
     state = {'version': 1, 'transaction': 'a' * 32, 'plan': plan.digest, 'old_release': '1', 'release': '2',
              'direction': 'forward', 'index': 0, 'failed_phase': None, 'archive_ready': True,
              'outcome': 'running', 'indeterminate': True}

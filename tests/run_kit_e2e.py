@@ -106,10 +106,10 @@ step "обновление без пароля отклоняется"
 "$K2/setup.sh" --yes --language ru update && fail "update без пароля"
 wait_release 1 || fail "v1 должна работать после отказа"
 
-step "обновление 1 -> 2 с миграцией, прерванное SIGKILL при подготовке runtime в консолидации"
+step "обновление 1 -> 2 с миграцией, прерванное SIGKILL при переустановке в консолидации"
 export HOMENSAI_ARCHIVE_PASSWORD='synthetic-e2e-password'
-# Удаление с keep убирает .homensai-control; отметка pending runtime появляется при переустановке.
-kill_at "$ROOTDIR/.homensai-control/linux-runtime.json" pending \
+# После удаления с keep в консолидации идёт переустановка: прервать её на середине.
+kill_at "$STATE/state.json" '"uninstalled": true' \
     "$K2/setup.sh" --yes --language ru update
 grep -q '"status": "consolidating"' "$STATE/state.json" || fail "ожидалась прерванная консолидация"
 unset HOMENSAI_ARCHIVE_PASSWORD

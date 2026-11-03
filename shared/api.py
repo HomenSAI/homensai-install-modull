@@ -44,7 +44,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 47
+API_MINOR = 48
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -182,6 +182,7 @@ def handle(request: Any) -> dict:
             if _signature_available():
                 operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release"])
                 operations.append('plan-signed-target-dependencies')
+                operations.append('audit-signed-wheels')
                 operations.append('plan-signed-compose')
                 mutating_operations.append("prepare-native-release")
                 if _systemd_plan_available():
@@ -795,6 +796,26 @@ def handle(request: Any) -> dict:
                 if operation == "verify-native-release":
                     return _error(request_id, "fresh_verify_failed", "Не удалось проверить подготовленный выпуск", language, "api.fresh_verify_failed")
                 return _error(request_id, "fresh_status_failed", "Не удалось прочитать состояние подготовки", language, "api.fresh_status_failed")
+        elif operation == 'audit-signed-wheels':
+            fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id', 'expected_version'}
+            if (set(params) != fields or any(type(params[name]) is not str or not params[name] for name in fields)
+                    or re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,62}', params['expected_product_id']) is None
+                    or re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', params['expected_version']) is None):
+                raise InvalidRequest()
+            if not _signature_available():
+                return _error(request_id, 'unsupported_operation', 'Проверка подписи недоступна',
+                              language, 'api.signature_unavailable')
+            envelope = _base64(params['envelope'], MAX_ENVELOPE)
+            key = _base64(params['trusted_public_key'], 32)
+            if len(key) != 32:
+                raise InvalidRequest()
+            from shared.wheel_audit import WheelAuditError, audit_signed_wheels
+            try:
+                result = audit_signed_wheels(params['package_path'], envelope, trusted_public_key=key,
+                    expected_product_id=params['expected_product_id'], expected_version=params['expected_version'])
+            except WheelAuditError:
+                return _error(request_id, 'verification_failed', 'Подпись или пакет не прошли проверку',
+                              language, 'api.verification_failed')
         elif operation == 'plan-signed-target-dependencies':
             fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id', 'expected_version', 'target'}
             if (set(params) != fields or any(type(params[name]) is not str or not params[name]

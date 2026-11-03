@@ -44,7 +44,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 64
+API_MINOR = 65
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -227,6 +227,8 @@ def _handle(request: Any) -> dict:
                 operations.extend(["verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release"])
                 operations.append('plan-signed-target-dependencies')
                 operations.append('audit-signed-wheels')
+                if sys.platform.startswith('linux'):
+                    operations.append('verify-signed-runtime-evidence')
                 operations.append('plan-signed-compose')
                 mutating_operations.append("prepare-native-release")
                 if _systemd_plan_available():
@@ -971,6 +973,39 @@ def _handle(request: Any) -> dict:
                 if operation == "verify-native-release":
                     return _error(request_id, "fresh_verify_failed", "Не удалось проверить подготовленный выпуск", language, "api.fresh_verify_failed")
                 return _error(request_id, "fresh_status_failed", "Не удалось прочитать состояние подготовки", language, "api.fresh_status_failed")
+        elif operation == 'verify-signed-runtime-evidence':
+            fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id',
+                      'expected_version', 'platform', 'lock_path', 'evidence_path',
+                      'evidence_sha256', 'max_age_seconds'}
+            if (set(params) != fields or any(type(params[name]) is not str or not params[name]
+                    for name in fields - {'max_age_seconds'})
+                    or re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,62}', params['expected_product_id']) is None
+                    or re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', params['expected_version']) is None
+                    or params['platform'] not in ('linux', 'windows')
+                    or re.fullmatch(r'[a-f0-9]{64}', params['evidence_sha256']) is None
+                    or type(params['max_age_seconds']) is not int
+                    or not 1 <= params['max_age_seconds'] <= 31 * 24 * 3600):
+                raise InvalidRequest()
+            if not sys.platform.startswith('linux') or not _signature_available():
+                return _error(request_id, 'unsupported_operation', 'Операция API не поддерживается',
+                              language, 'api.unsupported_operation')
+            envelope = _base64(params['envelope'], MAX_ENVELOPE)
+            key = _base64(params['trusted_public_key'], 32)
+            if len(key) != 32:
+                raise InvalidRequest()
+            from shared.interactive_install import read_bounded_file
+            from shared.osv_audit import AuditError, MAX_RESPONSE
+            from shared.runtime_lock_security import verify_signed_runtime_lock
+            try:
+                evidence = read_bounded_file(checked_path(params['evidence_path']), MAX_RESPONSE)
+                result = verify_signed_runtime_lock(package=params['package_path'], envelope=envelope,
+                    trusted_public_key=key, product_id=params['expected_product_id'],
+                    version=params['expected_version'], platform=params['platform'], lock=params['lock_path'],
+                    evidence=evidence, evidence_sha256=params['evidence_sha256'],
+                    max_age_seconds=params['max_age_seconds'])
+            except (AuditError, OSError, ValueError, UnicodeError, RecursionError):
+                return _error(request_id, 'runtime_evidence_failed', 'Не удалось проверить свидетельство runtime',
+                              language, 'api.runtime_evidence_failed')
         elif operation == 'audit-signed-wheels':
             fields = {'package_path', 'envelope', 'trusted_public_key', 'expected_product_id', 'expected_version'}
             if (set(params) != fields or any(type(params[name]) is not str or not params[name] for name in fields)
@@ -1117,7 +1152,7 @@ def main() -> int:
     sys.stdout.write(json.dumps(response, ensure_ascii=True, separators=(",", ":")) + "\n")
     if response["ok"]:
         return 0
-    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_verify_failed", "fresh_prepare_failed", "update_status_failed", "update_run_failed", "health_check_failed", "systemd_plan_failed", "systemd_publish_failed", "systemd_load_failed", "linux_runtime_failed", "linux_start_check_failed", "linux_start_failed", "linux_stop_failed", "linux_cycle_failed", "wheel_audit_failed") else 2
+    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_verify_failed", "fresh_prepare_failed", "update_status_failed", "update_run_failed", "health_check_failed", "systemd_plan_failed", "systemd_publish_failed", "systemd_load_failed", "linux_runtime_failed", "linux_start_check_failed", "linux_start_failed", "linux_stop_failed", "linux_cycle_failed", "wheel_audit_failed", "runtime_evidence_failed", "technical_log_failed", "technical_log_inspection_failed", "api_operation_unconfirmed") else 2
 
 
 if __name__ == "__main__":

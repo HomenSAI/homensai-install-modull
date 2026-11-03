@@ -168,6 +168,18 @@ API 1.64 добавляет Linux-операцию `inspect-technical-log` с е
 `event_log_path`, ответ отражает снимок после `api_started`, но до записи
 `api_succeeded`; это не итоговый размер файла.
 
+API 1.65 добавляет на Linux операцию `verify-signed-runtime-evidence` для
+офлайн-сверки выбранного lock-файла с подписанным выпуском и заранее полученным
+отчётом OSV. Параметры: `package_path`, `envelope`, `trusted_public_key`,
+`expected_product_id`, `expected_version`, `platform` (`linux` или `windows`),
+`lock_path`, `evidence_path`, `evidence_sha256`, `max_age_seconds`. Подпись и
+ключ передаются в каноническом base64; путь lock должен совпадать с записанным
+в отчёте. Ключ, идентификатор продукта, хэш отчёта, способ получения отчёта и
+часы нужно доверять независимо. Проверка не выполняет сетевых запросов и не
+доказывает полноту зависимостей, происхождение издателя или отсутствие
+вредоносного кода. Она не разрешает установку автоматически. Ошибка
+`runtime_evidence_failed` не содержит входных путей или содержимого отчёта.
+
 API 1.61 добавляет экспериментальную операцию `cycle-updated-pointer-linux`.
 К параметрам `inspect-started-pointer-update` добавляются `action` (`stop` или
 `start`), отдельный `cycle_key` и логический `reconcile`. После завершённого

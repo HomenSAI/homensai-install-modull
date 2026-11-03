@@ -142,6 +142,11 @@ python -m shared.runtime_lock_security --package /trusted/release.zip \
 требуют отдельных проверок. Данные, файлы и родительские каталоги должны быть
 защищены от изменения недоверенными процессами.
 
+Эта же проверка доступна независимым клиентам через API 1.65 как
+`verify-signed-runtime-evidence`; формат параметров описан в
+[API-DESIGN.md](API-DESIGN.md). Это локальная проверка уже полученного отчёта,
+а не новый запрос к OSV и не проверка всего пакета на вредоносный код.
+
 ## Первичные источники и кандидаты
 
 * [GitHub: аттестации артефактов](https://docs.github.com/en/actions/concepts/security/artifact-attestations)

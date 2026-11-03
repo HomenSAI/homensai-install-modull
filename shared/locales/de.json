@@ -111,6 +111,7 @@
   "interactive.log_failed": "Ereignisprotokoll fehlgeschlagen; ein Vorgang wurde möglicherweise ausgeführt. Zustand vor Wiederholung prüfen.",
   "api.technical_log_failed": "Ereignisprotokoll fehlgeschlagen; ein Vorgang wurde möglicherweise ausgeführt. Zustand vor Wiederholung prüfen.",
   "api.technical_log_inspection_failed": "Ereignisprotokoll konnte nicht geprüft werden.",
+  "api.runtime_evidence_failed": "Nachweis für die ausgewählte Laufzeit konnte nicht geprüft werden.",
   "api.operation_unconfirmed": "Ergebnis des Vorgangs nicht bestätigt. Zustand vor Wiederholung prüfen.",
   "interactive.state_no_checkpoint": "Kein Status gefunden; das belegt nicht, dass keine Änderungen erfolgten.",
   "interactive.state_pending": "Ein vorheriger Schritt wurde möglicherweise ausgeführt; Zustand vor dem Fortsetzen prüfen.",

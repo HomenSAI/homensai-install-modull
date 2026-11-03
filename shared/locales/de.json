@@ -105,7 +105,7 @@
   "interactive.work": "Arbeitsverzeichnis",
   "interactive.modes": "Modi",
   "interactive.key_fingerprint": "SHA-256 des öffentlichen Herausgeberschlüssels",
-  "interactive.state_no_checkpoint": "Es gibt noch keinen Installationsstatus.",
+  "interactive.state_no_checkpoint": "Kein Status gefunden; das belegt nicht, dass keine Änderungen erfolgten.",
   "interactive.state_pending": "Ein vorheriger Schritt wurde möglicherweise ausgeführt; Zustand vor dem Fortsetzen prüfen.",
   "interactive.state_recorded_complete": "Der Ablauf ist als abgeschlossen vermerkt; der aktuelle Zustand wurde nicht geprüft.",
   "interactive.trust_warning": "Vertrauen in den Herausgeberschlüssel und die Anfragedatei separat prüfen. Dienste können gestartet werden.",

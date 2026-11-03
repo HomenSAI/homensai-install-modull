@@ -105,7 +105,7 @@
   "interactive.work": "Рабочий каталог",
   "interactive.modes": "Режимы",
   "interactive.key_fingerprint": "SHA-256 открытого ключа издателя",
-  "interactive.state_no_checkpoint": "Журнал установки ещё не создан.",
+  "interactive.state_no_checkpoint": "Журнал не найден; это не доказывает, что изменения не выполнялись.",
   "interactive.state_pending": "Предыдущий шаг мог выполниться; перед продолжением проверьте его состояние.",
   "interactive.state_recorded_complete": "В журнале установка завершена; текущее состояние не проверено.",
   "interactive.trust_warning": "Проверьте доверие к ключу издателя и файлу запроса отдельно. Службы могут быть запущены.",

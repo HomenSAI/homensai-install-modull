@@ -105,7 +105,7 @@
   "interactive.work": "Workflow directory",
   "interactive.modes": "Modes",
   "interactive.key_fingerprint": "Publisher public key SHA-256",
-  "interactive.state_no_checkpoint": "No installation checkpoint exists.",
+  "interactive.state_no_checkpoint": "No checkpoint was found; this does not prove that no changes occurred.",
   "interactive.state_pending": "An earlier step may have executed; review its state before continuing.",
   "interactive.state_recorded_complete": "The checkpoint records a completed workflow; current health is not verified.",
   "interactive.trust_warning": "Trust the publisher key and request file independently. Services may be started.",

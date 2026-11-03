@@ -347,6 +347,17 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                     required_bytes={name: 0 for name in NAMES}, reserve_bytes=0, workflow_key='f' * 32,
                     keys=dict(zip(('release', 'runtime', 'publish', 'load', 'start'),
                                   (key * 32 for key in '1abcd'))))
+        if interactive:
+            from shared.interactive_install import read_config
+            from shared.prepare_interactive_request import prepare
+            request_file = tmp_path / 'interactive-request.json'
+            template = {name: value for name, value in args.items() if name not in
+                        ('product_id', 'version', 'envelope', 'trusted_public_key', 'workflow_key', 'keys')}
+            template.update(expected_product_id=args['product_id'], expected_version=args['version'],
+                            modes=list(args['modes']))
+            prepare(template, envelope, public, str(request_file), language='de')
+            generated = read_config(request_file)
+            args['workflow_key'], args['keys'] = generated['workflow_key'], generated['keys']
         try:
             import shared.api as api_module
             class Interrupted(BaseException):
@@ -376,8 +387,7 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
             assert observed['resume_authorized'] is False and json.loads(marker_file.read_text())['index'] == 1
             if interactive:
                 import pty
-                request_file = tmp_path / 'interactive-request.json'
-                request_file.write_text(json.dumps(api_args), encoding='utf-8')
+                assert read_config(request_file) == api_args
                 master, slave = pty.openpty()
                 try:
                     process = subprocess.Popen([sys.executable, '-m', 'shared.interactive_install',

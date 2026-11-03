@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import stat
 import zipfile
 
 import pytest
@@ -19,7 +20,7 @@ def sample(tmp_path, monkeypatch):
     with zipfile.ZipFile(data, 'w') as archive:
         for name in names:
             archive.writestr(f'demo-{version}.dist-info/licenses/{name}', f'text {name}')
-        archive.writestr('../../outside', 'ignored')
+        archive.writestr('demo/__init__.py', '# synthetic')
     wheel = data.getvalue()
     filename = 'demo-1.2-py3-none-any.whl'
     (source / filename).write_bytes(wheel)
@@ -52,6 +53,90 @@ def test_wrong_hash_rejected_before_creating_output(sample, tmp_path):
     with pytest.raises(wh.WheelhouseError):
         wh.build_wheelhouse(source, output)
     assert not output.exists()
+
+
+@pytest.mark.parametrize('mutation', ['traversal', 'absolute', 'backslash', 'duplicate', 'case_collision', 'symlink', 'file_parent'])
+def test_unsafe_wheel_is_rejected_even_with_matching_digest(sample, tmp_path, monkeypatch, mutation):
+    source, filename, lock = sample
+    wheel_path = source / filename
+    with zipfile.ZipFile(wheel_path, 'a') as archive:
+        if mutation == 'duplicate':
+            with pytest.warns(UserWarning):
+                archive.writestr('demo/__init__.py', 'duplicate')
+        elif mutation == 'case_collision':
+            archive.writestr('DEMO/__INIT__.PY', 'ambiguous')
+        elif mutation == 'symlink':
+            entry = zipfile.ZipInfo('demo/link')
+            entry.create_system = 3
+            entry.external_attr = (stat.S_IFLNK | 0o777) << 16
+            archive.writestr(entry, 'elsewhere')
+        elif mutation == 'file_parent':
+            archive.writestr('demo/file', 'file')
+            archive.writestr('demo/file/child', 'conflict')
+        else:
+            name = {'traversal': '../../outside', 'absolute': '/absolute', 'backslash': 'demo\\escape'}[mutation]
+            archive.writestr(name, 'unsafe')
+    digest = hashlib.sha256(wheel_path.read_bytes()).hexdigest()
+    lock.write_text('--require-hashes\n--only-binary=:all:\n'
+                    f'demo==1.2 \\\n    --hash=sha256:{digest}\n')
+    monkeypatch.setattr(wh, '_ARTIFACTS', {filename: ('demo', digest, ('LICENSE', 'LICENSE.BSD'))})
+    with pytest.raises(wh.WheelhouseError):
+        wh.build_wheelhouse(source, tmp_path / 'output')
+    assert not (tmp_path / 'output').exists() and not (tmp_path / 'outside').exists()
+
+
+def test_archived_wheelhouse_rejects_unsafe_wheel_with_consistent_metadata(sample, tmp_path):
+    import base64
+    from shared.archive import _info
+    from shared.package import PackageError
+    from shared.package_signing import _canonical, verify_signed_package
+    ed = pytest.importorskip('cryptography.hazmat.primitives.asymmetric.ed25519')
+    serialization = pytest.importorskip('cryptography.hazmat.primitives.serialization')
+    source, filename, _ = sample
+    block = tmp_path / 'block'
+    wh.build_wheelhouse(source, block)
+    wheel_path = block / 'vendor' / filename
+    old_digest = hashlib.sha256(wheel_path.read_bytes()).hexdigest()
+    with zipfile.ZipFile(wheel_path, 'a') as wheel:
+        wheel.writestr('../../outside', 'unsafe')
+    new_digest = hashlib.sha256(wheel_path.read_bytes()).hexdigest()
+    metadata_path = block / 'crypto-wheelhouse.json'
+    metadata = json.loads(metadata_path.read_text())
+    metadata['vendor_wheels'][0]['sha256'] = new_digest
+    for system in ('linux', 'windows'):
+        lock_path = block / 'locks' / (system + '.lock')
+        lock_path.write_text(lock_path.read_text().replace(old_digest, new_digest))
+        metadata['lock_files'][system]['sha256'] = hashlib.sha256(lock_path.read_bytes()).hexdigest()
+    metadata_path.write_text(json.dumps(metadata, ensure_ascii=True, sort_keys=True, indent=2) + '\n')
+    files, bodies = [], {}
+    package = tmp_path / 'outer.zip'
+    with zipfile.ZipFile(package, 'w') as outer:
+        for path in sorted(block.rglob('*')):
+            if path.is_file():
+                name = 'crypto/' + path.relative_to(block).as_posix()
+                data = path.read_bytes()
+                files.append({'path': name, 'size': len(data), 'sha256': hashlib.sha256(data).hexdigest()})
+                bodies[name] = data
+                outer.writestr('payload/' + name, data)
+    with zipfile.ZipFile(package) as outer:
+        with pytest.raises(wh.WheelhouseError):
+            wh.verify_archived_wheelhouse(outer, files, 'crypto/crypto-wheelhouse.json')
+    manifest = json.loads((wh.Path(wh.__file__).resolve().parent.parent / 'examples/jobpilot.manifest.json').read_text())
+    package_metadata = {'format': 1, 'product_id': manifest['product_id'], 'version': '1',
+                        'manifest': manifest, 'files': files}
+    signed = tmp_path / 'signed.zip'
+    with zipfile.ZipFile(signed, 'w') as outer:
+        outer.writestr(_info('package.json'), json.dumps(package_metadata).encode())
+        for name, data in sorted(bodies.items()):
+            outer.writestr(_info('payload/' + name), data)
+    digest = hashlib.sha256(signed.read_bytes()).hexdigest()
+    private = ed.Ed25519PrivateKey.generate()
+    public = private.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    claims = {'format': 1, 'algorithm': 'Ed25519', 'product_id': manifest['product_id'], 'version': '1', 'sha256': digest}
+    envelope = json.dumps({**claims, 'signature': base64.b64encode(private.sign(_canonical(claims))).decode()}).encode()
+    with pytest.raises(PackageError, match='Криптоблок'):
+        verify_signed_package(signed, envelope, trusted_public_key=public,
+                              expected_product_id=manifest['product_id'], expected_version='1')
 
 
 def test_lock_changes_rejected_before_creating_output(sample, tmp_path):

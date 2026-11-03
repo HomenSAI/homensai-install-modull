@@ -17,6 +17,7 @@ import stat
 import zipfile
 
 from shared.crypto_policy import LOCKED_VERSIONS
+from shared.archive import _safe_name
 from shared.datahome import DataHomeError, checked_path, contains
 from shared.package_markers import CRYPTO_INCOMPLETE
 
@@ -31,6 +32,8 @@ _ARTIFACTS = {
 _LOCK = Path(__file__).resolve().parent.parent / 'requirements-crypto.txt'
 _MAX_WHEEL = 64 * 1024 * 1024
 _MAX_LICENSE = 128 * 1024
+_MAX_WHEEL_ENTRIES = 50000
+_MAX_WHEEL_EXPANDED = 512 * 1024 * 1024
 _METADATA = 'crypto-wheelhouse.json'
 
 
@@ -95,9 +98,42 @@ def _read_wheel(path: Path, expected: str) -> bytes:
     return data
 
 
+def _validate_wheel(archive: zipfile.ZipFile) -> None:
+    """Отклонить опасные и неоднозначные ZIP-записи до публикации wheel."""
+    infos = archive.infolist()
+    if not infos or len(infos) > _MAX_WHEEL_ENTRIES:
+        raise WheelhouseError('Недопустимый состав wheel')
+    names = {}
+    total = 0
+    for info in infos:
+        if (info.filename != info.orig_filename or info.flag_bits & 1
+                or info.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)):
+            raise WheelhouseError('Недопустимая запись wheel')
+        try:
+            name = _safe_name(info.filename, directory=info.is_dir())
+        except ValueError:
+            raise WheelhouseError('Недопустимый путь wheel') from None
+        folded = name.casefold()
+        mode = info.external_attr >> 16
+        kind = stat.S_IFMT(mode) if info.create_system == 3 else 0
+        allowed = (0, stat.S_IFDIR) if info.is_dir() else (0, stat.S_IFREG)
+        if (folded in names or kind not in allowed or (info.is_dir() and info.file_size != 0)
+                or info.file_size > _MAX_WHEEL_EXPANDED):
+            raise WheelhouseError('Конфликт или недопустимый тип записи wheel')
+        names[folded] = info.is_dir()
+        total += info.file_size
+        if total > _MAX_WHEEL_EXPANDED:
+            raise WheelhouseError('Распакованный wheel слишком велик')
+    for name in names:
+        parts = name.split('/')
+        if any(names.get('/'.join(parts[:index])) is False for index in range(1, len(parts))):
+            raise WheelhouseError('Файл wheel перекрывает каталог')
+
+
 def _licenses(data: bytes, package: str, names: tuple[str, ...]) -> dict[str, bytes]:
     prefix = f'{package}-{LOCKED_VERSIONS[package]}.dist-info/licenses/'
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        _validate_wheel(archive)
         infos = archive.infolist()
         result = {}
         for name in names:
@@ -212,6 +248,7 @@ def verify_archived_wheelhouse(archive, files, marker: str) -> None:
     for filename, (name, version) in wheels.items():
         data = read('vendor/' + filename, _MAX_WHEEL)
         with zipfile.ZipFile(io.BytesIO(data)) as wheel:
+            _validate_wheel(wheel)
             for license_name, contents in licenses[filename].items():
                 member = f'{name}-{version}.dist-info/licenses/{license_name}'
                 matches = [info for info in wheel.infolist() if info.filename == member]

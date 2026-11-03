@@ -14,7 +14,7 @@ from shared.update_health_port import LocalUpdateHealthPort
 from shared.update_plan import UpdateError, UpdatePlan
 from shared.update_prepare import (_check_pointer_runtime_compatibility, _expected_tree,
                                    prepare_signed_linux_update, verify_started_linux_update)
-from shared.writer_guard import CooperativeWriterLock
+from shared.writer_guard import CooperativeWriterLock, writer_lock_digest
 
 
 def _reject_version_pinned_portable_group(group, options):
@@ -83,9 +83,10 @@ def assemble_prepared_linux_update(*, group, password_provider, interpreter: str
             work_dir=Path(options['work_dir']), payloads={options['new_version']: ReleaseSource(
                 source, {item['path']: item['sha256'] for item in metadata['files']})},
             effects=None, password_provider=password_provider, runtime_guard=runtime_guard)
+        lock_path = str(writer_lock.path) if writer_lock is not None else None
         plan = UpdatePlan(metadata['manifest'], Path(options['install_root']), ports,
             release=options['new_version'], modes=options['modes'], migration_ids=options['migration_ids'],
-            guard_effects=True)
+            guard_effects=True, writer_lock_sha256=writer_lock_digest(lock_path))
         lifecycle = SystemdLifecyclePort(plan, ports, install_root=options['install_root'], group=group,
                                          reconcile_key=reconcile_stop_key)
         migration = SignedMigrationPort(plan, ports, install_root=options['install_root'],
@@ -96,7 +97,8 @@ def assemble_prepared_linux_update(*, group, password_provider, interpreter: str
         ports.effects = LinuxSignedUpdateEffects(lifecycle, migration, LocalUpdateHealthPort(plan, ports),
                                                 previous_release=previous, writer_lock=writer_lock,
                                                 runtime_guard=runtime_guard)
-        result = (verify_started_linux_update(**options) if reopen else prepare_signed_linux_update(**options))
+        result = (verify_started_linux_update(**options, writer_lock_path=lock_path) if reopen
+                  else prepare_signed_linux_update(**options, writer_lock_path=lock_path))
         if reopen and result['state']['direction'] == 'forward':
             _reject_version_pinned_portable_group(group, options)
             _check_pointer_runtime_compatibility(previous_metadata, metadata)

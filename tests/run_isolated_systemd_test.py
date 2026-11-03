@@ -54,8 +54,9 @@ def main() -> int:
                             ['--run', '--pointer-publish'], ['--run', '--pointer-start'],
                             ['--run', '--pointer-controller'], ['--run', '--pointer-update'],
                             ['--run', '--pointer-recovery'], ['--run', '--pointer-api'],
-                            ['--run', '--pointer-cycle'], ['--run', '--pointer-cycle-api']) or not hasattr(os, 'getuid') or os.getuid() == 0:
-        print('Нужны непривилегированный пользователь и --run [--runtime|--update|--assembled|--fresh-controller|--pointer|--pointer-publish|--pointer-start|--pointer-controller|--pointer-update|--pointer-recovery|--pointer-api|--pointer-cycle|--pointer-cycle-api]', file=sys.stderr)
+                            ['--run', '--pointer-cycle'], ['--run', '--pointer-cycle-api'],
+                            ['--run', '--pointer-writer-api']) or not hasattr(os, 'getuid') or os.getuid() == 0:
+        print('Нужны непривилегированный пользователь и --run [--runtime|--update|--assembled|--fresh-controller|--pointer|--pointer-publish|--pointer-start|--pointer-controller|--pointer-update|--pointer-recovery|--pointer-api|--pointer-cycle|--pointer-cycle-api|--pointer-writer-api]', file=sys.stderr)
         return 2
     with tempfile.TemporaryDirectory(prefix='homensai-isolated-systemd-') as temp:
         harness = Path(temp)
@@ -110,6 +111,10 @@ def main() -> int:
             session = SESSION.rsplit('python -m pytest', 1)[0] + (
                 'mkdir -p /home/homenstest/tmp\nexport TMPDIR=/home/homenstest/tmp\n'
                 "python -m pytest -q -ra --tb=short -x -p no:cacheprovider 'tests/test_runtime_native.py::test_real_pointer_product_update_and_rollback[terminal_cycle_api]'\n")
+        elif sys.argv[1:] == ['--run', '--pointer-writer-api']:
+            session = SESSION.rsplit('python -m pytest', 1)[0] + (
+                'mkdir -p /home/homenstest/tmp\nexport TMPDIR=/home/homenstest/tmp\n'
+                "python -m pytest -q -ra --tb=short -x -p no:cacheprovider 'tests/test_runtime_native.py::test_real_pointer_product_update_and_rollback[guarded_writer_api]'\n")
         (harness / 'session.sh').write_text(session, encoding='utf-8')
         cidfile = harness / 'container.cid'
         command = ['podman', 'run', '--rm', '--cidfile', str(cidfile), '--systemd=always',

@@ -134,12 +134,16 @@ def assemble_pointer_linux_update(*, unit_dir, load_key, runtime_key, runtime_re
             expected_version=options['new_version'])
         if not _check_pointer_runtime_compatibility(old_metadata, new_metadata):
             raise UpdateError('Требуется рецепт pointer-v2')
+        verification_options = dict(options)
+        if writer_lock is not None:
+            verification_options['writer_lock_path'] = str(writer_lock.path)
         if reopen:
             from shared.pointer_recovery import _inspect_started_pointer_group
             observation, group = _inspect_started_pointer_group(unit_dir=unit_dir, load_key=load_key,
-                runtime_key=runtime_key, runtime_reserve_bytes=runtime_reserve_bytes, runner=runner, **options)
+                runtime_key=runtime_key, runtime_reserve_bytes=runtime_reserve_bytes, runner=runner,
+                **verification_options)
             evidence = _RuntimeEvidence.from_started(runtime_key=runtime_key, reserve_bytes=runtime_reserve_bytes,
-                                                     **options)
+                                                     **verification_options)
         else:
             evidence = _RuntimeEvidence(package=options['old_package'], envelope=options['old_envelope'],
                 root=options['install_root'], options=old_options, runtime_key=runtime_key,
@@ -155,7 +159,7 @@ def assemble_pointer_linux_update(*, unit_dir, load_key, runtime_key, runtime_re
         evidence.verify()
         if reopen and _inspect_started_pointer_group(unit_dir=unit_dir, load_key=load_key,
                 runtime_key=runtime_key, runtime_reserve_bytes=runtime_reserve_bytes, runner=runner,
-                **options)[0] != observation:
+                **verification_options)[0] != observation:
             raise UpdateError('Службы изменились во время сборки')
         return plan
     except Exception:

@@ -7,6 +7,7 @@ from shared.package_signing import verify_signed_package
 from shared.pointer_recovery import _inspect_started_pointer_group
 from shared.update_plan import UpdateError, UpdatePlan
 from shared.update_prepare import _locked_update_scope
+from shared.writer_guard import writer_lock_digest
 
 
 def _unit_binding(group):
@@ -29,7 +30,8 @@ def _verified_terminal_group(*, unit_dir, load_key, runtime_key, runtime_reserve
         ports = FilesystemPorts(metadata['manifest'], root, work_dir=work, payloads={}, effects=None,
                                 password_provider=lambda: None)
         plan = UpdatePlan(metadata['manifest'], root, ports, release=options['new_version'],
-                          modes=options['modes'], migration_ids=options['migration_ids'], guard_effects=True)
+                          modes=options['modes'], migration_ids=options['migration_ids'], guard_effects=True,
+                          writer_lock_sha256=writer_lock_digest(options.get('writer_lock_path')))
         inspect_options = dict(unit_dir=unit_dir, load_key=load_key, runtime_key=runtime_key,
             runtime_reserve_bytes=runtime_reserve_bytes, runner=runner, timeout=timeout,
             _locks_held=True, _verify_runtime=_verify_runtime, **options)

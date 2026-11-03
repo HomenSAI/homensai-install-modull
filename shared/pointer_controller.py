@@ -5,9 +5,10 @@ from shared import archive_crypto
 from shared.effect_receipt import read_effect_receipt
 from shared.pointer_update import assemble_pointer_linux_update
 from shared.update_plan import UpdateError
+from shared.writer_guard import CooperativeWriterLock
 
 
-def run_pointer_linux_update(*, password_env, action, reconcile_stop_key=None, **options):
+def run_pointer_linux_update(*, password_env, action, reconcile_stop_key=None, writer_lock_path=None, **options):
     """Start or reopen an update; only a verified stop may resolve uncertainty.
 
     All signing keys, interpreter provenance, systemd manager, archive password,
@@ -24,6 +25,10 @@ def run_pointer_linux_update(*, password_env, action, reconcile_stop_key=None, *
         if password_env is None:
             raise UpdateError('Требуется переменная пароля')
         password = archive_crypto._password(provider)
+        if writer_lock_path is not None:
+            if 'writer_lock' in options:
+                raise UpdateError('Повторное описание блокировки')
+            options['writer_lock'] = CooperativeWriterLock(writer_lock_path)
         # Snapshot the password for the transaction without logging or persisting it.
         plan = assemble_pointer_linux_update(password_provider=lambda: password,
             reopen=action != 'start', reconcile_stop_key=reconcile_stop_key, **options)

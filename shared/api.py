@@ -44,7 +44,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 61
+API_MINOR = 62
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -451,6 +451,8 @@ def handle(request: Any) -> dict:
             pointer_inspect = operation == 'inspect-started-pointer-update'
             pointer_run = operation == 'run-pointer-linux-update'
             pointer_cycle = operation == 'cycle-updated-pointer-linux'
+            if 'writer_lock_path' in params:
+                fields.add('writer_lock_path')
             if pointer_inspect or pointer_run or pointer_cycle:
                 fields |= {'unit_dir', 'load_key', 'runtime_key', 'runtime_reserve_bytes'}
             if pointer_cycle:
@@ -516,6 +518,8 @@ def handle(request: Any) -> dict:
                     extra.update(password_env=params['password_env'], action=params['action'],
                                  reconcile_stop_key=params['reconcile_stop_key'], interpreter=params['interpreter'],
                                  interpreter_sha256=params['interpreter_sha256'], timeout=params['timeout_seconds'])
+                if 'writer_lock_path' in params:
+                    extra['writer_lock_path'] = params['writer_lock_path']
                 result = handler(new_package=params['new_package'], new_envelope=new_envelope,
                     new_key=new_key, old_package=params['old_package'], old_envelope=old_envelope, old_key=old_key,
                     product_id=params['product_id'], old_version=params['old_version'], new_version=params['new_version'],

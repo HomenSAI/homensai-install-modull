@@ -176,15 +176,18 @@ class UpdatePlan:
     def __init__(self, manifest: dict[str, Any], install_root: Path,
                  ports: UpdatePorts, *, release: str, modes: tuple[str, ...],
                  migration_ids: tuple[str, ...] = ("manifest",),
-                 guard_effects: bool = False):
+                 guard_effects: bool = False, writer_lock_sha256: str | None = None):
         self.manifest = validate_manifest(manifest)
         self.components = component_order(self.manifest, modes)
         if (not _identifier(release) or type(guard_effects) is not bool or type(migration_ids) is not tuple
                 or not all(_identifier(item) for item in migration_ids)
-                or len(set(migration_ids)) != len(migration_ids)):
+                or len(set(migration_ids)) != len(migration_ids)
+                or (writer_lock_sha256 is not None and (not guard_effects or type(writer_lock_sha256) is not str
+                    or re.fullmatch(r'[a-f0-9]{64}', writer_lock_sha256) is None))):
             raise UpdateError("Недопустимые публичные идентификаторы плана")
         self.release, self.migrations, self.ports = release, migration_ids, ports
         self.guard_effects = guard_effects
+        self.writer_lock_sha256 = writer_lock_sha256
         home = resolve_datahome(self.manifest, install_root)
         services = home.roots["services"]
         self.state_path = checked_path(services / self.manifest["update"]["state_file"].replace("\\", "/"))
@@ -203,6 +206,8 @@ class UpdatePlan:
                        "modes": sorted(modes), "migrations": migration_ids}
         if guard_effects:
             public_plan["guard_effects"] = True
+        if writer_lock_sha256 is not None:
+            public_plan['writer_lock_sha256'] = writer_lock_sha256
         self.digest = hashlib.sha256(json.dumps(public_plan, sort_keys=True,
                                                ensure_ascii=True).encode()).hexdigest()
 

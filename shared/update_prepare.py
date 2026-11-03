@@ -21,6 +21,7 @@ from shared.package_prepare import prepare_native_signed_package
 from shared.package_signing import verify_signed_package
 from shared.systemd_fresh_start import _lifecycle_lock
 from shared.update_plan import UpdatePlan, _atomic_write, operation_lock
+from shared.writer_guard import writer_lock_digest
 
 
 class UpdatePrepareError(RuntimeError):
@@ -101,7 +102,8 @@ def prepare_signed_linux_update(*, new_package: str, new_envelope: bytes, new_ke
                                 old_package: str, old_envelope: bytes, old_key: bytes,
                                 product_id: str, old_version: str, new_version: str,
                                 install_root: str, work_dir: str, modes: tuple[str, ...],
-                                migration_ids: tuple[str, ...], operation_id: str) -> dict:
+                                migration_ids: tuple[str, ...], operation_id: str,
+                                writer_lock_path: str | None = None) -> dict:
     """Проверить и подготовить payload; не останавливать службы и не запускать update.
 
     Рабочий каталог должен быть создан интегратором и защищён. Прерванный
@@ -149,7 +151,8 @@ def prepare_signed_linux_update(*, new_package: str, new_envelope: bytes, new_ke
         ports = FilesystemPorts(new_metadata['manifest'], root, work_dir=work, payloads={},
                                 effects=None, password_provider=lambda: None)
         plan = UpdatePlan(new_metadata['manifest'], root, ports, release=new_version,
-                          modes=modes, migration_ids=migration_ids, guard_effects=True)
+                          modes=modes, migration_ids=migration_ids, guard_effects=True,
+                          writer_lock_sha256=writer_lock_digest(writer_lock_path))
         old_verified = verify_fresh_release(old_path, old_envelope, str(root), **old_options)
         digest = _binding(root=root, work=work, old_path=old_path, new_path=new_path,
             old_envelope=old_envelope, new_envelope=new_envelope, old_key=old_key, new_key=new_key,
@@ -198,6 +201,7 @@ def verify_started_linux_update(*, new_package: str, new_envelope: bytes, new_ke
                                 product_id: str, old_version: str, new_version: str,
                                 install_root: str, work_dir: str, modes: tuple[str, ...],
                                 migration_ids: tuple[str, ...], operation_id: str,
+                                writer_lock_path: str | None = None,
                                 _allow_terminal: bool = False, _locks_held: bool = False) -> dict:
     """Сверить подготовку и checkpoint, не продолжая транзакцию.
 
@@ -236,7 +240,8 @@ def verify_started_linux_update(*, new_package: str, new_envelope: bytes, new_ke
         ports = FilesystemPorts(new_metadata['manifest'], root, work_dir=work, payloads={},
                                 effects=None, password_provider=lambda: None)
         plan = UpdatePlan(new_metadata['manifest'], root, ports, release=new_version,
-                          modes=modes, migration_ids=migration_ids, guard_effects=True)
+                          modes=modes, migration_ids=migration_ids, guard_effects=True,
+                          writer_lock_sha256=writer_lock_digest(writer_lock_path))
         marker = checked_path(work / ('prepare-' + operation_id + '.json'))
         destination = checked_path(work / ('payload-' + operation_id))
         if _locks_held:

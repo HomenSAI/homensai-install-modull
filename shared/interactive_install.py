@@ -48,14 +48,14 @@ def read_config(path):
     return result
 
 
-def run(params, language, *, ask, write, handle=api.handle):
+def run(params, language, *, ask, write, handle=api.handle, inspect_only=False):
     """Inspect once, ask once, and make at most one modifying API call."""
     def message(key):
         return translate(language, 'interactive.' + key)
     def call(operation):
         return handle({'api_major': 1, 'request_id': 'interactive-install',
                        'operation': operation, 'params': params, 'language': language})
-    if type(params) is not dict or language not in available_languages():
+    if type(params) is not dict or type(inspect_only) is not bool or language not in available_languages():
         raise ValueError('invalid input')
     inspection = call('inspect-portable-linux-install')
     if type(inspection) is not dict or inspection.get('ok') is not True:
@@ -85,7 +85,15 @@ def run(params, language, *, ask, write, handle=api.handle):
         write(message(label) + ': ' + json.dumps(params[name], ensure_ascii=True))
     write(message('key_fingerprint') + ': ' + hashlib.sha256(key).hexdigest())
     write(message('state_' + result['state']))
+    completed, total, current = result.get('completed_steps'), result.get('total_steps'), result.get('current_step')
+    if (type(completed) is int and type(total) is int and 0 <= completed <= total <= 1000):
+        write(message('progress') + ': ' + str(completed) + '/' + str(total))
+    if type(current) is str and 0 < len(current) <= 128:
+        write(message('current_step') + ': ' + json.dumps(current, ensure_ascii=True))
     write(message('trust_warning'))
+    if inspect_only:
+        write(message('inspection_only'))
+        return 0
     try:
         answer = ask(message('confirm'))
     except (EOFError, KeyboardInterrupt):
@@ -108,16 +116,17 @@ def main(argv=None):
     parser = _Parser(description='Interactive experimental Linux installation', allow_abbrev=False)
     parser.add_argument('--request-file', required=True, help='JSON parameters for install-portable-linux')
     parser.add_argument('--language', default='en', help='Installed language code')
+    parser.add_argument('--inspect', action='store_true', help='Inspect checkpoint without installing')
     language = 'en'
     try:
         args = parser.parse_args(argv)
         if args.language not in available_languages():
             raise ValueError('unknown language')
         language = args.language
-        if not sys.stdin.isatty():
+        if not args.inspect and not sys.stdin.isatty():
             raise ValueError('interactive terminal required')
         params = read_config(Path(args.request_file))
-        return run(params, language, ask=input, write=print)
+        return run(params, language, ask=input, write=print, inspect_only=args.inspect)
     except (OSError, ValueError, UnicodeError, RecursionError, LanguageError):
         try:
             message = translate(language, 'interactive.input_failed')

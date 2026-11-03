@@ -99,3 +99,32 @@ def test_missing_terminal_error_is_localized(monkeypatch, capsys, language):
     monkeypatch.setattr('sys.stdin.isatty', lambda: False)
     assert main(['--request-file', '/missing', '--language', language]) == 2
     assert capsys.readouterr().err.strip() == translate(language, 'interactive.input_failed')
+
+
+@pytest.mark.parametrize('language', ['ru', 'en', 'de'])
+def test_inspect_cli_without_terminal_uses_real_api_and_does_not_install(workflow, tmp_path, monkeypatch, capsys, language):
+    params = query_for(workflow, language)['params']
+    request = tmp_path / 'request.json'
+    request.write_text(json.dumps(params), encoding='utf-8')
+    monkeypatch.setattr('sys.stdin.isatty', lambda: False)
+    assert main(['--request-file', str(request), '--language', language, '--inspect']) == 0
+    output = capsys.readouterr().out
+    assert translate(language, 'interactive.inspection_only') in output
+    assert not list(Path(workflow['work_dir']).glob('install-*.json'))
+
+
+def test_pending_inspection_displays_progress_safely_without_prompt():
+    params = {'expected_product_id': 'demo', 'expected_version': '2', 'install_root': '/tmp/test',
+              'package_path': '/tmp/package', 'unit_dir': '/tmp/units', 'work_dir': '/tmp/work',
+              'modes': ['autonomous'], 'trusted_public_key': base64.b64encode(b'x' * 32).decode('ascii')}
+    calls, lines = [], []
+    def handle(request):
+        calls.append(request['operation'])
+        return {'ok': True, 'result': {'state': 'pending', 'completed_steps': 2,
+                                      'total_steps': 6, 'current_step': 'stage\x1b[2J'}}
+    assert run(params, 'en', ask=lambda _: pytest.fail('unexpected prompt'), write=lines.append,
+               handle=handle, inspect_only=True) == 0
+    assert calls == ['inspect-portable-linux-install']
+    assert any('2/6' in line for line in lines)
+    assert any('stage\\u001b[2J' in line for line in lines)
+    assert not any('\x1b' in line for line in lines)

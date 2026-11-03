@@ -388,6 +388,11 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
             if interactive:
                 import pty
                 assert read_config(request_file) == api_args
+                inspected = subprocess.run([sys.executable, '-m', 'shared.interactive_install',
+                    '--request-file', str(request_file), '--language', 'de', '--inspect'], cwd=str(ROOT),
+                    stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=120, check=True)
+                assert '1/6' in inspected.stdout and 'prepare-linux-runtime' in inspected.stdout
+                assert json.loads(marker_file.read_text())['index'] == 1
                 master, slave = pty.openpty()
                 try:
                     process = subprocess.Popen([sys.executable, '-m', 'shared.interactive_install',

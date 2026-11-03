@@ -4,6 +4,8 @@ from hashlib import sha256
 import os
 from pathlib import Path
 import sys
+import io
+import zipfile
 
 import pytest
 
@@ -15,6 +17,7 @@ from shared.package import build_package
 from shared.package_prepare import prepare_native_signed_package
 from shared.package_signing import sign_package
 from shared.update_plan import UpdateError
+from synthetic_wheel import structural_wheel
 
 pytestmark = pytest.mark.skipif(os.name != 'posix', reason='POSIX исполнитель')
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,7 +35,7 @@ def signed(tmp_path):
     source.mkdir()
     files = {'main.py': b'import pathlib, sys\n(pathlib.Path(sys.argv[1]) / sys.argv[2]).write_text("ok")\n',
              'locks/windows.lock': b'fake windows lock', 'locks/linux.lock': b'fake linux lock',
-             'vendor/demo-0-py3-none-any.whl': b'fake wheel'}
+             'vendor/demo-0-py3-none-any.whl': structural_wheel()}
     for name, data in files.items():
         path = source / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -70,6 +73,37 @@ def test_signed_command_is_verified_and_run(signed):
     assert not marker.exists()
     run_signed_native_migration(**params, execute=True)
     assert marker.read_text() == 'ok'
+
+
+def test_signed_unsafe_wheel_stops_direct_migration(signed, tmp_path):
+    params, marker = signed
+    manifest = deepcopy(params['expected_manifest'])
+    wheel_path = 'vendor/demo-0-py3-none-any.whl'
+    data = io.BytesIO()
+    with zipfile.ZipFile(data, 'w') as archive:
+        archive.writestr('../escape.py', 'unsafe')
+    (tmp_path / 'source' / wheel_path).write_bytes(data.getvalue())
+    manifest['runtime']['vendor_wheels'][0]['sha256'] = sha256(data.getvalue()).hexdigest()
+    package = tmp_path / 'unsafe.zip'
+    build_package(manifest, '2', tmp_path / 'source', package)
+    ed = pytest.importorskip('cryptography.hazmat.primitives.asymmetric.ed25519')
+    serialization = pytest.importorskip('cryptography.hazmat.primitives.serialization')
+    private = ed.Ed25519PrivateKey.generate()
+    public = private.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    envelope = sign_package(package, private_key=private, expected_product_id=manifest['product_id'], expected_version='2')
+    installation = tmp_path / 'unsafe-installation'
+    home = resolve_datahome(manifest, installation)
+    home.releases.mkdir(parents=True)
+    home.roots['data'].mkdir(parents=True)
+    release = home.releases / 'app-2'
+    prepare_native_signed_package(package, envelope, release, trusted_public_key=public,
+                                  expected_product_id=manifest['product_id'], expected_version='2')
+    params.update(package_path=str(package), envelope=envelope, trusted_public_key=public,
+                  expected_manifest=manifest, install_root=str(installation), release_root=str(release))
+    with pytest.raises(UpdateError, match='Не удалось подтвердить подписанную миграцию'):
+        run_signed_native_migration(**params, execute=True)
+    assert not marker.exists()
+    assert not (home.roots['data'] / 'schema-2').exists()
 
 
 def test_same_signed_package_works_in_another_installation(signed, tmp_path):

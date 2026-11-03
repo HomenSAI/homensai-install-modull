@@ -22,6 +22,7 @@ from shared.manifest import ManifestError, check_target, validate_manifest
 from shared.package import PackageError
 from shared.package_signing import verify_signed_package
 from shared.update_plan import EffectIndeterminate, UpdateError, _identifier
+from shared.wheel_audit import audit_signed_wheels
 
 _HASH = re.compile(r'[a-f0-9]{64}\Z')
 
@@ -136,6 +137,8 @@ def run_signed_native_migration(*, package_path: str, envelope: bytes, trusted_p
     try:
         metadata = verify_signed_package(package_path, envelope, trusted_public_key=trusted_public_key,
                                          expected_product_id=expected_product_id, expected_version=expected_version)
+        audit_signed_wheels(package_path, envelope, trusted_public_key=trusted_public_key,
+                            expected_product_id=expected_product_id, expected_version=expected_version)
         manifest = metadata['manifest']
         if (manifest['schema_version'] != 2 or check_target(manifest, native_target())['status'] != 'supported'):
             raise UpdateError('Целевая среда не подтверждена')

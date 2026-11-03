@@ -7,6 +7,7 @@ import stat
 import uuid
 
 import pytest
+from synthetic_wheel import structural_wheel
 
 from shared import systemd_user_publish as pub
 from shared.fresh_prepare import prepare_fresh_native
@@ -33,7 +34,8 @@ def signed_units(tmp_path, monkeypatch):
     payload = tmp_path / 'payload'
     payload.mkdir()
     for index, artifact in enumerate([*manifest['runtime']['lock_files'].values(), *manifest['runtime']['vendor_wheels']]):
-        data = ('test runtime ' + str(index)).encode()
+        data = (structural_wheel() if artifact['file'].endswith('.whl')
+                else ('test runtime ' + str(index)).encode())
         path = payload / artifact['file']
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)

@@ -8,6 +8,7 @@ import stat
 import uuid
 
 import pytest
+from synthetic_wheel import structural_wheel
 
 from shared.fresh_prepare import prepare_fresh_native
 from shared.manifest import load_manifest
@@ -41,7 +42,8 @@ def portable_release(tmp_path, monkeypatch):
     payload = tmp_path / 'payload'
     payload.mkdir()
     for index, artifact in enumerate([*manifest['runtime']['lock_files'].values(), *manifest['runtime']['vendor_wheels']]):
-        data = ('synthetic runtime ' + str(index)).encode()
+        data = (structural_wheel() if artifact['file'].endswith('.whl')
+                else ('synthetic runtime ' + str(index)).encode())
         path = payload / artifact['file']
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)

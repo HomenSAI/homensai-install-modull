@@ -6,6 +6,7 @@ from pathlib import Path
 import zipfile
 
 import pytest
+from synthetic_wheel import structural_wheel
 
 from shared.runtime_block import RuntimeBlockError, build_runtime_block, verify_runtime_block
 
@@ -197,7 +198,8 @@ def test_built_block_can_be_signed_and_prepared(candidate, tmp_path, monkeypatch
     payload = tmp_path / 'payload'
     payload.mkdir()
     for index, artifact in enumerate([*manifest['runtime']['lock_files'].values(), *manifest['runtime']['vendor_wheels']]):
-        body = ('synthetic dependency ' + str(index)).encode()
+        body = (structural_wheel() if artifact['file'].endswith('.whl')
+                else ('synthetic dependency ' + str(index)).encode())
         path = payload / artifact['file']
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(body)

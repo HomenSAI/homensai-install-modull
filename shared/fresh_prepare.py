@@ -110,6 +110,8 @@ def prepare_fresh_native(package_path, envelope, install_root, *, trusted_public
         target = native_target()
         if manifest['schema_version'] != 2 or check_target(manifest, target)['status'] != 'supported':
             raise FreshPrepareError('Платформа не подтверждена')
+        from shared.wheel_audit import audit_signed_wheels
+        audit_signed_wheels(package_path, envelope, **options)
         preflight_fresh(manifest, root, required_bytes=required_bytes, reserve_bytes=reserve_bytes)
         _check_fresh_storage(package_path, metadata, root, reserve_bytes)
         home, paths, control, marker = _layout(manifest, root)
@@ -324,6 +326,8 @@ def resume_fresh_native(package_path, envelope, install_root, *, trusted_public_
         manifest, target = metadata['manifest'], native_target()
         if manifest['schema_version'] != 2 or check_target(manifest, target)['status'] != 'supported':
             raise FreshPrepareError('Платформа не подтверждена')
+        from shared.wheel_audit import audit_signed_wheels
+        audit_signed_wheels(package_path, envelope, **options)
         home, paths, control, marker = _layout(manifest, root)
         plan = _plan(root, metadata, trusted_public_key, target)
         state = _read_state(marker, plan, expected_product_id, expected_version)
@@ -396,6 +400,8 @@ def prepare_idempotent_native(package_path, envelope, install_root, *, trusted_p
         manifest, target = metadata['manifest'], native_target()
         if manifest['schema_version'] != 2 or check_target(manifest, target)['status'] != 'supported':
             raise FreshPrepareError('Платформа не подтверждена')
+        from shared.wheel_audit import audit_signed_wheels
+        audit_signed_wheels(package_path, envelope, **options)
         _, _, _, marker = _layout(manifest, root)
         plan = _plan(root, metadata, trusted_public_key, target)
         state = _read_state(marker, plan, expected_product_id, expected_version,

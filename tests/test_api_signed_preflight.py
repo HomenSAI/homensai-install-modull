@@ -13,6 +13,7 @@ import time
 import zipfile
 
 import pytest
+from synthetic_wheel import structural_wheel
 
 from shared.api import handle
 from shared.manifest import load_manifest
@@ -895,7 +896,8 @@ def test_independent_product_client_recovers_from_lost_prepare_response(tmp_path
     (payload / 'main.py').write_bytes((ROOT / 'examples/demo_product/main.py').read_bytes())
     (payload / 'release.json').write_bytes((ROOT / 'examples/demo_product/releases/1/release.json').read_bytes())
     for index, artifact in enumerate([*manifest['runtime']['lock_files'].values(), *manifest['runtime']['vendor_wheels']]):
-        data = ('fictional runtime ' + str(index)).encode()
+        data = (structural_wheel() if artifact['file'].endswith('.whl')
+                else ('fictional runtime ' + str(index)).encode())
         file = payload / artifact['file']
         file.parent.mkdir(parents=True, exist_ok=True)
         file.write_bytes(data)

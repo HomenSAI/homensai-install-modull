@@ -1199,6 +1199,12 @@ def _constant(_):
     raise InvalidRequest()
 
 
+# Код выхода CLI 2 — ошибка контракта или совместимости (docs/API-DESIGN.md);
+# все прочие коды ошибок — операционные, код выхода 1.
+CONTRACT_ERRORS = frozenset({"invalid_request", "unsupported_version", "unsupported_operation",
+                             "unsupported_platform", "target_not_supported"})
+
+
 def _debug_trace(path: str) -> None:
     """Отладка: записывать в файл каждое исключение в модулях shared (тип, место, текст).
 
@@ -1243,7 +1249,7 @@ def main() -> int:
     sys.stdout.write(json.dumps(response, ensure_ascii=True, separators=(",", ":")) + "\n")
     if response["ok"]:
         return 0
-    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_verify_failed", "fresh_prepare_failed", "update_status_failed", "update_run_failed", "health_check_failed", "systemd_plan_failed", "systemd_publish_failed", "systemd_load_failed", "linux_runtime_failed", "linux_start_check_failed", "linux_start_failed", "linux_stop_failed", "linux_cycle_failed", "wheel_audit_failed", "runtime_evidence_failed", "technical_log_failed", "technical_log_inspection_failed", "api_operation_unconfirmed") else 2
+    return 2 if response["error"]["code"] in CONTRACT_ERRORS else 1
 
 
 if __name__ == "__main__":

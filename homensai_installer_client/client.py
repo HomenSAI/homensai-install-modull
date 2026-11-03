@@ -142,7 +142,7 @@ class InstallerClient:
                 raise ValueError('api_root is required when installer is not alongside the client')
             api_root = candidate
         if (type(python_executable) is not str or not os.path.isabs(python_executable)
-                or type(timeout) not in (int, float) or not 0 < timeout <= 600
+                or type(timeout) not in (int, float) or not 0 < timeout <= 3600
                 or type(api_root) is not str or not os.path.isabs(api_root) or not os.path.isdir(api_root)):
             raise ValueError('invalid client configuration')
         self._python = python_executable

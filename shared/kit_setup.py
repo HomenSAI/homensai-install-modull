@@ -28,7 +28,7 @@ STATE_FORMAT = 1
 PASSWORD_ENV = 'HOMENSAI_ARCHIVE_PASSWORD'
 _SECRET_ENV = 'HOMENSAI_SECRET_ARCHIVE_PASSWORD'
 _KEY_NAMES = ('release', 'runtime', 'publish', 'load', 'start')
-_TIMEOUT = 600
+_TIMEOUT = 3600
 
 
 class SetupError(RuntimeError):

@@ -162,3 +162,15 @@ def test_verifier_rejects_incomplete_crypto_marker_in_forged_package(tmp_path, p
     write_forged(target, metadata, data)
     with pytest.raises(PackageError, match='Незавершённый'):
         verify_package(target, expected_sha256=digest(target))
+
+
+def test_reverification_reads_bytes_after_shared_mmap_change(tmp_path, payload, product):
+    import mmap
+    package = tmp_path / 'mmap.zip'
+    receipt = build_package(product, '1.0', payload, package)
+    with package.open('r+b') as stream, mmap.mmap(stream.fileno(), 0) as mapped:
+        mapped[0:1] = mapped[0:1]  # страница уже отображена для записи и «грязная»
+        assert verify_package(package, expected_sha256=receipt['sha256'])['version'] == '1.0'
+        mapped[-1:] = bytes([mapped[-1] ^ 1])  # изменение без write(): stat-подпись может не измениться
+        with pytest.raises(PackageError):
+            verify_package(package, expected_sha256=receipt['sha256'])

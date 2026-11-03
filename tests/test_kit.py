@@ -326,3 +326,14 @@ def test_windows_service_xml_rendering(tmp_path):
     assert str(home.roots['runtime'] / 'python.exe').replace('&', '&amp;') in text
     assert 'root &amp; каталог' in text and 'root & ' not in text
     assert 'app-3' in text and 'kitdemo.worker' in text and '<startmode>Automatic</startmode>' in text
+
+
+@pytest.mark.parametrize('tag, expected', [
+    ('cp313-none-any', False), ('cp313-none-win_amd64', False), ('cp313-cp313-manylinux_2_17_x86_64', False),
+    ('cp315-abi3-manylinux_2_17_x86_64', False), ('py399-none-any', False), ('cp314-cp314t-manylinux_2_17_x86_64', False),
+    ('cp313-abi3-manylinux_2_17_x86_64', True), ('cp36-abi3-manylinux2014_x86_64', True),
+    ('cp314-cp314-manylinux_2_17_x86_64', True), ('py3-none-any', True), ('py2.py3-none-any', True),
+    ('py314-none-any', True), ('cp314-none-any', True),
+])
+def test_wheel_tag_matrix_matches_cpython_314(tag, expected):
+    assert bool(compatible('x-1-' + tag + '.whl', 'linux-x86_64')) is expected

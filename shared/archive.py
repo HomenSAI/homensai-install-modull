@@ -15,7 +15,6 @@ from pathlib import Path
 import re
 import shutil
 import stat
-import time
 import uuid
 import zipfile
 
@@ -41,16 +40,6 @@ def _stat_signature(info):
 
 _RESERVED_NAMES = frozenset({"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$",
                              *(f"{prefix}{n}" for prefix in ("COM", "LPT") for n in "123456789¹²³")})
-# Кэш SHA-256 процесса по полной подписи stat обычного файла (только POSIX): ядро
-# обновляет ctime при записи через write() и смене атрибутов, установить его
-# вручную нельзя. Запись через общий mmap и две записи в пределах одного тика
-# грубых часов ctime могут не изменить, поэтому кэшируются только файлы, не
-# менявшиеся последние 2 секунды; процесс с теми же правами по-прежнему может
-# подменить файл между проверкой и использованием (это ограничение и без кэша).
-# На Windows подпись использует время создания — кэш выключен.
-_DIGESTS: dict[tuple[int, ...], tuple[int, str]] = {}
-_MAX_DIGESTS = 200000
-
 
 def _safe_name(name: str, *, directory: bool = False) -> str:
     if not isinstance(name, str) or not name or "\\" in name:
@@ -66,18 +55,13 @@ def _safe_name(name: str, *, directory: bool = False) -> str:
 
 
 def _file_digest(path: Path, signature: tuple[int, ...]) -> tuple[int, str]:
-    """Размер и SHA-256 обычного файла с подписью signature; повтор без изменений не перечитывается."""
-    cached = _DIGESTS.get(signature) if os.name == "posix" else None
-    if cached is not None:
-        return cached
+    """Размер и SHA-256 обычного файла; байты читаются каждый раз.
+
+    Совпадение подписи stat не доказывает неизменность содержимого (запись через
+    общий mmap не обязана менять mtime/ctime), поэтому результаты не кэшируются.
+    """
     with path.open("rb") as stream:
-        size, digest = _digest(stream)
-    settled = time.time_ns() - max(signature[4], signature[5]) > 2_000_000_000
-    if os.name == "posix" and settled and size == signature[3] and _signature(path) == signature:
-        if len(_DIGESTS) >= _MAX_DIGESTS:
-            _DIGESTS.clear()
-        _DIGESTS[signature] = (size, digest)
-    return size, digest
+        return _digest(stream)
 
 
 def _signature(path: Path) -> tuple[int, ...]:

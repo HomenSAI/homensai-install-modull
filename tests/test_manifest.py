@@ -145,3 +145,20 @@ def test_schema_contract_is_local():
     assert schema["additionalProperties"] is False
     assert schema["properties"]["archive_before_replace"]["const"] is True
     assert schema["properties"]["migration_command"]["$ref"] == "#/$defs/command"
+
+
+def test_load_manifest_rejects_oversize_and_special_files(tmp_path):
+    import os
+    from shared.manifest import MAX_MANIFEST_BYTES, ManifestError, load_manifest
+    big = tmp_path / 'big.json'
+    with big.open('wb') as stream:
+        stream.truncate(MAX_MANIFEST_BYTES + 2)
+    with pytest.raises(ManifestError):
+        load_manifest(big)
+    if hasattr(os, 'mkfifo'):
+        fifo = tmp_path / 'manifest.fifo'
+        os.mkfifo(fifo)
+        with pytest.raises(ManifestError):
+            load_manifest(fifo)
+    with pytest.raises(ManifestError):
+        load_manifest(tmp_path)

@@ -485,3 +485,14 @@ def test_missing_or_broken_catalog_does_not_hide_failure(monkeypatch):
                        'de', 'api.verification_failed')
     assert error['error']['code'] == 'verification_failed'
     assert error['error']['message'] == 'Подпись или пакет не прошли проверку'
+
+
+def test_cli_operational_error_exits_with_1(tmp_path):
+    from shared.api import CONTRACT_ERRORS
+    query = request('check-docker-engine', {'executable': str(tmp_path / 'missing-docker'),
+                                            'executable_sha256': 'a' * 64, 'socket_path': None,
+                                            'timeout_seconds': 1})
+    result = cli(json.dumps(query).encode())
+    response = json.loads(result.stdout)
+    assert response['ok'] is False and response['error']['code'] not in CONTRACT_ERRORS
+    assert result.returncode == 1

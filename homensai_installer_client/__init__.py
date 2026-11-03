@@ -5,7 +5,7 @@ from importlib import resources
 from .client import InstallerClient, InstallerClientError
 from .writer_guard import CooperativeWriterLock, WriterGuardError
 
-__version__ = '0.28.0'
+__version__ = '0.29.0'
 CONTRACT_API_MAJOR = 1
 CONTRACT_API_MINOR = 67
 

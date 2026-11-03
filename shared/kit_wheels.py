@@ -48,10 +48,18 @@ def compatible(filename: str, target: str, *, glibc: tuple[int, int] = (2, 28)) 
     tags = wheel_tags(filename)
     if target not in TARGETS:
         raise KitWheelError('Неизвестная цель')
-    python_ok = bool(tags['python'] & {'py3', 'cp314'}) or any(
-        re.fullmatch(r'cp3(\d+)', tag) and int(tag[3:]) <= 14 for tag in tags['python'])
-    abi_ok = bool(tags['abi'] & {'none', 'abi3'}) or ('cp314' in tags['abi'] and 'cp314' in tags['python'])
-    if not python_ok or not abi_ok:
+
+    def interpreter_ok(python, abi):
+        # Полные сочетания тегов CPython 3.14 (как packaging.tags): чистый Python —
+        # py3/cp314 без ABI; abi3 — cp32…cp314; собственный ABI — только cp314.
+        if abi == 'none':
+            found = re.fullmatch(r'py3(\d{0,2})', python)
+            return python == 'cp314' or (found is not None and (not found[1] or int(found[1]) <= 14))
+        if abi == 'abi3':
+            found = re.fullmatch(r'cp3(\d{1,2})', python)
+            return found is not None and 2 <= int(found[1]) <= 14
+        return abi == 'cp314' and python == 'cp314'
+    if not any(interpreter_ok(python, abi) for python in tags['python'] for abi in tags['abi']):
         return 0
     if 'any' in tags['platform']:
         return 1

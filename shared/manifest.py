@@ -7,8 +7,10 @@ import argparse
 from copy import deepcopy
 from functools import lru_cache
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
+import stat
 from typing import Any
 
 
@@ -237,11 +239,24 @@ def _constant(_: str) -> None:
     raise ManifestError("JSON: нечисловые константы запрещены")
 
 
+MAX_MANIFEST_BYTES = 1024 * 1024
+
+
 def load_manifest(path: str | Path) -> dict[str, Any]:
-    """Прочитать только указанный JSON; BOM UTF-8 допускается."""
+    """Прочитать только указанный обычный JSON-файл до 1 МиБ; BOM UTF-8 допускается."""
     try:
-        value = json.loads(Path(path).read_text(encoding="utf-8-sig"), object_pairs_hook=_object, parse_constant=_constant)
-    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError):
+        # O_NONBLOCK: FIFO открывается без ожидания и затем отклоняется по типу файла.
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0))
+        with os.fdopen(descriptor, "rb") as stream:
+            if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                raise ManifestError("Манифест должен быть обычным файлом")
+            raw = stream.read(MAX_MANIFEST_BYTES + 1)
+        if len(raw) > MAX_MANIFEST_BYTES:
+            raise ManifestError("Манифест слишком велик")
+        value = json.loads(raw.decode("utf-8-sig"), object_pairs_hook=_object, parse_constant=_constant)
+    except ManifestError:
+        raise
+    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError, MemoryError):
         raise ManifestError("Не удалось прочитать корректный JSON-манифест") from None
     return validate_manifest(value)
 

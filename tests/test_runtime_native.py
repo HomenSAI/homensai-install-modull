@@ -212,7 +212,7 @@ def test_runtime_api_plans_prepares_and_verifies_without_reexecution(runtime_rel
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Нужен одноразовый тестовый контейнер Python 3.14')
 def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=False, pointer=False,
-                                                      update_case=None, interactive=False):
+                                                      update_case=None, interactive=False, logged_api=False):
     import base64
     import pwd
     import shutil
@@ -399,7 +399,7 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
             api_args['envelope'] = base64.b64encode(args['envelope']).decode('ascii')
             api_args['trusted_public_key'] = base64.b64encode(args['trusted_public_key']).decode('ascii')
             api_args['modes'] = list(args['modes'])
-            from examples.demo_product.installer_client import InstallerClient
+            from examples.demo_product.installer_client import InstallerClient, InstallerClientError
             client = InstallerClient(timeout=300)
             observed = client.call('inspect-portable-linux-install', api_args, min_minor=57 if pointer else 32, language='de')
             assert observed['state'] == 'pending' and observed['completed_steps'] == 1
@@ -441,7 +441,26 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                 assert [item['event'] for item in events] == ['inspection_started', 'inspection_succeeded',
                     'inspection_started', 'inspection_succeeded', 'install_started', 'install_recorded']
                 assert all(set(item) == {'time_utc', 'event'} for item in events)
-            result = client.call('install-portable-linux', api_args, min_minor=57 if pointer else 31, language='de')
+            if logged_api:
+                unsafe = tmp_path / 'unsafe-events'
+                unsafe.mkdir(mode=0o755)
+                before = marker_file.read_bytes()
+                with pytest.raises(InstallerClientError) as failure:
+                    client.call('install-portable-linux', api_args, min_minor=63, language='de',
+                                event_log_path=str(unsafe / 'events'))
+                assert failure.value.code == 'technical_log_failed' and marker_file.read_bytes() == before
+                assert not (unsafe / 'events').exists()
+                private = tmp_path / 'private-events'
+                private.mkdir(mode=0o700)
+                logfile = private / 'events'
+                result = client.call('install-portable-linux', api_args, min_minor=63, language='de',
+                                     event_log_path=str(logfile))
+                events = [json.loads(line) for line in logfile.read_text().splitlines()]
+                assert [item['event'] for item in events] == ['api_started', 'api_succeeded']
+                assert all(set(item) == {'time_utc', 'event'} for item in events)
+                assert str(tmp_path) not in logfile.read_text()
+            else:
+                result = client.call('install-portable-linux', api_args, min_minor=57 if pointer else 31, language='de')
             assert result['state'] == 'recorded_complete' and result['health_verified_at_execution'] is True
             assert result['installation_complete'] is False and result['process_identity_verified'] is False
             assert client.call('install-portable-linux', api_args, min_minor=57 if pointer else 31, language='ru') == result
@@ -824,6 +843,13 @@ def test_fresh_controller_runs_real_pointer_product(tmp_path, monkeypatch):
 def test_interactive_resumes_real_pointer_product(tmp_path, monkeypatch):
     test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True, pointer=True,
                                                       interactive=True)
+
+
+@pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
+                    reason='Нужен одноразовый тестовый контейнер Python 3.14')
+def test_logged_api_resumes_real_pointer_product(tmp_path, monkeypatch):
+    test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True, pointer=True,
+                                                      logged_api=True)
 
 
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',

@@ -36,6 +36,34 @@ Python и `api_root` должны быть доверены;
 запроса не заменяет проверку совместимости и семантическую проверку сервера.
 Константы `CONTRACT_API_MAJOR` и `CONTRACT_API_MINOR` обозначают версию снимка,
 а не гарантируют наличие операции на конкретном хосте.
+
+Для обновления pointer-v2 интеграция заранее сохраняет параметры подписанных
+пакетов, пути, идентификаторы и ключи операции; их состав указан в
+[`API-DESIGN.md`](API-DESIGN.md). Пароль передаётся только через отдельный
+канал, а не в параметрах JSON:
+
+```python
+import os
+from homensai_installer_client import InstallerClient, InstallerClientError
+
+# update_params — сохранённые интеграцией параметры API 1.60.
+update_params = dict(update_params, action="start", reconcile_stop_key=None,
+                     password_env="HOMENSAI_SECRET_UPDATE")
+os.environ["HOMENSAI_SECRET_UPDATE"] = obtain_archive_password()
+client = InstallerClient(api_root="/trusted/installer", timeout=300)
+try:
+    result = client.call("run-pointer-linux-update", update_params, min_minor=60,
+                         secret_env_name="HOMENSAI_SECRET_UPDATE")
+except InstallerClientError:
+    # Не повторять вслепую: проверить checkpoint отдельной операцией
+    # inspect-started-pointer-update и действовать по результату проверки.
+    raise
+finally:
+    del os.environ["HOMENSAI_SECRET_UPDATE"]
+```
+
+Пример не управляет внешними писателями и не подтверждает происхождение
+ключей, Python или подписанного кода: это обязанности интеграции.
 Начиная с 0.3.0 пакет также содержит необязательный Linux `CooperativeWriterLock`
 для продуктов, явно поддерживающих соглашение о блокировке писателей. Этот
 механизм описан в [WRITER-GUARD.md](WRITER-GUARD.md) и не останавливает процессы,

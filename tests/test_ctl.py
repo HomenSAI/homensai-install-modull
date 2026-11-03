@@ -91,6 +91,36 @@ def test_cli_rejects_unsupported_language_before_execution(capsys, tmp_path):
     assert not destination.exists() and json.loads(capsys.readouterr().out)['code'] == 2
 
 
+@pytest.mark.parametrize('language,expected', [
+    ('ru', 'Результат обновления не подтверждён'),
+    ('en', 'Update outcome is unconfirmed'),
+    ('de', 'Ergebnis der Aktualisierung ist unbestätigt'),
+])
+def test_cli_reports_indeterminate_update_without_mislabeling_it_as_corrupt(capsys, monkeypatch, language, expected):
+    from shared.update_plan import UpdateIndeterminate
+    def interrupted(*args, **kwargs):
+        raise UpdateIndeterminate(SECRET)
+    monkeypatch.setattr(ctl, '_execute', interrupted)
+    assert ctl.main(['--language', language, '--manifest', str(EXAMPLES / 'rent.manifest.json'),
+                     'validate', '--json']) == 1
+    output = capsys.readouterr().out
+    assert expected in json.loads(output)['message'] and SECRET not in output
+
+
+@pytest.mark.parametrize('language,expected', [
+    ('en', 'Encryption is unavailable'), ('de', 'Verschlüsselung ist nicht verfügbar'),
+])
+def test_cli_reports_missing_crypto_without_exposing_exception(capsys, monkeypatch, language, expected):
+    from shared.archive_crypto import CryptoUnavailableError
+    def unavailable(*args, **kwargs):
+        raise CryptoUnavailableError(SECRET)
+    monkeypatch.setattr(ctl, '_execute', unavailable)
+    assert ctl.main(['--language', language, '--manifest', str(EXAMPLES / 'rent.manifest.json'),
+                     'validate', '--json']) == 1
+    output = capsys.readouterr().out
+    assert expected in json.loads(output)['message'] and SECRET not in output
+
+
 @pytest.mark.parametrize("arguments", [[], [SECRET], ["--manifest", SECRET],
     ["--manifest", "missing", "validate", "--password", SECRET],
     ["--manifest", "missing", "plan-install", "--platform", SECRET]])

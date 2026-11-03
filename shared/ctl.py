@@ -21,7 +21,7 @@ from shared.i18n import LanguageError, translate
 from shared.manifest import ManifestError, load_manifest
 from shared.render_docker import render_docker
 from shared.services import component_order, render_services
-from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
+from shared.update_plan import EffectIndeterminate, UpdateError, UpdateIndeterminate, UpdatePlan
 from shared.windows_ps import render_windows
 
 
@@ -354,7 +354,8 @@ _MESSAGE_KEYS = {
 }
 
 
-def _emit(code: int, message: str, data: dict, as_json: bool, language: str | None = None) -> int:
+def _emit(code: int, message: str, data: dict, as_json: bool, language: str | None = None,
+          *, message_key: str | None = None) -> int:
     def localized(key, fallback, **variables):
         if language is None or language == 'ru':
             return fallback
@@ -364,7 +365,7 @@ def _emit(code: int, message: str, data: dict, as_json: bool, language: str | No
             return fallback
 
     if language is not None and language != 'ru':
-        key = _MESSAGE_KEYS.get(message)
+        key = message_key or _MESSAGE_KEYS.get(message)
         if key is None and code:
             key = 'cli.invalid' if code == 2 else 'cli.failed'
         try:
@@ -443,23 +444,33 @@ def main(argv: list[str] | None = None, *, password_provider=None) -> int:
         # произвольные исключения ниже всегда заменяются фиксированным текстом.
         return _emit(2, str(error), {}, as_json, language)
     except DataHomeError:
-        return _emit(2, "Небезопасный путь или пересечение каталогов; операция запрещена", {}, as_json, language)
+        return _emit(2, "Небезопасный путь или пересечение каталогов; операция запрещена", {}, as_json, language,
+                     message_key='cli.error_path')
     except DockerAdapterError:
-        return _emit(2, "Недопустимый план Docker Compose", {}, as_json, language)
+        return _emit(2, "Недопустимый план Docker Compose", {}, as_json, language, message_key='cli.error_docker_plan')
     except DockerPreflightError:
-        return _emit(1, "Не удалось проверить Docker", {}, as_json, language)
+        return _emit(1, "Не удалось проверить Docker", {}, as_json, language, message_key='cli.error_docker_check')
     except DoctorError:
-        return _emit(1, "Неверные факты диагностики", {}, as_json, language)
+        return _emit(1, "Неверные факты диагностики", {}, as_json, language, message_key='cli.error_doctor')
+    except archive_crypto.CryptoUnavailableError as error:
+        return _emit(1, str(error), {}, as_json, language, message_key='cli.error_crypto_unavailable')
     except archive_crypto.ArchiveCryptoError as error:
-        return _emit(1, str(error), {}, as_json, language)
+        return _emit(1, str(error), {}, as_json, language, message_key='cli.error_crypto')
     except ArchiveError:
-        return _emit(1, "Операция ZIP не завершена: проверьте архив, место и каталоги", {}, as_json, language)
+        return _emit(1, "Операция ZIP не завершена: проверьте архив, место и каталоги", {}, as_json, language,
+                     message_key='cli.error_archive')
+    except UpdateIndeterminate:
+        return _emit(1, "Результат обновления не подтверждён; требуется проверка перед повтором", {}, as_json, language,
+                     message_key='cli.error_update_indeterminate')
     except UpdateError:
-        return _emit(1, "Состояние обновления повреждено, недоступно или относится к другому плану", {}, as_json, language)
+        return _emit(1, "Состояние обновления повреждено, недоступно или относится к другому плану", {}, as_json, language,
+                     message_key='cli.error_update')
     except EffectIndeterminate:
-        return _emit(1, "Результат операции не подтверждён; требуется проверка", {}, as_json, language)
+        return _emit(1, "Результат операции не подтверждён; требуется проверка", {}, as_json, language,
+                     message_key='cli.error_effect_indeterminate')
     except UnimplementedPortError:
-        return _emit(1, "Реальный адаптер не реализован; выполнение запрещено", {}, as_json, language)
+        return _emit(1, "Реальный адаптер не реализован; выполнение запрещено", {}, as_json, language,
+                     message_key='cli.error_unimplemented')
     except (OSError, UnicodeError, ValueError, RecursionError):
         return _emit(1, "Не удалось выполнить локальную операцию; проверьте входные файлы и доступ", {}, as_json, language)
     return _emit(data.get("report", {}).get("exit_code", 0), message, data, as_json, language)

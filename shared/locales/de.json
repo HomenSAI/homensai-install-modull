@@ -82,5 +82,16 @@
   "doctor.crash_ok": "Keine Absturzschleife erkannt",
   "doctor.archive_missing": "Bestätigtes Archiv fehlt",
   "doctor.archive_ok": "Archiv ist aktuell",
-  "doctor.archive_stale": "Archiv ist mehr als einen Tag überfällig"
+  "doctor.archive_stale": "Archiv ist mehr als einen Tag überfällig",
+  "cli.error_path": "Unsicherer Pfad oder überlappende Verzeichnisse; Vorgang abgelehnt",
+  "cli.error_docker_plan": "Ungültiger Docker-Compose-Plan",
+  "cli.error_docker_check": "Docker konnte nicht geprüft werden",
+  "cli.error_doctor": "Ungültige Diagnosedaten",
+  "cli.error_crypto_unavailable": "Verschlüsselung ist nicht verfügbar; fixierte Kryptografie-Abhängigkeiten aus requirements-crypto.txt installieren",
+  "cli.error_crypto": "Vorgang für verschlüsseltes Archiv fehlgeschlagen; Archiv, Passwort und Speicher prüfen",
+  "cli.error_archive": "ZIP-Vorgang fehlgeschlagen; Archiv, Speicherplatz und Verzeichnisse prüfen",
+  "cli.error_update_indeterminate": "Ergebnis der Aktualisierung ist unbestätigt; vor erneutem Versuch ist eine Prüfung erforderlich",
+  "cli.error_update": "Aktualisierungsstatus ist beschädigt, nicht verfügbar oder gehört zu einem anderen Plan",
+  "cli.error_effect_indeterminate": "Ergebnis des Vorgangs ist unbestätigt; eine Prüfung ist erforderlich",
+  "cli.error_unimplemented": "Erforderlicher Adapter ist nicht implementiert; Ausführung ist gesperrt"
 }

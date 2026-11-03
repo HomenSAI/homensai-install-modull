@@ -82,5 +82,16 @@
   "doctor.crash_ok": "No crash loop detected",
   "doctor.archive_missing": "Confirmed archive is missing",
   "doctor.archive_ok": "Archive is current",
-  "doctor.archive_stale": "Archive is more than one day overdue"
+  "doctor.archive_stale": "Archive is more than one day overdue",
+  "cli.error_path": "Unsafe path or overlapping directories; operation refused",
+  "cli.error_docker_plan": "Invalid Docker Compose plan",
+  "cli.error_docker_check": "Could not check Docker",
+  "cli.error_doctor": "Invalid diagnostic facts",
+  "cli.error_crypto_unavailable": "Encryption is unavailable; install the pinned cryptography dependencies from requirements-crypto.txt",
+  "cli.error_crypto": "Encrypted archive operation failed; check the archive, password and storage",
+  "cli.error_archive": "ZIP operation failed; check the archive, disk space and directories",
+  "cli.error_update_indeterminate": "Update outcome is unconfirmed; inspection is required before retrying",
+  "cli.error_update": "Update state is damaged, unavailable, or belongs to a different plan",
+  "cli.error_effect_indeterminate": "Operation outcome is unconfirmed; inspection is required",
+  "cli.error_unimplemented": "Required adapter is not implemented; execution is blocked"
 }

@@ -101,6 +101,53 @@ def test_stop_keeps_services_running_if_secure_archive_storage_is_unavailable(se
     assert not list(ports.work.glob('.archive-*'))
 
 
+@pytest.mark.skipif(not sys.platform.startswith('linux'), reason='Linux O_TMPFILE')
+def test_preflight_failure_can_be_explicitly_resumed_without_repeating_stop(setup, monkeypatch):
+    pytest.importorskip('cryptography')
+    from shared import archive_crypto
+    from shared.effect_receipt import read_effect_receipt
+    from shared.update_plan import UpdateIndeterminate
+
+    class StopBeforeArchive(BaseException):
+        pass
+
+    plan, ports, _, state, adapters = setup
+    key = state['transaction'] + '/stop'
+    commands = []
+    for adapter in adapters.values():
+        original_command = adapter.command
+        def record(action, *, execute=False, original=original_command):
+            commands.append(action)
+            return original(action, execute=execute)
+        monkeypatch.setattr(adapter, 'command', record)
+    original_execute = plan._execute
+    def stop_after_first_phase(current, phase):
+        if phase != 'stop':
+            raise StopBeforeArchive()
+        return original_execute(current, phase)
+    monkeypatch.setattr(plan, '_execute', stop_after_first_phase)
+    original_temporary = archive_crypto._anonymous_temporary
+    def unavailable(parent):
+        raise OSError('synthetic unavailable filesystem')
+    monkeypatch.setattr(archive_crypto, '_anonymous_temporary', unavailable)
+    with pytest.raises(UpdateIndeterminate):
+        plan.run()
+    assert plan.status()['indeterminate'] is True
+    assert commands == [] and all(adapter.active for adapter in adapters.values())
+    assert not ports._path(key, '.service.json').exists()
+    monkeypatch.setattr(archive_crypto, '_anonymous_temporary', original_temporary)
+    with pytest.raises(UpdateIndeterminate):
+        plan.run()
+    assert commands == []
+    with pytest.raises(StopBeforeArchive):
+        plan.run(resume_indeterminate=True)
+    assert commands == ['stop'] * len(adapters)
+    assert all(not adapter.active for adapter in adapters.values())
+    assert read_effect_receipt(ports._path(key, '.service.json'))['status'] == 'done'
+    assert plan.forward[plan.status()['index']] == 'archive'
+    assert not ports.archive_path(state['transaction'] + '/archive').exists()
+
+
 def test_empty_post_update_requires_active_checkpoint(setup):
     plan, ports, _, state, _ = setup
     key = state['transaction'] + '/post_update'

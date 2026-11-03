@@ -2,6 +2,7 @@
 import base64
 from copy import deepcopy
 from hashlib import sha256
+import io
 import json
 import os
 from pathlib import Path
@@ -9,6 +10,7 @@ import sqlite3
 import subprocess
 import sys
 import time
+import zipfile
 
 import pytest
 
@@ -33,7 +35,13 @@ def signed_request(tmp_path):
     payload.mkdir()
     artifacts = [*manifest['runtime']['lock_files'].values(), *manifest['runtime']['vendor_wheels']]
     for index, artifact in enumerate(artifacts):
-        data = ('fictional test artifact ' + str(index)).encode()
+        if artifact['file'].endswith('.whl'):
+            wheel = io.BytesIO()
+            with zipfile.ZipFile(wheel, 'w') as archive:
+                archive.writestr('fictional_demo/__init__.py', '# synthetic, not executed')
+            data = wheel.getvalue()
+        else:
+            data = ('fictional test artifact ' + str(index)).encode()
         file = payload / artifact['file']
         file.parent.mkdir(parents=True, exist_ok=True)
         file.write_bytes(data)

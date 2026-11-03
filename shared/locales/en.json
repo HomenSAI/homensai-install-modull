@@ -93,5 +93,6 @@
   "cli.error_update_indeterminate": "Update outcome is unconfirmed; inspection is required before retrying",
   "cli.error_update": "Update state is damaged, unavailable, or belongs to a different plan",
   "cli.error_effect_indeterminate": "Operation outcome is unconfirmed; inspection is required",
-  "cli.error_unimplemented": "Required adapter is not implemented; execution is blocked"
+  "cli.error_unimplemented": "Required adapter is not implemented; execution is blocked",
+  "api.wheel_audit_failed": "Dependency structure check failed"
 }

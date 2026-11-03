@@ -93,5 +93,6 @@
   "cli.error_update_indeterminate": "Ergebnis der Aktualisierung ist unbestätigt; vor erneutem Versuch ist eine Prüfung erforderlich",
   "cli.error_update": "Aktualisierungsstatus ist beschädigt, nicht verfügbar oder gehört zu einem anderen Plan",
   "cli.error_effect_indeterminate": "Ergebnis des Vorgangs ist unbestätigt; eine Prüfung ist erforderlich",
-  "cli.error_unimplemented": "Erforderlicher Adapter ist nicht implementiert; Ausführung ist gesperrt"
+  "cli.error_unimplemented": "Erforderlicher Adapter ist nicht implementiert; Ausführung ist gesperrt",
+  "api.wheel_audit_failed": "Die Strukturprüfung der Abhängigkeiten ist fehlgeschlagen"
 }

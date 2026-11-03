@@ -44,7 +44,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 48
+API_MINOR = 49
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -681,7 +681,10 @@ def handle(request: Any) -> dict:
                     modes=tuple(params['modes']), required_bytes=params['required_bytes'],
                     reserve_bytes=params['reserve_bytes'], workflow_key=params['workflow_key'], keys=params['keys'],
                     language=language or 'en', inspect_only=(operation == 'inspect-portable-linux-install'))
-            except FreshControllerError:
+            except FreshControllerError as error:
+                if error.code == 'wheel_audit_failed':
+                    return _error(request_id, 'wheel_audit_failed', 'Проверка структуры зависимостей не пройдена',
+                                  language, 'api.wheel_audit_failed')
                 return _error(request_id, 'fresh_controller_failed', 'Не удалось подтвердить установку',
                               language, 'api.fresh_controller_failed')
         elif operation == "prepare-native-release":
@@ -942,7 +945,7 @@ def main() -> int:
     sys.stdout.write(json.dumps(response, ensure_ascii=True, separators=(",", ":")) + "\n")
     if response["ok"]:
         return 0
-    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_verify_failed", "fresh_prepare_failed", "update_status_failed", "health_check_failed", "systemd_plan_failed", "systemd_publish_failed", "systemd_load_failed", "linux_runtime_failed", "linux_start_check_failed", "linux_start_failed", "linux_stop_failed", "linux_cycle_failed") else 2
+    return 1 if response["error"]["code"] in ("verification_failed", "preflight_failed", "fresh_status_failed", "fresh_verify_failed", "fresh_prepare_failed", "update_status_failed", "health_check_failed", "systemd_plan_failed", "systemd_publish_failed", "systemd_load_failed", "linux_runtime_failed", "linux_start_check_failed", "linux_start_failed", "linux_stop_failed", "linux_cycle_failed", "wheel_audit_failed") else 2
 
 
 if __name__ == "__main__":

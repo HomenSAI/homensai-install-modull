@@ -254,7 +254,14 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
     payload = tmp_path / 'real-runtime-payload'
     payload.mkdir()
     for index, artifact in enumerate([*manifest['runtime']['lock_files'].values(), *manifest['runtime']['vendor_wheels']]):
-        body = ('synthetic dependency ' + str(index)).encode()
+        if artifact['file'].endswith('.whl'):
+            import io
+            wheel = io.BytesIO()
+            with zipfile.ZipFile(wheel, 'w') as archive:
+                archive.writestr('fictional_demo/__init__.py', '# synthetic, not executed')
+            body = wheel.getvalue()
+        else:
+            body = ('synthetic dependency ' + str(index)).encode()
         path = payload / artifact['file']
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(body)

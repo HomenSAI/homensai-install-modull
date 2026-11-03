@@ -71,6 +71,13 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
         if check_target(metadata['manifest'], native_target())['status'] != 'supported':
             raise FreshControllerError()
         component_order(metadata['manifest'], modes)
+        if not inspect_only:
+            from shared.wheel_audit import WheelAuditError, audit_signed_wheels
+            try:
+                audit_signed_wheels(package, envelope, trusted_public_key=trusted_public_key,
+                                    expected_product_id=product_id, expected_version=version)
+            except WheelAuditError:
+                raise FreshControllerError('wheel_audit_failed') from None
         common = {'package_path': str(package), 'envelope': base64.b64encode(envelope).decode('ascii'),
                   'trusted_public_key': base64.b64encode(trusted_public_key).decode('ascii'),
                   'expected_product_id': product_id, 'expected_version': version, 'install_root': str(root)}

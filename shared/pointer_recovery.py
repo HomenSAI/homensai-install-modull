@@ -12,13 +12,14 @@ from shared.pointer_update import inspect_started_pointer_runtime
 from shared.services import component_order, render_pointer_user_services_v2
 from shared.systemd_pointer import _pointer_publication_binding
 from shared.systemd_user import SystemdUserAdapter, _run
+from shared.systemd_group import SystemdUserGroup
 from shared.systemd_user_load import _absent, _manager_call, _read_receipt
 from shared.systemd_user_publish import _publication_receipt, _unit_directory
 from shared.update_plan import UpdateError
 
 
-def inspect_started_pointer_group(*, unit_dir, load_key, runtime_key, runtime_reserve_bytes,
-                                  runner=None, timeout=30, **options):
+def _inspect_started_pointer_group(*, unit_dir, load_key, runtime_key, runtime_reserve_bytes,
+                                   runner=None, timeout=30, **options):
     """Observe signed unit files and systemd state, without authorizing any effect.
 
     Caller must independently trust the keys, manager, local installer and all
@@ -98,7 +99,15 @@ def inspect_started_pointer_group(*, unit_dir, load_key, runtime_key, runtime_re
             if (current['active_state'] != previous['active_state'] or
                     current['sub_state'] != previous['sub_state']):
                 raise UpdateError('Состояние служб изменилось')
-        return {'state': runtime['state'], 'units': observed, 'runtime_verified': True,
-                'process_identity_verified': False, 'resume_authorized': False}
+        public = {'state': runtime['state'], 'units': observed, 'runtime_verified': True,
+                  'process_identity_verified': False, 'resume_authorized': False}
+        group = SystemdUserGroup(old['manifest'], modes=options['modes'],
+                                 adapters=dict(zip(order, adapters)))
+        return public, group
     except Exception:
         raise UpdateError('Не удалось проверить службы начатого обновления') from None
+
+
+def inspect_started_pointer_group(**options):
+    """Return only observations, without exposing an action-capable group."""
+    return _inspect_started_pointer_group(**options)[0]

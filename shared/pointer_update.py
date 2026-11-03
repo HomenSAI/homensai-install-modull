@@ -31,6 +31,30 @@ class _RuntimeEvidence:
                                     operation_id=runtime_key, reserve_bytes=reserve_bytes)
         self.verify()
 
+    @classmethod
+    def from_started(cls, *, runtime_key, reserve_bytes, **update_options):
+        """Reconstruct the same guard without depending on the current pointer."""
+        inspect_started_pointer_runtime(runtime_key=runtime_key, runtime_reserve_bytes=reserve_bytes,
+                                        **update_options)
+        self = cls.__new__(cls)
+        self.package, self.envelope = update_options['old_package'], update_options['old_envelope']
+        self.options = dict(trusted_public_key=update_options['old_key'],
+                            expected_product_id=update_options['product_id'],
+                            expected_version=update_options['old_version'])
+        self.metadata = verify_signed_package(self.package, self.envelope, **self.options)
+        self.root = checked_path(update_options['install_root'])
+        home, _, self.recipe, self.files = _runtime_spec(self.metadata, self.root, update_options['old_version'])
+        self.runtime = checked_path(home.roots['runtime'])
+        self.receipt_path = checked_path(self.root / '.homensai-control/linux-runtime.json')
+        self.receipt = _publication_receipt(self.receipt_path)
+        self.verify()
+        # Bind the captured receipt and runtime to the independently verified transaction.
+        inspect_started_pointer_runtime(runtime_key=runtime_key, runtime_reserve_bytes=reserve_bytes,
+                                        **update_options)
+        if _publication_receipt(self.receipt_path) != self.receipt:
+            raise UpdateError('Отметка runtime изменилась')
+        return self
+
     def verify(self):
         if (verify_signed_package(self.package, self.envelope, **self.options) != self.metadata
                 or _publication_receipt(self.receipt_path) != self.receipt):
@@ -85,16 +109,18 @@ def inspect_started_pointer_runtime(*, runtime_key, runtime_reserve_bytes, **opt
 
 def assemble_pointer_linux_update(*, unit_dir, load_key, runtime_key, runtime_reserve_bytes,
                                   password_provider, interpreter, interpreter_sha256, timeout,
-                                  runner=None, writer_lock=None, **options):
-    """Prepare initial plan from signed pointer units; do not run it or start services.
+                                  runner=None, writer_lock=None, reopen=False,
+                                  reconcile_stop_key=None, **options):
+    """Build an initial or interrupted plan; do not run effects or start services.
 
-    The old release must still be active. Reopening an interrupted update is
-    not implemented here; inspect its state and use an independently reviewed
-    recovery path. Caller remains responsible for publisher keys, interpreter,
-    runtime provenance and every writer outside the confirmed systemd group.
+    Reopening requires the signed preparation, runtime and original units to
+    be verifiable. It never authorizes repeating an indeterminate action.
+    Caller remains responsible for publisher keys, interpreter, runtime
+    provenance and every writer outside the confirmed systemd group.
     """
     try:
-        if (any(type(key) is not str or re.fullmatch(r'[a-f0-9]{32}', key) is None
+        if (type(reopen) is not bool or (reconcile_stop_key is not None and not reopen)
+                or any(type(key) is not str or re.fullmatch(r'[a-f0-9]{32}', key) is None
                 for key in (load_key, runtime_key, options['operation_id']))
                 or len({load_key, runtime_key, options['operation_id']}) != 3
                 or type(runtime_reserve_bytes) is not int or not 0 <= runtime_reserve_bytes <= 2**63 - 1):
@@ -107,17 +133,29 @@ def assemble_pointer_linux_update(*, unit_dir, load_key, runtime_key, runtime_re
             expected_version=options['new_version'])
         if not _check_pointer_runtime_compatibility(old_metadata, new_metadata):
             raise UpdateError('Требуется рецепт pointer-v2')
-        evidence = _RuntimeEvidence(package=options['old_package'], envelope=options['old_envelope'],
-            root=options['install_root'], options=old_options, runtime_key=runtime_key,
-            reserve_bytes=runtime_reserve_bytes)
-        group = _pointer_signed_user_group(options['old_package'], options['old_envelope'], options['install_root'],
-            **old_options, modes=options['modes'], unit_dir=unit_dir, operation_id=load_key,
-            runtime_operation_id=runtime_key, reserve_bytes=runtime_reserve_bytes,
-            runner=runner, _require_active=True)
+        if reopen:
+            from shared.pointer_recovery import _inspect_started_pointer_group
+            observation, group = _inspect_started_pointer_group(unit_dir=unit_dir, load_key=load_key,
+                runtime_key=runtime_key, runtime_reserve_bytes=runtime_reserve_bytes, runner=runner, **options)
+            evidence = _RuntimeEvidence.from_started(runtime_key=runtime_key, reserve_bytes=runtime_reserve_bytes,
+                                                     **options)
+        else:
+            evidence = _RuntimeEvidence(package=options['old_package'], envelope=options['old_envelope'],
+                root=options['install_root'], options=old_options, runtime_key=runtime_key,
+                reserve_bytes=runtime_reserve_bytes)
+            group = _pointer_signed_user_group(options['old_package'], options['old_envelope'], options['install_root'],
+                **old_options, modes=options['modes'], unit_dir=unit_dir, operation_id=load_key,
+                runtime_operation_id=runtime_key, reserve_bytes=runtime_reserve_bytes,
+                runner=runner, _require_active=True)
         plan = assemble_prepared_linux_update(group=group, password_provider=password_provider,
             interpreter=interpreter, interpreter_sha256=interpreter_sha256, timeout=timeout,
-            writer_lock=writer_lock, runtime_guard=evidence.verify, **options)
+            writer_lock=writer_lock, runtime_guard=evidence.verify, reopen=reopen,
+            reconcile_stop_key=reconcile_stop_key, **options)
         evidence.verify()
+        if reopen and _inspect_started_pointer_group(unit_dir=unit_dir, load_key=load_key,
+                runtime_key=runtime_key, runtime_reserve_bytes=runtime_reserve_bytes, runner=runner,
+                **options)[0] != observation:
+            raise UpdateError('Службы изменились во время сборки')
         return plan
     except Exception:
         raise UpdateError('Не удалось собрать обновление pointer-v2') from None

@@ -214,3 +214,51 @@ def test_inspect_interrupted_group_after_pointer_switch(installation, monkeypatc
     with pytest.raises(UpdateError):
         inspect_started_pointer_group(**args)
     assert plan.status() == before and plan.ports.current_release() == '2'
+
+
+def test_reopen_interrupted_pointer_update_does_not_replay_effects(installation, monkeypatch):
+    root, _, options, manager = installation
+    plan = assemble_pointer_linux_update(**options)
+    def interrupt_start(*_):
+        raise EffectIndeterminate('synthetic interruption')
+    monkeypatch.setattr(plan.ports.effects, 'start', interrupt_start)
+    with pytest.raises(UpdateIndeterminate):
+        plan.run()
+    before = plan.status()
+    assert plan.ports.current_release() == '2'
+    calls = len(manager.calls)
+    reopened = assemble_pointer_linux_update(**options, reopen=True)
+    assert reopened.status() == before
+    assert all(call[0] == 'show' for call in manager.calls[calls:])
+    with pytest.raises(UpdateIndeterminate):
+        reopened.run()
+    assert reopened.status() == before
+    launcher = root / 'runtime/lib/homensai/portable_launcher.py'
+    launcher.write_text('damaged')
+    with pytest.raises(UpdateError):
+        assemble_pointer_linux_update(**options, reopen=True)
+    assert reopened.status() == before
+
+
+def test_reopen_reconciles_stopped_group_without_repeating_stop(installation, monkeypatch):
+    import shared.systemd_lifecycle_port as lifecycle
+    _, _, options, manager = installation
+    plan = assemble_pointer_linux_update(**options)
+    original_write = lifecycle._atomic_write
+    def lose_stop_ack(path, value):
+        if value.get('action') == 'stop' and value.get('status') == 'done':
+            raise OSError('synthetic lost acknowledgement')
+        return original_write(path, value)
+    monkeypatch.setattr(lifecycle, '_atomic_write', lose_stop_ack)
+    with pytest.raises(UpdateIndeterminate):
+        plan.run()
+    state = plan.status()
+    assert state['indeterminate'] and plan.forward[state['index']] == 'stop'
+    assert not manager.active
+    monkeypatch.setattr(lifecycle, '_atomic_write', original_write)
+    key = state['transaction'] + '/stop'
+    reopened = assemble_pointer_linux_update(**options, reopen=True, reconcile_stop_key=key)
+    monkeypatch.setattr(reopened.ports.effects.health_port, 'health', lambda *_: None)
+    before = len([call for call in manager.calls if call[0] == 'stop'])
+    assert reopened.run(resume_indeterminate=True)['outcome'] == 'updated'
+    assert len([call for call in manager.calls if call[0] == 'stop']) == before

@@ -17,6 +17,7 @@ from shared.datahome import DataHomeError, checked_path, contains, resolve_datah
 from shared.doctor import DoctorError, evaluate_health
 from shared.docker_preflight import DockerPreflightError, check_docker
 from shared.linux_sh import render_linux
+from shared.i18n import LanguageError, translate
 from shared.manifest import ManifestError, load_manifest
 from shared.render_docker import render_docker
 from shared.services import component_order, render_services
@@ -76,6 +77,7 @@ def _parser() -> Parser:
     parser = Parser(description="Локальный контроллер: планы, тексты и ZIP без запуска служб")
     parser.add_argument("--manifest", help="Публичный JSON-манифест (кроме doctor-eval: обязателен)")
     parser.add_argument("--json", action="store_true", help="Один JSON-объект результата")
+    parser.add_argument("--language", help="Код языка сообщений: ru, en, de или подключённый словарь")
     commands = parser.add_subparsers(dest="command", required=True, title="Команды")
     descriptions = {
         "validate": "Проверить манифест",
@@ -332,7 +334,36 @@ def _execute(manifest, args, *, password_provider=None) -> tuple[str, dict]:
                      "directory_count": len(receipt["directories"]), "encrypted": encrypted}
 
 
-def _emit(code: int, message: str, data: dict, as_json: bool) -> int:
+_MESSAGE_KEYS = {
+    'Проверка Docker завершена; готовность установки не подтверждена': 'cli.docker_checked',
+    'Продукт исправен': 'cli.doctor_ok', 'Обнаружены проблемы продукта': 'cli.doctor_problems',
+    'Тексты Linux записаны; сценарии и службы не исполнялись': 'cli.linux_rendered',
+    'План Compose; исполнение не выполнялось': 'cli.docker_plan',
+    'Манифест корректен': 'cli.manifest_valid',
+    'План установки; выполнение отсутствует': 'cli.install_plan',
+    'Docker-заготовки записаны; сборка и запуск не выполнялись': 'cli.docker_rendered',
+    'Тексты PowerShell/XML записаны; исполнение и Windows-приёмка не выполнялись': 'cli.windows_rendered',
+    'Тексты служб записаны; службы не установлены': 'cli.services_rendered',
+    'Состояние обновления прочитано': 'cli.update_status',
+    'Обновление ещё не начато': 'cli.update_not_started',
+    'Копия проверена и импортирована; откат не возобновлялся': 'cli.archive_imported',
+    'Полный шифрованный архив создан и проверен': 'cli.archive_encrypted',
+    'Полный незашифрованный ZIP создан и проверен': 'cli.archive_plain',
+    'Архив полностью проверен': 'cli.archive_verified',
+    'Архив восстановлен в отдельный каталог и проверен': 'cli.archive_restored',
+}
+
+
+def _emit(code: int, message: str, data: dict, as_json: bool, language: str | None = None) -> int:
+    if language is not None and language != 'ru':
+        key = _MESSAGE_KEYS.get(message)
+        if key is None and code:
+            key = 'cli.invalid' if code == 2 else 'cli.failed'
+        try:
+            if key is not None:
+                message = translate(language, key)
+        except LanguageError:
+            pass  # The validated catalog may have disappeared; retain the safe original message.
     if as_json:
         print(json.dumps({"ok": code == 0, "code": code, "message": message, "data": data},
                          ensure_ascii=True, sort_keys=True))
@@ -375,9 +406,16 @@ def _emit(code: int, message: str, data: dict, as_json: bool) -> int:
 def main(argv: list[str] | None = None, *, password_provider=None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     as_json = "--json" in arguments
+    language = None
     try:
         args = _parser().parse_args(arguments)
         as_json = args.json
+        if args.language is not None:
+            try:
+                translate(args.language, 'cli.invalid')
+            except LanguageError:
+                raise UsageError('Недоступный язык') from None
+            language = args.language
         if args.command not in ("doctor-eval", "docker-check") and not args.manifest:
             raise UsageError("Требуется --manifest")
         manifest = load_manifest(_file(args.manifest)) if args.manifest else None
@@ -385,32 +423,32 @@ def main(argv: list[str] | None = None, *, password_provider=None) -> int:
     except SystemExit as error:  # --help остаётся удобным и для main(argv).
         return int(error.code)
     except UsageError as error:
-        return _emit(2, str(error), {}, as_json)
+        return _emit(2, str(error), {}, as_json, language)
     except ManifestError as error:
         # Контракт ManifestError исключает значения входных полей; OSError и
         # произвольные исключения ниже всегда заменяются фиксированным текстом.
-        return _emit(2, str(error), {}, as_json)
+        return _emit(2, str(error), {}, as_json, language)
     except DataHomeError:
-        return _emit(2, "Небезопасный путь или пересечение каталогов; операция запрещена", {}, as_json)
+        return _emit(2, "Небезопасный путь или пересечение каталогов; операция запрещена", {}, as_json, language)
     except DockerAdapterError:
-        return _emit(2, "Недопустимый план Docker Compose", {}, as_json)
+        return _emit(2, "Недопустимый план Docker Compose", {}, as_json, language)
     except DockerPreflightError:
-        return _emit(1, "Не удалось проверить Docker", {}, as_json)
+        return _emit(1, "Не удалось проверить Docker", {}, as_json, language)
     except DoctorError:
-        return _emit(1, "Неверные факты диагностики", {}, as_json)
+        return _emit(1, "Неверные факты диагностики", {}, as_json, language)
     except archive_crypto.ArchiveCryptoError as error:
-        return _emit(1, str(error), {}, as_json)
+        return _emit(1, str(error), {}, as_json, language)
     except ArchiveError:
-        return _emit(1, "Операция ZIP не завершена: проверьте архив, место и каталоги", {}, as_json)
+        return _emit(1, "Операция ZIP не завершена: проверьте архив, место и каталоги", {}, as_json, language)
     except UpdateError:
-        return _emit(1, "Состояние обновления повреждено, недоступно или относится к другому плану", {}, as_json)
+        return _emit(1, "Состояние обновления повреждено, недоступно или относится к другому плану", {}, as_json, language)
     except EffectIndeterminate:
-        return _emit(1, "Результат операции не подтверждён; требуется проверка", {}, as_json)
+        return _emit(1, "Результат операции не подтверждён; требуется проверка", {}, as_json, language)
     except UnimplementedPortError:
-        return _emit(1, "Реальный адаптер не реализован; выполнение запрещено", {}, as_json)
+        return _emit(1, "Реальный адаптер не реализован; выполнение запрещено", {}, as_json, language)
     except (OSError, UnicodeError, ValueError, RecursionError):
-        return _emit(1, "Не удалось выполнить локальную операцию; проверьте входные файлы и доступ", {}, as_json)
-    return _emit(data.get("report", {}).get("exit_code", 0), message, data, as_json)
+        return _emit(1, "Не удалось выполнить локальную операцию; проверьте входные файлы и доступ", {}, as_json, language)
+    return _emit(data.get("report", {}).get("exit_code", 0), message, data, as_json, language)
 
 
 if __name__ == "__main__":

@@ -65,6 +65,32 @@ def test_human_output_and_json_before_command(capsys):
     assert json.loads(capsys.readouterr().out)["ok"]
 
 
+@pytest.mark.parametrize('language,expected', [('ru', 'Манифест корректен'),
+                                                ('en', 'Manifest is valid'),
+                                                ('de', 'Das Manifest ist gültig')])
+def test_cli_localizes_json_summary_without_changing_data(capsys, language, expected):
+    manifest = str(EXAMPLES / 'jobpilot.manifest.json')
+    assert ctl.main(['--language', language, '--manifest', manifest, 'validate', '--json']) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result['message'] == expected and result['data']['schema_version'] == 1
+
+
+@pytest.mark.parametrize('language,expected', [('en', 'The local operation could not be completed'),
+                                                ('de', 'Der lokale Vorgang konnte nicht abgeschlossen werden')])
+def test_cli_localizes_operational_error_without_disclosing_input(capsys, tmp_path, language, expected):
+    assert ctl.main(['--language', language, '--manifest', str(tmp_path / SECRET), 'validate', '--json']) == 1
+    output = capsys.readouterr()
+    result = json.loads(output.out)
+    assert result['message'].startswith(expected) and SECRET not in output.out and not output.err
+
+
+def test_cli_rejects_unsupported_language_before_execution(capsys, tmp_path):
+    destination = tmp_path / 'output'
+    assert ctl.main(['--language', 'zz', '--manifest', str(EXAMPLES / 'jobpilot.manifest.json'),
+                     'render-docker', '--output-dir', str(destination), '--json']) == 2
+    assert not destination.exists() and json.loads(capsys.readouterr().out)['code'] == 2
+
+
 @pytest.mark.parametrize("arguments", [[], [SECRET], ["--manifest", SECRET],
     ["--manifest", "missing", "validate", "--password", SECRET],
     ["--manifest", "missing", "plan-install", "--platform", SECRET]])

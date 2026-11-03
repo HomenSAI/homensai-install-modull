@@ -88,6 +88,21 @@ def test_language_replacement_during_open_is_rejected(monkeypatch, tmp_path):
         translate('fr', 'installer.ready', product='Demo')
 
 
+def test_catalog_metadata_matches_open_handle(tmp_path):
+    paths = [tmp_path / (name + '.json') for name in ('en', 'ru', 'de')]
+    for path in paths:
+        path.write_bytes(b'{}')
+    def values(info):
+        return (info.st_dev, info.st_ino, info.st_mode, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+    for _ in range(20):
+        for path in paths:
+            before = values(path.lstat())
+            flags = os.O_RDONLY | getattr(os, 'O_BINARY', 0)
+            with os.fdopen(os.open(path, flags), 'rb') as stream:
+                assert values(os.fstat(stream.fileno())) == before
+                assert values(path.lstat()) == before
+
+
 @pytest.mark.parametrize('broken', [
     b'{}', b'[]', b'{', b'\xff', b'{"api.invalid_request":"x","api.invalid_request":"y"}',
     b'{"api.invalid_request":42}', b' ' * 65537,

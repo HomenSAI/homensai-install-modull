@@ -5,13 +5,13 @@ from importlib import resources
 from .client import InstallerClient, InstallerClientError
 from .writer_guard import CooperativeWriterLock, WriterGuardError
 
-__version__ = '0.5.0'
+__version__ = '0.6.0'
 CONTRACT_API_MAJOR = 1
-CONTRACT_API_MINOR = 44
+CONTRACT_API_MINOR = 45
 
 
 def contract_schema(kind: str) -> dict:
-    """Read the bundled API 1.44 request or response-envelope schema."""
+    """Read the bundled API 1.45 request or response-envelope schema."""
     if kind not in ('request', 'response') or type(kind) is not str:
         raise ValueError('expected request or response')
     data = resources.files(__package__).joinpath('schemas', 'api-v1-' + kind + '.schema.json').read_text(encoding='utf-8')

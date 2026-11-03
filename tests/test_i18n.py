@@ -47,6 +47,10 @@ def test_new_language_is_data_only(monkeypatch, tmp_path):
     (tmp_path / 'fr.json').write_text(json.dumps(catalog), encoding='utf-8')
     with pytest.raises(LanguageError):
         translate('fr', 'installer.ready', product='Demo')
+    catalog['installer.ready'] = '{product}\ud800'
+    (tmp_path / 'fr.json').write_text(json.dumps(catalog), encoding='utf-8')
+    with pytest.raises(LanguageError):
+        translate('fr', 'installer.ready', product='Demo')
 
 
 @pytest.mark.skipif(os.name != 'posix', reason='POSIX links and FIFO')

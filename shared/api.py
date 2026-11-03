@@ -28,7 +28,7 @@ from shared.docker_prepare import DockerPrepareError, prepare_signed_compose
 from shared.docker_recipe import DockerRecipeError, plan_signed_compose
 from shared.host_target import HostTargetError, native_target
 from shared.health import HealthError, check_local_health
-from shared.i18n import LanguageError, available_languages, translate
+from shared.i18n import LanguageError, available_languages, translate, validate_catalog
 from shared.manifest import ManifestError, check_target, validate_manifest
 from shared.package import PackageError
 from shared.package_signing import MAX_ENVELOPE, _crypto, verify_signed_package
@@ -44,7 +44,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 44
+API_MINOR = 45
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -168,7 +168,7 @@ def handle(request: Any) -> dict:
         if operation == "capabilities":
             if params:
                 raise InvalidRequest()
-            operations = ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status", "plan-update", "inspect-update-recovery", "check-local-health"]
+            operations = ["capabilities", "validate", "validate-language-catalog", "preflight-fresh", "check-target", "update-plan-status", "plan-update", "inspect-update-recovery", "check-local-health"]
             mutating_operations = []
             if sys.platform.startswith('linux'):
                 operations.append('check-archive-storage')
@@ -233,6 +233,14 @@ def handle(request: Any) -> dict:
             except (ManifestError, RecursionError):
                 return _error(request_id, "invalid_request", "Манифест не соответствует контракту", language, "api.invalid_manifest")
             result = {"product_id": manifest["product_id"], "schema_version": manifest["schema_version"]}
+        elif operation == 'validate-language-catalog':
+            if set(params) != {'catalog'} or type(params['catalog']) is not dict:
+                raise InvalidRequest()
+            try:
+                result = validate_catalog(params['catalog'])
+            except LanguageError:
+                return _error(request_id, 'invalid_request', 'Словарь не соответствует контракту',
+                              language, 'api.invalid_request')
         elif operation == "check-target":
             if set(params) != {"manifest", "target"}:
                 raise InvalidRequest()

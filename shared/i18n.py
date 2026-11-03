@@ -42,6 +42,41 @@ def _fields(text: str) -> set[str]:
     return fields
 
 
+def _validate_entries(catalog: Any) -> None:
+    if type(catalog) is not dict or not catalog or len(catalog) > 1000:
+        raise LanguageError('Недопустимый словарь')
+    for key, value in catalog.items():
+        if (type(key) is not str or _KEY.fullmatch(key) is None or type(value) is not str
+                or not value or len(value) > 4096):
+            raise LanguageError('Недопустимая запись словаря')
+        try:
+            value.encode('utf-8')
+        except UnicodeError:
+            raise LanguageError('Недопустимый текст словаря') from None
+        _fields(value)
+
+
+def _compatible(reference: dict, catalog: dict) -> None:
+    if set(catalog) != set(reference):
+        raise LanguageError('Неполный словарь')
+    for item in reference:
+        if _fields(reference[item]) != _fields(catalog[item]):
+            raise LanguageError('Несовместимые переменные словаря')
+
+
+def validate_catalog(catalog: Any) -> dict:
+    """Проверить данные нового словаря без записи и выполнения кода."""
+    _validate_entries(catalog)
+    try:
+        data = json.dumps(catalog, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
+    except (UnicodeError, TypeError, ValueError, RecursionError):
+        raise LanguageError('Словарь не может быть записан в UTF-8') from None
+    if len(data) > 65536:
+        raise LanguageError('Словарь слишком велик')
+    _compatible(_catalog('en'), catalog)
+    return {'valid': True, 'message_count': len(catalog), 'compact_utf8_bytes': len(data)}
+
+
 def _catalog(language: str) -> dict[str, str]:
     if type(language) is not str or _LANGUAGE.fullmatch(language) is None:
         raise LanguageError('Недопустимый код языка')
@@ -66,13 +101,7 @@ def _catalog(language: str) -> dict[str, str]:
         catalog = json.loads(data.decode('utf-8'), object_pairs_hook=_unique)
     except (OSError, UnicodeError, ValueError, RecursionError):
         raise LanguageError('Словарь недоступен или повреждён') from None
-    if type(catalog) is not dict or not catalog or len(catalog) > 1000:
-        raise LanguageError('Недопустимый словарь')
-    for key, value in catalog.items():
-        if (type(key) is not str or _KEY.fullmatch(key) is None or type(value) is not str
-                or not value or len(value) > 4096):
-            raise LanguageError('Недопустимая запись словаря')
-        _fields(value)
+    _validate_entries(catalog)
     return catalog
 
 
@@ -84,11 +113,7 @@ def translate(language: str, key: str, **variables: str) -> str:
     if key not in reference:
         raise LanguageError('Неизвестный ключ сообщения')
     catalog = reference if language == 'en' else _catalog(language)
-    if set(catalog) != set(reference):
-        raise LanguageError('Неполный словарь')
-    for item in reference:
-        if _fields(reference[item]) != _fields(catalog[item]):
-            raise LanguageError('Несовместимые переменные словаря')
+    _compatible(reference, catalog)
     required = _fields(reference[key])
     if set(variables) != required or any(type(value) is not str or len(value) > 8192 for value in variables.values()):
         raise LanguageError('Недопустимые переменные сообщения')

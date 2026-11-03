@@ -182,9 +182,30 @@ class LinuxSignedUpdateEffects:
 
     def _verify_original_archive(self, key):
         ports = self.lifecycle.ports
-        archive = ports.archive_path(key.split('/', 1)[0] + '/archive')
+        archive_key = key.split('/', 1)[0] + '/archive'
+        self._verify_quiescence(archive_key)
+        archive = ports.archive_path(archive_key)
         if set(ports._verify_archive(archive)['roots']) != set(ports.home.roots):
             raise UpdateError('Корни исходной копии не соответствуют установке')
+
+    def _verify_quiescence(self, key):
+        match = _BACKUP_KEY.fullmatch(key) if type(key) is str else None
+        if match is None or match.group(2) == 'before_rollback':
+            raise UpdateError('Недопустимая отметка копии')
+        self._check_writer_binding()
+        binding = {'version': 1, 'plan': self.plan.digest, 'key': key,
+                   'stop_key': match.group(1) + '/stop',
+                   'installation_sha256': self.lifecycle.install_hash,
+                   'units_sha256': self.lifecycle.units_hash, 'status': 'done'}
+        guard = self.writer_lock
+        if guard is not None:
+            binding['writer_lock_sha256'] = hashlib.sha256(str(guard.path).encode('utf-8')).hexdigest()
+        with guard.hold(exclusive=True) if guard is not None else nullcontext() as identity:
+            if guard is not None:
+                binding['writer_lock_file_sha256'] = hashlib.sha256(
+                    f'{identity.device}:{identity.inode}'.encode('ascii')).hexdigest()
+            if read_effect_receipt(self.lifecycle.ports._path(key, '.quiescence.json')) != binding:
+                raise UpdateError('Безопасное создание копии не подтверждено')
 
     def guarded_stage_release(self, key, release, stage):
         self._active_phase(key, 'stage', 'forward')
@@ -238,6 +259,14 @@ class LinuxSignedUpdateEffects:
             raise EffectIndeterminate('Прежний выпуск или восстановление не подтверждены') from None
 
     def migrate(self, key, migration, command):
+        try:
+            transaction, phase = key.split('/', 1)
+            if not phase.startswith('migrate:'):
+                raise UpdateError('Недопустимый ключ миграции')
+            self._verify_original_archive(key)
+            self._verify_quiescence(transaction + '/backup:' + phase.removeprefix('migrate:'))
+        except Exception:
+            raise EffectIndeterminate('Безопасность копий миграции не подтверждена') from None
         return self.migration.migrate(key, migration, command)
 
     def health(self, key, url, timeout, checks):

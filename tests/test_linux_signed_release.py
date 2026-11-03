@@ -90,6 +90,14 @@ def signed(tmp_path):
     for directory in ports.home.roots.values():
         directory.mkdir(parents=True, exist_ok=True)
     ports._backup('a' * 32 + '/archive', 'archive', ())
+    # Этот fixture изолирует проверки подписи; остановка отдельно проверяется
+    # в test_linux_update_effects с реальным протоколом отметок.
+    from shared.update_plan import _atomic_write
+    archive_key = 'a' * 32 + '/archive'
+    _atomic_write(ports._path(archive_key, '.quiescence.json'), {
+        'version': 1, 'plan': plan.digest, 'key': archive_key,
+        'stop_key': 'a' * 32 + '/stop', 'installation_sha256': lifecycle.install_hash,
+        'units_sha256': lifecycle.units_hash, 'status': 'done'})
     state = {'version': 1, 'transaction': 'a' * 32, 'plan': plan.digest, 'old_release': '1', 'release': '2',
              'direction': 'forward', 'index': 0, 'failed_phase': None, 'archive_ready': True,
              'outcome': 'running', 'indeterminate': True}

@@ -220,6 +220,81 @@ def test_backup_requires_stopped_group_and_confirms_it_after_snapshot(setup, mon
         _ACTIVE_EFFECT.reset(token)
 
 
+@pytest.mark.parametrize('damage', ['missing', 'pending', 'wrong_plan'])
+def test_forward_stage_rejects_lost_or_unconfirmed_quiescence(setup, monkeypatch, damage):
+    from types import SimpleNamespace
+    from shared.effect_receipt import read_effect_receipt
+    from shared.update_plan import _atomic_write
+    plan, ports, state, _ = _prepare_archive(setup)
+    transaction = state['transaction']
+    key = transaction + '/archive'
+    monkeypatch.setattr(ports, '_backup', lambda *args: ports.archive_path(key).write_bytes(b'archive'))
+    token = _ACTIVE_EFFECT.set((plan, transaction, 'archive'))
+    try:
+        ports.backup(key, 'archive', ())
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+    monkeypatch.setattr(ports, '_verify_archive', lambda path: {'roots': ports.home.roots})
+    monkeypatch.setattr(ports.effects, '_verify_release', lambda directory: None)
+    ports.payloads[plan.release] = SimpleNamespace(directory=Path('/synthetic'))
+    marker = ports._path(key, '.quiescence.json')
+    record = read_effect_receipt(marker)
+    state['index'] = plan.forward.index('stage')
+    state['archive_ready'] = True
+    plan._save(state)
+    calls = []
+    token = _ACTIVE_EFFECT.set((plan, transaction, 'stage'))
+    try:
+        ports.effects.guarded_stage_release(transaction + '/stage', plan.release, lambda *args: calls.append(args))
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+    assert len(calls) == 1
+    calls.clear()
+    if damage == 'missing':
+        marker.unlink()
+    else:
+        record['status' if damage == 'pending' else 'plan'] = 'pending' if damage == 'pending' else '0' * 64
+        _atomic_write(marker, record)
+    token = _ACTIVE_EFFECT.set((plan, transaction, 'stage'))
+    try:
+        with pytest.raises(EffectIndeterminate):
+            ports.effects.guarded_stage_release(transaction + '/stage', plan.release, lambda *args: calls.append(args))
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+    assert calls == []
+
+
+def test_migration_rejects_missing_quiescence_before_execution(setup, monkeypatch):
+    plan, ports, state, _ = _prepare_archive(setup)
+    effects = ports.effects
+    calls = []
+    monkeypatch.setattr(effects, '_verify_original_archive', lambda key: None)
+    monkeypatch.setattr(effects.migration, 'migrate', lambda *args: calls.append(args))
+    with pytest.raises(EffectIndeterminate):
+        effects.migrate(state['transaction'] + '/migrate:0', 'synthetic', ())
+    assert calls == []
+
+
+@pytest.mark.skipif(not sys.platform.startswith('linux'), reason='Linux flock')
+def test_quiescence_rejects_replaced_writer_lock(setup, tmp_path, monkeypatch):
+    plan, ports, state, _ = _prepare_archive(setup)
+    private = tmp_path / 'writer-lock'
+    private.mkdir(mode=0o700)
+    guard = CooperativeWriterLock(str(private / 'writers.lock'))
+    ports.effects.writer_lock = guard
+    key = state['transaction'] + '/archive'
+    monkeypatch.setattr(ports, '_backup', lambda *args: ports.archive_path(key).write_bytes(b'archive'))
+    token = _ACTIVE_EFFECT.set((plan, state['transaction'], 'archive'))
+    try:
+        ports.backup(key, 'archive', ())
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+    ports.effects._verify_quiescence(key)
+    guard.path.rename(private / 'previous.lock')
+    with pytest.raises(UpdateError):
+        ports.effects._verify_quiescence(key)
+
+
 @pytest.mark.skipif(not __import__('sys').platform.startswith('linux'), reason='Requires Linux flock')
 def test_cooperating_writer_blocks_backup_and_backup_blocks_writer(setup, tmp_path, monkeypatch):
     plan, ports, state, _ = _prepare_archive(setup)

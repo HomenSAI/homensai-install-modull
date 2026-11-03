@@ -44,7 +44,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 43
+API_MINOR = 44
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -170,6 +170,9 @@ def handle(request: Any) -> dict:
                 raise InvalidRequest()
             operations = ["capabilities", "validate", "preflight-fresh", "check-target", "update-plan-status", "plan-update", "inspect-update-recovery", "check-local-health"]
             mutating_operations = []
+            if sys.platform.startswith('linux'):
+                operations.append('check-archive-storage')
+                mutating_operations.append('check-archive-storage')  # Creates an unnamed temporary inode.
             if sys.platform.startswith('linux') or sys.platform == 'win32':
                 operations.append('check-docker-engine')
                 mutating_operations.append('check-docker-engine')  # Выполняет доверенные внешние программы.
@@ -255,6 +258,18 @@ def handle(request: Any) -> dict:
                 return _error(request_id, 'health_check_failed', 'Не удалось подтвердить состояние продукта',
                               language, 'api.health_check_failed')
             result = {'health_response_matches': True, 'process_identity_verified': False}
+        elif operation == 'check-archive-storage':
+            if set(params) != {'directory'} or type(params['directory']) is not str or not params['directory']:
+                raise InvalidRequest()
+            if not sys.platform.startswith('linux'):
+                return _error(request_id, 'unsupported_operation', 'Операция API не поддерживается',
+                              language, 'api.unsupported_operation')
+            from shared.archive_crypto import ArchiveCryptoError, check_archive_storage
+            try:
+                result = check_archive_storage(params['directory'])
+            except ArchiveCryptoError:
+                return _error(request_id, 'preflight_failed', 'Предварительная проверка не пройдена',
+                              language, 'api.preflight_failed')
         elif operation == "preflight-fresh":
             if set(params) != {"manifest", "install_root", "required_bytes", "reserve_bytes"}:
                 raise InvalidRequest()

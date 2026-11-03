@@ -148,6 +148,32 @@ def _anonymous_temporary(parent):
         yield stream
 
 
+def check_archive_storage(directory: str | Path) -> dict:
+    """Проверить криптозависимость и O_TMPFILE в существующем каталоге Linux."""
+    if not sys.platform.startswith('linux'):
+        raise ArchiveCryptoError('Проверка доступна только на Linux')
+    try:
+        directory = checked_path(directory)
+        if not directory.is_dir():
+            raise ArchiveCryptoError('Каталог архива недоступен')
+        try:
+            _aesgcm()
+            crypto_available = True
+        except CryptoUnavailableError:
+            crypto_available = False
+        try:
+            with _anonymous_temporary(directory):
+                pass
+            anonymous_temporary = True
+        except (OSError, ArchiveCryptoError):
+            anonymous_temporary = False
+        return {'crypto_available': crypto_available, 'anonymous_temporary': anonymous_temporary,
+                'ready': crypto_available and anonymous_temporary,
+                'not_checked': ['password', 'free_space', 'data_consistency', 'writers', 'future_availability']}
+    except (OSError, DataHomeError):
+        raise ArchiveCryptoError('Каталог архива недоступен') from None
+
+
 def _destination(path):
     path = checked_path(path)
     if path.exists() or not path.parent.is_dir():

@@ -10,7 +10,6 @@ import hashlib
 import hmac
 import json
 import os
-from pathlib import Path
 import re
 import stat
 from contextlib import contextmanager

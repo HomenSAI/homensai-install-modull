@@ -6,7 +6,6 @@ import json
 import os
 from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
-from pathlib import Path
 import re
 import stat
 

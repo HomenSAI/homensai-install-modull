@@ -1,5 +1,7 @@
 """Release-time OSV audit: explicit coverage and fail-closed parsing."""
 import json
+import hashlib
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -62,6 +64,69 @@ def test_invalid_responses_fail(tmp_path, result):
     lock.write_text('example==1 --hash=sha256:' + HASH)
     with pytest.raises(osv.AuditError):
         osv.audit([lock], send=lambda _: result)
+
+
+def test_trusted_evidence_requires_fresh_matching_clean_inventory(tmp_path):
+    lock = tmp_path / 'lock.txt'
+    lock.write_text('example==1 --hash=sha256:' + HASH)
+    report = osv.audit([lock], send=lambda _: {'results': [{}]})
+    checked = datetime.fromisoformat(report['checked_at'])
+    def encoded(value):
+        raw = json.dumps(value).encode()
+        return raw, hashlib.sha256(raw).hexdigest()
+    raw, digest = encoded(report)
+    result = osv.verify_clean_evidence(raw, expected_sha256=digest, locks=iter([lock]),
+                                       max_age_seconds=3600, now=checked + timedelta(seconds=30))
+    assert result['package_count'] == 1 and not result['malware_scanned'] and not result['release_safe']
+    for current in (checked - timedelta(seconds=1), checked + timedelta(seconds=3601)):
+        with pytest.raises(osv.AuditError):
+            osv.verify_clean_evidence(raw, expected_sha256=digest, locks=[lock],
+                                      max_age_seconds=3600, now=current)
+    with pytest.raises(osv.AuditError):
+        osv.verify_clean_evidence(raw + b' ', expected_sha256=digest, locks=[lock], max_age_seconds=3600)
+    for field, value in [('advisories', [{'id': 'GHSA-test'}]), ('version', '2')]:
+        modified = json.loads(raw)
+        modified['packages'][0][field] = value
+        changed, changed_digest = encoded(modified)
+        with pytest.raises(osv.AuditError):
+            osv.verify_clean_evidence(changed, expected_sha256=changed_digest, locks=[lock], max_age_seconds=3600)
+    lock.write_text('example==2 --hash=sha256:' + HASH)
+    with pytest.raises(osv.AuditError):
+        osv.verify_clean_evidence(raw, expected_sha256=digest, locks=[lock], max_age_seconds=3600)
+
+
+def test_evidence_rejects_duplicate_keys_and_naive_clock(tmp_path):
+    lock = tmp_path / 'lock.txt'
+    lock.write_text('example==1 --hash=sha256:' + HASH)
+    raw = b'{"source":"x","source":"y"}'
+    with pytest.raises(osv.AuditError):
+        osv.verify_clean_evidence(raw, expected_sha256=hashlib.sha256(raw).hexdigest(),
+                                  locks=[lock], max_age_seconds=60)
+    report = osv.audit([lock], send=lambda _: {'results': [{}]})
+    raw = json.dumps(report).encode()
+    with pytest.raises(osv.AuditError):
+        osv.verify_clean_evidence(raw, expected_sha256=hashlib.sha256(raw).hexdigest(),
+                                  locks=[lock], max_age_seconds=60, now=datetime(2026, 1, 1))
+
+
+def test_evidence_rejects_lock_change_during_verification(tmp_path, monkeypatch):
+    lock = tmp_path / 'lock.txt'
+    lock.write_text('example==1 --hash=sha256:' + HASH)
+    raw = json.dumps(osv.audit([lock], send=lambda _: {'results': [{}]})).encode()
+    original = osv.read_locks
+    count = 0
+    def changing(paths):
+        nonlocal count
+        result = original(paths)
+        count += 1
+        if count == 1:
+            lock.write_text('example==2 --hash=sha256:' + HASH)
+        return result
+    monkeypatch.setattr(osv, 'read_locks', changing)
+    with pytest.raises(osv.AuditError):
+        osv.verify_clean_evidence(raw, expected_sha256=hashlib.sha256(raw).hexdigest(),
+                                  locks=[lock], max_age_seconds=60)
+    assert count == 2
 
 
 def test_repeated_page_and_duplicate_json_keys_fail(tmp_path):

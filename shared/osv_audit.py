@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import hashlib
+import hmac
 import json
 from pathlib import Path
 import re
@@ -163,6 +164,53 @@ def audit(paths, *, send=_send, crypto_wheelhouse=None):
                          for name in sorted(packages)],
             'crypto_wheelhouse': block, 'complete_dependency_inventory': False,
             'publisher_provenance_verified': False, 'malware_scanned': False, 'release_safe': False}
+
+
+def verify_clean_evidence(raw, *, expected_sha256, locks, max_age_seconds, now=None):
+    """Verify bounded OSV evidence against an independently trusted digest.
+
+    The caller must authenticate the digest and the original audit process.
+    This checks neither unlisted dependencies nor malware or publisher identity;
+    it does not prove a release safe and never downloads or executes code.
+    """
+    try:
+        if (type(raw) is not bytes or not raw or len(raw) > MAX_RESPONSE
+                or type(expected_sha256) is not str or re.fullmatch(r'[a-f0-9]{64}', expected_sha256) is None
+                or type(max_age_seconds) is not int or not 1 <= max_age_seconds <= 31 * 24 * 3600):
+            raise AuditError('invalid evidence parameters')
+        if not hmac.compare_digest(hashlib.sha256(raw).hexdigest(), expected_sha256):
+            raise AuditError('evidence digest mismatch')
+        report = json.loads(raw.decode('utf-8'), object_pairs_hook=_unique,
+                            parse_constant=lambda _: (_ for _ in ()).throw(AuditError('invalid JSON number')))
+        keys = {'source', 'checked_at', 'locks', 'packages', 'crypto_wheelhouse',
+                'complete_dependency_inventory', 'publisher_provenance_verified', 'malware_scanned', 'release_safe'}
+        if (type(report) is not dict or set(report) != keys or report['source'] != ENDPOINT
+                or (report['crypto_wheelhouse'] is not None and type(report['crypto_wheelhouse']) is not dict)
+                or any(report[name] is not False for name in ('complete_dependency_inventory',
+                    'publisher_provenance_verified', 'malware_scanned', 'release_safe'))
+                or type(report['checked_at']) is not str or len(report['checked_at']) > 64):
+            raise AuditError('invalid evidence')
+        checked_at = datetime.fromisoformat(report['checked_at'].replace('Z', '+00:00'))
+        current = datetime.now(timezone.utc) if now is None else now
+        if (type(current) is not datetime or current.tzinfo is None or current.utcoffset() is None
+                or checked_at.tzinfo is None or checked_at.utcoffset() is None):
+            raise AuditError('evidence time has no timezone')
+        age = (current - checked_at).total_seconds()
+        if not 0 <= age <= max_age_seconds:
+            raise AuditError('evidence is stale or from the future')
+        paths = tuple(locks)
+        packages, sources = read_locks(paths)
+        if report['locks'] != sources or type(report['packages']) is not list:
+            raise AuditError('evidence lock mismatch')
+        expected_packages = [{'name': name, 'version': packages[name], 'advisories': []}
+                             for name in sorted(packages)]
+        if report['packages'] != expected_packages or read_locks(paths) != (packages, sources):
+            raise AuditError('findings, incomplete inventory or changed lock')
+        return {'checked_at': report['checked_at'], 'package_count': len(packages),
+                'evidence_sha256': expected_sha256, 'complete_dependency_inventory': False,
+                'publisher_provenance_verified': False, 'malware_scanned': False, 'release_safe': False}
+    except (OSError, UnicodeError, ValueError, TypeError, KeyError, RecursionError):
+        raise AuditError('could not verify OSV evidence') from None
 
 
 def main():

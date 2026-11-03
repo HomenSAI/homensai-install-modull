@@ -1,5 +1,6 @@
 """Подключаемые словари: данные без исполнения и строгие переменные."""
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -44,5 +45,40 @@ def test_new_language_is_data_only(monkeypatch, tmp_path):
         translate('fr', 'installer.ready', product='Demo')
     catalog['installer.ready'] = 'No variable'
     (tmp_path / 'fr.json').write_text(json.dumps(catalog), encoding='utf-8')
+    with pytest.raises(LanguageError):
+        translate('fr', 'installer.ready', product='Demo')
+
+
+@pytest.mark.skipif(os.name != 'posix', reason='POSIX links and FIFO')
+def test_language_discovery_rejects_links_and_fifo_without_blocking(monkeypatch, tmp_path):
+    import shared.i18n as i18n
+    source = Path(i18n.__file__).with_name('locales') / 'en.json'
+    (tmp_path / 'en.json').write_bytes(source.read_bytes())
+    (tmp_path / 'fr.json').symlink_to(source)
+    os.mkfifo(tmp_path / 'de.json')
+    monkeypatch.setattr(i18n, '_DIRECTORY', tmp_path)
+    assert i18n.available_languages() == ['en']
+    for language in ('fr', 'de'):
+        with pytest.raises(LanguageError):
+            translate(language, 'installer.ready', product='Demo')
+
+
+def test_language_replacement_during_open_is_rejected(monkeypatch, tmp_path):
+    import shared.i18n as i18n
+    source = Path(i18n.__file__).with_name('locales') / 'en.json'
+    content = source.read_bytes()
+    (tmp_path / 'en.json').write_bytes(content)
+    target = tmp_path / 'fr.json'
+    target.write_bytes(content)
+    replacement = tmp_path / 'replacement'
+    replacement.write_bytes(content)
+    monkeypatch.setattr(i18n, '_DIRECTORY', tmp_path)
+    original_open = os.open
+    def replace_after_open(path, flags, *args, **kwargs):
+        descriptor = original_open(path, flags, *args, **kwargs)
+        if path == target:
+            os.replace(replacement, target)
+        return descriptor
+    monkeypatch.setattr(i18n.os, 'open', replace_after_open)
     with pytest.raises(LanguageError):
         translate('fr', 'installer.ready', product='Demo')

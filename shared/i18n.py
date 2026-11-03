@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import re
+import stat
 from string import Formatter
 from typing import Any
 
@@ -44,8 +46,21 @@ def _catalog(language: str) -> dict[str, str]:
     if type(language) is not str or _LANGUAGE.fullmatch(language) is None:
         raise LanguageError('Недопустимый код языка')
     try:
-        with (_DIRECTORY / (language + '.json')).open('rb') as stream:
+        path = _DIRECTORY / (language + '.json')
+        def signature(info):
+            if (not stat.S_ISREG(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400):
+                raise LanguageError('Требуется обычный файл словаря')
+            return (info.st_dev, info.st_ino, info.st_mode, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+        before = signature(path.lstat())
+        flags = (os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0)
+                 | getattr(os, 'O_BINARY', 0))
+        descriptor = os.open(path, flags)
+        with os.fdopen(descriptor, 'rb') as stream:
+            if signature(os.fstat(stream.fileno())) != before or signature(path.lstat()) != before:
+                raise LanguageError('Файл словаря изменился при открытии')
             data = stream.read(65537)
+            if signature(os.fstat(stream.fileno())) != before or signature(path.lstat()) != before:
+                raise LanguageError('Файл словаря изменился при чтении')
         if len(data) > 65536:
             raise LanguageError('Словарь слишком велик')
         catalog = json.loads(data.decode('utf-8'), object_pairs_hook=_unique)

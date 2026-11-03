@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from shared import osv_audit as osv
+from test_crypto_wheelhouse import sample
 
 ROOT = Path(__file__).resolve().parents[1]
 HASH = 'a' * 64
@@ -75,16 +76,53 @@ def test_repeated_page_and_duplicate_json_keys_fail(tmp_path):
 @pytest.mark.parametrize('advisories,exit_code', [([], 0), ([{'id': 'GHSA-test'}], 1)])
 def test_cli_exit_status_for_findings(monkeypatch, capsys, advisories, exit_code):
     monkeypatch.setattr('sys.argv', ['osv_audit', 'lock.txt'])
-    monkeypatch.setattr(osv, 'audit', lambda paths: {'packages': [{'advisories': advisories}]})
+    monkeypatch.setattr(osv, 'audit', lambda paths, **kwargs: {'packages': [{'advisories': advisories}]})
     assert osv.main() == exit_code
     assert json.loads(capsys.readouterr().out)['packages'][0]['advisories'] == advisories
 
 
 def test_cli_does_not_report_clean_on_network_failure(monkeypatch, capsys):
     monkeypatch.setattr('sys.argv', ['osv_audit', 'lock.txt'])
-    def fail(_):
+    def fail(_, **kwargs):
         raise OSError('network unavailable')
     monkeypatch.setattr(osv, 'audit', fail)
     assert osv.main() == 2
     captured = capsys.readouterr()
     assert captured.out == '' and 'incomplete' in captured.err
+
+
+def test_optional_wheelhouse_matches_lock_and_checks_real_artifacts(sample, tmp_path):
+    from shared import crypto_wheelhouse as wh
+    source, filename, lock = sample
+    block = tmp_path / 'block'
+    wh.build_wheelhouse(source, block)
+    calls = []
+    def send(queries):
+        calls.append(queries)
+        return {'results': [{}]}
+    report = osv.audit([lock], crypto_wheelhouse=block, send=send)
+    assert report['crypto_wheelhouse']['vendor_wheels'][0]['file'] == 'vendor/' + filename
+    assert not report['publisher_provenance_verified'] and not report['release_safe']
+    assert len(calls) == 1
+    other = tmp_path / 'different.lock'
+    other.write_text('demo==1.2 --hash=sha256:' + HASH)
+    with pytest.raises(osv.AuditError, match='do not match'):
+        osv.audit([other], crypto_wheelhouse=block, send=send)
+    assert len(calls) == 1
+
+
+def test_changed_lock_or_wheelhouse_during_lookup_fails(sample, tmp_path):
+    from shared import crypto_wheelhouse as wh
+    source, filename, lock = sample
+    block = tmp_path / 'block'
+    wh.build_wheelhouse(source, block)
+    def tamper_wheel(_):
+        (block / 'vendor' / filename).write_bytes(b'modified')
+        return {'results': [{}]}
+    with pytest.raises(wh.WheelhouseError):
+        osv.audit([lock], crypto_wheelhouse=block, send=tamper_wheel)
+    def tamper_lock(_):
+        lock.write_text(lock.read_text() + '# changed during request\n')
+        return {'results': [{}]}
+    with pytest.raises(osv.AuditError, match='lock changed'):
+        osv.audit([lock], send=tamper_lock)

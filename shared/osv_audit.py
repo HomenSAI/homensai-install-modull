@@ -94,8 +94,21 @@ def _unique(pairs):
     return result
 
 
-def audit(paths, *, send=_send):
+def _crypto_block(path, packages, sources):
+    from shared import crypto_wheelhouse
+
+    checked = crypto_wheelhouse.verify_wheelhouse(path)
+    if (any(packages.get(name) != version for name, version in crypto_wheelhouse.LOCKED_VERSIONS.items())
+            or not any(source['sha256'] == checked['lock_files']['linux']['sha256'] for source in sources)
+            or checked['lock_files']['linux']['sha256'] != checked['lock_files']['windows']['sha256']):
+        raise AuditError('wheelhouse and queried lock do not match')
+    return checked
+
+
+def audit(paths, *, send=_send, crypto_wheelhouse=None):
+    paths = tuple(paths)
     packages, sources = read_locks(paths)
+    block = _crypto_block(crypto_wheelhouse, packages, sources) if crypto_wheelhouse is not None else None
     pending = [(name, version, None) for name, version in sorted(packages.items())]
     findings = {name: {} for name in packages}
     tokens_seen = set()
@@ -140,19 +153,25 @@ def audit(paths, *, send=_send):
             break
     if pending:
         raise AuditError('OSV pagination limit exceeded')
+    if read_locks(paths) != (packages, sources):
+        raise AuditError('lock changed during OSV check')
+    if block is not None and _crypto_block(crypto_wheelhouse, packages, sources) != block:
+        raise AuditError('wheelhouse changed during OSV check')
     return {'source': ENDPOINT, 'checked_at': datetime.now(timezone.utc).isoformat(), 'locks': sources,
             'packages': [{'name': name, 'version': packages[name],
                           'advisories': [{'id': key, 'modified': value} for key, value in sorted(findings[name].items())]}
                          for name in sorted(packages)],
-            'complete_dependency_inventory': False, 'malware_scanned': False, 'release_safe': False}
+            'crypto_wheelhouse': block, 'complete_dependency_inventory': False,
+            'publisher_provenance_verified': False, 'malware_scanned': False, 'release_safe': False}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--crypto-wheelhouse', help='Optional prepared crypto block to verify before and after lookup')
     parser.add_argument('locks', nargs='+', help='Explicit hash-pinned pip lock files (names are sent to OSV)')
     args = parser.parse_args()
     try:
-        report = audit(args.locks)
+        report = audit(args.locks, crypto_wheelhouse=args.crypto_wheelhouse)
     except (AuditError, OSError, UnicodeError, ValueError, RecursionError, urllib.error.URLError):
         print('OSV check failed or is incomplete', file=sys.stderr)
         return 2

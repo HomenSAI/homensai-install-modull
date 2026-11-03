@@ -99,6 +99,24 @@ python -m shared.osv_audit --verify-evidence /trusted/osv-report.json \
 отчёт содержит данные блока. Проверка по-прежнему не подтверждает происхождение
 доверенного хэша, безопасность кода или полноту зависимостей выпуска.
 
+Дополнительная команда связывает этот криптоблок с **подписанным ZIP**:
+
+```sh
+python -m shared.release_security --package /release/product.zip \
+  --envelope /release/product.sig --trusted-public-key-hex "$TRUSTED_PUBLISHER_KEY_HEX" \
+  --product product-id --version 1.0 --crypto-wheelhouse /trusted/crypto-block \
+  --package-prefix crypto --evidence /trusted/osv-report.json \
+  --evidence-sha256 "$TRUSTED_OSV_SHA256" --max-age-seconds 86400 \
+  requirements-crypto.txt build-requirements.txt
+```
+
+Она дважды проверяет подпись, отчёт и полное совпадение указанного каталога
+криптоблока с подписанным содержимым ZIP, не извлекая пакет. Разрешён ровно
+один криптоблок. Код 0 подтверждает только перечисленные проверки; другие
+компоненты выпуска, происхождение ключей, достоверность базы уязвимостей и
+вредоносный код остаются за их пределами. Команда пока не является
+автоматическим условием выпуска и не предотвращает изменение файлов после неё.
+
 ## Первичные источники и кандидаты
 
 * [GitHub: аттестации артефактов](https://docs.github.com/en/actions/concepts/security/artifact-attestations)

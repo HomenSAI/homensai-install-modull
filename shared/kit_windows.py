@@ -14,8 +14,10 @@ from __future__ import annotations
 import base64
 import http.client
 import json
+import ntpath
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import time
@@ -27,6 +29,11 @@ from shared.kit_setup import _SECRET_ENV, STATE_FORMAT, Setup, SetupError, _key,
 _CREATE_NO_WINDOW = 0x08000000
 _SYSTEM_SID, _ADMINS_SID = '*S-1-5-18', '*S-1-5-32-544'
 _INSTALL_STEPS = ('release', 'runtime', 'control', 'services', 'start')
+_WINDOWS_HOOKS = ('pre_start', 'health_checks', 'post_update')
+# Грамматики идентификаторов манифеста (shared/manifest.schema.json): точки нет ни в одной.
+_PRODUCT_ID = re.compile(r'[a-z0-9][a-z0-9_-]{0,62}')
+_COMPONENT = re.compile(r'[a-z][a-z0-9_-]{0,62}')
+_SERVICES_KEY = 'SYSTEM\\CurrentControlSet\\Services\\'
 
 
 def is_admin() -> bool:
@@ -92,6 +99,59 @@ def secure_owned(path: Path):
         raise SetupError('kit.unsafe_state')
 
 
+def _service_image_path(service_id: str) -> str | None:
+    """ImagePath зарегистрированной службы из реестра SCM; None — службы с таким ID нет.
+
+    Реестр читается напрямую (winreg): значение приходит в Unicode, без разбора
+    локализованного вывода sc.exe и перекодировок консоли.
+    """
+    import winreg
+    try:
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, _SERVICES_KEY + service_id)
+    except FileNotFoundError:
+        return None
+    with key:
+        try:
+            value, kind = winreg.QueryValueEx(key, 'ImagePath')
+        except FileNotFoundError:
+            return ''
+    if type(value) is not str:
+        return ''
+    return winreg.ExpandEnvironmentStrings(value) if kind == winreg.REG_EXPAND_SZ else value
+
+
+def _image_executable(image: str) -> str:
+    """Путь исполняемого файла из ImagePath: WinSW 2.x регистрирует его в кавычках без аргументов."""
+    text = image.strip()
+    if text.startswith('"'):
+        end = text.find('"', 1)
+        return text[1:end] if end > 0 else ''
+    return text
+
+
+def _same_file(left: str, right) -> bool:
+    if not left:
+        return False
+    return ntpath.normcase(ntpath.normpath(left)) == ntpath.normcase(ntpath.normpath(str(right)))
+
+
+def check_windows_hooks(manifest):
+    """Хуки pre_start, health_checks, post_update на Windows не исполняются: отказ до любых эффектов."""
+    used = [name for name in _WINDOWS_HOOKS if manifest['hooks'][name]]
+    if used:
+        raise SetupError('kit.windows_hooks_unsupported', hooks=', '.join(used))
+
+
+def _selected_components(manifest, modes):
+    """Фактический состав выбранных режимов; режим, которого нет в манифесте, — None."""
+    from shared.manifest import ManifestError
+    from shared.services import component_order
+    try:
+        return component_order(manifest, tuple(modes))
+    except ManifestError:
+        return None
+
+
 def _expand(argument: str, roots: dict, *, executable: bool) -> str:
     if not argument.startswith('@'):
         return argument
@@ -105,18 +165,29 @@ def _expand(argument: str, roots: dict, *, executable: bool) -> str:
 
 
 class WindowsServices:
-    """Службы компонентов через WinSW: XML пересоздаётся для текущего выпуска перед запуском."""
+    """Службы компонентов через WinSW: XML пересоздаётся для текущего выпуска перед запуском.
+
+    Перед install/start/stop/uninstall каждая уже зарегистрированная служба
+    проверяется на принадлежность: её ImagePath должен указывать на нашу обёртку
+    WinSW в каталоге app/services этой установки. Чужая служба с тем же ID
+    не изменяется — команда отклоняется до любых действий.
+    """
 
     def __init__(self, manifest, home, modes, product_id):
         from shared.services import component_order
         self.manifest, self.home, self.product_id = manifest, home, product_id
         self.components = component_order(manifest, tuple(modes))
+        if _PRODUCT_ID.fullmatch(product_id) is None or any(
+                _COMPONENT.fullmatch(item['name']) is None for item in manifest['components']):
+            raise SetupError('kit.kit_unreadable')
         self.directory = home.app / 'services'
         self.logs = home.app / 'logs'
         self.winsw_source = None
 
     def service_id(self, component):
-        return self.product_id + '-' + component
+        # Точка не входит ни в product_id, ни в имя компонента: пара восстанавливается
+        # однозначно, поэтому ID разных пар (продукт, компонент) не совпадают.
+        return 'homensai.' + self.product_id + '.' + component
 
     def exe(self, component):
         return self.directory / (self.service_id(component) + '.exe')
@@ -160,7 +231,22 @@ class WindowsServices:
         output = _run([self.exe(component), 'status'], check=False).stdout.strip()
         return output.splitlines()[-1].strip() if output else 'Unknown'
 
+    def registered(self, component) -> bool:
+        """Зарегистрирована ли наша служба; служба с тем же ID и чужим ImagePath — отказ."""
+        image = _service_image_path(self.service_id(component))
+        if image is None:
+            return False
+        if not _same_file(_image_executable(image), self.exe(component)):
+            raise SetupError('kit.windows_service_foreign', service=self.service_id(component))
+        return True
+
+    def check_owned(self, components=None):
+        """Проверить принадлежность всех служб набора до первого действия над любой из них."""
+        for component in components or self.components:
+            self.registered(component)
+
     def install(self):
+        self.check_owned()
         for component in self.components:
             if self.state(component) == 'NonExistent':
                 _run([self.exe(component), 'install'])
@@ -173,18 +259,23 @@ class WindowsServices:
             time.sleep(0.5)
 
     def start(self, components=None):
-        for component in components or self.components:
+        components = tuple(components or self.components)
+        self.check_owned(components)
+        for component in components:
             if self.state(component) != 'Started':
                 _run([self.exe(component), 'start'], check=False)
                 self._wait(component, 'Started')
 
     def stop(self, components=None):
-        for component in components or tuple(reversed(self.components)):
+        components = tuple(components or reversed(self.components))
+        self.check_owned(components)
+        for component in components:
             if self.state(component) not in ('Stopped', 'NonExistent'):
                 _run([self.exe(component), 'stop'], check=False)
                 self._wait(component, 'Stopped')
 
     def uninstall(self):
+        self.check_owned()
         self.stop()
         for component in reversed(self.components):
             if self.state(component) != 'NonExistent':
@@ -228,7 +319,12 @@ class WindowsEffects:
         return release, self.services, self.winsw
 
     def stop(self, key, components):
-        self._active()[1].stop(components)
+        # Останавливается весь выбранный набор активного выпуска (прежнего — его
+        # собственным манифестом), а не только состав плана: ни один прежний
+        # писатель не работает во время архива и миграций.
+        services = self._active()[1]
+        extra = tuple(name for name in components if name not in services.components)
+        services.stop(tuple(reversed(services.components)) + extra)
 
     def migrate(self, key, migration, command):
         from shared.update_plan import EffectIndeterminate
@@ -386,6 +482,7 @@ class WindowsSetup(Setup):
         if check_target(metadata['manifest'], {'os': 'windows', 'architecture': 'x86_64',
                                                'execution': 'native'})['status'] != 'supported':
             raise SetupError('kit.unsupported_host')
+        check_windows_hooks(metadata['manifest'])
         if pending is None:
             pending = {'version': self.kit.version, 'install_root': str(install_root), 'modes': selected,
                        'reuse': reuse, 'index': 0}
@@ -468,11 +565,17 @@ class WindowsSetup(Setup):
         self.confirm('kit.confirm_update')
         release = self.store_release(self.state_dir, self.kit)
         metadata = self._verified(release)
+        check_windows_hooks(metadata['manifest'])
         old_release = state['releases'][state['version']]
         old_metadata = self._verified(old_release)
         old_manifest = old_metadata['manifest']
+        # Сравнивается и фактический состав выбранных режимов: иначе служба, исключённая
+        # из режима новым выпуском, не остановилась бы и писала во время архива и миграций.
+        old_selected = _selected_components(old_manifest, state['modes'])
         if ([item['name'] for item in old_manifest['components']]
                 != [item['name'] for item in metadata['manifest']['components']]
+                or old_selected is None
+                or old_selected != _selected_components(metadata['manifest'], state['modes'])
                 or old_manifest['paths'] != metadata['manifest']['paths']
                 or old_manifest['update'] != metadata['manifest']['update']):
             raise SetupError('kit.components_changed')

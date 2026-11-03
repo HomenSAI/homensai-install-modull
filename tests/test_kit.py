@@ -311,6 +311,38 @@ def test_build_kit_with_windows_target(project, tmp_path, monkeypatch):
         build_kit(path, version='3', signing_key=keys['private_key'], output=tmp_path / 'dist', archive=False)
 
 
+def test_build_rejects_hooks_for_windows_target(project, tmp_path):
+    """A-04: подписанный комплект с хуками для Windows раньше собирался, а установка их пропускала."""
+    base, keys = project
+    path = base / 'homensai-kit.json'
+    config = json.loads(path.read_text())
+    winsw = base / 'installer/WinSW-x64.exe'
+    winsw.write_bytes(b'MZ synthetic winsw')
+    (base / 'installer/WinSW-LICENSE.txt').write_text('MIT synthetic')
+    linux_only = dict(config)
+    config['targets'] = ['linux-x86_64', 'windows-x86_64']
+    config['runtime']['windows'] = {'archive': 'installer/python-win.tar.gz',
+                                    'sha256': synthetic_windows_pbs(base / 'installer/python-win.tar.gz'),
+                                    'origin': 'https://example.invalid/win.tar.gz', 'python_version': '3.14.10'}
+    config['winsw'] = {'exe': 'installer/WinSW-x64.exe', 'license': 'installer/WinSW-LICENSE.txt',
+                       'sha256': hashlib.sha256(winsw.read_bytes()).hexdigest()}
+    path.write_text(json.dumps(config))
+    manifest_path = base / 'installer/manifest.json'
+    template = json.loads(manifest_path.read_text())
+    template['hooks'] = {'pre_start': [['python', 'src/kitdemo/hello.py']],
+                         'health_checks': [['python', 'src/kitdemo/hello.py']], 'post_update': []}
+    manifest_path.write_text(json.dumps(template))
+    with pytest.raises(KitError, match='pre_start, health_checks не поддерживаются для цели windows-x86_64'):
+        build_kit(path, version='2', signing_key=keys['private_key'], output=tmp_path / 'dist', archive=False)
+    assert sorted(item.name for item in (tmp_path / 'dist').iterdir()) == []
+    # Для одной цели Linux хуки по-прежнему допустимы.
+    linux_only['runtime'] = {'linux': config['runtime']['linux']}
+    path.write_text(json.dumps(linux_only))
+    result = build_kit(path, version='2', signing_key=keys['private_key'], output=tmp_path / 'dist', archive=False)
+    with zipfile.ZipFile(Path(result['kit']) / 'package/homensai-kit-demo-2.zip') as package:
+        assert json.loads(package.read('package.json'))['manifest']['hooks'] == template['hooks']
+
+
 def test_windows_service_xml_rendering(tmp_path):
     from shared.datahome import resolve_datahome
     from shared.kit_windows import WindowsServices
@@ -322,7 +354,7 @@ def test_windows_service_xml_rendering(tmp_path):
     services = WindowsServices(manifest, home, ['default'], 'homensai-kit-demo')
     assert list(services.components) == ['web', 'worker']
     text = services.xml('worker', '3')
-    assert '<id>homensai-kit-demo-worker</id>' in text and '<depend>homensai-kit-demo-web</depend>' in text
+    assert '<id>homensai.homensai-kit-demo.worker</id>' in text and '<depend>homensai.homensai-kit-demo.web</depend>' in text
     assert str(home.roots['runtime'] / 'python.exe').replace('&', '&amp;') in text
     assert 'root &amp; каталог' in text and 'root & ' not in text
     assert 'app-3' in text and 'kitdemo.worker' in text and '<startmode>Automatic</startmode>' in text

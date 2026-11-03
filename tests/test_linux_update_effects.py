@@ -81,6 +81,26 @@ def test_composed_stop_uses_durable_service_port(setup):
     assert read_effect_receipt(ports._path(state['transaction'] + '/stop', '.service.json'))['status'] == 'done'
 
 
+@pytest.mark.skipif(not sys.platform.startswith('linux'), reason='Linux O_TMPFILE')
+def test_stop_keeps_services_running_if_secure_archive_storage_is_unavailable(setup, monkeypatch):
+    pytest.importorskip('cryptography')
+    from shared import archive_crypto
+    plan, ports, _, state, adapters = setup
+    def unavailable(parent):
+        raise OSError('synthetic unavailable filesystem')
+    monkeypatch.setattr(archive_crypto, '_anonymous_temporary', unavailable)
+    key = state['transaction'] + '/stop'
+    token = _ACTIVE_EFFECT.set((plan, state['transaction'], 'stop'))
+    try:
+        with pytest.raises(EffectIndeterminate):
+            ports.stop(key, tuple(reversed(plan.components)))
+    finally:
+        _ACTIVE_EFFECT.reset(token)
+    assert all(adapter.active for adapter in adapters.values())
+    assert not ports._path(key, '.service.json').exists()
+    assert not list(ports.work.glob('.archive-*'))
+
+
 def test_empty_post_update_requires_active_checkpoint(setup):
     plan, ports, _, state, _ = setup
     key = state['transaction'] + '/post_update'

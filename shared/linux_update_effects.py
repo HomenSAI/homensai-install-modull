@@ -88,6 +88,15 @@ class LinuxSignedUpdateEffects:
             self._active_phase(key, 'stop', 'forward')
             try:
                 self._verify_previous()
+                if self.lifecycle.ports.password_provider is not None:
+                    from shared import archive_crypto
+                    # Probe the exact archive filesystem before stopping services.
+                    # This is not a reservation: later failures remain possible.
+                    work = checked_path(self.lifecycle.ports.work)
+                    work.mkdir(parents=True, exist_ok=True)
+                    archive_crypto._aesgcm()
+                    with archive_crypto._anonymous_temporary(work):
+                        pass
                 self.lifecycle.stop(key, components)
                 self._verify_previous()
             except Exception:

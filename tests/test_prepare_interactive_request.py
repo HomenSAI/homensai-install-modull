@@ -7,6 +7,7 @@ import pytest
 
 from shared import api
 from shared.interactive_install import read_config
+from shared.i18n import translate
 from shared.prepare_interactive_request import main, prepare
 from test_api_signed_preflight import signed_request
 from test_fresh_controller import workflow
@@ -74,3 +75,26 @@ def test_fsync_failure_does_not_publish_partial_request(workflow, tmp_path, monk
                 handle=lambda request: {'ok': True, 'result': {'state': 'no_checkpoint'}})
     assert not target.exists()
     assert not list(tmp_path.glob('.homensai-request-*'))
+
+
+def test_competing_destination_is_not_overwritten(workflow, tmp_path, monkeypatch):
+    import os
+    target = tmp_path / 'request.json'
+    original_link = os.link
+    def competing_link(source, destination, **kwargs):
+        Path(destination).write_bytes(b'other request')
+        return original_link(source, destination, **kwargs)
+    monkeypatch.setattr('shared.prepare_interactive_request.os.link', competing_link)
+    with pytest.raises(FileExistsError):
+        prepare(template_for(workflow), workflow['envelope'], workflow['trusted_public_key'], str(target),
+                handle=lambda request: {'ok': True, 'result': {'state': 'no_checkpoint'}})
+    assert target.read_bytes() == b'other request'
+    assert not list(tmp_path.glob('.homensai-request-*'))
+
+
+@pytest.mark.parametrize('language', ['ru', 'en', 'de'])
+def test_preparation_failure_is_localized_and_sanitized(tmp_path, capsys, language):
+    result = main(['--template', str(tmp_path / 'missing'), '--envelope-file', '/missing-envelope',
+                   '--public-key-file', '/missing-key', '--output', str(tmp_path / 'output'), '--language', language])
+    assert result == 2
+    assert capsys.readouterr().err.strip() == translate(language, 'interactive.request_failed')

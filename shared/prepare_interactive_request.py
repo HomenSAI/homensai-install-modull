@@ -12,6 +12,7 @@ import tempfile
 
 from shared import api
 from shared.datahome import checked_path
+from shared.i18n import LanguageError, available_languages, translate
 from shared.interactive_install import MAX_CONFIG_BYTES, _Parser, read_config
 from shared.package_signing import MAX_ENVELOPE
 
@@ -81,15 +82,22 @@ def main(argv=None):
     parser.add_argument('--public-key-file', required=True, help='Independently trusted raw 32-byte Ed25519 key')
     parser.add_argument('--output', required=True, help='New absolute request file')
     parser.add_argument('--language', default='en', help='Installed language code')
+    language = 'en'
     try:
         args = parser.parse_args(argv)
+        if args.language not in available_languages():
+            raise ValueError('unknown language')
+        language = args.language
         prepare(read_config(args.template), _read_public_file(args.envelope_file, MAX_ENVELOPE),
                 _read_public_file(args.public_key_file, 32), args.output, language=args.language)
-        print('Request saved. Keep it for recovery / Запрос сохранён. Сохраните его для восстановления.')
+        print(translate(language, 'interactive.request_saved'))
         return 0
-    except (OSError, ValueError, UnicodeError, RecursionError):
-        print('Request not confirmed; inspect the output before retrying / Запрос не подтверждён; проверьте файл перед повтором.',
-              file=sys.stderr)
+    except (OSError, ValueError, UnicodeError, RecursionError, LanguageError):
+        try:
+            message = translate(language, 'interactive.request_failed')
+        except LanguageError:
+            message = 'Request not confirmed; inspect the output before retrying.'
+        print(message, file=sys.stderr)
         return 2
 
 

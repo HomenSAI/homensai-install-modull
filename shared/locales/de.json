@@ -113,5 +113,8 @@
   "interactive.inspection_failed": "Installationsanfrage oder Status konnten nicht geprüft werden.",
   "interactive.install_failed": "Installation nicht bestätigt. Status vor einem erneuten Versuch prüfen.",
   "interactive.cancelled": "Installation abgebrochen.",
-  "interactive.recorded": "Der Ablauf wurde als abgeschlossen vermerkt. Aktueller Zustand und Prozessidentität wurden nicht geprüft."
+  "interactive.recorded": "Der Ablauf wurde als abgeschlossen vermerkt. Aktueller Zustand und Prozessidentität wurden nicht geprüft.",
+  "interactive.request_saved": "Anfrage gespeichert. Für die Wiederherstellung aufbewahren.",
+  "interactive.request_failed": "Anfrage nicht bestätigt; Datei vor einem erneuten Versuch prüfen.",
+  "interactive.input_failed": "Anfrage, Sprache oder Terminaleingabe konnten nicht gelesen werden."
 }

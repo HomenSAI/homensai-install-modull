@@ -108,14 +108,22 @@ def main(argv=None):
     parser = _Parser(description='Interactive experimental Linux installation', allow_abbrev=False)
     parser.add_argument('--request-file', required=True, help='JSON parameters for install-portable-linux')
     parser.add_argument('--language', default='en', help='Installed language code')
+    language = 'en'
     try:
         args = parser.parse_args(argv)
+        if args.language not in available_languages():
+            raise ValueError('unknown language')
+        language = args.language
         if not sys.stdin.isatty():
             raise ValueError('interactive terminal required')
         params = read_config(Path(args.request_file))
-        return run(params, args.language, ask=input, write=print)
+        return run(params, language, ask=input, write=print)
     except (OSError, ValueError, UnicodeError, RecursionError, LanguageError):
-        print('Unable to read request or language / Не удалось прочитать запрос или язык', file=sys.stderr)
+        try:
+            message = translate(language, 'interactive.input_failed')
+        except LanguageError:
+            message = 'Unable to read request or language.'
+        print(message, file=sys.stderr)
         return 2
 
 

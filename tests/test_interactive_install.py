@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from shared import api
+from shared.i18n import translate
 from shared.interactive_install import main, read_config, run
 from test_api_signed_preflight import signed_request
 from test_fresh_controller import workflow
@@ -91,3 +92,10 @@ def test_config_rejects_duplicates_and_symlinks(tmp_path):
 def test_invalid_arguments_never_echo_accidental_secret(capsys):
     assert main(['--request-file', 'valid.json', '--password', 'synthetic-secret']) == 2
     assert 'synthetic-secret' not in capsys.readouterr().err
+
+
+@pytest.mark.parametrize('language', ['ru', 'en', 'de'])
+def test_missing_terminal_error_is_localized(monkeypatch, capsys, language):
+    monkeypatch.setattr('sys.stdin.isatty', lambda: False)
+    assert main(['--request-file', '/missing', '--language', language]) == 2
+    assert capsys.readouterr().err.strip() == translate(language, 'interactive.input_failed')

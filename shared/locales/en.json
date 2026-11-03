@@ -113,5 +113,8 @@
   "interactive.inspection_failed": "The installation request or checkpoint could not be verified.",
   "interactive.install_failed": "Installation was not confirmed. Inspect the checkpoint before retrying.",
   "interactive.cancelled": "Installation cancelled.",
-  "interactive.recorded": "The workflow was recorded complete. Current health and process identity are not verified."
+  "interactive.recorded": "The workflow was recorded complete. Current health and process identity are not verified.",
+  "interactive.request_saved": "Request saved. Keep it for recovery.",
+  "interactive.request_failed": "Request not confirmed; inspect the output before retrying.",
+  "interactive.input_failed": "Unable to read request, language, or terminal input."
 }

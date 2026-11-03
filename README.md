@@ -25,6 +25,11 @@ native-ветки (NSIS, build2 — FAIL по откату) ещё не прин
 
 См. [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md), [STATUS.md](STATUS.md).
 
+Руководства: [администратора](docs/ADMIN-GUIDE.md) и
+[разработчика адаптера продукта](docs/ADAPTER-GUIDE.md). Удаление с
+сохранением данных и переустановка Linux user-systemd —
+[UNINSTALL](docs/UNINSTALL.md).
+
 Актуальное состояние и результаты проверок — в [плане работ](docs/WORK-PLAN.md).
 Для ограниченной первой установки Linux user-systemd разрабатывается
 [интерактивный сценарий](docs/INTERACTIVE-INSTALL.md), использующий подписанный

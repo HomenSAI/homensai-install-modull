@@ -72,7 +72,7 @@ def cycle_terminal_pointer(*, action, cycle_key, reconcile=False, **options):
                 or _KEY.fullmatch(cycle_key) is None or type(reconcile) is not bool
                 or (reconcile and action != 'stop')):
             raise UpdateError('Недопустимый запрос цикла')
-        with _verified_terminal_group(**options) as (group, observation):
+        with _verified_terminal_group(**options, _verify_runtime=action == 'start') as (group, observation):
             update = observation['state']
             root = checked_path(options['install_root'])
             control = checked_path(root / '.homensai-control')

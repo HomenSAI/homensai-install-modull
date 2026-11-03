@@ -16,24 +16,33 @@ from shared.systemd_group import SystemdUserGroup
 from shared.systemd_user_load import _absent, _manager_call, _read_receipt
 from shared.systemd_user_publish import _publication_receipt, _unit_directory
 from shared.update_plan import UpdateError
+from shared.update_prepare import verify_started_linux_update
 
 
 def _inspect_started_pointer_group(*, unit_dir, load_key, runtime_key, runtime_reserve_bytes,
-                                   runner=None, timeout=30, _locks_held=False, **options):
+                                   runner=None, timeout=30, _locks_held=False, _verify_runtime=True, **options):
     """Observe signed units and systemd state, without authorizing any effect.
 
     Caller must independently trust the keys, manager, local installer and all
     writers. Results are observations, not a process identity or health check.
     """
     try:
-        if (any(type(key) is not str or re.fullmatch(r'[a-f0-9]{32}', key) is None
+        if (type(_verify_runtime) is not bool or type(_locks_held) is not bool
+                or (not _verify_runtime and not _locks_held)
+                or type(runtime_reserve_bytes) is not int or not 0 <= runtime_reserve_bytes <= 2**63 - 1
+                or any(type(key) is not str or re.fullmatch(r'[a-f0-9]{32}', key) is None
                 for key in (load_key, runtime_key, options['operation_id']))
                 or len({load_key, runtime_key, options['operation_id']}) != 3
                 or type(timeout) not in (int, float) or not 0 < timeout <= 120
                 or (runner is not None and not callable(runner))):
             raise UpdateError('Недопустимые параметры служб')
-        runtime = inspect_started_pointer_runtime(runtime_key=runtime_key,
-            runtime_reserve_bytes=runtime_reserve_bytes, _locks_held=_locks_held, **options)
+        def inspect_runtime():
+            if _verify_runtime:
+                return inspect_started_pointer_runtime(runtime_key=runtime_key,
+                    runtime_reserve_bytes=runtime_reserve_bytes, _locks_held=_locks_held, **options)
+            verified = verify_started_linux_update(**options, _allow_terminal=True, _locks_held=_locks_held)
+            return {'state': verified['state'], 'runtime_verified': False}
+        runtime = inspect_runtime()
         old_options = dict(trusted_public_key=options['old_key'], expected_product_id=options['product_id'],
                            expected_version=options['old_version'])
         old = verify_signed_package(options['old_package'], options['old_envelope'], **old_options)
@@ -91,15 +100,14 @@ def _inspect_started_pointer_group(*, unit_dir, load_key, runtime_key, runtime_r
         if (_read_receipt(load_path) != load or _publication_receipt(publication_path) != publication
                 or not _absent(directory / ('.' + options['product_id'] + '.homensai-units.pending'))
                 or any(not _absent(directory / (item['name'] + '.d')) for item in plan['units'])
-                or inspect_started_pointer_runtime(runtime_key=runtime_key,
-                    runtime_reserve_bytes=runtime_reserve_bytes, _locks_held=_locks_held, **options) != runtime):
+                or inspect_runtime() != runtime):
             raise UpdateError('Состояние изменилось во время проверки')
         for adapter, previous in zip(adapters, observed):
             current = adapter.inspect()
             if (current['active_state'] != previous['active_state'] or
                     current['sub_state'] != previous['sub_state']):
                 raise UpdateError('Состояние служб изменилось')
-        public = {'state': runtime['state'], 'units': observed, 'runtime_verified': True,
+        public = {'state': runtime['state'], 'units': observed, 'runtime_verified': _verify_runtime,
                   'process_identity_verified': False, 'resume_authorized': False}
         group = SystemdUserGroup(old['manifest'], modes=options['modes'],
                                  adapters=dict(zip(order, adapters)))

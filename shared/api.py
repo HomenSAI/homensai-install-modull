@@ -44,7 +44,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 60
+API_MINOR = 61
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -201,10 +201,12 @@ def handle(request: Any) -> dict:
                     operations.extend(['prepare-signed-linux-update', 'inspect-signed-linux-update'])
                     operations.append('inspect-started-pointer-update')
                     operations.append('run-pointer-linux-update')
+                    operations.append('cycle-updated-pointer-linux')
                     # Проверка записывает служебные файлы блокировок, не изменяя продукт.
                     mutating_operations.extend(['prepare-signed-linux-update', 'inspect-signed-linux-update'])
                     mutating_operations.append('inspect-started-pointer-update')
                     mutating_operations.append('run-pointer-linux-update')
+                    mutating_operations.append('cycle-updated-pointer-linux')
                     operations.extend(["plan-systemd-user-units", "publish-systemd-user-units", "load-systemd-user-units"])
                     mutating_operations.extend(["publish-systemd-user-units", "load-systemd-user-units"])
                     operations.extend(["plan-portable-systemd-user-units", "publish-portable-systemd-user-units",
@@ -441,19 +443,23 @@ def handle(request: Any) -> dict:
                 return _error(request_id, 'docker_plan_failed', 'Не удалось проверить Docker-план',
                               language, 'api.docker_plan_failed')
         elif operation in ('prepare-signed-linux-update', 'inspect-signed-linux-update',
-                           'inspect-started-pointer-update', 'run-pointer-linux-update'):
+                           'inspect-started-pointer-update', 'run-pointer-linux-update',
+                           'cycle-updated-pointer-linux'):
             fields = {'new_package', 'new_envelope', 'new_key', 'old_package', 'old_envelope', 'old_key',
                       'product_id', 'old_version', 'new_version', 'install_root', 'work_dir', 'modes',
                       'migration_ids', 'idempotency_key'}
             pointer_inspect = operation == 'inspect-started-pointer-update'
             pointer_run = operation == 'run-pointer-linux-update'
-            if pointer_inspect or pointer_run:
+            pointer_cycle = operation == 'cycle-updated-pointer-linux'
+            if pointer_inspect or pointer_run or pointer_cycle:
                 fields |= {'unit_dir', 'load_key', 'runtime_key', 'runtime_reserve_bytes'}
+            if pointer_cycle:
+                fields |= {'action', 'cycle_key', 'reconcile'}
             if pointer_run:
                 fields |= {'password_env', 'action', 'reconcile_stop_key', 'interpreter',
                            'interpreter_sha256', 'timeout_seconds'}
             strings = fields - {'modes', 'migration_ids', 'runtime_reserve_bytes',
-                                'reconcile_stop_key', 'timeout_seconds'}
+                                'reconcile_stop_key', 'timeout_seconds', 'reconcile'}
             if (set(params) != fields or any(type(params[name]) is not str or not params[name] for name in strings)
                     or type(params['modes']) is not list or not params['modes']
                     or type(params['migration_ids']) is not list
@@ -462,11 +468,16 @@ def handle(request: Any) -> dict:
                     or any(re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', params[name]) is None
                            for name in ('old_version', 'new_version'))
                     or re.fullmatch(r'[a-f0-9]{32}', params['idempotency_key']) is None
-                    or ((pointer_inspect or pointer_run) and (type(params['runtime_reserve_bytes']) is not int
+                    or ((pointer_inspect or pointer_run or pointer_cycle) and (type(params['runtime_reserve_bytes']) is not int
                         or not 0 <= params['runtime_reserve_bytes'] <= MAX_DISK_BYTES
                         or any(re.fullmatch(r'[a-f0-9]{32}', params[name]) is None
                                for name in ('load_key', 'runtime_key'))
                         or len({params['idempotency_key'], params['load_key'], params['runtime_key']}) != 3))
+                    or (pointer_cycle and (params['action'] not in ('start', 'stop')
+                        or re.fullmatch(r'[a-f0-9]{32}', params['cycle_key']) is None
+                        or params['cycle_key'] in (params['idempotency_key'], params['load_key'], params['runtime_key'])
+                        or type(params['reconcile']) is not bool
+                        or (params['reconcile'] and params['action'] != 'stop')))
                     or (pointer_run and (re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', params['password_env']) is None
                         or params['action'] not in ('start', 'reopen', 'reconcile-stop')
                         or type(params['timeout_seconds']) is not int or not 1 <= params['timeout_seconds'] <= 3600
@@ -485,7 +496,10 @@ def handle(request: Any) -> dict:
             if len(new_key) != 32 or len(old_key) != 32:
                 raise InvalidRequest()
             try:
-                if pointer_run:
+                if pointer_cycle:
+                    from shared.pointer_terminal_cycle import cycle_terminal_pointer
+                    handler = cycle_terminal_pointer
+                elif pointer_run:
                     from shared.pointer_controller import run_pointer_linux_update
                     handler = run_pointer_linux_update
                 elif pointer_inspect:
@@ -495,7 +509,9 @@ def handle(request: Any) -> dict:
                     handler = (prepare_signed_linux_update if operation == 'prepare-signed-linux-update'
                                else verify_started_linux_update)
                 extra = ({name: params[name] for name in ('unit_dir', 'load_key', 'runtime_key',
-                         'runtime_reserve_bytes')} if pointer_inspect or pointer_run else {})
+                         'runtime_reserve_bytes')} if pointer_inspect or pointer_run or pointer_cycle else {})
+                if pointer_cycle:
+                    extra.update(action=params['action'], cycle_key=params['cycle_key'], reconcile=params['reconcile'])
                 if pointer_run:
                     extra.update(password_env=params['password_env'], action=params['action'],
                                  reconcile_stop_key=params['reconcile_stop_key'], interpreter=params['interpreter'],
@@ -508,6 +524,9 @@ def handle(request: Any) -> dict:
                 if operation == 'inspect-signed-linux-update':
                     result.update(effects_verified=False, resume_authorized=False)
             except (UpdatePrepareError, UpdateError):
+                if pointer_cycle:
+                    return _error(request_id, 'linux_cycle_failed', 'Не удалось подтвердить цикл служб',
+                                  language, 'api.linux_cycle_failed')
                 if pointer_run:
                     return _error(request_id, 'update_run_failed', 'Не удалось подтвердить обновление',
                                   language, 'api.update_run_failed')

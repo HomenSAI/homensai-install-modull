@@ -1,4 +1,7 @@
 """Durable post-update service cycle with synthetic manager and signed packages."""
+import json
+from pathlib import Path
+
 import pytest
 
 from shared.pointer_terminal_cycle import cycle_terminal_pointer
@@ -121,3 +124,76 @@ def test_cycle_refuses_running_update_without_writing_journal(installation):
     assert all(call[0] == 'show' for call in manager.calls[before:])
     assert not (root / '.homensai-control/pointer-terminal-cycle.json').exists()
     assert plan.status() == state
+
+
+def test_api_cycles_updated_services_without_duplicate_commands(completed, monkeypatch):
+    from shared import api, pointer_recovery
+    from test_update_prepare import api_query
+    root, plan, args, manager = completed
+    excluded = {'unit_dir', 'load_key', 'runtime_key', 'runtime_reserve_bytes', 'runner'}
+    request = api_query({name: value for name, value in args.items() if name not in excluded})
+    request['operation'] = 'cycle-updated-pointer-linux'
+    request['params'].update({name: args[name] for name in
+                              ('unit_dir', 'load_key', 'runtime_key', 'runtime_reserve_bytes')})
+    request['params'].update(action='stop', cycle_key='e' * 32, reconcile=False)
+    schema = json.loads((Path(__file__).resolve().parents[1] / 'shared/api-v1-request.schema.json').read_text())
+    assert pytest.importorskip('jsonschema').Draft202012Validator(schema).is_valid(request)
+    monkeypatch.setattr(pointer_recovery, '_run', manager)
+    caps = api.handle({'api_major': 1, 'request_id': 'caps', 'operation': 'capabilities', 'params': {}})['result']
+    assert caps['api_minor'] >= 61 and request['operation'] in caps['mutating_operations']
+    before = len(manager.calls)
+    stopped = api.handle(request)
+    assert stopped['ok'] and stopped['result']['state'] == 'stopped'
+    assert str(root) not in json.dumps(stopped)
+    assert api.handle(request)['result'] == stopped['result']
+    assert len([call for call in manager.calls[before:] if call[0] == 'stop']) == 3
+    request['params'].update(action='start', cycle_key='f' * 32)
+    started = api.handle(request)
+    assert started['ok'] and started['result']['state'] == 'started'
+    assert not started['result']['health_verified'] and not started['result']['process_identity_verified']
+    assert api.handle(request)['result'] == started['result']
+    assert len([call for call in manager.calls[before:] if call[0] == 'start']) == 3
+    request['params']['reconcile'] = True
+    assert api.handle(request)['error']['code'] == 'invalid_request'
+    assert plan.status()['outcome'] == 'updated'
+
+
+def test_damaged_runtime_allows_stop_but_blocks_start(completed):
+    from shared.pointer_recovery import inspect_started_pointer_group
+    root, plan, args, manager = completed
+    launcher = root / 'runtime/lib/homensai/portable_launcher.py'
+    original = launcher.read_bytes()
+    launcher.write_bytes(b'tampered')
+    with pytest.raises(UpdateError):
+        inspect_started_pointer_group(**args, _verify_runtime=False)
+    assert cycle_terminal_pointer(**args, action='stop', cycle_key='e' * 32)['state'] == 'stopped'
+    before = len([call for call in manager.calls if call[0] == 'start'])
+    with pytest.raises(UpdateError):
+        cycle_terminal_pointer(**args, action='start', cycle_key='f' * 32)
+    assert len([call for call in manager.calls if call[0] == 'start']) == before
+    launcher.write_bytes(original)
+    assert cycle_terminal_pointer(**args, action='start', cycle_key='f' * 32)['state'] == 'started'
+    assert plan.status()['outcome'] == 'updated'
+
+
+def test_api_stops_damaged_runtime_and_refuses_restart(completed, monkeypatch):
+    from shared import api, pointer_recovery
+    from test_update_prepare import api_query
+    root, _, args, manager = completed
+    excluded = {'unit_dir', 'load_key', 'runtime_key', 'runtime_reserve_bytes', 'runner'}
+    request = api_query({name: value for name, value in args.items() if name not in excluded})
+    request['operation'] = 'cycle-updated-pointer-linux'
+    request['params'].update({name: args[name] for name in
+                              ('unit_dir', 'load_key', 'runtime_key', 'runtime_reserve_bytes')})
+    request['params'].update(action='stop', cycle_key='e' * 32, reconcile=False)
+    monkeypatch.setattr(pointer_recovery, '_run', manager)
+    launcher = root / 'runtime/lib/homensai/portable_launcher.py'
+    original = launcher.read_bytes()
+    launcher.write_bytes(b'tampered')
+    stopped = api.handle(request)
+    assert stopped['ok'] and stopped['result']['state'] == 'stopped'
+    request['params'].update(action='start', cycle_key='f' * 32)
+    assert api.handle(request)['error']['code'] == 'linux_cycle_failed'
+    assert not manager.active
+    launcher.write_bytes(original)
+    assert api.handle(request)['result']['state'] == 'started'

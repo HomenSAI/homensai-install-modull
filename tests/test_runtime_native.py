@@ -471,10 +471,19 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                     outcome = update.run()
                 if update_case == 'terminal_cycle':
                     from shared.pointer_terminal_cycle import cycle_terminal_pointer
+                    from shared.update_plan import UpdateError
                     cycle_args = {name: value for name, value in update_args.items() if name not in
                                   ('password_provider', 'interpreter', 'interpreter_sha256', 'timeout')}
-                    assert cycle_terminal_pointer(**cycle_args, action='stop', cycle_key='2' * 32)['state'] == 'stopped'
-                    assert cycle_terminal_pointer(**cycle_args, action='stop', cycle_key='2' * 32)['state'] == 'stopped'
+                    launcher = install / 'runtime/lib/homensai/portable_launcher.py'
+                    original_launcher = launcher.read_bytes()
+                    try:
+                        launcher.write_bytes(b'synthetic corruption')
+                        assert cycle_terminal_pointer(**cycle_args, action='stop', cycle_key='2' * 32)['state'] == 'stopped'
+                        assert cycle_terminal_pointer(**cycle_args, action='stop', cycle_key='2' * 32)['state'] == 'stopped'
+                        with pytest.raises(UpdateError):
+                            cycle_terminal_pointer(**cycle_args, action='start', cycle_key='3' * 32)
+                    finally:
+                        launcher.write_bytes(original_launcher)
                     assert cycle_terminal_pointer(**cycle_args, action='start', cycle_key='3' * 32)['state'] == 'started'
                     deadline = time.monotonic() + 30
                     while True:

@@ -10,7 +10,7 @@
   "required": ["api_major", "operation", "request_id", "params"],
   "properties": {
     "api_major": {"type": "integer", "const": 1},
-    "operation": {"type": "string", "enum": ["capabilities", "validate-language-catalog", "check-archive-storage", "validate", "preflight-fresh", "check-target", "plan-target-dependencies", "plan-signed-target-dependencies", "audit-signed-wheels", "check-local-health", "check-docker-engine", "verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release", "install-portable-linux", "inspect-portable-linux-install", "update-plan-status", "plan-update", "inspect-update-recovery", "import-update-archive", "prepare-signed-linux-update", "inspect-signed-linux-update", "inspect-started-pointer-update", "run-pointer-linux-update", "plan-signed-compose", "prepare-signed-compose", "inspect-signed-compose-images", "control-signed-compose", "check-signed-compose-health", "compose-control-status", "plan-systemd-user-units", "publish-systemd-user-units", "load-systemd-user-units", "plan-pointer-systemd-user-units", "publish-pointer-systemd-user-units", "load-pointer-systemd-user-units", "inspect-pending-pointer-systemd-user-units", "plan-portable-systemd-user-units", "publish-portable-systemd-user-units", "load-portable-systemd-user-units", "plan-linux-runtime", "prepare-linux-runtime", "verify-linux-runtime", "check-pointer-linux-start", "start-pointer-linux", "stop-pointer-linux", "reconcile-pointer-linux-start", "reconcile-pointer-linux-stop", "check-portable-linux-start", "start-portable-linux", "stop-portable-linux", "reconcile-portable-linux-stop", "reconcile-portable-linux-start", "cycle-portable-linux"]},
+    "operation": {"type": "string", "enum": ["capabilities", "validate-language-catalog", "check-archive-storage", "validate", "preflight-fresh", "check-target", "plan-target-dependencies", "plan-signed-target-dependencies", "audit-signed-wheels", "check-local-health", "check-docker-engine", "verify-package", "inspect-fresh-package", "inspect-native-fresh-package", "fresh-status", "verify-native-release", "prepare-native-release", "install-portable-linux", "inspect-portable-linux-install", "update-plan-status", "plan-update", "inspect-update-recovery", "import-update-archive", "prepare-signed-linux-update", "inspect-signed-linux-update", "inspect-started-pointer-update", "run-pointer-linux-update", "cycle-updated-pointer-linux", "plan-signed-compose", "prepare-signed-compose", "inspect-signed-compose-images", "control-signed-compose", "check-signed-compose-health", "compose-control-status", "plan-systemd-user-units", "publish-systemd-user-units", "load-systemd-user-units", "plan-pointer-systemd-user-units", "publish-pointer-systemd-user-units", "load-pointer-systemd-user-units", "inspect-pending-pointer-systemd-user-units", "plan-portable-systemd-user-units", "publish-portable-systemd-user-units", "load-portable-systemd-user-units", "plan-linux-runtime", "prepare-linux-runtime", "verify-linux-runtime", "check-pointer-linux-start", "start-pointer-linux", "stop-pointer-linux", "reconcile-pointer-linux-start", "reconcile-pointer-linux-stop", "check-portable-linux-start", "start-portable-linux", "stop-portable-linux", "reconcile-portable-linux-stop", "reconcile-portable-linux-start", "cycle-portable-linux"]},
     "request_id": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
     "language": {"type": "string", "pattern": "^[a-z]{2,3}(?![\\s\\S])"},
     "params": {"type": "object"}
@@ -225,6 +225,25 @@
       "load_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"},
       "runtime_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"},
       "runtime_reserve_bytes": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807},
+      "idempotency_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}
+    }}}},
+    {"properties": {"operation": {"const": "cycle-updated-pointer-linux"}, "params": {"type": "object", "additionalProperties": false, "required": ["new_package", "new_envelope", "new_key", "old_package", "old_envelope", "old_key", "product_id", "old_version", "new_version", "install_root", "work_dir", "modes", "migration_ids", "idempotency_key", "unit_dir", "load_key", "runtime_key", "runtime_reserve_bytes", "action", "cycle_key", "reconcile"], "properties": {
+      "new_package": {"type": "string", "minLength": 1, "maxLength": 8192}, "old_package": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "new_envelope": {"type": "string", "minLength": 4, "maxLength": 5464}, "old_envelope": {"type": "string", "minLength": 4, "maxLength": 5464},
+      "new_key": {"type": "string", "minLength": 44, "maxLength": 44}, "old_key": {"type": "string", "minLength": 44, "maxLength": 44},
+      "product_id": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9_-]*(?![\\s\\S])"},
+      "old_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+      "new_version": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"},
+      "install_root": {"type": "string", "minLength": 1, "maxLength": 8192}, "work_dir": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "modes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+      "migration_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(?![\\s\\S])"}},
+      "unit_dir": {"type": "string", "minLength": 1, "maxLength": 8192},
+      "load_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"},
+      "runtime_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"},
+      "runtime_reserve_bytes": {"type": "integer", "minimum": 0, "maximum": 9223372036854775807},
+      "action": {"enum": ["start", "stop"]},
+      "cycle_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"},
+      "reconcile": {"type": "boolean"},
       "idempotency_key": {"type": "string", "pattern": "^[a-f0-9]{32}(?![\\s\\S])"}
     }}}},
     {"properties": {"operation": {"const": "run-pointer-linux-update"}, "params": {"type": "object", "additionalProperties": false, "required": ["new_package", "new_envelope", "new_key", "old_package", "old_envelope", "old_key", "product_id", "old_version", "new_version", "install_root", "work_dir", "modes", "migration_ids", "idempotency_key", "unit_dir", "load_key", "runtime_key", "runtime_reserve_bytes", "password_env", "action", "reconcile_stop_key", "interpreter", "interpreter_sha256", "timeout_seconds"], "properties": {

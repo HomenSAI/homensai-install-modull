@@ -15,7 +15,7 @@ def _unit_binding(group):
 
 @contextmanager
 def _verified_terminal_group(*, unit_dir, load_key, runtime_key, runtime_reserve_bytes,
-                             runner=None, timeout=30, **options):
+                             runner=None, timeout=30, _verify_runtime=True, **options):
     """Hold both cooperative locks and recheck signed state before and after use.
 
     Internal building block only. The group is valid only within the context;
@@ -32,7 +32,7 @@ def _verified_terminal_group(*, unit_dir, load_key, runtime_key, runtime_reserve
                           modes=options['modes'], migration_ids=options['migration_ids'], guard_effects=True)
         inspect_options = dict(unit_dir=unit_dir, load_key=load_key, runtime_key=runtime_key,
             runtime_reserve_bytes=runtime_reserve_bytes, runner=runner, timeout=timeout,
-            _locks_held=True, **options)
+            _locks_held=True, _verify_runtime=_verify_runtime, **options)
         with _locked_update_scope(root, plan.lock_path):
             before, group = _inspect_started_pointer_group(**inspect_options)
             if before['state']['outcome'] not in ('updated', 'rolled_back'):

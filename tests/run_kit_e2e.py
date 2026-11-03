@@ -73,10 +73,28 @@ command -v python3 >/dev/null 2>&1 && fail "система не должна с�
 step "проверка целостности комплекта"
 (cd "$K1" && sha256sum -c --quiet SHA256SUMS) || fail "SHA256SUMS"
 
-step "прерванная установка и продолжение"
+# SIGKILL установщика и процесса API в момент, когда в файле появилась отметка pending.
+kill_at() {
+    file=$1; pattern=$2; shift 2
+    "$@" > /tmp/killed.log 2>&1 &
+    pid=$!
+    hit=0
+    for i in $(seq 1 6000); do
+        if grep -q "$pattern" "$file" 2>/dev/null; then
+            pkill -KILL -f 'homensai_setup.py|-m shared.api'; hit=1; break
+        fi
+        kill -0 $pid 2>/dev/null || break
+        sleep 0.05
+    done
+    wait $pid
+    echo "прервано на '$pattern' в $(basename "$file"): $hit"
+    [ "$hit" = 1 ] || { cat /tmp/killed.log; fail "не удалось прервать на $pattern"; }
+}
+
+step "установка, прерванная SIGKILL во время подготовки runtime (pending), и продолжение"
 mkdir -p "/home/homenstest/Программы"
-timeout -s KILL 4 "$K1/setup.sh" --yes --language ru install --root "$ROOTDIR"
-echo "код прерванной установки: $?"
+kill_at "$ROOTDIR/.homensai-control/linux-runtime.json" pending \
+    "$K1/setup.sh" --yes --language ru install --root "$ROOTDIR"
 "$K1/setup.sh" --yes --language ru install --root "$ROOTDIR" || fail "install v1"
 wait_release 1 || fail "health v1"
 http /notes | grep -q '\[\]' || fail "новая база должна быть пустой: $(http /notes)"
@@ -88,8 +106,13 @@ step "обновление без пароля отклоняется"
 "$K2/setup.sh" --yes --language ru update && fail "update без пароля"
 wait_release 1 || fail "v1 должна работать после отказа"
 
-step "обновление 1 -> 2 с миграцией"
-HOMENSAI_ARCHIVE_PASSWORD='synthetic-e2e-password' "$K2/setup.sh" --yes --language ru update || fail "update 1->2"
+step "обновление 1 -> 2 с миграцией, прерванное SIGKILL при публикации служб в консолидации"
+export HOMENSAI_ARCHIVE_PASSWORD='synthetic-e2e-password'
+kill_at "$ROOTDIR/.homensai-control/user-systemd-publication.json" pending \
+    "$K2/setup.sh" --yes --language ru update
+grep -q '"status": "consolidating"' "$STATE/state.json" || fail "ожидалась прерванная консолидация"
+unset HOMENSAI_ARCHIVE_PASSWORD
+"$K2/setup.sh" --yes --language ru update || fail "продолжение консолидации без пароля"
 wait_release 2 || fail "health v2"
 http /notes | grep -q 'migrated notes-2' || fail "миграция notes-2: $(http /notes)"
 ls "$STATE"/work/update-*/ | grep -q . || fail "архив обновления"

@@ -262,3 +262,47 @@ def test_reopen_reconciles_stopped_group_without_repeating_stop(installation, mo
     before = len([call for call in manager.calls if call[0] == 'stop'])
     assert reopened.run(resume_indeterminate=True)['outcome'] == 'updated'
     assert len([call for call in manager.calls if call[0] == 'stop']) == before
+
+
+def test_api_inspects_interrupted_pointer_group(installation, monkeypatch):
+    from shared import api, pointer_recovery
+    from test_update_prepare import api_query
+    root, _, options, manager = installation
+    plan = assemble_pointer_linux_update(**options)
+    def interrupt_start(*_):
+        raise EffectIndeterminate('synthetic interruption')
+    monkeypatch.setattr(plan.ports.effects, 'start', interrupt_start)
+    with pytest.raises(UpdateIndeterminate):
+        plan.run()
+    state = plan.status()
+    omitted = {'unit_dir', 'load_key', 'runtime_key', 'runtime_reserve_bytes', 'runner',
+               'password_provider', 'interpreter', 'interpreter_sha256', 'timeout'}
+    request = api_query({name: value for name, value in options.items() if name not in omitted})
+    request['operation'] = 'inspect-started-pointer-update'
+    request['params'].update({name: options[name] for name in
+                              ('unit_dir', 'load_key', 'runtime_key', 'runtime_reserve_bytes')})
+    monkeypatch.setattr(pointer_recovery, '_run', manager)
+    validator = pytest.importorskip('jsonschema').Draft202012Validator(json.loads(
+        (Path(__file__).resolve().parents[1] / 'shared/api-v1-request.schema.json').read_text()))
+    assert validator.is_valid(request)
+    caps = api.handle({'api_major': 1, 'request_id': 'caps', 'operation': 'capabilities', 'params': {}})['result']
+    assert caps['api_minor'] >= 59 and request['operation'] in caps['mutating_operations']
+    before = len(manager.calls)
+    result = api.handle(request)
+    assert result['ok'] and result['result']['state'] == state
+    assert result['result']['runtime_verified'] and not result['result']['resume_authorized']
+    assert all(call[0] == 'show' for call in manager.calls[before:])
+    assert str(root) not in json.dumps(result)
+    request['params']['load_key'] = request['params']['runtime_key']
+    assert api.handle(request)['error']['code'] == 'invalid_request'
+    request['params']['load_key'] = options['load_key']
+    unit = next(Path(options['unit_dir']).glob('*.service'))
+    unit.write_text('tampered')
+    from shared.i18n import translate
+    for language in ('ru', 'en', 'de'):
+        request['language'] = language
+        failed = api.handle(request)
+        assert failed['error']['code'] == 'update_inspect_failed'
+        assert failed['error']['message'] == translate(language, 'api.update_inspect_failed')
+        assert str(root) not in json.dumps(failed)
+    assert plan.status() == state

@@ -44,7 +44,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 58
+API_MINOR = 59
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -199,8 +199,10 @@ def handle(request: Any) -> dict:
                     operations.extend(['install-portable-linux', 'inspect-portable-linux-install'])
                     mutating_operations.extend(['install-portable-linux', 'inspect-portable-linux-install'])
                     operations.extend(['prepare-signed-linux-update', 'inspect-signed-linux-update'])
+                    operations.append('inspect-started-pointer-update')
                     # Проверка записывает служебные файлы блокировок, не изменяя продукт.
                     mutating_operations.extend(['prepare-signed-linux-update', 'inspect-signed-linux-update'])
+                    mutating_operations.append('inspect-started-pointer-update')
                     operations.extend(["plan-systemd-user-units", "publish-systemd-user-units", "load-systemd-user-units"])
                     mutating_operations.extend(["publish-systemd-user-units", "load-systemd-user-units"])
                     operations.extend(["plan-portable-systemd-user-units", "publish-portable-systemd-user-units",
@@ -436,11 +438,15 @@ def handle(request: Any) -> dict:
                                   language, 'api.docker_prepare_failed')
                 return _error(request_id, 'docker_plan_failed', 'Не удалось проверить Docker-план',
                               language, 'api.docker_plan_failed')
-        elif operation in ('prepare-signed-linux-update', 'inspect-signed-linux-update'):
+        elif operation in ('prepare-signed-linux-update', 'inspect-signed-linux-update',
+                           'inspect-started-pointer-update'):
             fields = {'new_package', 'new_envelope', 'new_key', 'old_package', 'old_envelope', 'old_key',
                       'product_id', 'old_version', 'new_version', 'install_root', 'work_dir', 'modes',
                       'migration_ids', 'idempotency_key'}
-            strings = fields - {'modes', 'migration_ids'}
+            pointer_inspect = operation == 'inspect-started-pointer-update'
+            if pointer_inspect:
+                fields |= {'unit_dir', 'load_key', 'runtime_key', 'runtime_reserve_bytes'}
+            strings = fields - {'modes', 'migration_ids', 'runtime_reserve_bytes'}
             if (set(params) != fields or any(type(params[name]) is not str or not params[name] for name in strings)
                     or type(params['modes']) is not list or not params['modes']
                     or type(params['migration_ids']) is not list
@@ -448,7 +454,12 @@ def handle(request: Any) -> dict:
                     or re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,62}', params['product_id']) is None
                     or any(re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', params[name]) is None
                            for name in ('old_version', 'new_version'))
-                    or re.fullmatch(r'[a-f0-9]{32}', params['idempotency_key']) is None):
+                    or re.fullmatch(r'[a-f0-9]{32}', params['idempotency_key']) is None
+                    or (pointer_inspect and (type(params['runtime_reserve_bytes']) is not int
+                        or not 0 <= params['runtime_reserve_bytes'] <= MAX_DISK_BYTES
+                        or any(re.fullmatch(r'[a-f0-9]{32}', params[name]) is None
+                               for name in ('load_key', 'runtime_key'))
+                        or len({params['idempotency_key'], params['load_key'], params['runtime_key']}) != 3))):
                 raise InvalidRequest()
             if not _signature_available() or not _systemd_plan_available():
                 return _error(request_id, 'unsupported_operation', 'Операция API не поддерживается',
@@ -459,17 +470,23 @@ def handle(request: Any) -> dict:
             if len(new_key) != 32 or len(old_key) != 32:
                 raise InvalidRequest()
             try:
-                handler = (prepare_signed_linux_update if operation == 'prepare-signed-linux-update'
-                           else verify_started_linux_update)
+                if pointer_inspect:
+                    from shared.pointer_recovery import inspect_started_pointer_group
+                    handler = inspect_started_pointer_group
+                else:
+                    handler = (prepare_signed_linux_update if operation == 'prepare-signed-linux-update'
+                               else verify_started_linux_update)
+                extra = ({name: params[name] for name in ('unit_dir', 'load_key', 'runtime_key',
+                         'runtime_reserve_bytes')} if pointer_inspect else {})
                 result = handler(new_package=params['new_package'], new_envelope=new_envelope,
                     new_key=new_key, old_package=params['old_package'], old_envelope=old_envelope, old_key=old_key,
                     product_id=params['product_id'], old_version=params['old_version'], new_version=params['new_version'],
                     install_root=params['install_root'], work_dir=params['work_dir'], modes=tuple(params['modes']),
-                    migration_ids=tuple(params['migration_ids']), operation_id=params['idempotency_key'])
+                    migration_ids=tuple(params['migration_ids']), operation_id=params['idempotency_key'], **extra)
                 if operation == 'inspect-signed-linux-update':
                     result.update(effects_verified=False, resume_authorized=False)
-            except UpdatePrepareError:
-                if operation == 'inspect-signed-linux-update':
+            except (UpdatePrepareError, UpdateError):
+                if operation in ('inspect-signed-linux-update', 'inspect-started-pointer-update'):
                     return _error(request_id, 'update_inspect_failed', 'Не удалось проверить обновление',
                                   language, 'api.update_inspect_failed')
                 return _error(request_id, 'update_prepare_failed', 'Не удалось подготовить обновление',

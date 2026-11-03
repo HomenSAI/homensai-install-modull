@@ -90,6 +90,8 @@ class SystemdLifecyclePort:
             raise
         except Exception:
             raise EffectIndeterminate('Недоступна отметка служб') from None
+        if record is None and self.reconcile_key == key:
+            raise EffectIndeterminate('Нет отметки для сверки остановки')
         if record is not None:
             if record == {**binding, 'status': 'done'}:
                 try:

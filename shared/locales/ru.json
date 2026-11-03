@@ -32,6 +32,7 @@
   "api.update_archive_import_failed": "Не удалось подтвердить перенос архива",
   "api.docker_preflight_failed": "Не удалось проверить Docker",
   "api.update_prepare_failed": "Не удалось подготовить обновление",
+  "api.update_run_failed": "Не удалось подтвердить выполнение обновления",
   "api.update_inspect_failed": "Не удалось проверить обновление",
   "api.fresh_controller_failed": "Не удалось подтвердить установку",
   "api.docker_plan_failed": "Не удалось проверить Docker-план",

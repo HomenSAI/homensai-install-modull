@@ -9,6 +9,7 @@ from test_api_signed_preflight import signed_request
 from test_systemd_pointer_signed import signed_pointer
 from test_systemd_portable import FakeReloadManager, fake_manager
 from shared.pointer_update import assemble_pointer_linux_update, inspect_started_pointer_runtime
+from shared.pointer_controller import run_pointer_linux_update
 from shared.pointer_recovery import inspect_started_pointer_group
 from shared.runtime_native import prepare_signed_linux_runtime
 from shared.systemd_pointer import publish_pointer_signed_user_units
@@ -306,3 +307,110 @@ def test_api_inspects_interrupted_pointer_group(installation, monkeypatch):
         assert failed['error']['message'] == translate(language, 'api.update_inspect_failed')
         assert str(root) not in json.dumps(failed)
     assert plan.status() == state
+
+
+def test_controller_starts_only_with_password_and_does_not_reveal_it(installation, monkeypatch):
+    from shared.update_health_port import LocalUpdateHealthPort
+    root, work, options, manager = installation
+    args = {name: value for name, value in options.items() if name != 'password_provider'}
+    before = list(manager.calls)
+    with pytest.raises(UpdateError):
+        run_pointer_linux_update(**args, action='start', password_env='HOMENSAI_TEST_ABSENT_SECRET')
+    assert list(work.iterdir()) == [] and manager.calls == before
+    monkeypatch.setenv('HOMENSAI_TEST_PASSWORD', 'synthetic password')
+    monkeypatch.setattr(LocalUpdateHealthPort, 'health', lambda *_: None)
+    result = run_pointer_linux_update(**args, action='start', password_env='HOMENSAI_TEST_PASSWORD')
+    assert result['state']['outcome'] == 'updated'
+    assert not result['process_identity_verified'] and not result['all_writers_verified']
+    assert 'synthetic password' not in json.dumps(result)
+    assert 'synthetic password' not in json.dumps(manager.calls)
+
+
+def test_controller_reopens_and_reconciles_stop_without_repeating(installation, monkeypatch):
+    import shared.systemd_lifecycle_port as lifecycle
+    from shared.update_health_port import LocalUpdateHealthPort
+    _, _, options, manager = installation
+    args = {name: value for name, value in options.items() if name != 'password_provider'}
+    monkeypatch.setenv('HOMENSAI_TEST_PASSWORD', 'synthetic password')
+    original = lifecycle._atomic_write
+    def lost_ack(path, value):
+        if value.get('action') == 'stop' and value.get('status') == 'done':
+            raise OSError('synthetic lost acknowledgement')
+        return original(path, value)
+    with monkeypatch.context() as patch:
+        patch.setattr(lifecycle, '_atomic_write', lost_ack)
+        with pytest.raises(UpdateError):
+            run_pointer_linux_update(**args, action='start', password_env='HOMENSAI_TEST_PASSWORD')
+    observed = inspect_started_pointer_group(**{name: value for name, value in args.items()
+        if name not in ('interpreter', 'interpreter_sha256', 'timeout')})
+    state = observed['state']
+    calls = len([call for call in manager.calls if call[0] == 'stop'])
+    with pytest.raises(UpdateError):
+        run_pointer_linux_update(**args, action='reopen', password_env='HOMENSAI_TEST_PASSWORD')
+    assert len([call for call in manager.calls if call[0] == 'stop']) == calls
+    monkeypatch.setattr(LocalUpdateHealthPort, 'health', lambda *_: None)
+    result = run_pointer_linux_update(**args, action='reconcile-stop', password_env='HOMENSAI_TEST_PASSWORD',
+                                      reconcile_stop_key=state['transaction'] + '/stop')
+    assert result['state']['outcome'] == 'updated'
+    assert len([call for call in manager.calls if call[0] == 'stop']) == calls
+
+
+def test_api_runs_pointer_update_with_secret_env(installation, monkeypatch):
+    from shared import api, systemd_user, systemd_user_load
+    from shared.update_health_port import LocalUpdateHealthPort
+    from test_update_prepare import api_query
+    root, work, options, manager = installation
+    omitted = {'unit_dir', 'load_key', 'runtime_key', 'runtime_reserve_bytes', 'runner',
+               'password_provider', 'interpreter', 'interpreter_sha256', 'timeout'}
+    request = api_query({name: value for name, value in options.items() if name not in omitted})
+    request['operation'] = 'run-pointer-linux-update'
+    request['params'].update({name: options[name] for name in
+                              ('unit_dir', 'load_key', 'runtime_key', 'runtime_reserve_bytes',
+                               'interpreter', 'interpreter_sha256')})
+    request['params'].update(password_env='HOMENSAI_TEST_PASSWORD', action='start',
+                             reconcile_stop_key=None, timeout_seconds=5)
+    validator = pytest.importorskip('jsonschema').Draft202012Validator(json.loads(
+        (Path(__file__).resolve().parents[1] / 'shared/api-v1-request.schema.json').read_text()))
+    assert validator.is_valid(request)
+    monkeypatch.setattr(systemd_user, '_run', manager)
+    monkeypatch.setattr(systemd_user_load, '_run', manager)
+    monkeypatch.setattr(LocalUpdateHealthPort, 'health', lambda *_: None)
+    before = list(manager.calls)
+    from shared.i18n import translate
+    for language in ('ru', 'en', 'de'):
+        request['language'] = language
+        failed = api.handle(request)
+        assert failed['error']['code'] == 'update_run_failed'
+        assert failed['error']['message'] == translate(language, 'api.update_run_failed')
+    assert list(work.iterdir()) == []
+    assert manager.calls == before
+    monkeypatch.setenv('HOMENSAI_TEST_PASSWORD', 'synthetic password')
+    result = api.handle(request)
+    assert result['ok'] and result['result']['state']['outcome'] == 'updated'
+    assert 'synthetic password' not in json.dumps(result) and str(root) not in json.dumps(result)
+    caps = api.handle({'api_major': 1, 'request_id': 'caps', 'operation': 'capabilities', 'params': {}})['result']
+    assert caps['api_minor'] >= 60 and request['operation'] in caps['mutating_operations']
+
+
+def test_controller_reconcile_never_stops_without_service_receipt(installation, monkeypatch):
+    _, _, options, manager = installation
+    plan = assemble_pointer_linux_update(**options)
+    state = {'version': 1, 'transaction': 'f' * 32, 'plan': plan.digest, 'old_release': '1',
+             'release': '2', 'direction': 'forward', 'index': plan.forward.index('stop'),
+             'failed_phase': None, 'archive_ready': False, 'outcome': 'running', 'indeterminate': True}
+    plan._save(state)
+    args = {name: value for name, value in options.items() if name != 'password_provider'}
+    monkeypatch.setenv('HOMENSAI_TEST_PASSWORD', 'synthetic password')
+    before = list(manager.calls)
+    with pytest.raises(UpdateError):
+        run_pointer_linux_update(**args, action='reconcile-stop', password_env='HOMENSAI_TEST_PASSWORD',
+                                 reconcile_stop_key=state['transaction'] + '/stop')
+    assert all(call[0] == 'show' for call in manager.calls[len(before):])
+    assert plan.status() == state
+    reopened = assemble_pointer_linux_update(**options, reopen=True,
+                                             reconcile_stop_key=state['transaction'] + '/stop')
+    before = list(manager.calls)
+    with pytest.raises(UpdateIndeterminate):
+        reopened.run(resume_indeterminate=True)
+    assert all(call[0] == 'show' for call in manager.calls[len(before):])
+    assert reopened.status() == state

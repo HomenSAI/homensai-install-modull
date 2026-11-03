@@ -446,6 +446,20 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                         update.run()
                     outcome = update.run(resume_indeterminate=True)
                     assert sum(call[0] == 'stop' for call in calls) == stops
+                elif update_case == 'api_start':
+                    monkeypatch.setenv('HOMENSAI_TEST_POINTER_PASSWORD', 'synthetic-test-password')
+                    api_update = {key: value for key, value in update_args.items() if key not in
+                        ('password_provider', 'timeout', 'operation_id')}
+                    api_update.update(idempotency_key=update_args['operation_id'],
+                        timeout_seconds=update_args['timeout'], password_env='HOMENSAI_TEST_POINTER_PASSWORD',
+                        action='start', reconcile_stop_key=None, modes=list(update_args['modes']),
+                        migration_ids=list(update_args['migration_ids']))
+                    for key in ('old_key', 'new_key', 'old_envelope', 'new_envelope'):
+                        api_update[key] = base64.b64encode(api_update[key]).decode('ascii')
+                    response = api_module.handle({'api_major': 1, 'request_id': 'isolated-pointer-update',
+                        'operation': 'run-pointer-linux-update', 'params': api_update})
+                    assert response['ok'] and 'synthetic-test-password' not in json.dumps(response)
+                    outcome = response['result']['state']
                 else:
                     outcome = update.run()
                 expected_version = '1' if update_case == 'rollback' else '2'
@@ -638,7 +652,7 @@ def test_fresh_controller_runs_real_pointer_product(tmp_path, monkeypatch):
 
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Нужен одноразовый тестовый контейнер Python 3.14')
-@pytest.mark.parametrize('update_case', ['updated', 'rollback', 'recover_stop'])
+@pytest.mark.parametrize('update_case', ['updated', 'rollback', 'recover_stop', 'api_start'])
 def test_real_pointer_product_update_and_rollback(tmp_path, monkeypatch, update_case):
     test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True,
                                                       pointer=True, update_case=update_case)

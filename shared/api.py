@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import binascii
 import json
+import os
 import re
 import sys
 from typing import Any
@@ -1198,8 +1199,36 @@ def _constant(_):
     raise InvalidRequest()
 
 
+def _debug_trace(path: str) -> None:
+    """Отладка: записывать в файл каждое исключение в модулях shared (тип, место, текст).
+
+    Включается только явной переменной HOMENSAI_API_TRACE с абсолютным путём;
+    сообщения исключений могут содержать пути, но модули не помещают в них секреты.
+    """
+    monitoring = sys.monitoring
+    tool = monitoring.DEBUGGER_ID
+    stream = open(path, 'a', encoding='utf-8')
+    package = os.path.dirname(os.path.abspath(__file__))
+
+    def on_raise(code, offset, exception):
+        if code.co_filename.startswith(package):
+            stream.write(f'{os.path.basename(code.co_filename)}:{code.co_qualname}: '
+                         f'{type(exception).__name__}: {exception}\n')
+            stream.flush()
+
+    monitoring.use_tool_id(tool, 'homensai-api-trace')
+    monitoring.register_callback(tool, monitoring.events.RAISE, on_raise)
+    monitoring.set_events(tool, monitoring.events.RAISE)
+
+
 def main() -> int:
     """Прочитать один ограниченный JSON из stdin и записать один ответ."""
+    trace = os.environ.get('HOMENSAI_API_TRACE')
+    if trace and os.path.isabs(trace):
+        try:
+            _debug_trace(trace)
+        except (OSError, ValueError):
+            pass  # Отладка не должна менять ответ API.
     try:
         if len(sys.argv) != 1:
             raise InvalidRequest()

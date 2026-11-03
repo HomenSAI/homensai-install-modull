@@ -22,6 +22,11 @@ from shared.runtime_block import RuntimeBlockError, build_runtime_block
 MAX_ARCHIVE = 128 * 1024 * 1024
 MAX_ENTRIES = 10000
 MAX_EXPANDED = 1024 * 1024 * 1024
+# Профиль minimal: без дублей, сценариев bin/, заголовков, pip, IDLE и Tcl/Tk.
+_MINIMAL_EXCLUDED = re.compile(r'(?:bin/(?!python\Z).*|include/.*|share/.*|lib/libpython3\.14\.so'
+                               r'|lib/(?:lib)?(?:tcl|tk|itcl|thread)[^/]*(?:/.*)?|lib/pkgconfig/.*'
+                               r'|lib/python3\.14/(?:idlelib|turtledemo|tkinter|ensurepip|site-packages'
+                               r'|config-3\.14-[^/]+)/.*|lib/python3\.14/lib-dynload/_tkinter[^/]*)\Z')
 
 
 def _check_tar_stream(stream):
@@ -111,15 +116,20 @@ def _copy(input_stream, path):
 
 
 def prepare_pbs_archive(archive_path, destination, *, expected_sha256, origin, python_version,
-                        full_archive_path=None, full_sha256=None):
+                        full_archive_path=None, full_sha256=None, pointer_launcher=False, minimal=False):
     """Подготовить блок из заранее загруженного архива; доверие к хэшу внешнее.
 
     Ссылки материализуются как обычные файлы; terminfo исключается. Утверждений
     о полной лицензии, происхождении, ABI или безопасности результата нет.
+    pointer_launcher=True добавляет в блок загрузчик pointer-v2 установщика
+    (`lib/homensai/portable_launcher.py`) до формирования описания блока.
+    minimal=True исключает то, что не нужно службам: копии бинарника под другими
+    именами, сценарии bin/, заголовки, pip, IDLE и Tcl/Tk (тексты лицензий остаются).
     """
     try:
         archive_path, destination = checked_path(archive_path), checked_path(destination)
-        if (type(expected_sha256) is not str or re.fullmatch(r'[a-f0-9]{64}', expected_sha256) is None
+        if (type(expected_sha256) is not str or type(pointer_launcher) is not bool or type(minimal) is not bool
+                or re.fullmatch(r'[a-f0-9]{64}', expected_sha256) is None
                 or type(python_version) is not str or re.fullmatch(r'3\.14\.(0|[1-9][0-9]{0,3})', python_version) is None
                 or type(origin) is not str or not destination.parent.is_dir() or destination.exists()
                 or contains(destination, archive_path)):
@@ -174,6 +184,12 @@ def prepare_pbs_archive(archive_path, destination, *, expected_sha256, origin, p
                     with (staging / target).open('rb') as incoming:
                         count, digest = _copy(incoming, staging / relative)
                     entries[relative] = {'path': relative, 'size': count, 'sha256': digest}
+                if minimal:
+                    # До сбора лицензий: тексты исключённых компонентов (например, pip) не копируются,
+                    # иначе их глубокие пути превышают предел длины пути Windows.
+                    for name in [name for name in entries if _MINIMAL_EXCLUDED.fullmatch(name)]:
+                        (staging / name).unlink()
+                        del entries[name]
                 licenses = []
                 for name in sorted(entries):
                     basename = posixpath.basename(name).upper()
@@ -198,6 +214,13 @@ def prepare_pbs_archive(archive_path, destination, *, expected_sha256, origin, p
                     entries[target] = {'path': target, 'size': count, 'sha256': digest}
                 if not licenses:
                     raise RuntimeBlockError('Лицензии Python отсутствуют')
+                if pointer_launcher:
+                    target = 'lib/homensai/portable_launcher.py'
+                    if target in entries:
+                        raise RuntimeBlockError('Конфликт имён архива Python')
+                    with (Path(__file__).resolve().parent / 'portable_launcher.py').open('rb') as incoming:
+                        count, digest = _copy(incoming, staging / target)
+                    entries[target] = {'path': target, 'size': count, 'sha256': digest}
                 after = os.fstat(stream.fileno())
                 current = archive_path.lstat()
                 if ((before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns) !=
@@ -233,11 +256,15 @@ def main():
     parser.add_argument('--python-version', required=True)
     parser.add_argument('--full-archive')
     parser.add_argument('--full-sha256')
+    parser.add_argument('--pointer-launcher', action='store_true')
+    parser.add_argument('--minimal', action='store_true')
     args = parser.parse_args()
     try:
         print(json.dumps(prepare_pbs_archive(args.archive, args.destination, expected_sha256=args.sha256,
                                              origin=args.origin, python_version=args.python_version,
-                                             full_archive_path=args.full_archive, full_sha256=args.full_sha256), sort_keys=True))
+                                             full_archive_path=args.full_archive, full_sha256=args.full_sha256,
+                                             pointer_launcher=args.pointer_launcher, minimal=args.minimal),
+                         sort_keys=True))
     except RuntimeBlockError as error:
         parser.exit(1, str(error) + '\n')
 

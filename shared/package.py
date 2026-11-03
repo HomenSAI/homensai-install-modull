@@ -17,13 +17,14 @@ import stat
 import uuid
 import zipfile
 
-from shared.archive import ArchiveError, _digest, _info, _safe_name, _signature, _space
+from shared.archive import ArchiveError, _digest, _file_digest, _info, _safe_name, _signature, _space
 from shared.datahome import DataHomeError, checked_path, contains
 from shared.crypto_wheelhouse import WheelhouseError, verify_archived_wheelhouse, verify_wheelhouse
 from shared.manifest import ManifestError, validate_manifest
 from shared.package_markers import CRYPTO_INCOMPLETE, RUNTIME_INCOMPLETE
 
 MAX_FILES = 10000
+_VERIFIED: dict = {}
 MAX_FILE_BYTES = 1024 * 1024 * 1024
 MAX_TOTAL_BYTES = 4 * 1024 * 1024 * 1024
 MAX_METADATA_BYTES = 4 * 1024 * 1024
@@ -74,8 +75,7 @@ def _files(root: Path, *, verify_crypto_block: bool = True, verify_runtime_block
                     raise PackageError("Криптоблок не прошёл проверку") from None
             if len(result) >= MAX_FILES or signature[3] > MAX_FILE_BYTES:
                 raise PackageError("Превышен лимит файлов payload")
-            with path.open("rb") as stream:
-                size, digest = _digest(stream)
+            size, digest = _file_digest(path, signature)
             if size != signature[3] or signature != _signature(path):
                 raise PackageError("Payload изменился во время чтения")
             total += size
@@ -206,6 +206,9 @@ def verify_package(path: str | Path, *, expected_sha256: str) -> dict:
         signature = _signature(path)
         if not stat.S_ISREG(signature[2]):
             raise PackageError("Требуется обычный файл пакета")
+        cached = _VERIFIED.get((signature, expected_sha256)) if os.name == "posix" else None
+        if cached is not None and _signature(path) == signature:
+            return json.loads(cached)
         if signature[3] > MAX_TOTAL_BYTES + MAX_METADATA_BYTES + 64 * 1024 * 1024:
             raise PackageError("Пакет слишком велик")
         with path.open("rb") as stream:
@@ -253,6 +256,11 @@ def verify_package(path: str | Path, *, expected_sha256: str) -> dict:
                 raise PackageError("Пакет изменился во время проверки")
         if signature != _signature(path):
             raise PackageError("Пакет изменился во время проверки")
+        if os.name == "posix":
+            # Повторная проверка того же неизменённого файла (см. archive._DIGESTS) не перечитывает его.
+            if len(_VERIFIED) >= 16:
+                _VERIFIED.clear()
+            _VERIFIED[(signature, expected_sha256)] = json.dumps(metadata)
         return metadata
     except (OSError, UnicodeError, ValueError, RecursionError, KeyError, zipfile.BadZipFile,
             DataHomeError, ArchiveError, ManifestError) as error:

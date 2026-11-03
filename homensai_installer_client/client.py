@@ -165,6 +165,8 @@ class InstallerClient:
             env = {'PATH': os.defpath, 'PYTHONIOENCODING': 'utf-8'}
             if os.name == 'nt' and 'SystemRoot' in os.environ:
                 env['SystemRoot'] = os.environ['SystemRoot']
+            if os.path.isabs(os.environ.get('HOMENSAI_API_TRACE', '')):
+                env['HOMENSAI_API_TRACE'] = os.environ['HOMENSAI_API_TRACE']  # явная отладка
             if secret_env_name is not None:
                 value = os.environ.get(secret_env_name)
                 if value is None or not value or len(value) > 8192:

@@ -11,7 +11,7 @@ import re
 import stat
 from urllib.parse import urlsplit
 
-from shared.archive import _digest, _safe_name, _signature
+from shared.archive import _digest, _file_digest, _safe_name, _signature
 from shared.datahome import checked_path, contains
 from shared.package_markers import RUNTIME_INCOMPLETE
 from shared.update_plan import _object
@@ -105,8 +105,7 @@ def _scan(root, *, marker=False):
         else:
             if path.lstat().st_nlink != 1 or signature[3] > MAX_FILE or len(files) >= MAX_FILES + 3:
                 raise RuntimeBlockError('Недопустимый файл runtime')
-            with path.open('rb') as stream:
-                size, digest = _digest(stream)
+            size, digest = _file_digest(path, signature)
             if signature != _signature(path) or size != signature[3]:
                 raise RuntimeBlockError('Файл runtime изменился')
             if marker and name == RUNTIME_INCOMPLETE:

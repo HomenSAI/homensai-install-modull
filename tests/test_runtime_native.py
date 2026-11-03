@@ -469,22 +469,36 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                     assert not inspection['resume_authorized'] and not inspection['process_identity_verified']
                 else:
                     outcome = update.run()
-                if update_case == 'terminal_cycle':
+                if update_case in ('terminal_cycle', 'terminal_cycle_api'):
                     from shared.pointer_terminal_cycle import cycle_terminal_pointer
                     from shared.update_plan import UpdateError
                     cycle_args = {name: value for name, value in update_args.items() if name not in
                                   ('password_provider', 'interpreter', 'interpreter_sha256', 'timeout')}
+                    if update_case == 'terminal_cycle_api':
+                        api_cycle = {name: value for name, value in cycle_args.items() if name != 'operation_id'}
+                        api_cycle.update(idempotency_key=cycle_args['operation_id'], modes=list(cycle_args['modes']),
+                                         migration_ids=list(cycle_args['migration_ids']))
+                        for name in ('old_key', 'new_key', 'old_envelope', 'new_envelope'):
+                            api_cycle[name] = base64.b64encode(api_cycle[name]).decode('ascii')
+                        def run_cycle(action, key):
+                            return client.call('cycle-updated-pointer-linux',
+                                {**api_cycle, 'action': action, 'cycle_key': key, 'reconcile': False}, min_minor=61)
+                        failure_type = InstallerClientError
+                    else:
+                        def run_cycle(action, key):
+                            return cycle_terminal_pointer(**cycle_args, action=action, cycle_key=key)
+                        failure_type = UpdateError
                     launcher = install / 'runtime/lib/homensai/portable_launcher.py'
                     original_launcher = launcher.read_bytes()
                     try:
                         launcher.write_bytes(b'synthetic corruption')
-                        assert cycle_terminal_pointer(**cycle_args, action='stop', cycle_key='2' * 32)['state'] == 'stopped'
-                        assert cycle_terminal_pointer(**cycle_args, action='stop', cycle_key='2' * 32)['state'] == 'stopped'
-                        with pytest.raises(UpdateError):
-                            cycle_terminal_pointer(**cycle_args, action='start', cycle_key='3' * 32)
+                        assert run_cycle('stop', '2' * 32)['state'] == 'stopped'
+                        assert run_cycle('stop', '2' * 32)['state'] == 'stopped'
+                        with pytest.raises(failure_type):
+                            run_cycle('start', '3' * 32)
                     finally:
                         launcher.write_bytes(original_launcher)
-                    assert cycle_terminal_pointer(**cycle_args, action='start', cycle_key='3' * 32)['state'] == 'started'
+                    assert run_cycle('start', '3' * 32)['state'] == 'started'
                     deadline = time.monotonic() + 30
                     while True:
                         try:
@@ -693,7 +707,8 @@ def test_fresh_controller_runs_real_pointer_product(tmp_path, monkeypatch):
 
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Нужен одноразовый тестовый контейнер Python 3.14')
-@pytest.mark.parametrize('update_case', ['updated', 'rollback', 'recover_stop', 'api_start', 'terminal_cycle'])
+@pytest.mark.parametrize('update_case', ['updated', 'rollback', 'recover_stop', 'api_start',
+                                        'terminal_cycle', 'terminal_cycle_api'])
 def test_real_pointer_product_update_and_rollback(tmp_path, monkeypatch, update_case):
     test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True,
                                                       pointer=True, update_case=update_case)

@@ -44,7 +44,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 52
+API_MINOR = 53
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -205,6 +205,7 @@ def handle(request: Any) -> dict:
                     mutating_operations.extend(["publish-systemd-user-units", "load-systemd-user-units"])
                     operations.extend(["plan-portable-systemd-user-units", "publish-portable-systemd-user-units",
                                        "load-portable-systemd-user-units"])
+                    operations.append('plan-pointer-systemd-user-units')
                     mutating_operations.extend(["publish-portable-systemd-user-units", "load-portable-systemd-user-units"])
                     operations.extend(["plan-linux-runtime", "prepare-linux-runtime", "verify-linux-runtime"])
                     operations.append("check-portable-linux-start")
@@ -726,7 +727,7 @@ def handle(request: Any) -> dict:
                       'process_target': state['process_target'], 'installation_complete': False}
         elif operation in ("plan-systemd-user-units", "publish-systemd-user-units", "load-systemd-user-units",
                            "plan-portable-systemd-user-units", "publish-portable-systemd-user-units",
-                           "load-portable-systemd-user-units"):
+                           "load-portable-systemd-user-units", "plan-pointer-systemd-user-units"):
             fields = {"package_path", "envelope", "trusted_public_key", "expected_product_id",
                       "expected_version", "install_root", "modes"}
             portable = '-portable-' in operation
@@ -756,14 +757,20 @@ def handle(request: Any) -> dict:
             if len(key) != 32:
                 raise InvalidRequest()
             try:
-                function = (load_portable_signed_user_units if loading else publish_portable_signed_user_units) if portable else (
-                           load_signed_user_units if loading else publish_signed_user_units)
-                generated_policy = {'verify_generated_units': params.get('verify_generated_units', False)} if publishing and not portable else {}
-                plan = function(params['package_path'], envelope, params['install_root'],
-                    trusted_public_key=key, expected_product_id=params['expected_product_id'],
-                    expected_version=params['expected_version'], modes=tuple(params['modes']),
-                    unit_dir=params['unit_dir'] if publishing or loading else '', execute=publishing or loading,
-                    operation_id=params['idempotency_key'] if publishing or loading else None, **generated_policy)
+                if operation == 'plan-pointer-systemd-user-units':
+                    from shared.systemd_pointer import plan_pointer_signed_user_units
+                    plan = plan_pointer_signed_user_units(params['package_path'], envelope, params['install_root'],
+                        trusted_public_key=key, expected_product_id=params['expected_product_id'],
+                        expected_version=params['expected_version'], modes=tuple(params['modes']))
+                else:
+                    function = (load_portable_signed_user_units if loading else publish_portable_signed_user_units) if portable else (
+                               load_signed_user_units if loading else publish_signed_user_units)
+                    generated_policy = {'verify_generated_units': params.get('verify_generated_units', False)} if publishing and not portable else {}
+                    plan = function(params['package_path'], envelope, params['install_root'],
+                        trusted_public_key=key, expected_product_id=params['expected_product_id'],
+                        expected_version=params['expected_version'], modes=tuple(params['modes']),
+                        unit_dir=params['unit_dir'] if publishing or loading else '', execute=publishing or loading,
+                        operation_id=params['idempotency_key'] if publishing or loading else None, **generated_policy)
             except (UnitPublicationError, UnitLoadError, PortableUnitError):
                 if loading:
                     return _error(request_id, 'systemd_load_failed', 'Не удалось подтвердить загрузку служб',

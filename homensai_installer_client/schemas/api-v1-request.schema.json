@@ -144,6 +144,12 @@
         "required_bytes": {"type": "object", "additionalProperties": false, "required": ["app", "releases", "data", "backup", "services", "config", "runtime"],
           "properties": {"app": {"$ref": "#/$defs/disk_bytes"}, "releases": {"$ref": "#/$defs/disk_bytes"}, "data": {"$ref": "#/$defs/disk_bytes"}, "backup": {"$ref": "#/$defs/disk_bytes"}, "services": {"$ref": "#/$defs/disk_bytes"}, "config": {"$ref": "#/$defs/disk_bytes"}, "runtime": {"$ref": "#/$defs/disk_bytes"}}},
         "reserve_bytes": {"$ref": "#/$defs/disk_bytes"}, "workflow_key": {"$ref": "#/$defs/operation_key"},
+        "runtime_evidence": {"type": "object", "additionalProperties": false,
+          "required": ["lock_path", "evidence_path", "evidence_sha256", "max_age_seconds"],
+          "properties": {"lock_path": {"type": "string", "minLength": 1, "maxLength": 8192},
+            "evidence_path": {"type": "string", "minLength": 1, "maxLength": 8192},
+            "evidence_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}(?![\\s\\S])"},
+            "max_age_seconds": {"type": "integer", "minimum": 1, "maximum": 2678400}}},
         "keys": {"type": "object", "additionalProperties": false, "required": ["release", "runtime", "publish", "load", "start"],
           "properties": {"release": {"$ref": "#/$defs/operation_key"}, "runtime": {"$ref": "#/$defs/operation_key"}, "publish": {"$ref": "#/$defs/operation_key"}, "load": {"$ref": "#/$defs/operation_key"}, "start": {"$ref": "#/$defs/operation_key"}}}
       }}}},

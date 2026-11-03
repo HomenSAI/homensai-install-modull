@@ -57,15 +57,19 @@ def main() -> int:
                             ['--run', '--pointer-cycle'], ['--run', '--pointer-cycle-api'],
                             ['--run', '--pointer-writer-api'], ['--run', '--pointer-writer-success-api'],
                             ['--run', '--unicode'], ['--run', '--interactive'],
-                            ['--run', '--api-logged-install']) or not hasattr(os, 'getuid') or os.getuid() == 0:
-        print('Нужны непривилегированный пользователь и --run [--runtime|--update|--assembled|--fresh-controller|--pointer|--pointer-publish|--pointer-start|--pointer-controller|--pointer-update|--pointer-recovery|--pointer-api|--pointer-cycle|--pointer-cycle-api|--pointer-writer-api|--pointer-writer-success-api|--unicode|--interactive|--api-logged-install]', file=sys.stderr)
+                            ['--run', '--api-logged-install'], ['--run', '--api-runtime-evidence']) or not hasattr(os, 'getuid') or os.getuid() == 0:
+        print('Нужны непривилегированный пользователь и --run [--runtime|--update|--assembled|--fresh-controller|--pointer|--pointer-publish|--pointer-start|--pointer-controller|--pointer-update|--pointer-recovery|--pointer-api|--pointer-cycle|--pointer-cycle-api|--pointer-writer-api|--pointer-writer-success-api|--unicode|--interactive|--api-logged-install|--api-runtime-evidence]', file=sys.stderr)
         return 2
     with tempfile.TemporaryDirectory(prefix='homensai-isolated-systemd-') as temp:
         harness = Path(temp)
         harness.chmod(0o755)  # Скрипты не содержат секретов; их читает тестовый uid контейнера.
         (harness / 'setup.sh').write_text(SETUP, encoding='utf-8')
         session = SESSION
-        if sys.argv[1:] == ['--run', '--api-logged-install']:
+        if sys.argv[1:] == ['--run', '--api-runtime-evidence']:
+            session = SESSION.rsplit('python -m pytest', 1)[0] + (
+                'mkdir -p /home/homenstest/tmp\nexport TMPDIR=/home/homenstest/tmp\n'
+                'python -m pytest -q -ra --tb=short -x -p no:cacheprovider tests/test_runtime_native.py -k evidence_policy_resumes_real_pointer_product\n')
+        elif sys.argv[1:] == ['--run', '--api-logged-install']:
             session = SESSION.rsplit('python -m pytest', 1)[0] + (
                 'mkdir -p /home/homenstest/tmp\nexport TMPDIR=/home/homenstest/tmp\n'
                 'python -m pytest -q -ra --tb=short -x -p no:cacheprovider tests/test_runtime_native.py -k logged_api_resumes_real_pointer_product\n')

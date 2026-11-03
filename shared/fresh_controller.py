@@ -37,7 +37,8 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
                                product_id: str, version: str, install_root: str, unit_dir: str,
                                work_dir: str, modes: tuple[str, ...], required_bytes: dict,
                                reserve_bytes: int, workflow_key: str, keys: dict,
-                               language: str = 'en', inspect_only: bool = False) -> dict:
+                               language: str = 'en', inspect_only: bool = False,
+                               runtime_evidence: dict | None = None) -> dict:
     """Выполнить последовательность API с долговечным checkpoint каждого шага.
 
     Ключи и workspace заранее сохраняет вызывающая сторона. Pending не доказывает
@@ -71,6 +72,35 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
         if check_target(metadata['manifest'], native_target())['status'] != 'supported':
             raise FreshControllerError()
         component_order(metadata['manifest'], modes)
+        policy = None
+        if runtime_evidence is not None:
+            fields = {'lock_path', 'evidence_path', 'evidence_sha256', 'max_age_seconds'}
+            if (type(runtime_evidence) is not dict or set(runtime_evidence) != fields
+                    or any(type(runtime_evidence[name]) is not str or not runtime_evidence[name]
+                           for name in fields - {'max_age_seconds'})
+                    or re.fullmatch(r'[a-f0-9]{64}', runtime_evidence['evidence_sha256']) is None
+                    or type(runtime_evidence['max_age_seconds']) is not int
+                    or not 1 <= runtime_evidence['max_age_seconds'] <= 31 * 24 * 3600):
+                raise FreshControllerError()
+            policy = {**runtime_evidence,
+                      'lock_path': str(checked_path(runtime_evidence['lock_path'])),
+                      'evidence_path': str(checked_path(runtime_evidence['evidence_path']))}
+        def verify_policy():
+            if policy is None:
+                return
+            from shared.interactive_install import read_bounded_file
+            from shared.osv_audit import MAX_RESPONSE
+            from shared.runtime_lock_security import verify_signed_runtime_lock
+            try:
+                evidence = read_bounded_file(checked_path(policy['evidence_path']), MAX_RESPONSE)
+                verify_signed_runtime_lock(package=package, envelope=envelope, trusted_public_key=trusted_public_key,
+                    product_id=product_id, version=version, platform='linux', lock=policy['lock_path'],
+                    evidence=evidence, evidence_sha256=policy['evidence_sha256'],
+                    max_age_seconds=policy['max_age_seconds'])
+            except Exception:
+                raise FreshControllerError('runtime_evidence_failed') from None
+        if not inspect_only:
+            verify_policy()
         from shared.systemd_pointer import LAUNCHER_PATH, LAUNCHER_SHA256, RECIPE_PATH, RECIPE_V2
         entries = {item['path']: item for item in metadata['files']}
         pointer = RECIPE_PATH in entries
@@ -115,6 +145,8 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
         ]
         binding_data = {'workflow_key': workflow_key, 'work': str(work), 'steps': steps,
                         'metadata': metadata}
+        if policy is not None:
+            binding_data['runtime_evidence'] = policy
         binding = hashlib.sha256(json.dumps(binding_data, sort_keys=True, ensure_ascii=True,
                                              separators=(',', ':'), allow_nan=False).encode('ascii')).hexdigest()
         legacy_binding = hashlib.sha256(json.dumps({**binding_data, 'language': language}, sort_keys=True,
@@ -126,11 +158,14 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
             state = read_effect_receipt(marker)
             if state is None:
                 if inspect_only:
-                    return {'state': 'no_checkpoint', 'completed_steps': None, 'total_steps': len(steps),
-                            'current_step': None, 'step_may_have_executed': None,
-                            'checkpoint_matches_request': False, 'effects_verified': False,
-                            'current_health_verified': False, 'resume_authorized': False,
-                            'installation_complete': False}
+                    result = {'state': 'no_checkpoint', 'completed_steps': None, 'total_steps': len(steps),
+                              'current_step': None, 'step_may_have_executed': None,
+                              'checkpoint_matches_request': False, 'effects_verified': False,
+                              'current_health_verified': False, 'resume_authorized': False,
+                              'installation_complete': False}
+                    if policy is not None:
+                        result['runtime_evidence_verified'] = False
+                    return result
                 state = {'version': 2, 'binding': binding, 'index': 0, 'status': 'pending'}
                 _atomic_write(marker, state)
             if (set(state) != {'version', 'binding', 'index', 'status'}
@@ -144,14 +179,18 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
                 if read_effect_receipt(marker) != state:
                     raise FreshControllerError()
                 complete = state['status'] == 'done'
-                return {'state': 'recorded_complete' if complete else 'pending',
-                        'completed_steps': state['index'], 'total_steps': len(steps),
-                        'current_step': None if complete else steps[state['index']][0],
-                        'step_may_have_executed': not complete, 'checkpoint_matches_request': True,
-                        'effects_verified': False, 'current_health_verified': False,
-                        'resume_authorized': False, 'installation_complete': False}
+                result = {'state': 'recorded_complete' if complete else 'pending',
+                          'completed_steps': state['index'], 'total_steps': len(steps),
+                          'current_step': None if complete else steps[state['index']][0],
+                          'step_may_have_executed': not complete, 'checkpoint_matches_request': True,
+                          'effects_verified': False, 'current_health_verified': False,
+                          'resume_authorized': False, 'installation_complete': False}
+                if policy is not None:
+                    result['runtime_evidence_verified'] = False
+                return result
             while state['index'] < len(steps):
                 name, params, result_key, expected = steps[state['index']]
+                verify_policy()
                 deadline = time.monotonic() + min(metadata['manifest']['update']['health_wait'], 30)
                 while True:
                     response = handle({'api_major': 1, 'request_id': 'fresh-workflow', 'operation': name,
@@ -165,6 +204,7 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
                     code = response.get('error', {}).get('code', 'controller_failed')
                     raise FreshControllerError(code if type(code) is str and re.fullmatch(r'[a-z][a-z0-9_]{0,63}', code)
                                                else 'controller_failed')
+                verify_policy()
                 if (type(response.get('result')) is not dict
                         or type(response['result'].get(result_key)) is not type(expected)
                         or response['result'][result_key] != expected or read_effect_receipt(marker) != state):
@@ -175,9 +215,14 @@ def run_portable_linux_install(*, package_path: str, envelope: bytes, trusted_pu
                 _atomic_write(marker, state)
             if read_effect_receipt(marker) != state:
                 raise FreshControllerError()
-        return {'state': 'recorded_complete', 'completed_steps': len(steps),
-                'health_verified_at_execution': True, 'current_health_verified': False,
-                'process_identity_verified': False, 'installation_complete': False}
+        result = {'state': 'recorded_complete', 'completed_steps': len(steps),
+                  'health_verified_at_execution': True, 'current_health_verified': False,
+                  'process_identity_verified': False, 'installation_complete': False}
+        if policy is not None:
+            result['runtime_evidence_verified'] = True
+            result['complete_dependency_inventory'] = False
+            result['malware_scanned'] = False
+        return result
     except FreshControllerError:
         raise
     except Exception:

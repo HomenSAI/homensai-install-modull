@@ -44,7 +44,7 @@ from shared.update_plan import EffectIndeterminate, UpdateError, UpdatePlan
 from shared.update_prepare import UpdatePrepareError, prepare_signed_linux_update, verify_started_linux_update
 
 API_MAJOR = 1
-API_MINOR = 65
+API_MINOR = 66
 MAX_BYTES = 1024 * 1024
 MAX_DEPTH = 64
 MAX_NODES = 50000
@@ -792,7 +792,8 @@ def _handle(request: Any) -> dict:
                       'workflow_key', 'keys'}
             strings = fields - {'modes', 'required_bytes', 'reserve_bytes', 'keys'}
             names = ('release', 'runtime', 'publish', 'load', 'start')
-            if (set(params) != fields or any(type(params[name]) is not str or not params[name] for name in strings)
+            if (set(params) not in (fields, fields | {'runtime_evidence'})
+                    or any(type(params[name]) is not str or not params[name] for name in strings)
                     or type(params['modes']) is not list or not params['modes']
                     or any(type(item) is not str or not item for item in params['modes'])
                     or len(set(params['modes'])) != len(params['modes'])
@@ -808,6 +809,16 @@ def _handle(request: Any) -> dict:
                     or re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,62}', params['expected_product_id']) is None
                     or re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}', params['expected_version']) is None):
                 raise InvalidRequest()
+            if 'runtime_evidence' in params:
+                policy = params['runtime_evidence']
+                names_policy = {'lock_path', 'evidence_path', 'evidence_sha256', 'max_age_seconds'}
+                if (type(policy) is not dict or set(policy) != names_policy
+                        or any(type(policy[name]) is not str or not policy[name]
+                               for name in names_policy - {'max_age_seconds'})
+                        or re.fullmatch(r'[a-f0-9]{64}', policy['evidence_sha256']) is None
+                        or type(policy['max_age_seconds']) is not int
+                        or not 1 <= policy['max_age_seconds'] <= 31 * 24 * 3600):
+                    raise InvalidRequest()
             if not _signature_available() or not _systemd_plan_available():
                 return _error(request_id, 'unsupported_operation', 'Операция API не поддерживается',
                               language, 'api.unsupported_operation')
@@ -822,8 +833,12 @@ def _handle(request: Any) -> dict:
                     install_root=params['install_root'], unit_dir=params['unit_dir'], work_dir=params['work_dir'],
                     modes=tuple(params['modes']), required_bytes=params['required_bytes'],
                     reserve_bytes=params['reserve_bytes'], workflow_key=params['workflow_key'], keys=params['keys'],
-                    language=language or 'en', inspect_only=(operation == 'inspect-portable-linux-install'))
+                    language=language or 'en', inspect_only=(operation == 'inspect-portable-linux-install'),
+                    runtime_evidence=params.get('runtime_evidence'))
             except FreshControllerError as error:
+                if error.code == 'runtime_evidence_failed':
+                    return _error(request_id, 'runtime_evidence_failed', 'Не удалось проверить свидетельство runtime',
+                                  language, 'api.runtime_evidence_failed')
                 if error.code == 'wheel_audit_failed':
                     return _error(request_id, 'wheel_audit_failed', 'Проверка структуры зависимостей не пройдена',
                                   language, 'api.wheel_audit_failed')

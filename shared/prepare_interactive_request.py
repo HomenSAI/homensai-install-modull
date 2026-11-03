@@ -30,7 +30,8 @@ def _read_public_file(path, limit):
 
 def prepare(template, envelope, public_key, output, *, language='en', handle=api.handle):
     """Inspect signed inputs, then write a new mode-0600 request without overwriting."""
-    if (type(template) is not dict or set(template) != _FIELDS or type(envelope) is not bytes
+    if (type(template) is not dict or set(template) not in (_FIELDS, _FIELDS | {'runtime_evidence'})
+            or type(envelope) is not bytes
             or not 0 < len(envelope) <= MAX_ENVELOPE or type(public_key) is not bytes or len(public_key) != 32):
         raise ValueError('invalid request input')
     path = checked_path(output)

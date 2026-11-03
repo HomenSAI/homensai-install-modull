@@ -109,6 +109,17 @@ def run(params, language, *, ask, write, handle=api.handle, inspect_only=False, 
         # Escape control characters and terminal sequences from untrusted paths.
         write(message(label) + ': ' + json.dumps(params[name], ensure_ascii=True))
     write(message('key_fingerprint') + ': ' + hashlib.sha256(key).hexdigest())
+    if 'runtime_evidence' in params:
+        policy = params['runtime_evidence']
+        if (type(policy) is not dict or set(policy) != {'lock_path', 'evidence_path', 'evidence_sha256', 'max_age_seconds'}
+                or any(type(policy[name]) is not str for name in ('lock_path', 'evidence_path', 'evidence_sha256'))
+                or type(policy['max_age_seconds']) is not int):
+            write(message('inspection_failed'))
+            return 1
+        write(message('evidence_policy'))
+        for label, name in (('evidence_lock', 'lock_path'), ('evidence_report', 'evidence_path'),
+                            ('evidence_digest', 'evidence_sha256'), ('evidence_age', 'max_age_seconds')):
+            write(message(label) + ': ' + json.dumps(policy[name], ensure_ascii=True))
     write(message('state_' + result['state']))
     completed, total, current = result.get('completed_steps'), result.get('total_steps'), result.get('current_step')
     if (type(completed) is int and type(total) is int and 0 <= completed <= total <= 1000):

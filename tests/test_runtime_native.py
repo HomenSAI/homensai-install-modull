@@ -212,7 +212,8 @@ def test_runtime_api_plans_prepares_and_verifies_without_reexecution(runtime_rel
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
                     reason='Нужен одноразовый тестовый контейнер Python 3.14')
 def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=False, pointer=False,
-                                                      update_case=None, interactive=False, logged_api=False):
+                                                      update_case=None, interactive=False, logged_api=False,
+                                                      evidence_policy=False):
     import base64
     import pwd
     import shutil
@@ -268,6 +269,8 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
             with zipfile.ZipFile(wheel, 'w') as archive:
                 archive.writestr('fictional_demo/__init__.py', '# synthetic, not executed')
             body = wheel.getvalue()
+        elif evidence_policy and artifact['file'] == manifest['runtime']['lock_files']['linux']['file']:
+            body = b'synthetic-dependency==1.0 --hash=sha256:' + b'a' * 64 + b'\n'
         else:
             body = ('synthetic dependency ' + str(index)).encode()
         path = payload / artifact['file']
@@ -347,6 +350,15 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                     required_bytes={name: 0 for name in NAMES}, reserve_bytes=0, workflow_key='f' * 32,
                     keys=dict(zip(('release', 'runtime', 'publish', 'load', 'start'),
                                   (key * 32 for key in '1abcd'))))
+        if evidence_policy:
+            from shared.osv_audit import audit
+            audited_lock = tmp_path / 'audited-runtime.lock'
+            audited_lock.write_bytes((payload / manifest['runtime']['lock_files']['linux']['file']).read_bytes())
+            report = json.dumps(audit([str(audited_lock)], send=lambda _: {'results': [{}]})).encode()
+            report_path = tmp_path / 'runtime-evidence.json'
+            report_path.write_bytes(report)
+            args['runtime_evidence'] = {'lock_path': str(audited_lock), 'evidence_path': str(report_path),
+                'evidence_sha256': hashlib.sha256(report).hexdigest(), 'max_age_seconds': 900}
         if interactive:
             import pty
             from shared.interactive_install import read_config
@@ -405,6 +417,14 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
             assert observed['state'] == 'pending' and observed['completed_steps'] == 1
             assert observed['current_step'] == 'prepare-linux-runtime' and observed['step_may_have_executed'] is True
             assert observed['resume_authorized'] is False and json.loads(marker_file.read_text())['index'] == 1
+            if evidence_policy:
+                assert observed['runtime_evidence_verified'] is False
+                report_path.write_bytes(report + b'tampered')
+                before = marker_file.read_bytes()
+                with pytest.raises(InstallerClientError) as failure:
+                    client.call('install-portable-linux', api_args, min_minor=66, language='de')
+                assert failure.value.code == 'runtime_evidence_failed' and marker_file.read_bytes() == before
+                report_path.write_bytes(report)
             if interactive:
                 import pty
                 assert read_config(request_file) == api_args
@@ -463,6 +483,8 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                 result = client.call('install-portable-linux', api_args, min_minor=57 if pointer else 31, language='de')
             assert result['state'] == 'recorded_complete' and result['health_verified_at_execution'] is True
             assert result['installation_complete'] is False and result['process_identity_verified'] is False
+            if evidence_policy:
+                assert result['runtime_evidence_verified'] and not result['malware_scanned']
             assert client.call('install-portable-linux', api_args, min_minor=57 if pointer else 31, language='ru') == result
             completed = client.call('inspect-portable-linux-install', api_args, min_minor=57 if pointer else 32, language='ru')
             assert completed['state'] == 'recorded_complete' and completed['completed_steps'] == 6
@@ -854,6 +876,13 @@ def test_interactive_resumes_real_pointer_product(tmp_path, monkeypatch):
 def test_logged_api_resumes_real_pointer_product(tmp_path, monkeypatch):
     test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True, pointer=True,
                                                       logged_api=True)
+
+
+@pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',
+                    reason='Нужен одноразовый тестовый контейнер Python 3.14')
+def test_evidence_policy_resumes_real_pointer_product(tmp_path, monkeypatch):
+    test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, controller=True, pointer=True,
+                                                      evidence_policy=True)
 
 
 @pytest.mark.skipif(os.environ.get('HOMENSAI_TEST_ISOLATED_SYSTEMD') != '1' or os.name != 'posix',

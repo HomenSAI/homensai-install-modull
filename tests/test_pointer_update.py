@@ -8,11 +8,11 @@ import pytest
 from test_api_signed_preflight import signed_request
 from test_systemd_pointer_signed import signed_pointer
 from test_systemd_portable import FakeReloadManager, fake_manager
-from shared.pointer_update import assemble_pointer_linux_update
+from shared.pointer_update import assemble_pointer_linux_update, inspect_started_pointer_runtime
 from shared.runtime_native import prepare_signed_linux_runtime
 from shared.systemd_pointer import publish_pointer_signed_user_units
 from shared.systemd_user_load import load_pointer_signed_user_units
-from shared.update_plan import UpdateError, UpdateIndeterminate
+from shared.update_plan import EffectIndeterminate, UpdateError, UpdateIndeterminate
 
 
 class StatefulManager(FakeReloadManager):
@@ -149,3 +149,36 @@ def test_restore_preserves_runtime_when_effects_wrapper_hides_guard(installation
     monkeypatch.setattr(effects.health_port, 'health', health)
     assert plan.run()['outcome'] == 'rolled_back'
     assert stat.S_IMODE((root / 'runtime/bin/python').stat().st_mode) == 0o700
+
+
+def test_inspect_interrupted_runtime_after_pointer_switch(installation, monkeypatch):
+    root, _, options, _ = installation
+    plan = assemble_pointer_linux_update(**options)
+    def interrupt_start(*_):
+        raise EffectIndeterminate('synthetic interruption')
+    monkeypatch.setattr(plan.ports.effects, 'start', interrupt_start)
+    with pytest.raises(UpdateIndeterminate):
+        plan.run()
+    assert plan.ports.current_release() == '2'
+    excluded = {'unit_dir', 'load_key', 'runtime_key', 'runtime_reserve_bytes', 'runner',
+                'password_provider', 'interpreter', 'interpreter_sha256', 'timeout'}
+    args = {name: value for name, value in options.items() if name not in excluded}
+    args.update(runtime_key=options['runtime_key'], runtime_reserve_bytes=0)
+    before = plan.status()
+    result = inspect_started_pointer_runtime(**args)
+    assert result['state'] == before and result['runtime_verified']
+    assert not result['services_verified'] and not result['resume_authorized']
+    with pytest.raises(UpdateError):
+        inspect_started_pointer_runtime(**{**args, 'runtime_reserve_bytes': 1})
+    with pytest.raises(UpdateError):
+        inspect_started_pointer_runtime(**{**args, 'runtime_key': 'f' * 32})
+    launcher = root / 'runtime/lib/homensai/portable_launcher.py'
+    original = launcher.read_bytes()
+    launcher.write_text('damaged')
+    with pytest.raises(UpdateError):
+        inspect_started_pointer_runtime(**args)
+    launcher.write_bytes(original)
+    (root / 'releases/app-1/runtime-linux/runtime-v1.json').write_text('damaged')
+    with pytest.raises(UpdateError):
+        inspect_started_pointer_runtime(**args)
+    assert plan.status() == before and plan.ports.current_release() == '2'

@@ -38,12 +38,21 @@ def _definition(package_path, envelope, install_root, options):
     if verified['process_target'] != {'os': 'linux', 'architecture': 'x86_64', 'execution': 'native'}:
         raise NativeRuntimeError('Требуется нативный Linux x86-64')
     root = checked_path(install_root)
+    home, release, value, files = _runtime_spec(metadata, root, options['expected_version'])
+    if (verify_signed_package(package_path, envelope, **options) != metadata
+            or verify_fresh_release(package_path, envelope, install_root, **options) != verified):
+        raise NativeRuntimeError('Выпуск изменился')
+    return metadata, verified, root, home, release, value, files
+
+
+def _runtime_spec(metadata, root, version):
+    """Read a runtime recipe from a release whose inventory is verified by the caller."""
     home = resolve_datahome(metadata['manifest'], root)
     entries = {item['path']: item for item in metadata['files']}
     recipe = entries.get(RECIPE_PATH)
     if recipe is None or recipe['size'] > MAX_RECIPE:
         raise NativeRuntimeError('Нет подписанного рецепта runtime')
-    release = home.releases / ('app-' + options['expected_version'])
+    release = home.releases / ('app-' + version)
     raw = _read_unit(release / RECIPE_PATH, recipe['sha256'])
     value = json.loads(raw.decode('utf-8'), object_pairs_hook=_object)
     if (type(value) is not dict or set(value) != {'format', 'target', 'python_version', 'executables'}
@@ -66,10 +75,18 @@ def _definition(package_path, envelope, install_root, options):
         raise NativeRuntimeError('Отсутствует файл runtime')
     for name in files:
         _safe_name(name)
-    if (verify_signed_package(package_path, envelope, **options) != metadata
-            or verify_fresh_release(package_path, envelope, install_root, **options) != verified):
-        raise NativeRuntimeError('Выпуск изменился')
-    return metadata, verified, root, home, release, value, files
+    return home, release, value, files
+
+
+def _runtime_binding(*, product_id, version, transaction, recipe, files, root, runtime,
+                     trusted_public_key, reserve_bytes):
+    context = {'product_id': product_id, 'version': version, 'transaction': transaction,
+               'recipe_sha256': hashlib.sha256(json.dumps(recipe, sort_keys=True, separators=(',', ':')).encode()).hexdigest(),
+               'files_sha256': hashlib.sha256(json.dumps(files, sort_keys=True, separators=(',', ':')).encode()).hexdigest(),
+               'install_sha256': hashlib.sha256(str(root).encode()).hexdigest(),
+               'runtime_sha256': hashlib.sha256(str(runtime).encode()).hexdigest(),
+               'publisher_sha256': hashlib.sha256(trusted_public_key).hexdigest(), 'reserve_bytes': reserve_bytes}
+    return hashlib.sha256(json.dumps(context, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 
 
 def _directories(files):
@@ -153,14 +170,9 @@ def _prepare_signed_linux_runtime(package_path, envelope, install_root, *, trust
             if (not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid()
                     or stat.S_IMODE(info.st_mode) != 0o700):
                 raise NativeRuntimeError('Каталог runtime не защищён')
-        context = {'product_id': expected_product_id, 'version': expected_version,
-                   'transaction': verified['transaction'], 'recipe_sha256': hashlib.sha256(
-                       json.dumps(recipe, sort_keys=True, separators=(',', ':')).encode()).hexdigest(),
-                   'files_sha256': hashlib.sha256(json.dumps(files, sort_keys=True, separators=(',', ':')).encode()).hexdigest(),
-                   'install_sha256': hashlib.sha256(str(root).encode()).hexdigest(),
-                   'runtime_sha256': hashlib.sha256(str(runtime).encode()).hexdigest(),
-                   'publisher_sha256': hashlib.sha256(trusted_public_key).hexdigest(), 'reserve_bytes': reserve_bytes}
-        binding = hashlib.sha256(json.dumps(context, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+        binding = _runtime_binding(product_id=expected_product_id, version=expected_version,
+            transaction=verified['transaction'], recipe=recipe, files=files, root=root, runtime=runtime,
+            trusted_public_key=trusted_public_key, reserve_bytes=reserve_bytes)
         receipt = checked_path(control / 'linux-runtime.json')
         pending = {'version': 1, 'operation_id': operation_id, 'binding': binding, 'status': 'pending'}
         done = {**pending, 'status': 'done'}

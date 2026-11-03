@@ -5,12 +5,14 @@ import re
 
 from shared.datahome import checked_path
 from shared.package_signing import verify_signed_package
-from shared.runtime_native import _definition, _inspect_runtime, verify_signed_linux_runtime
+from shared.fresh_prepare import status_fresh_native
+from shared.runtime_native import (_definition, _inspect_runtime, _runtime_binding, _runtime_spec,
+                                   verify_signed_linux_runtime)
 from shared.systemd_user_load import _pointer_signed_user_group
 from shared.systemd_user_publish import _publication_receipt
 from shared.update_assembly import assemble_prepared_linux_update
 from shared.update_plan import UpdateError
-from shared.update_prepare import _check_pointer_runtime_compatibility
+from shared.update_prepare import _check_pointer_runtime_compatibility, verify_started_linux_update
 
 
 class _RuntimeEvidence:
@@ -36,6 +38,49 @@ class _RuntimeEvidence:
         _inspect_runtime(checked_path(self.runtime), self.files, set(self.recipe['executables']))
         if _publication_receipt(self.receipt_path) != self.receipt:
             raise UpdateError('Отметка runtime изменилась')
+
+
+def inspect_started_pointer_runtime(*, runtime_key, runtime_reserve_bytes, **options):
+    """Inspect an interrupted pointer update's runtime without continuing effects.
+
+    Trusted packages, keys, operation ID and writer isolation are caller-owned.
+    This does not authenticate processes, authorize replay, or rebuild a group.
+    """
+    try:
+        if (type(runtime_key) is not str or re.fullmatch(r'[a-f0-9]{32}', runtime_key) is None
+                or type(runtime_reserve_bytes) is not int or not 0 <= runtime_reserve_bytes <= 2**63 - 1
+                or runtime_key == options['operation_id']):
+            raise UpdateError('Недопустимые параметры runtime')
+        started = verify_started_linux_update(**options)
+        old_options = dict(trusted_public_key=options['old_key'], expected_product_id=options['product_id'],
+                           expected_version=options['old_version'])
+        new_options = dict(trusted_public_key=options['new_key'], expected_product_id=options['product_id'],
+                           expected_version=options['new_version'])
+        old = verify_signed_package(options['old_package'], options['old_envelope'], **old_options)
+        new = verify_signed_package(options['new_package'], options['new_envelope'], **new_options)
+        if not _check_pointer_runtime_compatibility(old, new):
+            raise UpdateError('Требуется рецепт pointer-v2')
+        fresh = status_fresh_native(options['old_package'], options['old_envelope'], options['install_root'],
+                                    **old_options)
+        root = checked_path(options['install_root'])
+        home, _, recipe, files = _runtime_spec(old, root, options['old_version'])
+        runtime = checked_path(home.roots['runtime'])
+        receipt_path = checked_path(root / '.homensai-control/linux-runtime.json')
+        expected = {'version': 1, 'operation_id': runtime_key, 'status': 'done',
+                    'binding': _runtime_binding(product_id=options['product_id'], version=options['old_version'],
+                        transaction=fresh['transaction'], recipe=recipe, files=files, root=root, runtime=runtime,
+                        trusted_public_key=options['old_key'], reserve_bytes=runtime_reserve_bytes)}
+        if _publication_receipt(receipt_path) != expected:
+            raise UpdateError('Отметка runtime не подтверждена')
+        _inspect_runtime(runtime, files, set(recipe['executables']))
+        if (_publication_receipt(receipt_path) != expected or verify_started_linux_update(**options) != started
+                or status_fresh_native(options['old_package'], options['old_envelope'], options['install_root'],
+                                       **old_options) != fresh):
+            raise UpdateError('Состояние изменилось во время проверки')
+        return {'state': started['state'], 'runtime_verified': True, 'file_count': len(files),
+                'services_verified': False, 'resume_authorized': False}
+    except Exception:
+        raise UpdateError('Не удалось проверить runtime начатого обновления') from None
 
 
 def assemble_pointer_linux_update(*, unit_dir, load_key, runtime_key, runtime_reserve_bytes,

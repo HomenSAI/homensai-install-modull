@@ -1,6 +1,7 @@
 """The interactive adapter must not start installation without confirmation."""
 import base64
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -87,6 +88,22 @@ def test_config_rejects_duplicates_and_symlinks(tmp_path):
     link.symlink_to(config)
     with pytest.raises(OSError):
         read_config(link)
+
+
+def test_config_changed_during_read_is_rejected(tmp_path, monkeypatch):
+    config = tmp_path / 'request.json'
+    config.write_text('{"first":1}', encoding='utf-8')
+    original = os.fstat
+    count = 0
+    def changing(fd):
+        nonlocal count
+        count += 1
+        if count == 2:
+            config.write_text('{"replacement":22}', encoding='utf-8')
+        return original(fd)
+    monkeypatch.setattr('shared.interactive_install.os.fstat', changing)
+    with pytest.raises(ValueError):
+        read_config(config)
 
 
 def test_invalid_arguments_never_echo_accidental_secret(capsys):

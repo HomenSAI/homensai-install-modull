@@ -6,14 +6,13 @@ import json
 import os
 from pathlib import Path
 import secrets
-import stat
 import sys
 import tempfile
 
 from shared import api
 from shared.datahome import checked_path
 from shared.i18n import LanguageError, available_languages, translate
-from shared.interactive_install import MAX_CONFIG_BYTES, _Parser, read_config
+from shared.interactive_install import MAX_CONFIG_BYTES, _Parser, read_bounded_file, read_config
 from shared.package_signing import MAX_ENVELOPE
 from shared.preflight import MAX_BYTES, NAMES
 
@@ -23,12 +22,7 @@ _NAMES = ('release', 'runtime', 'publish', 'load', 'start')
 
 
 def _read_public_file(path, limit):
-    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | getattr(os, 'O_NONBLOCK', 0))
-    with os.fdopen(fd, 'rb') as stream:
-        info = os.fstat(stream.fileno())
-        if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
-            raise ValueError('invalid public file')
-        data = stream.read(limit + 1)
+    data = read_bounded_file(path, limit)
     if not data or len(data) > limit:
         raise ValueError('invalid public file')
     return data

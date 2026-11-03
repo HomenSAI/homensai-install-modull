@@ -31,17 +31,30 @@ def _unique(pairs):
     return result
 
 
-def read_config(path):
-    """Read a bounded regular JSON file without following its final symlink."""
+def read_bounded_file(path, limit):
+    """Read a stable bounded regular file without following its final symlink."""
     flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0)
     fd = os.open(path, flags)
     with os.fdopen(fd, 'rb') as stream:
-        info = os.fstat(stream.fileno())
-        if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_CONFIG_BYTES:
+        def signature(info):
+            if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
+                raise ValueError('invalid file')
+            return (info.st_dev, info.st_ino, info.st_mode, info.st_size,
+                    info.st_mtime_ns, info.st_ctime_ns, info.st_nlink)
+        before = signature(os.fstat(stream.fileno()))
+        if signature(os.lstat(path)) != before:
             raise ValueError('invalid file')
-        raw = stream.read(MAX_CONFIG_BYTES + 1)
-    if len(raw) > MAX_CONFIG_BYTES:
+        raw = stream.read(limit + 1)
+        if signature(os.fstat(stream.fileno())) != before or signature(os.lstat(path)) != before:
+            raise ValueError('file changed')
+    if len(raw) > limit:
         raise ValueError('invalid file')
+    return raw
+
+
+def read_config(path):
+    """Read a bounded, stable JSON object without duplicate keys."""
+    raw = read_bounded_file(path, MAX_CONFIG_BYTES)
     result = json.loads(raw.decode('utf-8'), object_pairs_hook=_unique)
     if type(result) is not dict:
         raise ValueError('invalid config')

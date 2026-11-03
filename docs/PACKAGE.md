@@ -144,3 +144,26 @@ ZIP без сжатия содержит `package.json` и файлы `payload/.
 адаптер обязан повторно проверить полное дерево при staging и обеспечить его
 защиту до исполнения. На Windows поведение ACL, hard links и восстановление
 после внезапного отключения питания ещё не прошли приёмку.
+
+## Перечень состава выпуска
+
+`shared.release_inventory` строит офлайн-перечень подписанного пакета в
+формате `homensai-release-inventory/1`: SHA-256 пакета, подписи, открытого
+ключа и канонического манифеста; все файлы payload с размерами и хэшами;
+закреплённые зависимости из каждого lock-файла (`name==version` и хэши,
+либо `null`, если lock не в строгом формате); для каждого wheel — имя,
+версия, `License-Expression`/`License`, классификаторы лицензий и хэши
+файлов лицензий из `*.dist-info`.
+
+```sh
+python -m shared.release_inventory --package /abs/product-1.zip \
+  --envelope-file /abs/signature.json --public-key-file /abs/publisher.key \
+  --product-id demo --version 1 --output /abs/product-1.inventory.json
+```
+
+Подпись проверяется до чтения; пакет повторно сверяется с подписанным
+SHA-256 до и после перечня; результат пишется только в новый файл.
+Флаги `dependency_completeness_verified`, `licenses_reviewed`,
+`vulnerabilities_checked`, `malicious_code_scanned` и
+`publisher_trust_verified` всегда `false`: перечень показывает содержимое,
+но не юридическую оценку лицензий и не отсутствие уязвимостей.

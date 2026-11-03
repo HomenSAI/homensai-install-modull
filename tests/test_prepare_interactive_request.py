@@ -62,3 +62,15 @@ def test_cli_reads_template_and_public_files_without_exposing_inputs(workflow, t
     output = capsys.readouterr()
     assert str(tmp_path) not in output.out and str(tmp_path) not in output.err
     assert read_config(target)['expected_product_id'] == workflow['product_id']
+
+
+def test_fsync_failure_does_not_publish_partial_request(workflow, tmp_path, monkeypatch):
+    target = tmp_path / 'request.json'
+    def fail(_):
+        raise OSError('synthetic fsync failure')
+    monkeypatch.setattr('shared.prepare_interactive_request.os.fsync', fail)
+    with pytest.raises(OSError):
+        prepare(template_for(workflow), workflow['envelope'], workflow['trusted_public_key'], str(target),
+                handle=lambda request: {'ok': True, 'result': {'state': 'no_checkpoint'}})
+    assert not target.exists()
+    assert not list(tmp_path.glob('.homensai-request-*'))

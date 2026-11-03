@@ -8,6 +8,7 @@ from pathlib import Path
 import secrets
 import stat
 import sys
+import tempfile
 
 from shared import api
 from shared.datahome import checked_path
@@ -54,19 +55,23 @@ def prepare(template, envelope, public_key, output, *, language='en', handle=api
     data = (json.dumps(params, ensure_ascii=True, sort_keys=True, indent=2) + '\n').encode('ascii')
     if len(data) > MAX_CONFIG_BYTES:
         raise ValueError('request too large')
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
-    # On write/fsync failure, leave the file for inspection: never replace it
-    # or silently create different keys for a possibly used transaction.
-    with os.fdopen(descriptor, 'wb') as stream:
-        os.fchmod(stream.fileno(), 0o600)
-        stream.write(data)
-        stream.flush()
-        os.fsync(stream.fileno())
-    directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+    descriptor, temporary = tempfile.mkstemp(prefix='.homensai-request-', dir=path.parent)
     try:
-        os.fsync(directory)
+        with os.fdopen(descriptor, 'wb') as stream:
+            os.fchmod(stream.fileno(), 0o600)
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        # Hard-link publication is atomic and refuses an existing destination.
+        # A failure after link may leave the complete request at the final path.
+        os.link(temporary, path, follow_symlinks=False)
+        directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
     finally:
-        os.close(directory)
+        os.unlink(temporary)
 
 
 def main(argv=None):

@@ -408,15 +408,19 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
             if interactive:
                 import pty
                 assert read_config(request_file) == api_args
+                log_dir = tmp_path / 'event-log'
+                log_dir.mkdir(mode=0o700)
+                event_log = log_dir / 'events.jsonl'
                 inspected = subprocess.run([sys.executable, '-m', 'shared.interactive_install',
-                    '--request-file', str(request_file), '--language', 'de', '--inspect'], cwd=str(ROOT),
+                    '--request-file', str(request_file), '--language', 'de', '--inspect',
+                    '--event-log', str(event_log)], cwd=str(ROOT),
                     stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=120, check=True)
                 assert '1/6' in inspected.stdout and 'prepare-linux-runtime' in inspected.stdout
                 assert json.loads(marker_file.read_text())['index'] == 1
                 master, slave = pty.openpty()
                 try:
                     process = subprocess.Popen([sys.executable, '-m', 'shared.interactive_install',
-                        '--request-file', str(request_file), '--language', 'de'], cwd=str(ROOT),
+                        '--request-file', str(request_file), '--language', 'de', '--event-log', str(event_log)], cwd=str(ROOT),
                         stdin=slave, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     os.close(slave)
                     slave = None
@@ -433,6 +437,10 @@ def test_prepared_runtime_runs_real_container_cpython(tmp_path, monkeypatch, con
                     os.close(master)
                     if slave is not None:
                         os.close(slave)
+                events = [json.loads(line) for line in event_log.read_text().splitlines()]
+                assert [item['event'] for item in events] == ['inspection_started', 'inspection_succeeded',
+                    'inspection_started', 'inspection_succeeded', 'install_started', 'install_recorded']
+                assert all(set(item) == {'time_utc', 'event'} for item in events)
             result = client.call('install-portable-linux', api_args, min_minor=57 if pointer else 31, language='de')
             assert result['state'] == 'recorded_complete' and result['health_verified_at_execution'] is True
             assert result['installation_complete'] is False and result['process_identity_verified'] is False

@@ -108,6 +108,7 @@
   "interactive.progress": "Recorded completed steps",
   "interactive.current_step": "Current step",
   "interactive.inspection_only": "Inspection only: effects and current health were not verified.",
+  "interactive.log_failed": "Event log failed; an operation may have run. Inspect the installation state before retrying.",
   "interactive.state_no_checkpoint": "No checkpoint was found; this does not prove that no changes occurred.",
   "interactive.state_pending": "An earlier step may have executed; review its state before continuing.",
   "interactive.state_recorded_complete": "The checkpoint records a completed workflow; current health is not verified.",

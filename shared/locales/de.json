@@ -108,6 +108,7 @@
   "interactive.progress": "Laut Status abgeschlossene Schritte",
   "interactive.current_step": "Aktueller Schritt",
   "interactive.inspection_only": "Nur Anzeige: Auswirkungen und aktueller Zustand wurden nicht geprüft.",
+  "interactive.log_failed": "Ereignisprotokoll fehlgeschlagen; ein Vorgang wurde möglicherweise ausgeführt. Zustand vor Wiederholung prüfen.",
   "interactive.state_no_checkpoint": "Kein Status gefunden; das belegt nicht, dass keine Änderungen erfolgten.",
   "interactive.state_pending": "Ein vorheriger Schritt wurde möglicherweise ausgeführt; Zustand vor dem Fortsetzen prüfen.",
   "interactive.state_recorded_complete": "Der Ablauf ist als abgeschlossen vermerkt; der aktuelle Zustand wurde nicht geprüft.",

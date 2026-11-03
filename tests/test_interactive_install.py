@@ -145,3 +145,31 @@ def test_pending_inspection_displays_progress_safely_without_prompt():
     assert any('2/6' in line for line in lines)
     assert any('stage\\u001b[2J' in line for line in lines)
     assert not any('\x1b' in line for line in lines)
+
+
+def test_inspect_with_event_log_uses_fixed_schema(workflow, tmp_path, monkeypatch, capsys):
+    params = query_for(workflow, 'ru')['params']
+    request = tmp_path / 'request.json'
+    request.write_text(json.dumps(params), encoding='utf-8')
+    directory = tmp_path / 'private-log'
+    directory.mkdir(mode=0o700)
+    logfile = directory / 'events.jsonl'
+    monkeypatch.setattr('sys.stdin.isatty', lambda: False)
+    assert main(['--request-file', str(request), '--language', 'ru', '--inspect', '--event-log', str(logfile)]) == 0
+    rows = [json.loads(line) for line in logfile.read_text().splitlines()]
+    assert [row['event'] for row in rows] == ['inspection_started', 'inspection_succeeded']
+    assert str(tmp_path) not in logfile.read_text()
+    capsys.readouterr()
+
+
+def test_unavailable_event_log_stops_before_inspection(workflow, tmp_path, monkeypatch, capsys):
+    params = query_for(workflow, 'ru')['params']
+    request = tmp_path / 'request.json'
+    request.write_text(json.dumps(params), encoding='utf-8')
+    directory = tmp_path / 'unsafe-log'
+    directory.mkdir(mode=0o755)
+    monkeypatch.setattr('sys.stdin.isatty', lambda: False)
+    assert main(['--request-file', str(request), '--language', 'ru', '--inspect',
+                 '--event-log', str(directory / 'events')]) == 1
+    assert capsys.readouterr().err.strip() == translate('ru', 'interactive.log_failed')
+    assert not list(Path(workflow['work_dir']).glob('install-*.lock'))

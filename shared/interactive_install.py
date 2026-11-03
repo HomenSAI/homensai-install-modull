@@ -22,6 +22,10 @@ class _Parser(argparse.ArgumentParser):
         raise ValueError('invalid arguments')
 
 
+class _EventLogFailure(RuntimeError):
+    pass
+
+
 def _unique(pairs):
     result = {}
     for key, value in pairs:
@@ -61,7 +65,7 @@ def read_config(path):
     return result
 
 
-def run(params, language, *, ask, write, handle=api.handle, inspect_only=False):
+def run(params, language, *, ask, write, handle=api.handle, inspect_only=False, emit=None):
     """Inspect once, ask once, and make at most one modifying API call."""
     def message(key):
         return translate(language, 'interactive.' + key)
@@ -70,8 +74,13 @@ def run(params, language, *, ask, write, handle=api.handle, inspect_only=False):
                        'operation': operation, 'params': params, 'language': language})
     if type(params) is not dict or type(inspect_only) is not bool or language not in available_languages():
         raise ValueError('invalid input')
+    def event(name):
+        if emit is not None:
+            emit(name)
+    event('inspection_started')
     inspection = call('inspect-portable-linux-install')
     if type(inspection) is not dict or inspection.get('ok') is not True:
+        event('inspection_failed')
         write(message('inspection_failed'))
         return 1
     result = inspection.get('result')
@@ -81,6 +90,7 @@ def run(params, language, *, ask, write, handle=api.handle, inspect_only=False):
                     'unit_dir', 'work_dir', 'trusted_public_key'))
             or type(params.get('modes')) is not list or not params['modes']
             or any(type(mode) is not str for mode in params['modes'])):
+        event('inspection_failed')
         write(message('inspection_failed'))
         return 1
     try:
@@ -88,8 +98,10 @@ def run(params, language, *, ask, write, handle=api.handle, inspect_only=False):
         if len(key) != 32:
             raise ValueError('invalid public key')
     except (ValueError, TypeError):
+        event('inspection_failed')
         write(message('inspection_failed'))
         return 1
+    event('inspection_succeeded')
     write(message('summary'))
     for label, name in (('product', 'expected_product_id'), ('version', 'expected_version'),
                         ('package', 'package_path'), ('root', 'install_root'),
@@ -110,17 +122,22 @@ def run(params, language, *, ask, write, handle=api.handle, inspect_only=False):
     try:
         answer = ask(message('confirm'))
     except (EOFError, KeyboardInterrupt):
+        event('install_cancelled')
         write(message('cancelled'))
         return 2
     if answer != 'INSTALL':
+        event('install_cancelled')
         write(message('cancelled'))
         return 2
+    event('install_started')
     response = call('install-portable-linux')
     if (type(response) is not dict or response.get('ok') is not True
             or type(response.get('result')) is not dict
             or response['result'].get('state') != 'recorded_complete'):
+        event('install_unconfirmed')
         write(message('install_failed'))
         return 1
+    event('install_recorded')
     write(message('recorded'))
     return 0
 
@@ -130,6 +147,7 @@ def main(argv=None):
     parser.add_argument('--request-file', required=True, help='JSON parameters for install-portable-linux')
     parser.add_argument('--language', default='en', help='Installed language code')
     parser.add_argument('--inspect', action='store_true', help='Inspect checkpoint without installing')
+    parser.add_argument('--event-log', help='Absolute path in a private directory for fixed events')
     language = 'en'
     try:
         args = parser.parse_args(argv)
@@ -139,7 +157,22 @@ def main(argv=None):
         if not args.inspect and not sys.stdin.isatty():
             raise ValueError('interactive terminal required')
         params = read_config(Path(args.request_file))
-        return run(params, language, ask=input, write=print, inspect_only=args.inspect)
+        emit = None
+        if args.event_log is not None:
+            from shared.technical_log import TechnicalLogError, record
+            def emit(event):
+                try:
+                    record(args.event_log, event)
+                except TechnicalLogError:
+                    raise _EventLogFailure() from None
+        return run(params, language, ask=input, write=print, inspect_only=args.inspect, emit=emit)
+    except _EventLogFailure:
+        try:
+            message = translate(language, 'interactive.log_failed')
+        except LanguageError:
+            message = 'Event log failed; inspect the installation state before retrying.'
+        print(message, file=sys.stderr)
+        return 1
     except (OSError, ValueError, UnicodeError, RecursionError, LanguageError):
         try:
             message = translate(language, 'interactive.input_failed')

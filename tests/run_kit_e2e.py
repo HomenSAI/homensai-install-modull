@@ -89,7 +89,9 @@ kill_at() {
     "$@" > /tmp/killed.log 2>&1 &
     pid=$!
     hit=0
-    for i in $(seq 1 6000); do
+    # Без предела по времени: под нагрузкой обновление с архивом длится дольше
+    # пяти минут; цикл заканчивается вместе с процессом.
+    while :; do
         if grep -q "$pattern" "$file" 2>/dev/null; then
             pkill -KILL -f 'homensai_setup.py|-m shared.api'; hit=1; break
         fi
@@ -224,6 +226,7 @@ def main() -> int:
                         help='каталог с pbs/*.tar.gz и wheelhouse/*.whl')
     parser.add_argument('--python', default=sys.executable)
     parser.add_argument('--keep', action='store_true', help='не удалять рабочий каталог')
+    parser.add_argument('--timeout', type=int, default=7200, help='предел всего сценария, секунд')
     args = parser.parse_args()
     if os.getuid() == 0:
         print('Нужен непривилегированный пользователь', file=sys.stderr)
@@ -246,7 +249,7 @@ def main() -> int:
         command = ['podman', 'run', '--rm', '--systemd=always', '--network=none',
                    '-v', str(work / 'kits') + ':/kits:ro', '-v', str(harness) + ':/harness:ro',
                    IMAGE, 'sh', '/harness/setup.sh']
-        return subprocess.run(command, timeout=3600).returncode
+        return subprocess.run(command, timeout=args.timeout).returncode
     finally:
         if args.keep:
             print('Рабочий каталог:', work)

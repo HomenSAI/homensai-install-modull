@@ -21,14 +21,15 @@ import re
 import shutil
 import subprocess
 import time
+from types import SimpleNamespace
+from typing import NamedTuple
 import urllib.request
 from xml.sax.saxutils import escape
 
 from shared import kit_secrets
-from shared.kit_setup import _SECRET_ENV, STATE_FORMAT, Setup, SetupError, _key, _private_dir
+from shared.kit_setup import _SECRET_ENV, PASSWORD_ENV, STATE_FORMAT, Setup, SetupError, _key, _private_dir
 
 _CREATE_NO_WINDOW = 0x08000000
-_SYSTEM_SID, _ADMINS_SID = '*S-1-5-18', '*S-1-5-32-544'
 _INSTALL_STEPS = ('release', 'runtime', 'control', 'services', 'start')
 _WINDOWS_HOOKS = ('pre_start', 'health_checks', 'post_update')
 # Грамматики идентификаторов манифеста (shared/manifest.schema.json): точки нет ни в одной.
@@ -45,110 +46,356 @@ def is_admin() -> bool:
         return False
 
 
+def _system_environment() -> dict:
+    """Минимальное окружение дочерних программ (WinSW): без секретов и пароля архива установщика.
+
+    Установщик держит пароль архива в os.environ на время транзакции обновления;
+    наследовать его обёртке служб незачем. WinSW (.NET Framework) нужны только
+    системные каталоги и каталог временных файлов.
+    """
+    root = os.environ.get('SystemRoot', r'C:\Windows')
+    environment = {'SystemRoot': root, 'windir': root, 'PATH': root + r'\System32',
+                   'ProgramData': os.environ.get('ProgramData', r'C:\ProgramData')}
+    for name in ('SystemDrive', 'TEMP', 'TMP'):
+        if os.environ.get(name):
+            environment[name] = os.environ[name]
+    return environment
+
+
 def _run(argv, *, timeout=120, check=True):
     completed = subprocess.run([str(item) for item in argv], stdin=subprocess.DEVNULL, capture_output=True,
-                               text=True, timeout=timeout, creationflags=_CREATE_NO_WINDOW, check=False)
+                               text=True, timeout=timeout, creationflags=_CREATE_NO_WINDOW, check=False,
+                               env=_system_environment())
     if check and completed.returncode != 0:
         raise SetupError('kit.windows_command_failed', command=Path(str(argv[0])).name,
                          code=str(completed.returncode))
     return completed
 
 
-def secure_directory(path: Path):
-    """Новая DACL без наследования: только SYSTEM и Administrators (на дочерние объекты)."""
-    _run(['icacls', str(path), '/inheritance:r', '/grant:r', _SYSTEM_SID + ':(OI)(CI)F',
-          '/grant:r', _ADMINS_SID + ':(OI)(CI)F', '/Q'])
-
-
+# Атрибуты файлов и права доступа Win32 (winnt.h).
+_DIRECTORY, _REPARSE_POINT = 0x10, 0x400
+_DELETE, _READ_CONTROL, _WRITE_DAC, _WRITE_OWNER = 0x10000, 0x20000, 0x40000, 0x80000
+_FILE_DELETE_CHILD, _FILE_READ_ATTRIBUTES = 0x40, 0x80
+_MAXIMUM_ALLOWED, _GENERIC_ALL = 0x02000000, 0x10000000
+_INHERIT_ONLY = 0x08
 _TRUSTED_SIDS = {'S-1-5-18', 'S-1-5-32-544'}
+# Владельцы и полноправные записи системных предков: ещё TrustedInstaller (C:\, Program Files).
+_SYSTEM_SIDS = _TRUSTED_SIDS | {'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'}
+# Права прочих SID на предке, позволяющие подменить следующий компонент пути: переименовать
+# или удалить сам предок (DELETE), удалить или переименовать любого ребёнка независимо от его
+# ACL (FILE_DELETE_CHILD), выдать себе любые права (WRITE_DAC, WRITE_OWNER) и обобщённые «все
+# права». FILE_ADD_SUBDIRECTORY и запись файлов не опасны: недостающий каталог создаётся
+# закрытым, а занятое чужим каталогом имя отклоняется по владельцу.
+_PARENT_RISK = _DELETE | _WRITE_DAC | _WRITE_OWNER | _FILE_DELETE_CHILD | _GENERIC_ALL | _MAXIMUM_ALLOWED
+# Закрытый каталог: владелец Administrators, наследование снято, доступ только SYSTEM и Administrators.
+CLOSED_SDDL = 'O:BAG:BAD:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)'
 
 
-def _acl_sids(path: Path) -> tuple[str, set[str]]:
-    """Владелец и SID всех записей DACL каталога через Win32 API (без запуска PowerShell).
+class _Entry(NamedTuple):
+    """Сам объект пути (не цель ссылки): атрибуты, владелец и записи DACL (тип, флаги, маска, SID)."""
+    attributes: int
+    owner: str
+    aces: tuple
 
-    Запуск PowerShell на загруженной системе занимал больше минуты; GetNamedSecurityInfoW
-    отвечает сразу. Записи DACL иных типов, кроме разрешающих и запрещающих, возвращаются
-    как недоверенные метки, чтобы проверка отклонила такой каталог.
+
+_API = None
+
+
+def _api():
+    """kernel32 и advapi32 через ctypes с объявленными типами (только Windows, один раз на процесс)."""
+    global _API
+    if _API is None:
+        import ctypes
+        from ctypes import wintypes
+        kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+        advapi32 = ctypes.WinDLL('advapi32', use_last_error=True)
+        pointer, address = ctypes.POINTER(ctypes.c_void_p), ctypes.c_void_p
+        flag = ctypes.POINTER(wintypes.BOOL)
+        for function, argtypes, restype in (
+                (kernel32.CreateFileW, [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, address, wintypes.DWORD,
+                                        wintypes.DWORD, address], address),
+                (kernel32.CloseHandle, [address], wintypes.BOOL),
+                (kernel32.GetFileInformationByHandle, [address, address], wintypes.BOOL),
+                (kernel32.CreateDirectoryW, [wintypes.LPCWSTR, address], wintypes.BOOL),
+                (kernel32.LocalFree, [address], address),
+                (advapi32.GetSecurityInfo, [address, ctypes.c_int, wintypes.DWORD, pointer, pointer, pointer, pointer,
+                                            pointer], wintypes.DWORD),
+                (advapi32.SetSecurityInfo, [address, ctypes.c_int, wintypes.DWORD, address, address, address,
+                                            address], wintypes.DWORD),
+                (advapi32.ConvertStringSecurityDescriptorToSecurityDescriptorW,
+                 [wintypes.LPCWSTR, wintypes.DWORD, pointer, address], wintypes.BOOL),
+                (advapi32.GetSecurityDescriptorOwner, [address, pointer, flag], wintypes.BOOL),
+                (advapi32.GetSecurityDescriptorDacl, [address, flag, pointer, flag], wintypes.BOOL),
+                (advapi32.ConvertSidToStringSidW, [address, pointer], wintypes.BOOL),
+                (advapi32.GetAclInformation, [address, address, wintypes.DWORD, ctypes.c_int], wintypes.BOOL),
+                (advapi32.GetAce, [address, wintypes.DWORD, pointer], wintypes.BOOL)):
+            function.argtypes, function.restype = argtypes, restype
+        _API = SimpleNamespace(ctypes=ctypes, wintypes=wintypes, kernel32=kernel32, advapi32=advapi32)
+    return _API
+
+
+def _win32_failed(command, code=None):
+    api = _api()
+    return SetupError('kit.windows_command_failed', command=command,
+                      code=str(api.ctypes.get_last_error() if code is None else code))
+
+
+def _open(path: Path, access: int):
+    """Дескриптор самого объекта: FILE_FLAG_OPEN_REPARSE_POINT не раскрывает junction и symlink.
+
+    None — пути нет. FILE_FLAG_BACKUP_SEMANTICS нужен для открытия каталога.
     """
-    import ctypes
-    from ctypes import wintypes
-    advapi32 = ctypes.WinDLL('advapi32', use_last_error=True)
-    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
-    pointer = ctypes.POINTER(ctypes.c_void_p)
-    advapi32.GetNamedSecurityInfoW.argtypes = [wintypes.LPCWSTR, ctypes.c_int, wintypes.DWORD,
-                                               pointer, pointer, pointer, pointer, pointer]
-    advapi32.GetNamedSecurityInfoW.restype = wintypes.DWORD
-    advapi32.ConvertSidToStringSidW.argtypes = [ctypes.c_void_p, pointer]
-    advapi32.ConvertSidToStringSidW.restype = wintypes.BOOL
-    advapi32.GetAclInformation.argtypes = [ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD, ctypes.c_int]
-    advapi32.GetAclInformation.restype = wintypes.BOOL
-    advapi32.GetAce.argtypes = [ctypes.c_void_p, wintypes.DWORD, pointer]
-    advapi32.GetAce.restype = wintypes.BOOL
-    kernel32.LocalFree.argtypes = [ctypes.c_void_p]
-    kernel32.LocalFree.restype = ctypes.c_void_p
+    api = _api()
+    # FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, OPEN_EXISTING.
+    handle = api.kernel32.CreateFileW(str(path), access, 7, None, 3, 0x02000000 | 0x00200000, None)
+    if handle is None or handle == api.ctypes.c_void_p(-1).value:
+        code = api.ctypes.get_last_error()
+        if code in (2, 3):  # ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND
+            return None
+        raise _win32_failed('CreateFile', code)
+    return handle
+
+
+def _attributes(handle) -> int:
+    api = _api()
+    information = (api.wintypes.DWORD * 13)()  # BY_HANDLE_FILE_INFORMATION; первое поле — атрибуты
+    if not api.kernel32.GetFileInformationByHandle(handle, api.ctypes.byref(information)):
+        raise _win32_failed('GetFileInformationByHandle')
+    return information[0]
+
+
+def _sid_string(sid) -> str:
+    api = _api()
+    text = api.ctypes.c_void_p()
+    if not api.advapi32.ConvertSidToStringSidW(sid, api.ctypes.byref(text)):
+        raise _win32_failed('ConvertSidToStringSid')
+    try:
+        return api.ctypes.wstring_at(text.value)
+    finally:
+        api.kernel32.LocalFree(text)
+
+
+def _aces(dacl) -> tuple:
+    """Записи DACL; NULL DACL — полный доступ всем (Everyone), записи иных типов — недоверенные метки."""
+    api = _api()
+    ctypes = api.ctypes
+    if not dacl.value:
+        return ((0, 0, _GENERIC_ALL, 'S-1-1-0'),)
 
     class AclSizeInformation(ctypes.Structure):
-        _fields_ = [('AceCount', wintypes.DWORD), ('AclBytesInUse', wintypes.DWORD),
-                    ('AclBytesFree', wintypes.DWORD)]
+        _fields_ = [('AceCount', api.wintypes.DWORD), ('AclBytesInUse', api.wintypes.DWORD),
+                    ('AclBytesFree', api.wintypes.DWORD)]
 
-    def sid_string(sid) -> str:
-        text = ctypes.c_void_p()
-        if not advapi32.ConvertSidToStringSidW(sid, ctypes.byref(text)):
-            raise SetupError('kit.windows_command_failed', command='ConvertSidToStringSid',
-                             code=str(ctypes.get_last_error()))
-        try:
-            return ctypes.wstring_at(text.value)
-        finally:
-            kernel32.LocalFree(text)
+    information = AclSizeInformation()
+    if not api.advapi32.GetAclInformation(dacl, ctypes.byref(information), ctypes.sizeof(information), 2):
+        raise _win32_failed('GetAclInformation')
+    entries = []
+    for index in range(information.AceCount):
+        ace = ctypes.c_void_p()
+        if not api.advapi32.GetAce(dacl, index, ctypes.byref(ace)):
+            raise _win32_failed('GetAce')
+        header = ctypes.cast(ace, ctypes.POINTER(ctypes.c_ubyte))
+        kind, flags = header[0], header[1]
+        mask = ctypes.cast(ctypes.c_void_p(ace.value + 4), ctypes.POINTER(ctypes.c_uint32))[0]
+        # ACCESS_ALLOWED_ACE / ACCESS_DENIED_ACE: заголовок 4 байта и маска 4 байта, затем SID.
+        sid = _sid_string(ctypes.c_void_p(ace.value + 8)) if kind in (0, 1) else 'ACE-TYPE-' + str(kind)
+        entries.append((kind, flags, mask, sid))
+    return tuple(entries)
 
-    owner, dacl, descriptor = ctypes.c_void_p(), ctypes.c_void_p(), ctypes.c_void_p()
-    # SE_FILE_OBJECT = 1; OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION = 1 | 4.
-    code = advapi32.GetNamedSecurityInfoW(str(path), 1, 1 | 4, ctypes.byref(owner), None, ctypes.byref(dacl),
-                                          None, ctypes.byref(descriptor))
-    if code != 0:
-        raise SetupError('kit.windows_command_failed', command='GetNamedSecurityInfo', code=str(code))
+
+def _inspect(path: Path) -> _Entry | None:
+    """Атрибуты, владелец и DACL самого объекта пути по его дескриптору; None — пути нет.
+
+    Path.is_symlink() не распознаёт junction, а GetNamedSecurityInfoW и icacls без /L
+    читают цель ссылки: проверка по имени пропустила бы junction на каталог Administrators.
+    """
+    api = _api()
+    ctypes = api.ctypes
+    handle = _open(path, _READ_CONTROL | _FILE_READ_ATTRIBUTES)
+    if handle is None:
+        return None
     try:
-        sids = set()
-        if dacl.value:
-            information = AclSizeInformation()
-            if not advapi32.GetAclInformation(dacl, ctypes.byref(information), ctypes.sizeof(information), 2):
-                raise SetupError('kit.windows_command_failed', command='GetAclInformation',
-                                 code=str(ctypes.get_last_error()))
-            for index in range(information.AceCount):
-                ace = ctypes.c_void_p()
-                if not advapi32.GetAce(dacl, index, ctypes.byref(ace)):
-                    raise SetupError('kit.windows_command_failed', command='GetAce',
-                                     code=str(ctypes.get_last_error()))
-                ace_type = ctypes.cast(ace, ctypes.POINTER(ctypes.c_ubyte))[0]
-                # ACCESS_ALLOWED_ACE / ACCESS_DENIED_ACE: заголовок 4 байта и маска 4 байта, затем SID.
-                sids.add(sid_string(ctypes.c_void_p(ace.value + 8)) if ace_type in (0, 1)
-                         else 'ACE-TYPE-' + str(ace_type))
-        return sid_string(owner), sids
+        attributes = _attributes(handle)
+        owner, dacl, descriptor = ctypes.c_void_p(), ctypes.c_void_p(), ctypes.c_void_p()
+        # SE_FILE_OBJECT = 1; OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION = 1 | 4.
+        code = api.advapi32.GetSecurityInfo(handle, 1, 1 | 4, ctypes.byref(owner), None, ctypes.byref(dacl),
+                                            None, ctypes.byref(descriptor))
+        if code != 0:
+            raise _win32_failed('GetSecurityInfo', code)
+        try:
+            return _Entry(attributes, _sid_string(owner), _aces(dacl))
+        finally:
+            api.kernel32.LocalFree(descriptor)
     finally:
-        kernel32.LocalFree(descriptor)
+        api.kernel32.CloseHandle(handle)
+
+
+def _closed_descriptor():
+    api = _api()
+    descriptor = api.ctypes.c_void_p()
+    if not api.advapi32.ConvertStringSecurityDescriptorToSecurityDescriptorW(
+            CLOSED_SDDL, 1, api.ctypes.byref(descriptor), None):
+        raise _win32_failed('ConvertStringSecurityDescriptor')
+    return descriptor
+
+
+def _create_closed(path: Path):
+    """CreateDirectoryW сразу с закрытым дескриптором; занятое имя оставляется проверке вызывающего."""
+    api = _api()
+    ctypes = api.ctypes
+
+    class SecurityAttributes(ctypes.Structure):
+        _fields_ = [('nLength', api.wintypes.DWORD), ('lpSecurityDescriptor', ctypes.c_void_p),
+                    ('bInheritHandle', api.wintypes.BOOL)]
+
+    descriptor = _closed_descriptor()
+    try:
+        attributes = SecurityAttributes(ctypes.sizeof(SecurityAttributes), descriptor.value, False)
+        if not api.kernel32.CreateDirectoryW(str(path), ctypes.byref(attributes)):
+            code = ctypes.get_last_error()
+            if code != 183:  # ERROR_ALREADY_EXISTS
+                raise _win32_failed('CreateDirectory', code)
+    finally:
+        api.kernel32.LocalFree(descriptor)
+
+
+def _close(path: Path):
+    """Закрыть существующий каталог по его дескриптору: владелец Administrators, DACL из CLOSED_SDDL.
+
+    Дескриптор открыт без раскрытия ссылки, поэтому права меняются у самого каталога,
+    а не у цели junction (как сделали бы icacls без /L и SetNamedSecurityInfoW).
+    """
+    api = _api()
+    ctypes = api.ctypes
+    handle = _open(path, _READ_CONTROL | _WRITE_DAC | _WRITE_OWNER | _FILE_READ_ATTRIBUTES)
+    if handle is None:
+        raise SetupError('kit.unsafe_state')
+    try:
+        attributes = _attributes(handle)
+        if attributes & _REPARSE_POINT or not attributes & _DIRECTORY:
+            raise SetupError('kit.unsafe_state')
+        descriptor = _closed_descriptor()
+        try:
+            owner, dacl = ctypes.c_void_p(), ctypes.c_void_p()
+            present, defaulted = api.wintypes.BOOL(), api.wintypes.BOOL()
+            if (not api.advapi32.GetSecurityDescriptorOwner(descriptor, ctypes.byref(owner), ctypes.byref(defaulted))
+                    or not api.advapi32.GetSecurityDescriptorDacl(descriptor, ctypes.byref(present),
+                                                                   ctypes.byref(dacl), ctypes.byref(defaulted))):
+                raise _win32_failed('GetSecurityDescriptor')
+            # OWNER | DACL | PROTECTED_DACL_SECURITY_INFORMATION: наследование от родителя снимается.
+            code = api.advapi32.SetSecurityInfo(handle, 1, 1 | 4 | 0x80000000, owner, None, dacl, None)
+            if code != 0:
+                raise _win32_failed('SetSecurityInfo', code)
+        finally:
+            api.kernel32.LocalFree(descriptor)
+    finally:
+        api.kernel32.CloseHandle(handle)
+
+
+def _plain_directory(entry) -> bool:
+    return entry is not None and bool(entry.attributes & _DIRECTORY) and not entry.attributes & _REPARSE_POINT
+
+
+def _closed(entry) -> bool:
+    """Владелец и все записи DACL — SYSTEM или Administrators, записи только разрешающие и запрещающие."""
+    return entry.owner in _TRUSTED_SIDS and all(kind in (0, 1) and sid in _TRUSTED_SIDS
+                                                 for kind, _, _, sid in entry.aces)
+
+
+def _safe_parent(path: Path, entry) -> bool:
+    """Системный предок: каталог без ссылки, владелец SYSTEM, Administrators или TrustedInstaller.
+
+    Прочим SID запрещены права из _PARENT_RISK на самом каталоге; записи только для
+    наследования (INHERIT_ONLY) к нему не применяются, а новые дети создаются закрытыми
+    и их не наследуют. Корень тома нельзя удалить или переименовать, поэтому DELETE на
+    нём допустим (у корня нового тома Authenticated Users: Modify).
+    """
+    if not _plain_directory(entry) or entry.owner not in _SYSTEM_SIDS:
+        return False
+    risk = _PARENT_RISK & ~_DELETE if path.parent == path else _PARENT_RISK
+    for kind, flags, mask, sid in entry.aces:
+        if flags & _INHERIT_ONLY or kind == 1 or sid in _SYSTEM_SIDS:
+            continue
+        if kind != 0 or mask & risk:
+            return False
+    return True
 
 
 def secure_owned(path: Path):
-    """Каталог только для SYSTEM и Administrators; чужой заранее созданный каталог отклоняется.
+    """Каталог только для SYSTEM и Administrators; ссылка или чужой каталог отклоняются.
 
-    Без этого обычный пользователь мог бы заранее создать каталог в ProgramData,
-    сохранить свои права и подменить файлы, которые затем исполняет администратор.
+    Отсутствующий каталог создаётся сразу закрытым: между созданием и сменой прав нет
+    окна, в котором пользователи унаследовали бы от ProgramData право записи и превратили
+    бы пустой каталог в junction. Существующий проверяется и закрывается по дескриптору
+    самого объекта. Без этого обычный пользователь мог бы заранее создать каталог или
+    ссылку в ProgramData и подменить файлы, которые затем исполняет администратор.
     """
-    if path.exists():
-        owner, _ = _acl_sids(path)
-        if owner not in _TRUSTED_SIDS or path.is_symlink() or not path.is_dir():
-            raise SetupError('kit.unsafe_state')
-    else:
-        path.mkdir(parents=True)
-    _run(['icacls', str(path), '/setowner', _ADMINS_SID, '/Q'])
-    secure_directory(path)
-    owner, sids = _acl_sids(path)
-    for sid in sorted(sids - _TRUSTED_SIDS):
-        if sid.startswith('S-'):
-            _run(['icacls', str(path), '/remove', '*' + sid, '/Q'])
-    owner, sids = _acl_sids(path)
-    if owner not in _TRUSTED_SIDS or not sids <= _TRUSTED_SIDS:
+    entry = _inspect(path)
+    if entry is None:
+        _create_closed(path)
+        entry = _inspect(path)
+    if not _plain_directory(entry) or entry.owner not in _TRUSTED_SIDS:
         raise SetupError('kit.unsafe_state')
+    if not _closed(entry):
+        _close(path)
+        entry = _inspect(path)
+        if not _plain_directory(entry) or not _closed(entry):
+            raise SetupError('kit.unsafe_state')
+
+
+def _refusal(path: Path, root: bool) -> SetupError:
+    return SetupError('kit.unsafe_root_parent_windows', path=path) if root else SetupError('kit.unsafe_state')
+
+
+def check_parents(path: Path):
+    """До любых изменений: существующие предки корня системные, существующий корень — не ссылка и не чужой."""
+    if not path.is_absolute():
+        raise _refusal(path, True)
+    for item in reversed(path.parents):
+        entry = _inspect(item)
+        if entry is None:
+            return
+        if not _safe_parent(item, entry):
+            raise _refusal(item, True)
+    entry = _inspect(path)
+    if entry is not None and (not _plain_directory(entry) or entry.owner not in _TRUSTED_SIDS):
+        raise SetupError('kit.unsafe_state')
+
+
+def secure_path(path: Path, *, top: Path | None = None, root: bool = False):
+    """Подготовить закрытый каталог path, проверив всю цепочку от корня тома.
+
+    Каталоги от top до path (без top — только path и недостающие предки) создаются
+    или закрываются secure_owned; остальные предки должны быть системными
+    (_safe_parent), иначе отказ: kit.unsafe_root_parent_windows для корня установки
+    (root=True), kit.unsafe_state для каталогов состояния и секретов. Затем цепочка
+    проверяется ещё раз без изменений: ни один компонент не стал ссылкой, пока
+    создавались следующие. Предок, в котором уже лежит следующий компонент, в
+    junction превратить нельзя (каталог должен быть пуст), поэтому после проверки
+    цепочка устойчива.
+    """
+    if not path.is_absolute() or (top is not None and top != path and top not in path.parents):
+        raise _refusal(path, root)
+    chain = [*reversed(path.parents), path]
+    owned = set(chain[chain.index(top):]) if top is not None else {path}
+    for item in chain:
+        if item in owned:
+            secure_owned(item)
+            continue
+        entry = _inspect(item)
+        if entry is None and top is None:
+            # Недостающий предок корня и всё ниже него создаются закрытыми.
+            owned.update(chain[chain.index(item):])
+            secure_owned(item)
+        elif not _safe_parent(item, entry):
+            raise _refusal(item, root)
+    for item in chain:
+        entry = _inspect(item)
+        if item in owned:
+            if not _plain_directory(entry) or not _closed(entry):
+                raise SetupError('kit.unsafe_state')
+        elif not _safe_parent(item, entry):
+            raise _refusal(item, root)
 
 
 def _service_image_path(service_id: str) -> str | None:
@@ -425,21 +672,27 @@ class WindowsSetup(Setup):
 
     def __init__(self, kit, *, state_dir=None, **options):
         program_data = Path(os.environ.get('ProgramData', r'C:\ProgramData'))
-        super().__init__(kit, state_dir=state_dir or program_data / 'HomenSAI' / '.state' / kit.product_id,
-                         **options)
+        default = program_data / 'HomenSAI' / '.state' / kit.product_id
+        super().__init__(kit, state_dir=state_dir or default, **options)
+        if state_dir is None:
+            # Path.resolve() в Setup раскрыл бы junction в цепочке ProgramData\HomenSAI;
+            # путь по умолчанию остаётся как есть и проверяется покомпонентно.
+            self.state_dir, self.state_file = default, default / 'state.json'
+        self.custom_state = state_dir is not None
         self.program_data = program_data
         self.secrets_file = kit_secrets.location(kit.product_id, windows=True, program_data=program_data)
 
     # --- общее ---------------------------------------------------------------------
     def prepare_state_dir(self):
-        base = self.program_data / 'HomenSAI'
-        for path in (base, base / '.state'):
-            secure_owned(path)
-        secure_owned(self.state_dir)
+        # Каждый компонент от ProgramData\HomenSAI вниз — закрытый каталог без ссылок,
+        # предки выше (C:\, ProgramData) — системные.
+        if self.custom_state:
+            secure_path(self.state_dir)
+        else:
+            secure_path(self.state_dir, top=self.program_data / 'HomenSAI')
 
     def prepare_secrets_dir(self):
-        for path in (self.program_data / 'HomenSAI', self.secrets_file.parent.parent, self.secrets_file.parent):
-            secure_owned(path)
+        secure_path(self.secrets_file.parent, top=self.program_data / 'HomenSAI')
 
     def restart_services(self, state):
         manifest = self._verified(state['releases'][state['version']])['manifest']
@@ -547,6 +800,7 @@ class WindowsSetup(Setup):
         if pending is not None:
             self.out(self.t('kit.resume'))
         self.confirm('kit.confirm_install')
+        check_parents(install_root)
         self.prepare_state_dir()
         release = self.store_release(self.state_dir, self.kit)
         self.ensure_secrets(release['secrets'])
@@ -572,9 +826,8 @@ class WindowsSetup(Setup):
         while pending['index'] < len(_INSTALL_STEPS):
             step = _INSTALL_STEPS[pending['index']]
             if step == 'release':
-                if not install_root.exists():
-                    install_root.parent.mkdir(parents=True, exist_ok=True)
-                secure_owned(install_root)
+                # Недостающие предки создаются закрытыми, существующие должны быть системными.
+                secure_path(install_root, root=True)
                 for path in (home.app, home.releases, *home.roots.values()):
                     path.mkdir(parents=True, exist_ok=True)
                 self._stage(release, metadata, release_dir)
@@ -605,6 +858,12 @@ class WindowsSetup(Setup):
         self.out(self.t('kit.health_ok') if healthy else self.t('kit.health_unknown'))
         self.out(self.t('kit.manage_hint', path=self.state_dir / 'installer' / 'setup.cmd'))
         return 0
+
+    def _password(self):
+        # Пароль забирается из окружения: дальше его несёт только _SECRET_ENV, который читает
+        # поставщик пароля транзакции и который снимается после неё; службам и WinSW он не нужен.
+        super()._password()
+        os.environ.pop(PASSWORD_ENV, None)
 
     def _b64key(self):
         import base64

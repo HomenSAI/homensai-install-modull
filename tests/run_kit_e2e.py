@@ -3,8 +3,8 @@
 
 Собирает на хосте комплекты вымышленного продукта (версии 1, 2, 3 и 3 с
 отказом здоровья), затем в одноразовом rootless Podman с user-systemd и
-`--network=none` выполняет: установку, обновление 1→2, обновление с откатом,
-обновление 2→3, прерванную и продолженную установку, удаление с сохранением
+`--network=none` выполняет: отказ установки без обязательного секрета, установку, обновление 1→2, обновление с откатом,
+обновление 2→3, смену секрета, прерванную и продолженную установку, удаление с сохранением
 данных, переустановку и полное удаление. Требуется --run.
 
 Нужны: Python 3.14 с cryptography на хосте, podman, загруженные заранее архив
@@ -69,6 +69,16 @@ wait_release() {
     return 1
 }
 command -v python3 >/dev/null 2>&1 && fail "система не должна содержать python3"
+SECRETS=/home/homenstest/.config/homensai/homensai-kit-demo
+fingerprint() { printf %s "$1" | sha256sum | cut -c1-12; }
+wait_token() {
+    for i in $(seq 1 60); do
+        out=$(http /secrets 2>/dev/null) && echo "$out" | grep -q "\"token\": \"$(fingerprint "$1")\"" \
+            && echo "$out" | grep -q '"session_key": true' && return 0
+        sleep 0.5
+    done
+    return 1
+}
 
 step "проверка целостности комплекта"
 (cd "$K1" && sha256sum -c --quiet SHA256SUMS) || fail "SHA256SUMS"
@@ -93,10 +103,19 @@ kill_at() {
 
 step "установка, прерванная SIGKILL во время подготовки runtime (pending), и продолжение"
 mkdir -p "/home/homenstest/Программы"
+"$K1/setup.sh" --yes --language ru install --root "$ROOTDIR" && fail "установка без обязательного секрета"
+[ -e "$ROOTDIR" ] && fail "отказ из-за секрета должен быть до изменений"
+export KITDEMO_TOKEN=e2e-token-1
 kill_at "$ROOTDIR/.homensai-control/linux-runtime.json" pending \
     "$K1/setup.sh" --yes --language ru install --root "$ROOTDIR"
 "$K1/setup.sh" --yes --language ru install --root "$ROOTDIR" || fail "install v1"
 wait_release 1 || fail "health v1"
+unset KITDEMO_TOKEN
+wait_token e2e-token-1 || fail "секреты не доставлены службе: $(http /secrets)"
+[ "$(stat -c %a "$SECRETS")" = 700 ] && [ "$(stat -c %a "$SECRETS/secrets.env")" = 600 ] || fail "права файла секретов"
+grep -q '^KITDEMO_SESSION_KEY=' "$SECRETS/secrets.env" || fail "сгенерированный секрет"
+grep -q 'KITDEMO_OPTIONAL' "$SECRETS/secrets.env" && fail "необязательный секрет не задавался"
+grep -rq e2e-token-1 "$STATE" "$ROOTDIR" && fail "значение секрета попало в состояние или корень установки"
 http /notes | grep -q '\[\]' || fail "новая база должна быть пустой: $(http /notes)"
 grep -q '"sizeof_int": 4' "$ROOTDIR/data/deps.json" || fail "двоичная зависимость cffi"
 "$STATE/installer/setup.sh" --language en status || fail "status из сохранённого установщика"
@@ -131,21 +150,29 @@ wait_release 3 || fail "health v3"
 http /notes | grep -q 'migrated notes-3' || fail "миграция notes-3"
 "$STATE/installer/setup.sh" status || fail "status v3"
 
+step "смена секрета командой secrets и перезапуск служб"
+"$STATE/installer/setup.sh" --language ru secrets || fail "перечень секретов"
+KITDEMO_TOKEN=e2e-token-2 "$STATE/installer/setup.sh" --yes --language ru secrets KITDEMO_TOKEN || fail "secrets set"
+wait_token e2e-token-2 || fail "новый секрет не доставлен: $(http /secrets)"
+
 step "удаление с сохранением данных"
 "$STATE/installer/setup.sh" --yes --language ru uninstall || fail "uninstall keep"
 http /healthz >/dev/null 2>&1 && fail "служба должна быть остановлена"
 ls ~/.config/systemd/user | grep -q homensai-kit-demo && fail "units должны быть удалены"
 [ -f "$ROOTDIR/data/kitdemo.sqlite3" ] || fail "данные должны сохраниться"
+grep -q '^KITDEMO_TOKEN=e2e-token-2$' "$SECRETS/secrets.env" || fail "секреты должны сохраниться"
 
 step "переустановка той же версии на сохранённых данных"
 "$K2/setup.sh" --yes install && fail "переустановка другой версии должна отказать"
 "$K3/setup.sh" --yes --language ru install || fail "reinstall v3"
 wait_release 3 || fail "health после переустановки"
+wait_token e2e-token-2 || fail "секреты после переустановки"
 http /notes | grep -q 'migrated notes-3' || fail "данные после переустановки"
 
 step "полное удаление"
 "$STATE/installer/setup.sh" --yes uninstall --purge || fail "purge"
 [ -d "$ROOTDIR/data" ] && fail "данные должны быть удалены"
+[ -e "$SECRETS" ] && fail "секреты должны быть удалены"
 http /healthz >/dev/null 2>&1 && fail "служба после purge"
 echo "E2E OK"
 '''

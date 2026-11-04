@@ -395,7 +395,7 @@ def test_migrate_argv_and_environment(services, tmp_path, monkeypatch):
                     'kitdemo.migrate', '--data-dir', str(home.roots['data']), '--migration', 'm-2']
     assert kwargs['cwd'] == str(release) and kwargs['stdin'] is subprocess.DEVNULL
     assert kwargs['timeout'] == 600 and 'shell' not in kwargs
-    assert set(kwargs['env']) == {'SystemRoot', 'PATH'} and 'synthetic-secret' not in json.dumps(kwargs['env'])
+    assert set(kwargs['env']) == {'SystemRoot', 'PATH', 'ProgramData'} and 'synthetic-secret' not in json.dumps(kwargs['env'])
     effects.migrate('key', 'm-3', ('python', 'tools/migrate.py', '@MIGRATION_ID@'))
     assert seen[1][0][3:] == [str(release / 'tools' / 'migrate.py'), 'm-3']
 

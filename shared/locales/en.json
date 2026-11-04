@@ -212,5 +212,19 @@
   "kit.windows_hooks_unsupported": "The release declares hooks not supported on Windows ({hooks}); nothing was changed.",
   "kit.release_mismatch": "Files in {path} differ from the signed package; remove them or restore from the archive.",
   "kit.busy": "Another installer run for this product is in progress; wait for it to finish.",
-  "kit.unexpected": "Unexpected installer error ({error}). Nothing is retried automatically; run the same command again or check status."
+  "kit.unexpected": "Unexpected installer error ({error}). Nothing is retried automatically; run the same command again or check status.",
+  "kit.secret_prompt": "Secret {name} ({label}); input is hidden, empty to skip:",
+  "kit.secret_generated": "Secret {name} was not given — a random value was generated.",
+  "kit.secret_missing": "Required secret {name} is not set: set the environment variable {name} or run without --yes.",
+  "kit.secret_invalid": "Invalid value for secret {name}: a single line up to 4096 characters without NUL is required.",
+  "kit.secret_unknown": "Secret {name} is not declared by the installed version.",
+  "kit.secret_saved": "Secret {name} saved; restarting services.",
+  "kit.secret_set": "set",
+  "kit.secret_unset": "not set (optional)",
+  "kit.secret_required": "NOT SET (required)",
+  "kit.secrets_none": "The installed version declares no secrets.",
+  "kit.secrets_file": "Secrets file (owner-only access): {path}",
+  "kit.secrets_missing": "Required secrets are not set: {names}. Set them with secrets <NAME>.",
+  "kit.secrets_unreadable": "Secrets file {path} is damaged or unreadable; fix it or delete it and set the secrets again.",
+  "kit.restart_failed": "Could not restart services (code {code})."
 }

@@ -24,6 +24,7 @@ import time
 import urllib.request
 from xml.sax.saxutils import escape
 
+from shared import kit_secrets
 from shared.kit_setup import _SECRET_ENV, STATE_FORMAT, Setup, SetupError, _key, _private_dir, signed_release_info
 
 _CREATE_NO_WINDOW = 0x08000000
@@ -391,6 +392,8 @@ class WindowsEffects:
             completed = subprocess.run(argv, cwd=str(release), stdin=subprocess.DEVNULL, capture_output=True,
                                        timeout=600, creationflags=_CREATE_NO_WINDOW,
                                        env={'SystemRoot': os.environ.get('SystemRoot', r'C:\Windows'),
+                                            # По ProgramData homensai_entry.py находит файл секретов.
+                                            'ProgramData': os.environ.get('ProgramData', r'C:\ProgramData'),
                                             'PATH': os.environ.get('SystemRoot', r'C:\Windows') + r'\System32'})
         except subprocess.TimeoutExpired:
             raise EffectIndeterminate('Время миграции истекло') from None
@@ -425,6 +428,7 @@ class WindowsSetup(Setup):
         super().__init__(kit, state_dir=state_dir or program_data / 'HomenSAI' / '.state' / kit.product_id,
                          **options)
         self.program_data = program_data
+        self.secrets_file = kit_secrets.location(kit.product_id, windows=True, program_data=program_data)
 
     # --- общее ---------------------------------------------------------------------
     def prepare_state_dir(self):
@@ -432,6 +436,18 @@ class WindowsSetup(Setup):
         for path in (base, base / '.state'):
             secure_owned(path)
         secure_owned(self.state_dir)
+
+    def prepare_secrets_dir(self):
+        for path in (self.program_data / 'HomenSAI', self.secrets_file.parent.parent, self.secrets_file.parent):
+            secure_owned(path)
+
+    def restart_services(self, state):
+        manifest = self._verified(state['releases'][state['version']])['manifest']
+        services = WindowsServices(manifest, self._home(manifest, Path(state['install_root'])), state['modes'],
+                                   self.kit.product_id)
+        services.stop(tuple(reversed(services.components)))
+        services.start()
+        return http_health(manifest, self.kit.product_id, state['version'], 60)
 
     def _key_of(self, release) -> bytes:
         state = self.state()
@@ -532,6 +548,7 @@ class WindowsSetup(Setup):
         self.confirm('kit.confirm_install')
         self.prepare_state_dir()
         release = self.store_release(self.state_dir, self.kit)
+        self.ensure_secrets(release['secrets'])
         metadata = self._verified(release)
         if check_target(metadata['manifest'], {'os': 'windows', 'architecture': 'x86_64',
                                                'execution': 'native'})['status'] != 'supported':
@@ -621,6 +638,7 @@ class WindowsSetup(Setup):
             self.out(self.t('kit.resume'))
         self.confirm('kit.confirm_update')
         release = self.store_release(self.state_dir, self.kit)
+        self.ensure_secrets(release['secrets'])
         metadata = self._verified(release)
         check_windows_hooks(metadata['manifest'])
         old_release = state['releases'][state['version']]
@@ -733,6 +751,7 @@ class WindowsSetup(Setup):
                                    self.kit.product_id)
         for component in services.components:
             self.out('  ' + services.service_id(component) + ': ' + services.state(component))
+        self.warn_missing_secrets(state)
         healthy = http_health(manifest, self.kit.product_id, state['version'], 3)
         self.out(self.t('kit.health_ok') if healthy else self.t('kit.health_failed'))
         return 0 if healthy else 1
@@ -771,6 +790,8 @@ class WindowsSetup(Setup):
         for path in removable:
             if path.exists():
                 shutil.rmtree(path)
+        if purge:
+            self.remove_secrets()
         state.update(status='uninstalled', data_policy=pending['data_policy'])
         state.pop('uninstall', None)
         state['history'] = state.get('history', []) + [

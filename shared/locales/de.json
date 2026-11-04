@@ -212,5 +212,19 @@
   "kit.windows_hooks_unsupported": "Die Version deklariert Hooks, die unter Windows nicht unterstützt werden ({hooks}); es wurde nichts geändert.",
   "kit.release_mismatch": "Die Dateien in {path} weichen vom signierten Paket ab; entfernen Sie sie oder stellen Sie sie aus dem Archiv wieder her.",
   "kit.busy": "Für dieses Produkt läuft bereits ein anderer Installer-Vorgang; warten Sie, bis er beendet ist.",
-  "kit.unexpected": "Unerwarteter Installer-Fehler ({error}). Es gibt keine automatische Wiederholung; wiederholen Sie denselben Befehl oder prüfen Sie status."
+  "kit.unexpected": "Unerwarteter Installer-Fehler ({error}). Es gibt keine automatische Wiederholung; wiederholen Sie denselben Befehl oder prüfen Sie status.",
+  "kit.secret_prompt": "Geheimnis {name} ({label}); Eingabe verborgen, leer zum Überspringen:",
+  "kit.secret_generated": "Geheimnis {name} wurde nicht angegeben — ein Zufallswert wurde erzeugt.",
+  "kit.secret_missing": "Erforderliches Geheimnis {name} fehlt: setzen Sie die Umgebungsvariable {name} oder starten Sie ohne --yes.",
+  "kit.secret_invalid": "Ungültiger Wert für Geheimnis {name}: eine Zeile bis 4096 Zeichen ohne NUL ist erforderlich.",
+  "kit.secret_unknown": "Geheimnis {name} ist in der installierten Version nicht deklariert.",
+  "kit.secret_saved": "Geheimnis {name} gespeichert; Dienste werden neu gestartet.",
+  "kit.secret_set": "gesetzt",
+  "kit.secret_unset": "nicht gesetzt (optional)",
+  "kit.secret_required": "NICHT GESETZT (erforderlich)",
+  "kit.secrets_none": "Die installierte Version deklariert keine Geheimnisse.",
+  "kit.secrets_file": "Geheimnisdatei (Zugriff nur für den Eigentümer): {path}",
+  "kit.secrets_missing": "Erforderliche Geheimnisse fehlen: {names}. Setzen Sie sie mit secrets <NAME>.",
+  "kit.secrets_unreadable": "Geheimnisdatei {path} ist beschädigt oder nicht lesbar; korrigieren oder löschen Sie sie und setzen Sie die Geheimnisse neu.",
+  "kit.restart_failed": "Dienste konnten nicht neu gestartet werden (Code {code})."
 }

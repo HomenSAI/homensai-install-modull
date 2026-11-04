@@ -1,10 +1,11 @@
 # HomenS.AI · © 2026 Serhii Khomenko
-"""Установщик из комплекта на целевой системе: install, update, status, uninstall.
+"""Установщик из комплекта на целевой системе: install, update, status, uninstall, secrets.
 
 Запускается встроенным Python комплекта (`setup.sh`). Все изменяющие действия
 выполняются операциями локального API через клиент; ключи операций и копии
 установленных пакетов сохраняются в каталоге состояния до вызова, поэтому
-прерванную операцию повторяет та же команда. Пароли не сохраняются.
+прерванную операцию повторяет та же команда. Пароль архива не сохраняется;
+секреты продукта хранятся в отдельном файле владельца (shared/kit_secrets.py).
 """
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ import subprocess
 import sys
 import time
 
+from shared import kit_secrets
 from shared.i18n import LanguageError, available_languages, translate
 
 STATE_FORMAT = 1
@@ -158,7 +160,11 @@ def signed_release_info(package, envelope: bytes, key: bytes, product_id: str, v
     if (type(info) is not dict or info.get('product_id') != product_id or info.get('version') != version
             or type(migrations) is not list or any(type(item) is not str for item in migrations)):
         raise SetupError('kit.kit_unreadable')
-    return {**info, 'migrations': migrations}
+    try:
+        declared = kit_secrets.check_declarations(info.get('secrets', []))
+    except kit_secrets.SecretsError:
+        raise SetupError('kit.kit_unreadable') from None
+    return {**info, 'migrations': migrations, 'secrets': declared}
 
 
 class Kit:
@@ -195,6 +201,7 @@ class Setup:
         self.state_file = self.state_dir / 'state.json'
         self._client = client
         self.finalized = False
+        self.secrets_file = kit_secrets.location(kit.product_id, windows=False)
 
     # --- служебное -----------------------------------------------------------------
     def t(self, key, **variables):
@@ -269,7 +276,7 @@ class Setup:
             raise SetupError('kit.kit_unreadable')
         info = signed_release_info(package, envelope.read_bytes(), kit.public_key, kit.product_id, kit.version)
         return {'version': kit.version, 'package': str(package), 'envelope': str(envelope),
-                'migrations': info['migrations'], 'public_key': _b64(kit.public_key)}
+                'migrations': info['migrations'], 'secrets': info.get('secrets', []), 'public_key': _b64(kit.public_key)}
 
     def store_installer(self):
         """Сохранить установщик текущей версии для status/uninstall без исходного комплекта."""
@@ -366,6 +373,122 @@ class Setup:
                 return False
             time.sleep(0.5)
 
+    # --- секреты ---------------------------------------------------------------------
+    def prepare_secrets_dir(self):
+        try:
+            kit_secrets.prepare_posix_dir(self.secrets_file.parent)
+        except kit_secrets.SecretsError:
+            raise SetupError('kit.unsafe_state') from None
+
+    def read_secrets(self) -> dict:
+        try:
+            return kit_secrets.read(self.secrets_file)
+        except (kit_secrets.SecretsError, OSError):
+            raise SetupError('kit.secrets_unreadable', path=self.secrets_file) from None
+
+    def ask_value(self, item) -> str | None:
+        """Значение из окружения (переменная с тем же именем) или скрытый ввод; None — не задано."""
+        value = os.environ.get(item['name'])
+        if not value and not self.yes:
+            label = item['prompt'] or item['name']
+            try:
+                value = self.ask_secret(self.t('kit.secret_prompt', name=item['name'], label=label) + ' ')
+            except EOFError:
+                value = ''
+        if not value:
+            return None
+        if not kit_secrets.check_value(value):
+            raise SetupError('kit.secret_invalid', name=item['name'])
+        return value
+
+    def ensure_secrets(self, declared: list[dict]):
+        """До изменений: запросить недостающие секреты выпуска и сохранить их в файл владельца."""
+        if not declared:
+            return
+        self.prepare_secrets_dir()
+        values = self.read_secrets()
+        changed = False
+        for item in declared:
+            if item['name'] in values:
+                continue
+            value = self.ask_value(item)
+            if value is None and item['generate']:
+                value = kit_secrets.generated()
+                self.out(self.t('kit.secret_generated', name=item['name']))
+            if value is None:
+                if item['required']:
+                    raise SetupError('kit.secret_missing', name=item['name'])
+                continue
+            values[item['name']] = value
+            changed = True
+        if changed:
+            kit_secrets.write(self.secrets_file, values)
+        self.out(self.t('kit.secrets_file', path=self.secrets_file))
+
+    def declared_secrets(self, state) -> list[dict]:
+        return state['releases'][state['version']].get('secrets', [])
+
+    def restart_services(self, state):
+        release = state['releases'][state['version']]
+        manifest = self.manifest(release['package'], release['envelope'], state['version'],
+                                 base64.b64decode(self.release_key(state, release)))['manifest']
+        units = self.units(manifest, state['modes'])
+        environment = {'PATH': '/usr/bin:/bin', 'LC_ALL': 'C',
+                       'XDG_RUNTIME_DIR': os.environ.get('XDG_RUNTIME_DIR', '/run/user/' + str(os.getuid()))}
+        if 'DBUS_SESSION_BUS_ADDRESS' in os.environ:
+            environment['DBUS_SESSION_BUS_ADDRESS'] = os.environ['DBUS_SESSION_BUS_ADDRESS']
+        completed = subprocess.run(['systemctl', '--user', 'restart', '--', *units], env=environment,
+                                   stdin=subprocess.DEVNULL, capture_output=True, timeout=120, check=False)
+        if completed.returncode != 0:
+            raise SetupError('kit.restart_failed', code=str(completed.returncode))
+        return self.health(state, state['version'], wait=30)
+
+    def manage_secrets(self, name=None, *, clear=False):
+        """Без имени — перечень объявленных секретов (без значений); с именем — задать или удалить."""
+        state = self.state()
+        if state is None or state['status'] != 'installed':
+            raise SetupError('kit.not_installed')
+        declared = self.declared_secrets(state)
+        values = self.read_secrets()
+        if name is None:
+            if not declared:
+                self.out(self.t('kit.secrets_none'))
+                return 0
+            for item in declared:
+                status = ('kit.secret_set' if item['name'] in values else
+                          'kit.secret_required' if item['required'] else 'kit.secret_unset')
+                self.out('  ' + item['name'] + ': ' + self.t(status))
+            self.out(self.t('kit.secrets_file', path=self.secrets_file))
+            return 1 if kit_secrets.missing(declared, values) else 0
+        item = next((item for item in declared if item['name'] == name), None)
+        if item is None:
+            raise SetupError('kit.secret_unknown', name=name)
+        if clear:
+            if item['required']:
+                raise SetupError('kit.secret_missing', name=name)
+            values.pop(name, None)
+        else:
+            value = self.ask_value(item)
+            if value is None:
+                raise SetupError('kit.secret_missing', name=name)
+            values[name] = value
+        self.prepare_secrets_dir()
+        kit_secrets.write(self.secrets_file, values)
+        self.out(self.t('kit.secret_saved', name=name))
+        healthy = self.restart_services(state)
+        self.out(self.t('kit.health_ok') if healthy else self.t('kit.health_unknown'))
+        return 0
+
+    def warn_missing_secrets(self, state):
+        absent = kit_secrets.missing(self.declared_secrets(state), self.read_secrets())
+        if absent:
+            self.out(self.t('kit.secrets_missing', names=', '.join(absent)))
+
+    def remove_secrets(self):
+        directory = self.secrets_file.parent
+        if directory.is_dir() and not directory.is_symlink():
+            shutil.rmtree(directory)
+
     def show_kit(self):
         meta = self.kit.meta
         self.out(self.t('kit.summary_product', name=meta['product_name'], product=self.kit.product_id,
@@ -425,6 +548,7 @@ class Setup:
         else:
             units.mkdir(mode=0o700, parents=True)
         release = self.store_release(self.state_dir, self.kit)
+        self.ensure_secrets(release['secrets'])
         if pending is None:
             workflow = _key()
             pending = {'version': self.kit.version, 'install_root': str(install_root), 'unit_dir': str(units),
@@ -511,6 +635,7 @@ class Setup:
             self.out(self.t('kit.resume'))
         self.confirm('kit.confirm_update')
         release = self.store_release(self.state_dir, self.kit)
+        self.ensure_secrets(release['secrets'])
         new_meta = self.manifest(release['package'], release['envelope'], self.kit.version, self.kit.public_key)
         old_meta = self.manifest(old['package'], old['envelope'], state['version'], base64.b64decode(old_key))
         runtime_old = {item['path']: item['sha256'] for item in old_meta['files'] if item['path'].startswith('runtime-linux/')}
@@ -656,6 +781,7 @@ class Setup:
                                  base64.b64decode(self.release_key(state, release)))['manifest']
         for unit in self.units(manifest, state['modes']):
             self.out('  ' + unit + ': ' + _unit_state(unit))
+        self.warn_missing_secrets(state)
         healthy = self.health(state, state['version'])
         self.out(self.t('kit.health_ok') if healthy else self.t('kit.health_failed'))
         return 0 if healthy else 1
@@ -700,6 +826,8 @@ class Setup:
         result = self.call('uninstall-portable-linux', params, min_minor=67)
         if result.get('state') != 'uninstalled':
             raise SetupError('kit.uninstall_incomplete')
+        if pending['data_policy'] == 'purge':
+            self.remove_secrets()
         state.update(status='uninstalled', data_policy=pending['data_policy'])
         state.pop('uninstall', None)
         state['history'] = state.get('history', []) + [
@@ -755,6 +883,9 @@ def main(argv=None) -> int:
     sub.add_parser('status')
     uninstall = sub.add_parser('uninstall')
     uninstall.add_argument('--purge', action='store_true')
+    secrets_command = sub.add_parser('secrets')
+    secrets_command.add_argument('name', nargs='?')
+    secrets_command.add_argument('--clear', action='store_true')
     language = 'en'
     try:
         args = parser.parse_args(argv)
@@ -798,6 +929,10 @@ def _dispatch(setup, args) -> int:
         return setup.update(accept_key=args.accept_key_sha256, reconcile_stop=args.reconcile_stop)
     if args.command == 'status':
         return setup.status()
+    if args.command == 'secrets':
+        if args.clear and args.name is None:
+            raise SetupError('kit.secret_unknown', 2, name='--clear')
+        return setup.manage_secrets(args.name, clear=args.clear)
     return setup.uninstall(purge=args.purge)
 
 

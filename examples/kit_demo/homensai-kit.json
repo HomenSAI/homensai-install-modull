@@ -15,5 +15,10 @@
     }
   },
   "migrations": ["notes-1"],
+  "secrets": [
+    {"name": "KITDEMO_TOKEN", "required": true, "prompt": "токен демо-API"},
+    {"name": "KITDEMO_SESSION_KEY", "required": true, "generate": true},
+    {"name": "KITDEMO_OPTIONAL", "required": false}
+  ],
   "estimates": {"data": 67108864, "config": 1048576}
 }

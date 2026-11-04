@@ -369,3 +369,22 @@ def test_windows_service_xml_rendering(tmp_path):
 ])
 def test_wheel_tag_matrix_matches_cpython_314(tag, expected):
     assert bool(compatible('x-1-' + tag + '.whl', 'linux-x86_64')) is expected
+
+
+def test_secrets_section_is_signed_into_release_info(project, tmp_path):
+    from shared.kit_setup import signed_release_info
+    base, keys = project
+    path = base / 'homensai-kit.json'
+    config = json.loads(path.read_text())
+    for bad in ([{'name': 'PATH'}], [{'name': 'A'}, {'name': 'A'}], {'name': 'A'}):
+        path.write_text(json.dumps({**config, 'secrets': bad}))
+        with pytest.raises(KitError):
+            load_config(path)
+    path.write_text(json.dumps({**config, 'secrets': [{'name': 'DEMO_TOKEN', 'prompt': 'token'}]}))
+    result = build_kit(path, version='5', signing_key=keys['private_key'], output=tmp_path / 'dist', archive=False)
+    kit = Path(result['kit'])
+    meta = json.loads((kit / 'kit.json').read_text())
+    assert meta['secrets'] == ['DEMO_TOKEN']
+    info = signed_release_info(kit / meta['package'], (kit / meta['envelope']).read_bytes(),
+                               (kit / meta['public_key']).read_bytes(), 'homensai-kit-demo', '5')
+    assert info['secrets'] == [{'name': 'DEMO_TOKEN', 'required': True, 'generate': False, 'prompt': 'token'}]

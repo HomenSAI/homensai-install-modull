@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 from pathlib import Path
 import signal
@@ -37,3 +38,9 @@ def database(data_dir: Path) -> sqlite3.Connection:
     connection.execute('CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY, text TEXT NOT NULL)')
     connection.commit()
     return connection
+
+
+def token_fingerprint() -> str | None:
+    """Первые 12 символов SHA-256 токена: значение секрета не раскрывается."""
+    token = os.environ.get('KITDEMO_TOKEN')
+    return hashlib.sha256(token.encode('utf-8')).hexdigest()[:12] if token else None

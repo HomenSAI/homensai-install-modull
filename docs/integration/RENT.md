@@ -250,7 +250,7 @@ JSON **ровно** `{"product": HOMENSAI_PRODUCT_ID, "release": HOMENSAI_RELEAS
 Комплект передаёт `--data-dir @data`. У Rent три параметра: `--db ФАЙЛ`,
 `--archive`/`--data-dir ПАПКА` (по умолчанию `HomensaiRent_Data` рядом с
 базой). Предложенная раскладка в `@data`: `rent.sqlite3`, `files/`
-(бывшая `HomensaiRent_Data`), `secrets.env`. Её задаёт адаптер, сами
+(бывшая `HomensaiRent_Data`). Её задаёт адаптер, сами
 `app.web/app.bot/app.scheduler` не меняются.
 
 ### 4.4. Миграции: модель Rent ↔ идентификаторы комплекта
@@ -289,39 +289,37 @@ checksum уже применённых и `foreign_key_check`.
   они не нужны; `aead-migrate` (перешифрование полей) через этот путь
   запускать нельзя — только отдельной командой владельца, как сейчас.
 
-### 4.5. Секреты (комплект их не доставляет)
+### 4.5. Секреты (доставляет комплект)
 
 Rent нужны `HOMENSAI_RENT_DEV_KEY` (без него рабочая база не стартует —
 `sealing.require_working_key()` в web/bot/scheduler), `RENT_BOT_TOKEN`,
 `BACKUP_PASSWORD`, при оповещениях `RENT_SMTP_PASSWORD`,
 `RENT_ALERT_BOT_TOKEN`. Сейчас они берутся из окружения процесса и (на
-Windows) из `HKCU\Environment`.
+Windows) из `HKCU\Environment`; ни переменные профиля пользователя
+(`systemctl --user`), ни `HKCU` (служба под LocalSystem) службам комплекта
+не видны.
 
-Почему это не работает в комплекте:
+Решение — раздел `secrets` в `homensai-kit.json` ([KIT.md, 6.1](../KIT.md#61-секреты-продукта)):
+установщик запрашивает значения до изменений (или берёт из переменных
+окружения с теми же именами при `--yes`), хранит их в файле владельца вне
+корня установки (Linux `~/.config/homensai/homensai-rent/secrets.env`, 0600;
+Windows `%ProgramData%\HomenSAI\.secrets\homensai-rent\secrets.env`, только
+SYSTEM и Administrators), а `homensai_entry.py` передаёт объявленные имена в
+окружение каждого компонента и миграции. Коду Rent и адаптеру читать файл не
+нужно — достаточно `os.environ`, как сейчас. Смена значения —
+`setup.sh secrets ИМЯ` с перезапуском служб.
 
-- Linux: генератор user-units отклоняет `secrets` с контекстом `service`
-  (`shared/services.py`: «systemd user: доставка секретов не
-  поддерживается»); переменные из профиля оболочки пользователя в
-  `systemctl --user` не попадают (поведение systemd; в установке не
-  проверялось).
-- Windows: службы WinSW работают от LocalSystem; `HKCU` у LocalSystem —
-  свой куст, переменные пользователя ему не видны (Rent сам пишет об этом в
-  `docs/INSTALL.md`).
+Предлагаемое объявление (раздел 6.1): `HOMENSAI_RENT_DEV_KEY` — обязательный;
+`RENT_BOT_TOKEN`, `BACKUP_PASSWORD`, `RENT_SMTP_PASSWORD`,
+`RENT_ALERT_BOT_TOKEN` — необязательные (бот без токена ждёт перезапуска).
+Что нужно принять осознанно:
 
-Предложение: продукт читает секреты сам из `@data/secrets.env`
-(`NAME=value`, только перечисленные имена, уже заданное окружение не
-перекрывается, на Linux — отказ при правах шире `0600`). Файл создаёт
-владелец после установки; в выпуск, манифест и команды он не попадает.
-Последствия, которые нужно принять осознанно:
-
-- файл входит в зашифрованный полный архив комплекта перед обновлением
-  (AES-256-GCM) — это плюс для восстановления и минус для разделения
-  обязанностей;
-- на Windows доступ к `@data` определяется ACL корня установки (KIT.md:
-  SYSTEM и Administrators для каталога состояния; для корня данных — **не
-  проверено**);
-- `HOMENSAI_RENT_DEV_KEY` нельзя терять: без него данные не расшифровать,
-  поэтому копия ключа должна храниться ещё и вне компьютера.
+- файл секретов **не входит** в зашифрованный архив обновления;
+  `HOMENSAI_RENT_DEV_KEY` нельзя терять (без него данные не расшифровать),
+  поэтому копия ключа хранится вне компьютера;
+- `uninstall` файл сохраняет, `uninstall --purge` удаляет вместе с данными;
+- генерировать `HOMENSAI_RENT_DEV_KEY` (`generate: true`) можно только для
+  новой базы: для переноса существующих данных нужен прежний ключ.
 
 ### 4.6. Остановка по SIGTERM и Ctrl+C / остановке службы
 
@@ -408,22 +406,10 @@ SQLite в режиме WAL переживает принудительное з�
 Ключевые части:
 
 ```python
-DB_NAME, FILES_DIR, SECRETS_FILE = "rent.sqlite3", "files", "secrets.env"
+DB_NAME, FILES_DIR = "rent.sqlite3", "files"
 HEALTH_PATH = "/homensai/health"
-SECRET_NAMES = frozenset({"HOMENSAI_RENT_DEV_KEY", "RENT_BOT_TOKEN", "BACKUP_PASSWORD",
-                          "RENT_SMTP_PASSWORD", "RENT_ALERT_BOT_TOKEN"})
-
-def load_secrets(data_dir: Path) -> None:
-    path = data_dir / SECRETS_FILE
-    if not path.is_file():
-        return
-    if os.name != "nt" and path.stat().st_mode & 0o077:
-        raise SystemExit(f"{SECRETS_FILE}: доступ должен быть только у владельца (chmod 600)")
-    for line in path.read_text(encoding="utf-8-sig").splitlines():
-        name, sep, value = line.strip().partition("=")
-        name = name.strip()
-        if sep and name in SECRET_NAMES and not os.environ.get(name):
-            os.environ[name] = value.strip()
+# Секреты (HOMENSAI_RENT_DEV_KEY, RENT_BOT_TOKEN, …) уже в os.environ: их передаёт
+# homensai_entry.py комплекта из файла владельца (раздел 4.5).
 
 def stop_as_keyboard_interrupt() -> None:
     def handler(signum, frame):
@@ -452,7 +438,6 @@ def health_wsgi(app, db_path: Path, data_dir: Path, port: int):
 
 def cmd_web(args):
     db_path, files = _paths(args.data_dir)          # D/rent.sqlite3, D/files
-    load_secrets(args.data_dir)
     sealing.require_working_key()                   # WorkingKeyError → SystemExit
     cli.open_database(db_path)                      # нет файла — актуальная схема; отставшая — отказ
     app = WebApp(lambda: db.connect(db_path), port=args.port, archive=files, db_path=db_path)
@@ -471,7 +456,6 @@ def cmd_web(args):
 
 def cmd_bot(args):
     db_path, files = _paths(args.data_dir)
-    load_secrets(args.data_dir)
     stop_as_keyboard_interrupt()
     try:
         _wait_for_schema(db_path)                   # до 120 с, базу создаёт web
@@ -484,7 +468,6 @@ def cmd_bot(args):
 
 def cmd_scheduler(args):
     db_path, files = _paths(args.data_dir)
-    load_secrets(args.data_dir)
     stop_as_keyboard_interrupt()
     try:
         _wait_for_schema(db_path)
@@ -512,7 +495,9 @@ def cmd_migrate(args):
 Что ещё нужно в Rent помимо адаптера: исправление 4.9 (PDF-подпроцесс),
 проверка «новые SQL-файлы ⇒ новый ID» (4.4), тесты адаптера (health-контракт,
 SIGTERM, `migrate` дважды, бот без токена), раздел в `docs/INSTALL.md` про
-`secrets.env`. Перед применением — решение владельца по 4.5 и 4.8.
+`setup.sh secrets`. Перед применением — решение владельца по 4.5 и 4.8.
+Черновик в `project-v2` ещё содержит прежний `load_secrets` из
+`@data/secrets.env` — при применении его нужно убрать.
 
 ## 6. Готовые шаблоны для Rent
 
@@ -559,7 +544,14 @@ PBS/WinSW — абсолютные из `~/.cache/homensai-kit-inputs` (так �
             "sha256": "05b82d46ad331cc16bdc00de5c6332c1ef818df8ceefcd49c726553209b3a0da"},
   "migrations": ["rent-schema-0.4.0a12"],
   "modes": ["autonomous"],
-  "estimates": {"data": 1073741824, "config": 16777216}
+  "estimates": {"data": 1073741824, "config": 16777216},
+  "secrets": [
+    {"name": "HOMENSAI_RENT_DEV_KEY", "required": true, "prompt": "ключ шифрования данных Rent (храните копию вне компьютера)"},
+    {"name": "RENT_BOT_TOKEN", "required": false, "prompt": "токен Telegram-бота"},
+    {"name": "BACKUP_PASSWORD", "required": false},
+    {"name": "RENT_SMTP_PASSWORD", "required": false},
+    {"name": "RENT_ALERT_BOT_TOKEN", "required": false}
+  ]
 }
 ```
 
@@ -598,8 +590,8 @@ PBS/WinSW — абсолютные из `~/.cache/homensai-kit-inputs` (так �
 }
 ```
 
-`secrets` пуст намеренно: непустой список с контекстом `service` комплект
-отклоняет (4.5). `health_wait` (ожидание health при обновлении) поднят до
+`secrets` манифеста пуст намеренно: секреты объявлены в `homensai-kit.json`
+(4.5), непустой `secrets` шаблона сборщик отклоняет. `health_wait` (ожидание health при обновлении) поднят до
 180 с: под нагрузкой один импорт `app.scheduler` занял больше 40 с (3.3);
 при обновлении схема не создаётся заново, поэтому 292 с первого старта сюда
 не относятся. После установки сборщик ждёт health фиксированно — 30 с на
@@ -613,8 +605,9 @@ Linux (`shared/kit_setup.py`, `health(..., wait=30)`) и 60 с на Windows
 - Установка, обновление, откат, восстановление и удаление Rent комплектом
   (`setup.sh install/update`, `tests/run_kit_e2e.py`) — не запускались;
   по правилам модуля без них установщик для Rent готовым считать нельзя.
-- Windows целиком (pydeps, WinSW, остановка службы, ACL `@data`,
-  `secrets.env` под LocalSystem).
+- Windows целиком для Rent (pydeps, WinSW, остановка службы, ACL `@data`).
+  Доставка секретов службам LocalSystem и миграциям проверена на
+  демонстрационном продукте (`tests/run_kit_windows_e2e.py`), не на Rent.
 - Сборка с единым lock-файлом и с исходным `segno` после исправления 2.1.
 - Полные тесты Rent не запускались (вне задачи; машина перегружена).
 - Время одного прохода планировщика и поведение бота при SIGTERM во время

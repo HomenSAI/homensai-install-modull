@@ -5,17 +5,22 @@ from __future__ import annotations
 from contextlib import closing
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 from pathlib import Path
 
 import cffi
 
-from kitdemo.common import arguments, database, graceful_stop, release
+from kitdemo.common import arguments, database, graceful_stop, release, token_fingerprint
 
 
 def main() -> int:
     args = arguments('kitdemo web', port=True)
     graceful_stop()
     product, version = release()
+    # Секрет доставляет homensai_entry.py из файла владельца; без него служба не стартует.
+    token = token_fingerprint()
+    if token is None:
+        raise SystemExit('kitdemo web: KITDEMO_TOKEN is not set')
     # cffi использует двоичный модуль _cffi_backend из pydeps выпуска.
     ffi = cffi.FFI()
     (args.data_dir).mkdir(parents=True, exist_ok=True)
@@ -31,6 +36,11 @@ def main() -> int:
             if self.path == '/healthz':
                 body = json.dumps({'product': product, 'release': version, 'healthy': healthy}).encode()
                 self.send_response(200 if healthy else 503)
+            elif self.path == '/secrets':
+                # Ответ /healthz фиксирован контрактом; сведения о секретах — отдельно и без значений.
+                body = json.dumps({'token': token,
+                                   'session_key': bool(os.environ.get('KITDEMO_SESSION_KEY'))}).encode()
+                self.send_response(200)
             elif self.path == '/notes':
                 with closing(database(args.data_dir)) as connection:
                     rows = [row[0] for row in connection.execute('SELECT text FROM notes ORDER BY id')]

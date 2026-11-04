@@ -20,6 +20,7 @@ import sys
 import tarfile
 import tempfile
 
+from shared.kit_secrets import SecretsError, check_declarations as check_secrets
 from shared.kit_wheels import TARGETS, KitWheelError, install_wheel, read_lock, select_wheels
 from shared.manifest import ManifestError, validate_manifest
 from shared.preflight import NAMES
@@ -51,6 +52,28 @@ import runpy
 import sys
 
 
+def _secrets(release):
+    # Значения секретов из файла владельца (см. shared/kit_secrets.py); файл главнее окружения.
+    names = {item['name'] for item in release.get('secrets', [])}
+    if not names:
+        return
+    path = os.environ.get('HOMENSAI_SECRETS_FILE')
+    if not path and sys.platform == 'win32':
+        path = os.path.join(os.environ.get('ProgramData') or r'C:\\ProgramData', 'HomenSAI', '.secrets',
+                            release['product_id'], 'secrets.env')
+    elif not path:
+        path = os.path.join(os.path.expanduser('~'), '.config', 'homensai', release['product_id'], 'secrets.env')
+    try:
+        with open(path, encoding='utf-8') as stream:
+            lines = stream.read().splitlines()
+    except FileNotFoundError:
+        return
+    for line in lines:
+        name, separator, value = line.partition('=')
+        if separator and name in names and value:
+            os.environ[name] = value
+
+
 def main():
     base = os.path.dirname(os.path.abspath(__file__))
     if sys.platform.startswith('linux'):
@@ -66,6 +89,7 @@ def main():
     os.environ['HOMENSAI_PRODUCT_ID'] = release['product_id']
     os.environ['HOMENSAI_RELEASE'] = release['version']
     os.environ['HOMENSAI_RELEASE_DIR'] = base
+    _secrets(release)
     if len(sys.argv) < 2:
         raise SystemExit('homensai: module name required')
     module = sys.argv[1]
@@ -160,7 +184,7 @@ def load_config(path) -> dict:
     value = _read_json(path)
     base = path.parent
     allowed = {'format', 'manifest', 'sources', 'python_paths', 'targets', 'locks', 'wheelhouse',
-               'runtime', 'migrations', 'modes', 'estimates', 'glibc', 'winsw'}
+               'runtime', 'migrations', 'modes', 'estimates', 'glibc', 'winsw', 'secrets'}
     required = {'format', 'manifest', 'sources', 'python_paths', 'locks', 'wheelhouse', 'runtime'}
     if type(value) is not dict or not required <= set(value) or set(value) - allowed:
         raise KitError('homensai-kit.json: неизвестные или отсутствующие поля')
@@ -232,6 +256,10 @@ def load_config(path) -> dict:
     if (type(estimates) is not dict or set(estimates) - {'data', 'backup', 'config'}
             or any(type(item) is not int or not 0 <= item <= 2 ** 50 for item in estimates.values())):
         raise KitError('estimates: байты для data, backup, config')
+    try:
+        declared_secrets = check_secrets(value.get('secrets', []))
+    except SecretsError as error:
+        raise KitError(str(error)) from None
     glibc = value.get('glibc', '2.28')
     if type(glibc) is not str or re.fullmatch(r'2\.\d{1,2}', glibc) is None:
         raise KitError('glibc: версия вида 2.28')
@@ -240,7 +268,7 @@ def load_config(path) -> dict:
             'locks': {name: _file(base, locks[name], 'locks.' + name) for name in ('linux', 'windows')},
             'wheelhouse': wheelhouse, 'runtime': parsed_runtimes, 'migrations': migrations, 'modes': modes,
             'estimates': {**_DEFAULT_ESTIMATES, **estimates},
-            'glibc': tuple(int(part) for part in glibc.split('.')), 'winsw': winsw}
+            'glibc': tuple(int(part) for part in glibc.split('.')), 'winsw': winsw, 'secrets': declared_secrets}
 
 
 def _expand_module(command, *, service):
@@ -260,6 +288,9 @@ def render_manifest(template: dict, config: dict, lock_entries: dict, wheels: li
         raise KitError('Шаблон манифеста должен быть объектом')
     if 'runtime' in template:
         raise KitError('Шаблон манифеста не должен содержать runtime: его формирует сборщик')
+    if template.get('secrets'):
+        # Ядро не доставляет секреты службам; комплект передаёт их через homensai_entry.py.
+        raise KitError('manifest.secrets должен быть пуст: объявите секреты в разделе secrets homensai-kit.json')
     manifest = copy.deepcopy(template)
     manifest.setdefault('schema_version', 2)
     manifest.setdefault('archive_before_replace', True)
@@ -484,7 +515,7 @@ def build_kit(config_path, *, version: str, signing_key, output, passphrase_env=
         (payload / ENTRY).write_text(ENTRY_SOURCE, encoding='utf-8')
         (payload / RELEASE_INFO).write_text(json.dumps(
             {'product_id': product_id, 'version': version, 'python_paths': config['python_paths'],
-             'migrations': config['migrations']},
+             'migrations': config['migrations'], 'secrets': config.get('secrets', [])},
             ensure_ascii=True, sort_keys=True) + '\n', encoding='utf-8')
         if 'linux' in config['runtime']:
             runtime = config['runtime']['linux']
@@ -547,6 +578,7 @@ def build_kit(config_path, *, version: str, signing_key, output, passphrase_env=
                     'envelope': 'package/' + name + '.sig', 'public_key': 'package/publisher-ed25519.pub',
                     'package_sha256': receipt['sha256'], 'public_key_sha256': hashlib.sha256(public).hexdigest(),
                     'modes': modes, 'all_modes': sorted(known), 'migrations': config['migrations'],
+                    'secrets': [item['name'] for item in config.get('secrets', [])],
                     'required_bytes': required, 'reserve_bytes': 64 * 1024 * 1024,
                     'paths': manifest['paths'], 'web': manifest['web'],
                     'components': [component['name'] for component in manifest['components']],
@@ -574,6 +606,15 @@ def build_kit(config_path, *, version: str, signing_key, output, passphrase_env=
         shutil.rmtree(work, ignore_errors=True)
 
 
+def _readme_secrets(metadata: dict) -> str:
+    names = metadata.get('secrets') or []
+    if not names:
+        return ''
+    return ('    ./setup.sh secrets [ИМЯ]      секреты продукта: перечень или смена значения\n\n'
+            'Секреты (' + ', '.join(names) + ') запрашиваются при установке скрытым вводом\n'
+            'или берутся из переменных окружения с теми же именами.\n')
+
+
 def _readme(metadata: dict) -> str:
     return f'''{metadata['product_name']} {metadata['version']} — установочный комплект HomenS.AI
 
@@ -583,6 +624,8 @@ Linux x86-64 (systemd пользователя, без root, без сети):
     ./setup.sh status             состояние
     ./setup.sh update             обновление (запускать из комплекта новой версии)
     ./setup.sh uninstall          удаление с сохранением данных (--purge — полностью)
+{_readme_secrets(metadata)}
+Windows x86-64: те же команды через setup.cmd в командной строке администратора.
 
 Перед установкой сверьте отпечаток ключа издателя с опубликованным
 издателем по независимому каналу:

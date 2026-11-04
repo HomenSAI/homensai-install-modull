@@ -600,7 +600,8 @@ class Setup:
             if not first or first != second:
                 raise SetupError('kit.password_mismatch')
             value = first
-        if len(value) < 8:
+        from shared.archive_crypto import new_password_acceptable
+        if not new_password_acceptable(value):
             raise SetupError('kit.password_short')
         os.environ[_SECRET_ENV] = value
 

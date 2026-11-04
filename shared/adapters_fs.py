@@ -426,7 +426,10 @@ class FilesystemPorts:
                        'sha256': None, 'status': 'pending'}
             _atomic_write(binding_path, pending)
             try:
-                archive_crypto.build_encrypted_archive(self.home, path, password_provider=self.password_provider)
+                # Правило длины проверяет начало операции (CLI/API/комплект); здесь
+                # не повторяется, чтобы не заблокировать откат начатой транзакции.
+                archive_crypto.build_encrypted_archive(self.home, path, password_provider=self.password_provider,
+                                                       enforce_password_policy=False)
                 with _open_regular(path) as stream:
                     digest = hashlib.file_digest(stream, 'sha256').hexdigest()
                 archive_crypto.verify_archive(path, password_provider=self.password_provider,

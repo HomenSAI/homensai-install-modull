@@ -6,6 +6,7 @@ import io
 import json
 import os
 from pathlib import Path
+import struct
 import subprocess
 
 import pytest
@@ -47,12 +48,21 @@ def home(tmp_path):
     return home
 
 
-def header_bytes(**changes):
-    values = dict(magic=crypto.MAGIC, version=1, kdf=1, n=crypto.SCRYPT_N,
-                  r=crypto.SCRYPT_R, p=crypto.SCRYPT_P, salt=b"s" * 16,
-                  chunk=4096, size=0, sha256=hashlib.sha256(b"").digest(), prefix=b"n" * 4)
+# Раскладки и параметры KDF закреплены здесь независимо от модуля: изменение
+# формата должно быть явным, а v1 — читаться так, как его писала прежняя версия.
+LAYOUT = {1: struct.Struct(">8sBBIII16sIQ32s4s"), 2: struct.Struct(">8sBBIII16sIQ4s")}
+KDF = {1: (32768, 8, 1), 2: (131072, 8, 1)}
+
+
+def header_bytes(layout=2, **changes):
+    n, r, p = KDF[layout]
+    values = dict(magic=b"HSAICRY\x00", version=layout, kdf=1, n=n, r=r, p=p, salt=b"s" * 16,
+                  chunk=4096, size=0)
+    if layout == 1:
+        values["sha256"] = hashlib.sha256(b"").digest()
+    values["prefix"] = b"n" * 4
     values.update(changes)
-    return crypto.HEADER.pack(*values.values())
+    return LAYOUT[layout].pack(*values.values())
 
 
 def missing_crypto(monkeypatch):
@@ -70,29 +80,49 @@ def no_scratch(tmp_path):
     assert not list(tmp_path.rglob(".restore-*"))
 
 
-def test_header_without_crypto(monkeypatch):
+def test_format_constants_new_v2_and_legacy_v1():
+    assert crypto.VERSION == 2 and crypto.MAGIC == b"HSAICRY\x00"
+    assert crypto.HEADER.format == LAYOUT[2].format and crypto.HEADER.size == 54
+    assert crypto.HEADER_V1.format == LAYOUT[1].format and crypto.HEADER_V1.size == 86
+    assert (crypto.SCRYPT_N, crypto.SCRYPT_R, crypto.SCRYPT_P) == KDF[2]
+    assert {version: value[:3] for version, value in crypto.FORMATS.items()} == KDF
+    # Память scrypt 128 * r * (N + 2) должна помещаться в maxmem каждой версии.
+    for n, r, p, maxmem, _ in crypto.FORMATS.values():
+        assert 128 * r * (n + 2) + 128 * r * p < maxmem
+    assert crypto.FORMATS[2][3] == 256 * 1024 * 1024
+
+
+@pytest.mark.parametrize("layout", [1, 2])
+def test_header_without_crypto(monkeypatch, layout):
     missing_crypto(monkeypatch)
-    value = crypto.read_header(io.BytesIO(header_bytes()))
-    assert value["version"] == 1 and value["size"] == 0
-    assert (value["n"], value["r"], value["p"]) == (32768, 8, 1)
+    value = crypto.read_header(io.BytesIO(header_bytes(layout) + b"tail"))
+    assert value["version"] == layout and value["size"] == 0
+    assert (value["n"], value["r"], value["p"]) == KDF[layout]
+    assert value["raw"] == header_bytes(layout) and len(value["raw"]) == LAYOUT[layout].size
+    assert value["sha256"] == (hashlib.sha256(b"").digest() if layout == 1 else None)
 
 
-@pytest.mark.parametrize("size", [0, 1, 7, 8, crypto.HEADER.size - 1])
-def test_truncated_header_without_crypto(monkeypatch, size):
+@pytest.mark.parametrize("layout,size", [(layout, size) for layout in (1, 2)
+                                         for size in (0, 1, 7, 8, 9, LAYOUT[layout].size - 1)])
+def test_truncated_header_without_crypto(monkeypatch, layout, size):
     missing_crypto(monkeypatch)
     with pytest.raises(crypto.ArchiveCryptoError, match="обрезан"):
-        crypto.read_header(io.BytesIO(header_bytes()[:size]))
+        crypto.read_header(io.BytesIO(header_bytes(layout)[:size]))
 
 
-@pytest.mark.parametrize("changes", [
-    {"magic": b"unknown!"}, {"version": 2}, {"kdf": 2}, {"n": 2**31},
-    {"n": 16384}, {"r": 1}, {"p": 2}, {"chunk": 0}, {"chunk": 4095},
-    {"chunk": crypto.MAX_CHUNK + 1}, {"size": 4096 * 2**32 + 1},
+@pytest.mark.parametrize("layout,changes", [
+    (2, {"magic": b"unknown!"}), (2, {"version": 0}), (2, {"version": 3}), (2, {"version": 255}),
+    (2, {"kdf": 0}), (2, {"kdf": 2}), (2, {"n": 2**31}), (2, {"n": 32768}), (2, {"n": 16384}),
+    (2, {"n": 2**18}), (2, {"r": 1}), (2, {"r": 16}), (2, {"p": 2}), (2, {"chunk": 0}),
+    (2, {"chunk": 4095}), (2, {"chunk": crypto.MAX_CHUNK + 1}), (2, {"size": 4096 * 2**32 + 1}),
+    (1, {"magic": b"unknown!"}), (1, {"kdf": 2}), (1, {"n": 131072}), (1, {"n": 16384}),
+    (1, {"r": 1}), (1, {"p": 2}), (1, {"chunk": 4095}), (1, {"size": 4096 * 2**32 + 1}),
 ])
-def test_unsupported_header_without_crypto(monkeypatch, changes):
+def test_unsupported_header_without_crypto(monkeypatch, layout, changes):
+    """Параметры KDF зашиты по версии: заголовок не может ни ослабить, ни раздуть scrypt."""
     missing_crypto(monkeypatch)
     with pytest.raises(crypto.ArchiveCryptoError, match="Неподдерживаемый"):
-        crypto.read_header(io.BytesIO(header_bytes(**changes)))
+        crypto.read_header(io.BytesIO(header_bytes(layout, **changes) + b"x" * 64))
 
 
 @pytest.mark.parametrize("operation", ["encrypt", "decrypt", "build", "verify", "restore"])
@@ -160,25 +190,32 @@ def test_provider_exception_and_echo_fallback_redacted():
         crypto.password_provider(prompt=echo)()
 
 
-def test_scrypt_documented_parameters(monkeypatch):
+@pytest.mark.parametrize("version,n,maxmem", [(1, 32768, 64 * 1024 * 1024), (2, 131072, 256 * 1024 * 1024)])
+def test_scrypt_documented_parameters(monkeypatch, version, n, maxmem):
     def derive(password, **kwargs):
         assert password == PASSWORD.encode("utf-8")
-        assert kwargs == dict(salt=b"s" * 16, n=32768, r=8, p=1, dklen=32, maxmem=64 * 1024 * 1024)
+        assert kwargs == dict(salt=b"s" * 16, n=n, r=8, p=1, dklen=32, maxmem=maxmem)
         return b"k" * 32
     monkeypatch.setattr(hashlib, "scrypt", derive)
-    assert crypto._key(lambda: PASSWORD, b"s" * 16) == b"k" * 32
+    assert crypto._key(lambda: PASSWORD, b"s" * 16, version) == b"k" * 32
 
 
 def test_scrypt_and_frame_boundaries_without_crypto(monkeypatch):
     missing_crypto(monkeypatch)
-    key = crypto._key(lambda: PASSWORD, b"s" * 16)
-    assert len(key) == 32
-    assert key != crypto._key(lambda: PASSWORD, b"t" * 16)
-    value = crypto.read_header(io.BytesIO(header_bytes(size=8193)))
-    frames = list(crypto._frames(value))
-    assert [length for length, _, _ in frames] == [4096, 4096, 1]
-    assert [nonce for _, nonce, _ in frames] == [b"n" * 4 + i.to_bytes(8, "big") for i in range(3)]
-    assert len({aad for _, _, aad in frames}) == 3
+    key = crypto._key(lambda: PASSWORD, b"s" * 16, 2)
+    assert key == hashlib.scrypt(PASSWORD.encode(), salt=b"s" * 16, n=131072, r=8, p=1,
+                                 dklen=32, maxmem=256 * 1024 * 1024)
+    assert key != crypto._key(lambda: PASSWORD, b"t" * 16, 2)
+    assert key != crypto._key(lambda: PASSWORD, b"s" * 16, 1)  # Версия разделяет ключи.
+    for layout in (1, 2):
+        raw = header_bytes(layout, size=8193)
+        value = crypto.read_header(io.BytesIO(raw))
+        frames = list(crypto._frames(value))
+        assert [length for length, _, _ in frames] == [4096, 4096, 1]
+        assert [nonce for _, nonce, _ in frames] == [b"n" * 4 + i.to_bytes(8, "big") for i in range(3)]
+        # AAD = весь заголовок (вместе с версией) || номер блока || длина блока.
+        assert [aad for _, _, aad in frames] == [raw + i.to_bytes(8, "big") + length.to_bytes(4, "big")
+                                                 for i, length in enumerate((4096, 4096, 1))]
 
 
 def test_temporary_plaintext_cleanup_without_crypto(tmp_path, monkeypatch):
@@ -192,8 +229,27 @@ def test_temporary_plaintext_cleanup_without_crypto(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("password", [None, "", b"bytes"])
 def test_empty_or_invalid_password_refused_without_crypto(password):
-    with pytest.raises(crypto.ArchiveCryptoError):
-        crypto._key(lambda: password, b"s" * 16)
+    for version in (1, 2):
+        with pytest.raises(crypto.ArchiveCryptoError):
+            crypto._key(lambda: password, b"s" * 16, version)
+
+
+@pytest.mark.parametrize("password,accepted", [
+    (None, False), (b"b" * 12, False), ("", False), ("a" * 11, False), ("ж" * 11, False),
+    ("a" * 12, True), ("ж" * 12, True), (" " * 12, True), (PASSWORD, True),
+])
+def test_new_password_policy_without_crypto(monkeypatch, password, accepted):
+    """Единое правило: не менее 12 кодовых точек Unicode, только при создании."""
+    missing_crypto(monkeypatch)
+    assert crypto.MIN_PASSWORD_LENGTH == 12
+    assert crypto.new_password_acceptable(password) is accepted
+    if accepted:
+        assert crypto.require_new_password(password) is password
+    else:
+        with pytest.raises(crypto.PasswordPolicyError, match="не менее 12") as error:
+            crypto.require_new_password(password)
+        assert isinstance(error.value, crypto.ArchiveCryptoError)
+        assert not password or str(password) not in str(error.value)
 
 
 def test_cli_missing_dependency_and_no_password_argv(monkeypatch, tmp_path, capsys, home):
@@ -241,10 +297,12 @@ def test_roundtrip_full_archive(aes, tmp_path, home):
     assert PAYLOAD[:50] not in encrypted.read_bytes() and PASSWORD.encode() not in encrypted.read_bytes()
     with encrypted.open("rb") as stream:
         header = crypto.read_header(stream)
-    assert header["sha256"] == hashlib.sha256(source.read_bytes()).digest()
+    assert header["version"] == 2 and header["sha256"] is None
+    assert (header["n"], header["r"], header["p"]) == KDF[2]
     assert header["size"] == source.stat().st_size
     frames = list(crypto._frames(header))
     assert len({nonce for _, nonce, _ in frames}) == len(frames) > 2
+    assert encrypted.stat().st_size == LAYOUT[2].size + header["size"] + len(frames) * crypto.TAG_SIZE
     assert crypto.verify_archive(encrypted, password_provider=provider) == expected
     restored.mkdir()
     assert crypto.restore_archive(encrypted, restored, password_provider=provider) == expected
@@ -277,14 +335,21 @@ def test_public_decrypted_stream_is_anonymous_verified_and_closed(aes, tmp_path,
     no_scratch(tmp_path)
 
 
-@pytest.mark.parametrize("mutation", ["password", "truncate", "drop", "reorder", "duplicate", "flip",
-                                      "append", "hash", "salt", "prefix", "size", "magic"])
-def test_authentication_failure_before_any_restore(aes, tmp_path, home, monkeypatch, mutation):
+MUTATIONS = ["password", "truncate", "drop", "reorder", "duplicate", "flip", "append",
+             "salt", "prefix", "size", "chunk", "magic"]
+
+
+@pytest.mark.parametrize("layout,mutation", [(2, mutation) for mutation in MUTATIONS]
+                         + [(1, mutation) for mutation in MUTATIONS + ["hash"]])
+def test_authentication_failure_before_any_restore(aes, tmp_path, home, monkeypatch, layout, mutation):
     source, encrypted = tmp_path / "plain.zip", tmp_path / "encrypted"
     plain.build_archive(home, source)
-    crypto.encrypt_archive(source, encrypted, password_provider=lambda: PASSWORD, chunk_size=4096)
+    if layout == 2:
+        crypto.encrypt_archive(source, encrypted, password_provider=lambda: PASSWORD, chunk_size=4096)
+    else:
+        seal(encrypted, source.read_bytes(), layout=1)
     raw = bytearray(encrypted.read_bytes())
-    start, frame = crypto.HEADER.size, 4096 + crypto.TAG_SIZE
+    start, frame = LAYOUT[layout].size, 4096 + crypto.TAG_SIZE
     if mutation == "truncate":
         raw = raw[:-1]
     elif mutation == "drop":
@@ -297,11 +362,14 @@ def test_authentication_failure_before_any_restore(aes, tmp_path, home, monkeypa
         raw[start + 2 * frame + 100] ^= 1
     elif mutation == "append":
         raw += b"extra"
-    elif mutation in ("hash", "salt", "prefix", "size", "magic"):
-        fields = list(crypto.HEADER.unpack(raw[:start]))
-        index = {"hash": 9, "salt": 6, "prefix": 10, "size": 8, "magic": 0}[mutation]
-        fields[index] = fields[index] + 1 if mutation == "size" else bytes([fields[index][0] ^ 1]) + fields[index][1:]
-        raw[:start] = crypto.HEADER.pack(*fields)
+    elif mutation in ("hash", "salt", "prefix", "size", "chunk", "magic"):
+        fields = list(LAYOUT[layout].unpack(raw[:start]))
+        index = {"hash": 9, "salt": 6, "prefix": len(fields) - 1, "size": 8, "chunk": 7, "magic": 0}[mutation]
+        if mutation in ("size", "chunk"):
+            fields[index] += 4096 if mutation == "chunk" else 1
+        else:
+            fields[index] = bytes([fields[index][0] ^ 1]) + fields[index][1:]
+        raw[:start] = LAYOUT[layout].pack(*fields)
     encrypted.write_bytes(raw)
     target = tmp_path / "target"
     target.mkdir()
@@ -317,20 +385,32 @@ def test_authentication_failure_before_any_restore(aes, tmp_path, home, monkeypa
     no_scratch(tmp_path)
 
 
-def seal(aes, path, data, *, declared_digest=None):
-    """Синтетическая аутентичная оболочка с произвольным внутренним содержимым."""
-    raw = header_bytes(size=len(data), sha256=declared_digest or hashlib.sha256(data).digest())
-    header = crypto.read_header(io.BytesIO(raw))
-    cipher = aes(crypto._key(lambda: PASSWORD, header["salt"]))
-    output, offset = bytearray(raw), 0
-    for length, nonce, aad in crypto._frames(header):
-        output += cipher.encrypt(nonce, data[offset:offset + length], aad)
-        offset += length
+def seal(path, data, *, layout=2, declared_digest=None, password=PASSWORD, header=None):
+    """Аутентичная оболочка с произвольным содержимым, независимая от кода модуля.
+
+    Для layout=1 это побайтно формат прежней версии: так проверяется чтение v1.
+    """
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    salt, prefix, chunk = os.urandom(16), os.urandom(4), 4096
+    extra = {"sha256": declared_digest or hashlib.sha256(data).digest()} if layout == 1 else {}
+    raw = header if header is not None else header_bytes(layout, salt=salt, prefix=prefix, chunk=chunk,
+                                                         size=len(data), **extra)
+    n, r, p = KDF[layout]
+    salt, prefix = raw[22:38], raw[-4:]
+    cipher = AESGCM(hashlib.scrypt(password.encode("utf-8"), salt=salt, n=n, r=r, p=p, dklen=32,
+                                   maxmem=256 * 1024 * 1024))
+    output = bytearray(raw)
+    for index in range(max(1, -(-len(data) // chunk))):
+        block = data[index * chunk:(index + 1) * chunk]
+        counter = index.to_bytes(8, "big")
+        output += cipher.encrypt(prefix + counter, block, raw + counter + len(block).to_bytes(4, "big"))
     path.write_bytes(output)
 
 
-@pytest.mark.parametrize("invalid", ["not-zip", "manifest", "digest", "product", "empty"])
-def test_authenticated_but_invalid_inner_archive(aes, tmp_path, home, monkeypatch, invalid):
+@pytest.mark.parametrize("layout,invalid", [(layout, invalid) for layout in (1, 2)
+                                            for invalid in ("not-zip", "manifest", "product", "empty")]
+                         + [(1, "digest")])
+def test_authenticated_but_invalid_inner_archive(aes, tmp_path, home, monkeypatch, layout, invalid):
     source, encrypted = tmp_path / "plain.zip", tmp_path / "encrypted"
     plain.build_archive(home, source)
     data = source.read_bytes()
@@ -343,17 +423,181 @@ def test_authenticated_but_invalid_inner_archive(aes, tmp_path, home, monkeypatc
         with zipfile.ZipFile(source, "a") as archive:
             archive.writestr("extra.txt", b"unexpected")
         data = source.read_bytes()
-    seal(aes, encrypted, data, declared_digest=b"0" * 32 if invalid == "digest" else None)
+    seal(encrypted, data, layout=layout, declared_digest=b"0" * 32 if invalid == "digest" else None)
     target = tmp_path / "target"
     target.mkdir()
     def forbidden(*args, **kwargs):
         raise AssertionError("Восстановление до проверки ZIP запрещено")
     monkeypatch.setattr(plain, "restore_archive", forbidden)
-    with pytest.raises(plain.ArchiveError):
+    monkeypatch.setattr(plain, "_restore_stream", forbidden)
+    with pytest.raises(plain.ArchiveError) as error:
         crypto.restore_archive(encrypted, target, password_provider=lambda: PASSWORD,
                                expected_product_id="other-product" if invalid == "product" else home.product_id)
+    if invalid == "digest":
+        assert "SHA-256 полного архива" in str(error.value)
     assert not list(target.iterdir())
     no_scratch(tmp_path)
+
+
+def test_legacy_v1_archive_still_reads_verifies_and_restores(aes, tmp_path, home):
+    """v1 записан независимой реализацией прежнего формата; короткий пароль при чтении допустим."""
+    source, legacy, target = tmp_path / "plain.zip", tmp_path / "legacy.hsac", tmp_path / "target"
+    expected = plain.build_archive(home, source)
+    seal(legacy, source.read_bytes(), layout=1, password="short")
+    with legacy.open("rb") as stream:
+        header = crypto.read_header(stream)
+    assert header["version"] == 1 and header["sha256"] == hashlib.sha256(source.read_bytes()).digest()
+    assert crypto.is_encrypted(legacy)
+    digest = hashlib.sha256(legacy.read_bytes()).hexdigest()
+    assert crypto.verify_archive(legacy, password_provider=lambda: "short", require_encrypted=True,
+                                 expected_ciphertext_sha256=digest,
+                                 expected_product_id=home.product_id) == expected
+    target.mkdir()
+    assert crypto.restore_archive(legacy, target, password_provider=lambda: "short") == expected
+    assert (target / "roots/data/sample.bin").read_bytes() == PAYLOAD
+    with pytest.raises(crypto.ArchiveCryptoError, match="Неверный пароль"):
+        crypto.verify_archive(legacy, password_provider=lambda: "shorT")
+    no_scratch(tmp_path)
+
+
+def test_v2_header_has_no_plaintext_digest_and_links_only_by_size(aes, tmp_path, home):
+    source = tmp_path / "plain.zip"
+    plain.build_archive(home, source)
+    data = source.read_bytes()
+    first, second = tmp_path / "first", tmp_path / "second"
+    for path in (first, second):
+        crypto.encrypt_archive(source, path, password_provider=lambda: PASSWORD)
+    one, two = first.read_bytes(), second.read_bytes()
+    for blob in (one, two):
+        assert hashlib.sha256(data).digest() not in blob and hashlib.sha256(data).hexdigest().encode() not in blob
+        assert blob[8] == 2 and len(blob) == 54 + len(data) + crypto.TAG_SIZE
+    # Одинаковое содержимое: совпадают только константы и размер, но не соль, префикс nonce и шифртекст.
+    fields_one, fields_two = LAYOUT[2].unpack(one[:54]), LAYOUT[2].unpack(two[:54])
+    assert [a == b for a, b in zip(fields_one, fields_two)] == [True] * 6 + [False, True, True, False]
+    assert one[54:] != two[54:]
+
+
+def _downgraded(raw, data):
+    """v2 → v1: сильнейший вариант — злоумышленник знает даже SHA-256 открытого ZIP."""
+    _, _, kdf, n, r, p, salt, chunk, size, prefix = LAYOUT[2].unpack(raw[:54])
+    header = LAYOUT[1].pack(b"HSAICRY\x00", 1, kdf, *KDF[1], salt, chunk, size,
+                            hashlib.sha256(data).digest(), prefix)
+    return header + raw[54:]
+
+
+@pytest.mark.parametrize("attack", ["version-byte", "v1-header", "v1-header-keep-n", "v2-from-v1"])
+def test_format_downgrade_and_upgrade_rejected_before_restore(aes, tmp_path, home, monkeypatch, attack):
+    source, encrypted = tmp_path / "plain.zip", tmp_path / "encrypted"
+    plain.build_archive(home, source)
+    data = source.read_bytes()
+    if attack == "v2-from-v1":
+        seal(encrypted, data, layout=1)
+        raw = encrypted.read_bytes()
+        _, _, kdf, n, r, p, salt, chunk, size, _, prefix = LAYOUT[1].unpack(raw[:86])
+        raw = LAYOUT[2].pack(b"HSAICRY\x00", 2, kdf, *KDF[2], salt, chunk, size, prefix) + raw[86:]
+    else:
+        crypto.encrypt_archive(source, encrypted, password_provider=lambda: PASSWORD)
+        raw = bytearray(encrypted.read_bytes())
+        if attack == "version-byte":
+            raw[8] = 1
+        else:
+            raw = bytearray(_downgraded(bytes(raw), data))
+            if attack == "v1-header-keep-n":  # Параметры v2 в заголовке v1 не принимаются.
+                raw[10:14] = KDF[2][0].to_bytes(4, "big")
+    encrypted.write_bytes(raw)
+    calls = []
+    def provider():
+        calls.append(1)
+        return PASSWORD
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Восстановление подделки запрещено")
+    monkeypatch.setattr(plain, "restore_archive", forbidden)
+    monkeypatch.setattr(plain, "_restore_stream", forbidden)
+    target = tmp_path / "target"
+    target.mkdir()
+    with pytest.raises(crypto.ArchiveCryptoError) as error:
+        crypto.restore_archive(encrypted, target, password_provider=provider, require_encrypted=True)
+    if attack in ("version-byte", "v1-header-keep-n"):
+        assert "Неподдерживаемый" in str(error.value) and not calls  # До KDF.
+    else:
+        # Длина совпала, но версия входит в AAD и выбирает KDF: ни один тег не сходится.
+        assert "Неверный пароль или повреждён" in str(error.value) and calls == [1]
+    assert not list(target.iterdir())
+    no_scratch(tmp_path)
+
+
+def test_exact_length_checked_before_kdf(aes, tmp_path, home):
+    encrypted = tmp_path / "encrypted"
+    crypto.build_encrypted_archive(home, encrypted, password_provider=lambda: PASSWORD)
+    encrypted.write_bytes(encrypted.read_bytes()[:-1])
+    with pytest.raises(crypto.ArchiveCryptoError, match="обрезан"):
+        crypto.verify_archive(encrypted, password_provider=lambda: pytest.fail("KDF до проверки длины"))
+
+
+@pytest.mark.parametrize("operation", ["encrypt", "build"])
+def test_creation_refuses_short_password_without_output(aes, tmp_path, home, operation):
+    source, destination = tmp_path / "plain.zip", tmp_path / "out"
+    plain.build_archive(home, source)
+    calls = []
+    def short():
+        calls.append(1)
+        return "ж" * 11
+    with pytest.raises(crypto.PasswordPolicyError) as error:
+        if operation == "encrypt":
+            crypto.encrypt_archive(source, destination, password_provider=short)
+        else:
+            crypto.build_encrypted_archive(home, destination, password_provider=short)
+    assert "ж" * 11 not in str(error.value) and calls == [1]
+    assert not destination.exists()
+    no_scratch(tmp_path)
+    for value in (None, 0, "false"):
+        with pytest.raises(crypto.ArchiveCryptoError, match="режим проверки пароля"):
+            crypto.encrypt_archive(source, destination, password_provider=short, enforce_password_policy=value)
+        with pytest.raises(crypto.ArchiveCryptoError, match="режим проверки пароля"):
+            crypto.build_encrypted_archive(home, destination, password_provider=short,
+                                           enforce_password_policy=value)
+    assert calls == [1] and not destination.exists()
+
+
+def test_policy_opt_out_continuation_and_reading_without_length_limit(aes, tmp_path, home):
+    """Продолжение начатой операции (FilesystemPorts) не блокирует откат по длине пароля."""
+    encrypted, target = tmp_path / "continued", tmp_path / "target"
+    crypto.build_encrypted_archive(home, encrypted, password_provider=lambda: "short",
+                                   enforce_password_policy=False)
+    with encrypted.open("rb") as stream:
+        assert crypto.read_header(stream)["version"] == 2
+    assert crypto.verify_archive(encrypted, password_provider=lambda: "short")["product_id"] == home.product_id
+    target.mkdir()
+    crypto.restore_archive(encrypted, target, password_provider=lambda: "short")
+    assert (target / "roots/data/sample.bin").read_bytes() == PAYLOAD
+    ports = FilesystemPorts(load_manifest(EXAMPLE), tmp_path / "installation", work_dir=tmp_path / "work",
+                            payloads={}, effects=None, password_provider=lambda: "short")
+    transaction = "a" * 32
+    ports.backup(transaction + "/archive", "archive", ())
+    home.roots["data"].joinpath("sample.bin").write_bytes(b"changed synthetic data")
+    ports.backup(transaction + "/before_rollback", "before-rollback", ())
+    ports.restore(transaction + "/restore", transaction + "/archive", ())
+    assert (home.roots["data"] / "sample.bin").read_bytes() == PAYLOAD
+    no_scratch(tmp_path)
+
+
+@pytest.mark.parametrize("language", ["ru", "en", "de"])
+def test_cli_create_refuses_short_password_but_reads_existing(aes, tmp_path, home, monkeypatch, capsys, language):
+    from shared.i18n import translate
+    encrypted = tmp_path / "short.hsac"
+    common = ["--manifest", str(EXAMPLE), "--json", "--language", language]
+    monkeypatch.setenv("TEST_K2_PASSWORD", "eleven-char")
+    assert ctl.main(common + ["archive-create", "--install-root", str(tmp_path / "installation"),
+                              "--archive", str(encrypted), "--encrypt", "--password-env", "TEST_K2_PASSWORD"]) == 1
+    value = json.loads(capsys.readouterr().out)
+    assert value["message"] == (translate(language, "cli.error_archive_password_short") if language != "ru"
+                                else "Пароль нового шифрованного архива должен содержать не менее 12 символов")
+    assert "eleven-char" not in json.dumps(value) and not encrypted.exists()
+    crypto.build_encrypted_archive(home, encrypted, password_provider=lambda: "eleven-char",
+                                   enforce_password_policy=False)
+    assert ctl.main(common + ["archive-verify", "--archive", str(encrypted),
+                              "--password-env", "TEST_K2_PASSWORD"]) == 0
+    assert json.loads(capsys.readouterr().out)["data"]["encrypted"] is True
 
 
 def test_build_randomization_no_overwrite_and_cleanup(aes, tmp_path, home):
@@ -747,3 +991,20 @@ def test_fs_ports_failed_reconciliation_cleans_and_allows_retry(aes, tmp_path, h
     ports.restore(transaction + "/restore", archive_key, ())
     assert live.read_bytes() == PAYLOAD
     no_scratch(tmp_path)
+
+
+@pytest.mark.parametrize("action,password,started", [
+    ("start", "eleven-char", False), ("start", "twelve-chars", True), ("reopen", "eleven-char", True)])
+def test_pointer_controller_applies_policy_only_to_new_transaction(monkeypatch, action, password, started):
+    """API run-pointer-linux-update: новая транзакция создаёт архивы, reopen продолжает прежнюю."""
+    from shared import pointer_controller
+    calls = []
+    def assemble(**kwargs):
+        calls.append(kwargs["password_provider"]())
+        raise RuntimeError("synthetic stop")
+    monkeypatch.setattr(pointer_controller, "assemble_pointer_linux_update", assemble)
+    monkeypatch.setenv("HOMENSAI_TEST_POLICY_PASSWORD", password)
+    with pytest.raises(UpdateError) as error:
+        pointer_controller.run_pointer_linux_update(password_env="HOMENSAI_TEST_POLICY_PASSWORD", action=action)
+    assert calls == ([password] if started else [])
+    assert password not in str(error.value)

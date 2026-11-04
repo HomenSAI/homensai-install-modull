@@ -2,7 +2,9 @@
 """Полный ZIP в потоковой AES-256-GCM оболочке; cryptography необязателен.
 
 Пароль поступает только из внедрённого callable. Формат и ограничения KDF
-описаны в docs/ARCHIVE.md. До restore проверяются все теги, SHA-256 и ZIP.
+описаны в docs/ARCHIVE.md. Новые архивы пишутся в формате v2 (без открытого
+SHA-256 и с усиленным scrypt), v1 только читается. До restore проверяются
+все теги, длина, SHA-256 (только v1) и ZIP.
 """
 
 from __future__ import annotations
@@ -27,13 +29,25 @@ from shared.datahome import checked_path, check_invariants, contains, DataHomeEr
 
 
 MAGIC = b"HSAICRY\x00"
-VERSION = 1
-SCRYPT_N, SCRYPT_R, SCRYPT_P = 32768, 8, 1
+VERSION = 2  # Версия новых архивов; v1 поддерживается только для чтения.
+KDF_SCRYPT = 1
 CHUNK_SIZE = 1024 * 1024
 MIN_CHUNK, MAX_CHUNK = 4096, 16 * 1024 * 1024
-# magic, version, KDF id, N/r/p, salt, chunk size, size, SHA-256, nonce prefix
-HEADER = struct.Struct(">8sBBIII16sIQ32s4s")
+PREFIX = struct.Struct(">8sB")  # magic, version: общие для всех версий
+# v1: magic, version, KDF id, N/r/p, salt, chunk size, size, SHA-256, nonce prefix
+HEADER_V1 = struct.Struct(">8sBBIII16sIQ32s4s")
+# v2: то же без открытого SHA-256 plaintext
+HEADER_V2 = struct.Struct(">8sBBIII16sIQ4s")
+# Параметры KDF зашиты по версии и не принимаются из заголовка как свободные:
+# версия -> (scrypt N, r, p, maxmem в байтах, struct заголовка).
+FORMATS = {
+    1: (32768, 8, 1, 64 * 1024 * 1024, HEADER_V1),
+    2: (131072, 8, 1, 256 * 1024 * 1024, HEADER_V2),
+}
+SCRYPT_N, SCRYPT_R, SCRYPT_P, SCRYPT_MAXMEM, HEADER = FORMATS[VERSION]
 TAG_SIZE = 16
+# Минимум символов (кодовых точек Unicode) пароля только для НОВОГО архива.
+MIN_PASSWORD_LENGTH = 12
 
 
 class ArchiveCryptoError(plain.ArchiveError):
@@ -42,6 +56,25 @@ class ArchiveCryptoError(plain.ArchiveError):
 
 class CryptoUnavailableError(ArchiveCryptoError):
     pass
+
+
+class PasswordPolicyError(ArchiveCryptoError):
+    """Пароль нового архива короче минимума; сам пароль не включается."""
+
+
+def new_password_acceptable(password) -> bool:
+    """Единое правило длины пароля при создании архива (CLI, API, комплект).
+
+    Для чтения и проверки уже созданных архивов длина не ограничивается.
+    """
+    return type(password) is str and len(password) >= MIN_PASSWORD_LENGTH
+
+
+def require_new_password(password) -> str:
+    if not new_password_acceptable(password):
+        raise PasswordPolicyError("Пароль нового шифрованного архива должен содержать "
+                                  f"не менее {MIN_PASSWORD_LENGTH} символов")
+    return password
 
 
 def _aesgcm():
@@ -88,11 +121,12 @@ def _password(provider):
         raise ArchiveCryptoError("Не удалось получить непустой пароль архива") from None
 
 
-def _key(provider, salt):
+def _key(provider, salt, version):
     try:
+        n, r, p, maxmem, _ = FORMATS[version]
         password = _password(provider)
-        return hashlib.scrypt(password.encode("utf-8"), salt=salt, n=SCRYPT_N,
-                              r=SCRYPT_R, p=SCRYPT_P, dklen=32, maxmem=64 * 1024 * 1024)
+        return hashlib.scrypt(password.encode("utf-8"), salt=salt, n=n,
+                              r=r, p=p, dklen=32, maxmem=maxmem)
     except Exception:
         raise ArchiveCryptoError("Не удалось получить пароль архива или вычислить ключ scrypt") from None
 
@@ -101,13 +135,25 @@ def read_header(stream) -> dict:
     """Разобрать ограниченный заголовок без cryptography и без вычисления KDF.
 
     Это непроверенные метаданные: подлинность подтверждает только decrypt.
+    Версия выбирает длину заголовка и зашитые параметры KDF; весь заголовок,
+    включая байт версии, входит в AAD каждого блока. У v2 поле sha256 — None.
     """
-    raw = stream.read(HEADER.size)
-    if len(raw) != HEADER.size:
+    raw = stream.read(PREFIX.size)
+    if len(raw) != PREFIX.size:
         raise ArchiveCryptoError("Заголовок шифрованного архива обрезан")
-    magic, version, kdf, n, r, p, salt, chunk, size, sha256, prefix = HEADER.unpack(raw)
-    if (magic != MAGIC or version != VERSION or kdf != 1
-            or (n, r, p) != (SCRYPT_N, SCRYPT_R, SCRYPT_P)
+    magic, version = PREFIX.unpack(raw)
+    if magic != MAGIC or version not in FORMATS:
+        raise ArchiveCryptoError("Неподдерживаемый заголовок шифрованного архива")
+    expected_n, expected_r, expected_p, _, layout = FORMATS[version]
+    raw += stream.read(layout.size - PREFIX.size)
+    if len(raw) != layout.size:
+        raise ArchiveCryptoError("Заголовок шифрованного архива обрезан")
+    if version == 1:
+        _, _, kdf, n, r, p, salt, chunk, size, sha256, prefix = layout.unpack(raw)
+    else:
+        _, _, kdf, n, r, p, salt, chunk, size, prefix = layout.unpack(raw)
+        sha256 = None
+    if (kdf != KDF_SCRYPT or (n, r, p) != (expected_n, expected_r, expected_p)
             or not MIN_CHUNK <= chunk <= MAX_CHUNK
             or max(1, (size + chunk - 1) // chunk) > 2**32):
         raise ArchiveCryptoError("Неподдерживаемый заголовок шифрованного архива")
@@ -191,22 +237,33 @@ def _frames(header):
 
 
 def encrypt_archive(source: str | Path, destination: str | Path, *, password_provider,
-                    chunk_size: int = CHUNK_SIZE) -> dict:
-    """Проверить полный ZIP и опубликовать шифрованную копию без перезаписи."""
+                    chunk_size: int = CHUNK_SIZE, enforce_password_policy: bool = True) -> dict:
+    """Проверить полный ZIP и опубликовать шифрованную копию v2 без перезаписи.
+
+    enforce_password_policy=False — только для продолжения уже начатой операции,
+    пароль которой проверен при её начале (см. docs/ARCHIVE.md).
+    """
     aesgcm = _aesgcm()  # Даже неверные аргументы не скрывают отсутствие зависимости.
     try:
         if type(chunk_size) is not int or not MIN_CHUNK <= chunk_size <= MAX_CHUNK:
             raise ArchiveCryptoError("Недопустимый размер блока шифрования")
+        if type(enforce_password_policy) is not bool:
+            raise ArchiveCryptoError("Недопустимый режим проверки пароля")
         source, destination = checked_path(source), _destination(destination)
         with plain._open_regular(source) as incoming:
             return _encrypt_stream(incoming, destination, password_provider=password_provider,
-                                   chunk_size=chunk_size, aesgcm=aesgcm)
+                                   chunk_size=chunk_size, aesgcm=aesgcm,
+                                   enforce_password_policy=enforce_password_policy)
     except (OSError, DataHomeError, OverflowError):
         raise ArchiveCryptoError("Не удалось создать проверенный шифрованный архив") from None
 
 
-def _encrypt_stream(incoming, destination, *, password_provider, chunk_size, aesgcm):
-    """Проверить seekable ZIP и зашифровать его; поток принадлежит вызывающему."""
+def _encrypt_stream(incoming, destination, *, password_provider, chunk_size, aesgcm,
+                    enforce_password_policy):
+    """Проверить seekable ZIP и зашифровать его; поток принадлежит вызывающему.
+
+    SHA-256 первого прохода сверяется со вторым локально и в заголовок v2 не пишется.
+    """
     try:
         incoming.seek(0)
         with zipfile.ZipFile(incoming, 'r') as archive:
@@ -214,13 +271,16 @@ def _encrypt_stream(incoming, destination, *, password_provider, chunk_size, aes
         incoming.seek(0)
         size, digest = plain._digest(incoming)
         salt, prefix = os.urandom(16), os.urandom(4)
-        raw = HEADER.pack(MAGIC, VERSION, 1, SCRYPT_N, SCRYPT_R, SCRYPT_P,
-                          salt, chunk_size, size, bytes.fromhex(digest), prefix)
+        raw = HEADER.pack(MAGIC, VERSION, KDF_SCRYPT, SCRYPT_N, SCRYPT_R, SCRYPT_P,
+                          salt, chunk_size, size, prefix)
         incoming.seek(0)
         # Ограничение количества блоков такое же, как у читателя.
         header = read_header(io.BytesIO(raw))
         password = _password(password_provider)
-        cipher = aesgcm(_key(lambda: password, salt))
+        if enforce_password_policy:
+            require_new_password(password)
+        key = _key(lambda: password, salt, VERSION)
+        cipher = aesgcm(key)
         count = max(1, (size + chunk_size - 1) // chunk_size)
         plain._space(destination.parent, HEADER.size + size + count * TAG_SIZE)
         with _temporary(destination.parent) as temporary:
@@ -237,9 +297,13 @@ def _encrypt_stream(incoming, destination, *, password_provider, chunk_size, aes
                     raise ArchiveCryptoError("Архив изменился при шифровании")
                 output.flush()
                 os.fsync(output.fileno())
-            # Полная обратная проверка, включая ZIP, до публикации.
-            verify_archive(temporary, password_provider=lambda: password,
-                           expected_product_id=manifest["product_id"])
+            # Полная обратная проверка, включая ZIP, до публикации. Ключ этого
+            # заголовка повторно не выводится: scrypt v2 намеренно дорог.
+            with _decrypted_archive(temporary, password_provider=lambda: password,
+                                    expected_product_id=manifest["product_id"],
+                                    expected_ciphertext_sha256=None,
+                                    anonymous=sys.platform.startswith('linux'), derived=(raw, key)):
+                pass
             os.link(temporary, destination)
         return manifest
     except (OSError, DataHomeError, OverflowError, zipfile.BadZipFile, UnicodeError, ValueError, RecursionError) as error:
@@ -252,7 +316,7 @@ def _encrypt_stream(incoming, destination, *, password_provider, chunk_size, aes
 def decrypted_archive(path: str | Path, *, password_provider,
                       expected_product_id: str | None = None,
                       expected_ciphertext_sha256: str | None = None):
-    """Временный полный ZIP доступен только после GCM/SHA-256/verify_archive.
+    """Временный полный ZIP доступен только после GCM/длины/SHA-256 (v1)/verify_archive.
 
     Временный plaintext удаляется при выходе, в том числе после ошибки restore.
     Каталог шифрованного архива должен быть доступен для временной записи.
@@ -281,7 +345,7 @@ def decrypted_archive_stream(path: str | Path, *, password_provider,
 
 @contextmanager
 def _decrypted_archive(path, *, password_provider, expected_product_id,
-                       expected_ciphertext_sha256, anonymous):
+                       expected_ciphertext_sha256, anonymous, derived=None):
     if (expected_ciphertext_sha256 is not None and (type(expected_ciphertext_sha256) is not str
             or re.fullmatch(r'[a-f0-9]{64}', expected_ciphertext_sha256) is None)):
         raise ArchiveCryptoError('Недопустимый хэш шифрованного архива')
@@ -294,9 +358,14 @@ def _decrypted_archive(path, *, password_provider, expected_product_id,
             ciphertext_digest = hashlib.sha256(header['raw'])
             # Проверка точной длины до KDF/временной записи; нет доверия к size.
             count = max(1, (header["size"] + header["chunk_size"] - 1) // header["chunk_size"])
-            if os.fstat(incoming.fileno()).st_size != HEADER.size + header["size"] + count * TAG_SIZE:
+            if os.fstat(incoming.fileno()).st_size != len(header["raw"]) + header["size"] + count * TAG_SIZE:
                 raise ArchiveCryptoError("Шифрованный архив обрезан или содержит лишние блоки")
-            cipher = aesgcm(_key(password_provider, header["salt"]))
+            # Длина пароля при чтении не ограничивается: прежние архивы остаются доступны.
+            if derived is not None and derived[0] == header["raw"]:
+                key = derived[1]  # Только что записанный заголовок и его ключ.
+            else:
+                key = _key(password_provider, header["salt"], header["version"])
+            cipher = aesgcm(key)
             plain._space(path.parent, header["size"])
             with (_anonymous_temporary(path.parent) if anonymous else _temporary(path.parent)) as temporary:
                 digest = hashlib.sha256()
@@ -312,7 +381,11 @@ def _decrypted_archive(path, *, password_provider, expected_product_id,
                             raise ArchiveCryptoError("Неверный пароль или повреждён шифрованный архив") from None
                         digest.update(decoded)
                         output.write(decoded)
-                    if incoming.read(1) or not hmac.compare_digest(digest.digest(), header["sha256"]):
+                    if incoming.read(1):
+                        raise ArchiveCryptoError("Шифрованный архив обрезан или содержит лишние блоки")
+                    # v2: целостность полного ZIP дают теги всех блоков с размером в AAD.
+                    if header["sha256"] is not None and not hmac.compare_digest(
+                            digest.digest(), header["sha256"]):
                         raise ArchiveCryptoError("Не совпадает SHA-256 полного архива")
                     if (expected_ciphertext_sha256 is not None and not hmac.compare_digest(
                             ciphertext_digest.hexdigest(), expected_ciphertext_sha256)):
@@ -337,10 +410,13 @@ def _decrypted_archive(path, *, password_provider, expected_product_id,
         raise ArchiveCryptoError("Не удалось расшифровать или прочитать архив") from None
 
 
-def build_encrypted_archive(home, destination: str | Path, *, password_provider) -> dict:
+def build_encrypted_archive(home, destination: str | Path, *, password_provider,
+                            enforce_password_policy: bool = True) -> dict:
     """Полный архив остановленных данных; промежуточный ZIP удаляется."""
     _aesgcm()
     try:
+        if type(enforce_password_policy) is not bool:
+            raise ArchiveCryptoError("Недопустимый режим проверки пароля")
         check_invariants(home)
         destination = _destination(destination)
         if any(contains(root, destination) for root in (home.app, home.releases, *home.roots.values())):
@@ -352,7 +428,8 @@ def build_encrypted_archive(home, destination: str | Path, *, password_provider)
                 plain._write_archive(home, source, destination.parent)
                 source.seek(0)
                 return _encrypt_stream(source, destination, password_provider=password_provider,
-                                       chunk_size=CHUNK_SIZE, aesgcm=_aesgcm())
+                                       chunk_size=CHUNK_SIZE, aesgcm=_aesgcm(),
+                                       enforce_password_policy=enforce_password_policy)
         # Отдельный каталог позволяет build_archive эксклюзивно опубликовать ZIP.
         directory = destination.parent / (".archive-build-" + uuid.uuid4().hex)
         # На Windows Python 3.13+ трактует 0700 как специальную DACL.
@@ -361,7 +438,8 @@ def build_encrypted_archive(home, destination: str | Path, *, password_provider)
         try:
             source = directory / "full.zip"
             plain.build_archive(home, source)
-            return encrypt_archive(source, destination, password_provider=password_provider)
+            return encrypt_archive(source, destination, password_provider=password_provider,
+                                   enforce_password_policy=enforce_password_policy)
         finally:
             (directory / "full.zip").unlink(missing_ok=True)
             directory.rmdir()

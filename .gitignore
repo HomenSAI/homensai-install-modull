@@ -10,3 +10,6 @@ build/
 examples/kit_demo/installer/wheelhouse/
 examples/kit_demo/installer/inputs/
 .claude/worktrees/
+docker/builder/projects/
+docker/builder/keys/
+docker/builder/output/

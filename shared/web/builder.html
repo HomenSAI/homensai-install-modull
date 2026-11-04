@@ -1,0 +1,140 @@
+<!doctype html>
+<!-- HomenS.AI · © 2026 Serhii Khomenko — страница сборщика комплектов (shared/kit_builder_web.py). -->
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Сборщик комплектов HomenS.AI</title>
+  <link rel="icon" href="mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="hsi.css">
+  <script src="common.js"></script>
+  <script src="builder.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main" data-i18n="build.title">Собрать комплект</a>
+  <header class="bar">
+    <span class="brand">
+      <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><circle class="mark-ring" cx="32" cy="32" r="27"/><path class="mark-h" d="M23 19v26M41 19v26M23 32h18"/><circle class="mark-dot" cx="49" cy="15" r="6"/></svg>
+      <span class="brand-word">HomenS<span class="ai">.AI</span><span class="brand-sub" data-i18n="brand.builder">Сборщик комплектов</span></span>
+    </span>
+    <div class="bar-tools">
+      <label class="visually-hidden" for="language" data-i18n="language">Язык</label>
+      <select id="language">
+        <option value="ru">Русский</option>
+        <option value="en">English</option>
+        <option value="de">Deutsch</option>
+      </select>
+      <button class="icon-btn" id="theme" type="button" data-i18n-label="theme.toggle" aria-label="Сменить тему">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <div id="toast" class="toast" role="alert" hidden></div>
+
+    <section class="card" id="login" aria-labelledby="login-title" hidden>
+      <h2 id="login-title" data-i18n="login.title">Вход</h2>
+      <form id="login-form">
+        <label for="login-token" data-i18n="login.token">Токен доступа</label>
+        <input id="login-token" type="password" autocomplete="off" spellcheck="false">
+        <p class="note" data-i18n="login.note"></p>
+        <div class="actions"><button class="btn" type="submit" data-i18n="login.run">Войти</button></div>
+      </form>
+    </section>
+
+    <div id="workspace" hidden>
+      <div class="grid2">
+        <section class="card" aria-labelledby="build-title">
+          <h2 id="build-title" data-i18n="build.title">Собрать комплект</h2>
+          <form id="build-form">
+            <label for="build-project" data-i18n="build.project">Проект</label>
+            <select id="build-project" required></select>
+            <label for="build-version" data-i18n="build.version">Версия</label>
+            <input id="build-version" type="text" required maxlength="64" spellcheck="false" autocomplete="off" placeholder="1.0.0">
+            <label for="build-sequence" data-i18n="build.sequence">Порядковый номер</label>
+            <input id="build-sequence" type="text" maxlength="64" spellcheck="false" autocomplete="off">
+            <label for="build-key" data-i18n="build.key">Ключ подписи</label>
+            <select id="build-key" required></select>
+            <p class="note warn" id="build-no-key" data-i18n="build.no_key" hidden></p>
+            <div id="build-passphrase-wrap" hidden>
+              <label for="build-passphrase" data-i18n="build.passphrase">Пароль ключа</label>
+              <input id="build-passphrase" type="password" autocomplete="off">
+            </div>
+            <div class="actions"><button class="btn" id="build-run" type="submit" data-i18n="build.run">Собрать</button></div>
+          </form>
+        </section>
+
+        <section class="card" aria-labelledby="job-title">
+          <div class="card-head">
+            <h2 id="job-title" data-i18n="job.title">Журнал команды</h2>
+            <span id="job-badge" class="badge" role="status" hidden></span>
+          </div>
+          <p class="mono note" id="job-name" data-i18n="job.idle"></p>
+          <ol class="log" id="log" role="log" aria-live="polite"></ol>
+        </section>
+      </div>
+
+      <section class="card" aria-labelledby="projects-title">
+        <h2 id="projects-title" data-i18n="projects.title">Проекты</h2>
+        <p class="empty" id="projects-empty" data-i18n="projects.empty" hidden></p>
+        <div class="table-wrap">
+          <table class="stack" id="projects-table">
+            <thead><tr><th data-i18n="col.project">Проект</th><th data-i18n="col.product">Продукт</th><th data-i18n="col.targets">Платформы</th><th data-i18n="col.state">Состояние</th><th data-i18n="col.actions">Действия</th></tr></thead>
+            <tbody id="projects"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="kits-title">
+        <h2 id="kits-title" data-i18n="kits.title">Готовые комплекты</h2>
+        <p class="note" data-i18n="kits.folder"></p>
+        <p class="empty" id="kits-empty" data-i18n="kits.empty" hidden></p>
+        <div class="table-wrap">
+          <table class="stack" id="kits-table">
+            <thead><tr><th data-i18n="col.kit">Комплект</th><th data-i18n="col.key">Отпечаток ключа</th><th data-i18n="col.size">Размер</th><th data-i18n="col.actions">Действия</th></tr></thead>
+            <tbody id="kits"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="grid2">
+        <section class="card" aria-labelledby="keys-title">
+          <h2 id="keys-title" data-i18n="keys.title">Ключи подписи</h2>
+          <p class="empty" id="keys-empty" data-i18n="keys.empty" hidden></p>
+          <ul id="keys" class="plain-list"></ul>
+          <form id="keygen-form">
+            <label for="keygen-name" data-i18n="keys.name">Имя ключа</label>
+            <input id="keygen-name" type="text" required maxlength="64" pattern="[A-Za-z0-9_\-]+" value="publisher" spellcheck="false" autocomplete="off">
+            <label for="keygen-passphrase" data-i18n="keys.passphrase">Пароль ключа</label>
+            <input id="keygen-passphrase" type="password" autocomplete="new-password">
+            <p class="note" data-i18n="keys.note"></p>
+            <div class="actions"><button class="btn secondary" type="submit" data-i18n="keys.run">Создать ключ</button></div>
+          </form>
+        </section>
+
+        <section class="card" aria-labelledby="init-title">
+          <h2 id="init-title" data-i18n="init.title">Подключить проект</h2>
+          <p class="empty" id="init-none" data-i18n="init.none" hidden></p>
+          <form id="init-form">
+            <label for="init-project" data-i18n="init.project">Каталог проекта</label>
+            <select id="init-project" required></select>
+            <label for="init-id" data-i18n="init.product_id">ID продукта</label>
+            <input id="init-id" type="text" required maxlength="63" pattern="[a-z0-9][a-z0-9_\-]*" spellcheck="false" autocomplete="off">
+            <label for="init-name" data-i18n="init.product_name">Название продукта</label>
+            <input id="init-name" type="text" required maxlength="128" autocomplete="off">
+            <label for="init-port" data-i18n="init.port">Порт</label>
+            <input id="init-port" type="number" min="1024" max="65535" value="8800" required>
+            <div class="actions"><button class="btn secondary" type="submit" data-i18n="init.run">Подключить</button></div>
+          </form>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <span>HomenS<span class="ai">.AI</span> · <span data-i18n="brand.builder"></span></span>
+  </footer>
+</body>
+</html>

@@ -166,7 +166,7 @@
   "kit.summary_modes": "Modes: {modes}",
   "kit.reuse_data": "The preserved data of the previous installation will be reused.",
   "kit.resume": "Continuing an interrupted operation with its saved keys.",
-  "kit.confirm_install": "Install? Type yes to continue:",
+  "kit.confirm_install": "Install?",
   "kit.installing": "Installing: verifying the signature, preparing the release and runtime, starting services…",
   "kit.install_incomplete": "The installation was not confirmed. Run the same command again to continue.",
   "kit.installed": "Version {version} is installed and its services are started.",
@@ -185,7 +185,7 @@
   "kit.migrations_diverged": "The migration history of this kit does not continue the installed one.",
   "kit.update_from": "Update: {old} → {new}",
   "kit.update_migrations": "Migrations to apply: {migrations}",
-  "kit.confirm_update": "Services will be stopped, a verified encrypted full archive created, then the new version started; on failure the previous version is restored. Type yes to continue:",
+  "kit.confirm_update": "Services will be stopped, a verified encrypted full archive created, then the new version started; on failure the previous version is restored.",
   "kit.runtime_changed": "This kit contains a different Python runtime; replacing the runtime during update is not supported yet.",
   "kit.components_changed": "The set of services differs from the installed version; such an update is not supported.",
   "kit.updating": "Updating…",
@@ -199,7 +199,7 @@
   "kit.purge_warning": "Full removal deletes data, backups and settings irreversibly.",
   "kit.confirm_purge": "Type the product ID {product} to confirm full removal:",
   "kit.keep_notice": "Data, backups and settings will be kept.",
-  "kit.confirm_uninstall": "Uninstall? Type yes to continue:",
+  "kit.confirm_uninstall": "Uninstall?",
   "kit.uninstall_incomplete": "The uninstall was not confirmed. Run the same command again to continue.",
   "kit.uninstalled_purge": "The product and all its data were removed.",
   "kit.uninstalled_keep": "The product was removed; data, backups and settings remain in {path}. Install the same version again to reuse them.",
@@ -233,5 +233,9 @@
   "kit.downgrade": "Release {new} is not newer than the installed {old} (publisher sequence number). A downgrade is allowed only with --allow-downgrade.",
   "kit.no_terminal": "Hidden input is unavailable: no terminal. Provide the value through an environment variable and --yes.",
   "kit.secret_from_env": "Secret {name}: the value was taken from the environment variable {name}.",
-  "kit.secret_env_confirm": "Use the value of {name} from the environment? [yes/no]"
+  "kit.secret_env_confirm": "Use the value of {name} from the environment?",
+  "kit.web_open": "Installer page: {url} — open the address in a browser if it did not open by itself. Keep this window open until you finish.",
+  "kit.web_stopped": "The installer page has stopped.",
+  "kit.web_port_busy": "Could not open port {port} on 127.0.0.1: it is in use.",
+  "kit.confirm_hint": "Type yes to continue:"
 }

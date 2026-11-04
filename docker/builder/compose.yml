@@ -1,0 +1,34 @@
+# HomenS.AI · © 2026 Serhii Khomenko — сборщик комплектов в браузере (docs/WEB.md).
+#
+#   docker compose -f docker/builder/compose.yml up -d --build
+#   docker compose -f docker/builder/compose.yml logs builder    # адрес страницы с токеном
+#
+# Каталоги на хосте (по умолчанию рядом с этим файлом, можно задать в .env):
+#   HOMENSAI_PROJECTS — проекты продуктов (каждый в своём подкаталоге с homensai-kit.json);
+#   HOMENSAI_KEYS     — ключи подписи издателя (закрытый ключ не покидает этот каталог);
+#   HOMENSAI_OUTPUT   — готовые комплекты.
+# Страница доступна только с этого компьютера: порт публикуется на 127.0.0.1.
+name: homensai-builder
+services:
+  builder:
+    build:
+      context: ../..
+      dockerfile: docker/builder/Dockerfile
+    image: homensai-kit-builder:local
+    init: true
+    command: ["--public-port", "${HOMENSAI_BUILDER_PORT:-8790}"]
+    ports:
+      - "127.0.0.1:${HOMENSAI_BUILDER_PORT:-8790}:8790"
+    environment:
+      HOMENSAI_BUILDER_TOKEN: ${HOMENSAI_BUILDER_TOKEN:-}
+    volumes:
+      - ${HOMENSAI_PROJECTS:-./projects}:/work/projects
+      - ${HOMENSAI_KEYS:-./keys}:/work/keys
+      - ${HOMENSAI_OUTPUT:-./output}:/work/output
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/builder
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped

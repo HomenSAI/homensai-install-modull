@@ -5,7 +5,8 @@
 отказом здоровья), затем в одноразовом rootless Podman с user-systemd и
 `--network=none` выполняет: отказ установки без обязательного секрета, установку, обновление 1→2, обновление с откатом,
 обновление 2→3, смену секрета, прерванную и продолженную установку, удаление с сохранением
-данных, переустановку и полное удаление. Требуется --run.
+данных, переустановку и полное удаление, затем тот же цикл через веб-страницу
+установщика (`setup.sh web`). Требуется --run.
 
 Нужны: Python 3.14 с cryptography на хосте, podman, загруженные заранее архив
 PBS и wheels (см. --inputs). Образ Debian скачивается один раз при отсутствии.
@@ -190,7 +191,76 @@ step "полное удаление"
 [ -d "$ROOTDIR/data" ] && fail "данные должны быть удалены"
 [ -e "$SECRETS" ] && fail "секреты должны быть удалены"
 http /healthz >/dev/null 2>&1 && fail "служба после purge"
+
+step "установка, обновление сохранённым установщиком, проверка и полное удаление через веб-страницу"
+"$PY" -I /harness/web_driver.py "$K1/setup.sh" install "" || fail "web install"
+wait_release 1 || fail "health после установки через страницу"
+wait_token e2e-web-token || fail "секрет, введённый на странице"
+"$PY" -I /harness/web_driver.py "$STATE/installer/setup.sh" update "$PWD/$K2" || fail "web update"
+wait_release 2 || fail "health после обновления через страницу"
+"$PY" -I /harness/web_driver.py "$STATE/installer/setup.sh" status "" || fail "web status"
+"$PY" -I /harness/web_driver.py "$STATE/installer/setup.sh" purge "" || fail "web purge"
+http /healthz >/dev/null 2>&1 && fail "служба после purge через страницу"
+[ -e "$SECRETS" ] && fail "секреты после purge через страницу"
 echo "E2E OK"
+'''
+
+# Действует как человек на странице установщика: запускает `setup.sh web`, берёт адрес с
+# токеном из консоли, нажимает кнопку команды и отвечает на вопросы установщика.
+WEB_DRIVER = r'''import json, subprocess, sys, time, urllib.request
+setup, command, kit = sys.argv[1], sys.argv[2], sys.argv[3]
+server = subprocess.Popen([setup, '--language', 'ru', 'web', '--no-browser'], stdout=subprocess.PIPE, text=True)
+line = server.stdout.readline()
+url = line[line.index('http://'):].split()[0]
+base, token = url.split('/#t=')
+def call(method, path, body=None):
+    headers = {'X-HomenSAI-Token': token, 'Origin': base}
+    if body is not None:
+        headers['Content-Type'] = 'application/json'
+    request = urllib.request.Request(base + path, method=method, headers=headers,
+                                     data=None if body is None else json.dumps(body).encode())
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return json.loads(response.read())
+page = urllib.request.urlopen(base + '/', timeout=30).read().decode()
+assert 'installer.js' in page
+info = call('GET', '/api/info')
+body = {'command': 'uninstall' if command == 'purge' else command, 'language': 'ru'}
+if command == 'purge':
+    body['purge'] = True
+if kit:
+    body['kit'] = kit
+call('POST', '/api/run', body)
+after, asked = 0, []
+while True:
+    snapshot = call('GET', '/api/progress?after=%d' % after)
+    for item in snapshot['lines']:
+        print('   ', item['text'])
+    after = snapshot['next']
+    prompt = snapshot['prompt']
+    if prompt:
+        text = prompt['text']
+        asked.append(prompt['kind'])
+        if prompt['kind'] == 'confirm':
+            value = 'yes'
+        elif prompt['kind'] == 'text':
+            value = info['kit']['product_id']
+        elif 'KITDEMO_TOKEN' in text:
+            value = 'e2e-web-token'
+        elif 'KITDEMO_' in text:
+            value = ''
+        else:
+            value = 'synthetic-e2e-web-password'
+        call('POST', '/api/answer', {'id': prompt['id'], 'value': value})
+    if not snapshot['running'] and snapshot['result']:
+        break
+    time.sleep(0.3)
+expected = {'install': ['confirm', 'secret', 'secret', 'secret'], 'update': ['confirm', 'secret', 'secret'],
+            'status': [], 'purge': ['text']}[command]
+assert asked == expected, asked
+call('POST', '/api/quit', {})
+server.wait(timeout=30)
+print('    web', command, 'код', snapshot['result']['code'])
+sys.exit(snapshot['result']['code'])
 '''
 
 
@@ -242,6 +312,7 @@ def main() -> int:
         harness.mkdir()
         (harness / 'setup.sh').write_text(SETUP)
         (harness / 'session.sh').write_text(SESSION)
+        (harness / 'web_driver.py').write_text(WEB_DRIVER)
         for path in (work, harness, work / 'kits'):
             path.chmod(0o755)
         for item in (work / 'kits').glob('*.tar.gz'):

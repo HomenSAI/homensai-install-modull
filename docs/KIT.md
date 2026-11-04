@@ -152,6 +152,7 @@ python -m shared.kit verify dist/acme-app-1.4.0 --expect-key-sha256 <отпеч�
 
 ```
 setup.sh, setup.cmd                 запуск установщика (Linux / Windows)
+setup-web.cmd                       страница установщика в браузере (Windows, права администратора)
 kit.json, README.txt, SHA256SUMS    сведения о выпуске и контрольные суммы
 package/acme-app-1.4.0.zip, .sig    подписанный пакет (Ed25519) и подпись
 package/publisher-ed25519.pub       открытый ключ издателя
@@ -174,7 +175,7 @@ installer/<платформа>/python/       Python установщика с з
 
 Подписанный `homensai-release.json` внутри пакета содержит историю
 миграций, объявления секретов, порядковый номер выпуска, SHA-256 каждого
-файла установщика (`setup.sh`, `setup.cmd`, `installer/**`) и все поля
+файла установщика (`setup.sh`, `setup.cmd`, `setup-web.cmd`, `installer/**`) и все поля
 `kit.json`, кроме путей к пакету и ключу и их хэшей. Установщик до любых
 изменений сверяет с ними `kit.json` и файлы установщика комплекта
 (`kit.kit_unreadable`, `kit.installer_mismatch`) и повторно сверяет уже
@@ -193,6 +194,11 @@ SHA-256 архива) по независимому каналу. Обновле
 номеру; осознанный возврат к старому выпуску — `update --allow-downgrade`.
 
 ## 6. Установка у пользователя
+
+Без командной строки: двойной щелчок по `setup-web.cmd` (Windows) или
+`./setup.sh web` (Linux) открывает страницу установщика в браузере с теми же
+командами; сборку можно выполнять на странице сборщика в Docker. Подробно — в
+[WEB.md](WEB.md).
 
 Linux (обычный пользователь, нужен `systemctl --user`):
 

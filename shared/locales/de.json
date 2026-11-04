@@ -166,7 +166,7 @@
   "kit.summary_modes": "Modi: {modes}",
   "kit.reuse_data": "Die erhaltenen Daten der vorherigen Installation werden weiterverwendet.",
   "kit.resume": "Ein unterbrochener Vorgang wird mit seinen gespeicherten Schlüsseln fortgesetzt.",
-  "kit.confirm_install": "Installieren? Geben Sie yes ein, um fortzufahren:",
+  "kit.confirm_install": "Installieren?",
   "kit.installing": "Installation: Signatur prüfen, Release und Runtime vorbereiten, Dienste starten…",
   "kit.install_incomplete": "Die Installation wurde nicht bestätigt. Wiederholen Sie denselben Befehl, um fortzufahren.",
   "kit.installed": "Version {version} ist installiert und ihre Dienste sind gestartet.",
@@ -185,7 +185,7 @@
   "kit.migrations_diverged": "Der Migrationsverlauf dieses Pakets setzt den installierten nicht fort.",
   "kit.update_from": "Aktualisierung: {old} → {new}",
   "kit.update_migrations": "Auszuführende Migrationen: {migrations}",
-  "kit.confirm_update": "Die Dienste werden gestoppt, ein geprüftes verschlüsseltes Vollarchiv erstellt und dann die neue Version gestartet; bei einem Fehler wird die vorherige wiederhergestellt. Geben Sie yes ein, um fortzufahren:",
+  "kit.confirm_update": "Die Dienste werden gestoppt, ein geprüftes verschlüsseltes Vollarchiv erstellt und dann die neue Version gestartet; bei einem Fehler wird die vorherige wiederhergestellt.",
   "kit.runtime_changed": "Dieses Paket enthält eine andere Python-Runtime; das Ersetzen der Runtime beim Aktualisieren wird noch nicht unterstützt.",
   "kit.components_changed": "Die Menge der Dienste unterscheidet sich von der installierten Version; ein solches Update wird nicht unterstützt.",
   "kit.updating": "Aktualisierung…",
@@ -199,7 +199,7 @@
   "kit.purge_warning": "Die vollständige Entfernung löscht Daten, Sicherungen und Einstellungen unwiderruflich.",
   "kit.confirm_purge": "Geben Sie zur Bestätigung der vollständigen Entfernung die Produkt-ID {product} ein:",
   "kit.keep_notice": "Daten, Sicherungen und Einstellungen bleiben erhalten.",
-  "kit.confirm_uninstall": "Deinstallieren? Geben Sie yes ein, um fortzufahren:",
+  "kit.confirm_uninstall": "Deinstallieren?",
   "kit.uninstall_incomplete": "Die Deinstallation wurde nicht bestätigt. Wiederholen Sie denselben Befehl, um fortzufahren.",
   "kit.uninstalled_purge": "Das Produkt und alle seine Daten wurden entfernt.",
   "kit.uninstalled_keep": "Das Produkt wurde entfernt; Daten, Sicherungen und Einstellungen verbleiben in {path}. Installieren Sie dieselbe Version erneut, um sie weiterzuverwenden.",
@@ -233,5 +233,9 @@
   "kit.downgrade": "Version {new} ist nicht neuer als die installierte {old} (Laufnummer des Herausgebers). Ein Downgrade ist nur mit --allow-downgrade erlaubt.",
   "kit.no_terminal": "Verdeckte Eingabe nicht verfügbar: kein Terminal. Übergeben Sie den Wert per Umgebungsvariable und --yes.",
   "kit.secret_from_env": "Geheimnis {name}: Wert aus der Umgebungsvariable {name} übernommen.",
-  "kit.secret_env_confirm": "Wert von {name} aus der Umgebung verwenden? [ja/nein]"
+  "kit.secret_env_confirm": "Wert von {name} aus der Umgebung verwenden?",
+  "kit.web_open": "Seite des Installationsprogramms: {url} — öffnen Sie die Adresse im Browser, falls sie sich nicht selbst geöffnet hat. Lassen Sie dieses Fenster bis zum Ende geöffnet.",
+  "kit.web_stopped": "Die Seite des Installationsprogramms wurde beendet.",
+  "kit.web_port_busy": "Port {port} auf 127.0.0.1 konnte nicht geöffnet werden: er ist belegt.",
+  "kit.confirm_hint": "Geben Sie yes ein, um fortzufahren:"
 }

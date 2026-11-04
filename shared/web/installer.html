@@ -1,0 +1,156 @@
+<!doctype html>
+<!-- HomenS.AI · © 2026 Serhii Khomenko — страница установщика комплекта (shared/kit_web.py). -->
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Установщик HomenS.AI</title>
+  <link rel="icon" href="mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="hsi.css">
+  <script src="common.js"></script>
+  <script src="installer.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main" data-i18n="kit.title">Комплект</a>
+  <header class="bar">
+    <span class="brand">
+      <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><circle class="mark-ring" cx="32" cy="32" r="27"/><path class="mark-h" d="M23 19v26M41 19v26M23 32h18"/><circle class="mark-dot" cx="49" cy="15" r="6"/></svg>
+      <span class="brand-word">HomenS<span class="ai">.AI</span><span class="brand-sub" data-i18n="brand.installer">Установщик</span></span>
+    </span>
+    <div class="bar-tools">
+      <label class="visually-hidden" for="language" data-i18n="language">Язык</label>
+      <select id="language"></select>
+      <button class="icon-btn" id="theme" type="button" data-i18n-label="theme.toggle" aria-label="Сменить тему">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <div id="toast" class="toast" role="alert" hidden></div>
+
+    <div class="grid2">
+      <section class="card" aria-labelledby="kit-title">
+        <div class="card-head">
+          <h2 id="kit-title" data-i18n="kit.title">Комплект</h2>
+        </div>
+        <p id="kit-error" class="note warn" hidden></p>
+        <dl class="kv" id="kit-facts">
+          <dt data-i18n="kit.product">Продукт</dt><dd id="kit-product">…</dd>
+          <dt data-i18n="kit.version">Версия</dt><dd id="kit-version">…</dd>
+          <dt data-i18n="kit.targets">Платформы</dt><dd id="kit-targets">…</dd>
+          <dt data-i18n="kit.key">Отпечаток ключа издателя</dt><dd><code id="kit-key" class="wrap-any">…</code></dd>
+        </dl>
+        <p class="note" data-i18n="kit.key_note"></p>
+        <details>
+          <summary data-i18n="kit.other">Открыть другой комплект</summary>
+          <label for="kit-path" data-i18n="kit.path">Путь к каталогу комплекта</label>
+          <div class="field-row">
+            <input id="kit-path" type="text" spellcheck="false" autocomplete="off">
+            <button class="btn secondary sm" id="kit-open" type="button" data-i18n="kit.open">Открыть</button>
+          </div>
+          <p class="note"><button class="btn secondary sm" id="kit-reset" type="button" data-i18n="kit.reset">Комплект, из которого запущена страница</button></p>
+        </details>
+      </section>
+
+      <section class="card" aria-labelledby="state-title">
+        <div class="card-head">
+          <h2 id="state-title" data-i18n="state.title">Установка на этом компьютере</h2>
+          <span id="state-badge" class="badge" hidden></span>
+        </div>
+        <dl class="kv">
+          <dt data-i18n="kit.version">Версия</dt><dd id="state-version">—</dd>
+          <dt data-i18n="state.root">Каталог установки</dt><dd id="state-root" class="mono">—</dd>
+          <dt data-i18n="state.modes">Режимы</dt><dd id="state-modes">—</dd>
+          <dt data-i18n="state.stored">Сохранённый установщик</dt><dd id="state-stored" class="mono">—</dd>
+        </dl>
+        <p class="note" id="stored-note" data-i18n="state.stored_note" hidden></p>
+      </section>
+    </div>
+
+    <section class="card" aria-label="Действия">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" type="button" id="tab-install" aria-controls="panel-install" data-i18n="tab.install">Установка</button>
+        <button class="tab" role="tab" type="button" id="tab-update" aria-controls="panel-update" data-i18n="tab.update">Обновление</button>
+        <button class="tab" role="tab" type="button" id="tab-secrets" aria-controls="panel-secrets" data-i18n="tab.secrets">Секреты</button>
+        <button class="tab" role="tab" type="button" id="tab-uninstall" aria-controls="panel-uninstall" data-i18n="tab.uninstall">Удаление</button>
+        <button class="tab" role="tab" type="button" id="tab-status" aria-controls="panel-status" data-i18n="tab.status">Проверка</button>
+      </div>
+
+      <div class="panel" role="tabpanel" id="panel-install" aria-labelledby="tab-install">
+        <p class="note" data-i18n="install.hint"></p>
+        <label for="install-root" data-i18n="install.root">Каталог установки</label>
+        <input id="install-root" type="text" spellcheck="false" autocomplete="off">
+        <fieldset id="install-modes">
+          <legend data-i18n="install.modes">Режимы работы</legend>
+        </fieldset>
+        <label for="install-expect" data-i18n="install.expect">Ожидаемый отпечаток ключа</label>
+        <input id="install-expect" type="text" spellcheck="false" autocomplete="off" maxlength="64">
+        <div class="actions"><button class="btn" id="run-install" type="button" data-i18n="install.run">Установить</button></div>
+      </div>
+
+      <div class="panel" role="tabpanel" id="panel-update" aria-labelledby="tab-update" hidden>
+        <p class="note" data-i18n="update.hint"></p>
+        <label for="update-accept" data-i18n="update.accept">Новый отпечаток ключа</label>
+        <input id="update-accept" type="text" spellcheck="false" autocomplete="off" maxlength="64">
+        <label class="check"><input id="update-downgrade" type="checkbox"><span><span data-i18n="update.downgrade"></span><span class="note warn" data-i18n="update.downgrade_note"></span></span></label>
+        <label class="check"><input id="update-reconcile" type="checkbox"><span data-i18n="update.reconcile"></span></label>
+        <div class="actions"><button class="btn" id="run-update" type="button" data-i18n="update.run">Обновить</button></div>
+      </div>
+
+      <div class="panel" role="tabpanel" id="panel-secrets" aria-labelledby="tab-secrets" hidden>
+        <p class="note" id="secrets-none" data-i18n="secrets.none" hidden></p>
+        <div class="actions"><button class="btn secondary" id="run-secrets-list" type="button" data-i18n="secrets.list">Показать перечень</button></div>
+        <div id="secrets-edit">
+          <label for="secrets-name" data-i18n="secrets.name">Секрет</label>
+          <select id="secrets-name"></select>
+          <div class="actions">
+            <button class="btn" id="run-secrets-set" type="button" data-i18n="secrets.set">Задать новое значение</button>
+            <button class="btn secondary" id="run-secrets-clear" type="button" data-i18n="secrets.clear">Удалить значение</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" role="tabpanel" id="panel-uninstall" aria-labelledby="tab-uninstall" hidden>
+        <label class="check"><input type="radio" name="purge" value="keep" checked><span data-i18n="uninstall.keep"></span></label>
+        <label class="check"><input type="radio" name="purge" value="purge"><span><span data-i18n="uninstall.purge"></span><span class="note warn" data-i18n="uninstall.purge_note"></span></span></label>
+        <div class="actions"><button class="btn danger" id="run-uninstall" type="button" data-i18n="uninstall.run">Удалить</button></div>
+      </div>
+
+      <div class="panel" role="tabpanel" id="panel-status" aria-labelledby="tab-status" hidden>
+        <div class="actions"><button class="btn" id="run-status" type="button" data-i18n="status.run">Проверить</button></div>
+      </div>
+    </section>
+
+    <section class="card" id="run-card" aria-labelledby="run-title" hidden>
+      <div class="card-head">
+        <h2 id="run-title" data-i18n="run.title">Ход выполнения</h2>
+        <span id="run-badge" class="badge" role="status" hidden></span>
+      </div>
+      <ol class="log" id="log" role="log" aria-live="polite"></ol>
+      <form class="question" id="question" hidden>
+        <p class="eyebrow" data-i18n="question.title">Вопрос установщика</p>
+        <p id="question-text"></p>
+        <div id="question-field">
+          <label class="visually-hidden" for="question-input" data-i18n="question.answer">Ответ</label>
+          <input id="question-input" type="text" autocomplete="off" spellcheck="false">
+          <label class="check" id="question-show-wrap"><input id="question-show" type="checkbox"><span data-i18n="question.show"></span></label>
+        </div>
+        <div class="actions">
+          <button class="btn" id="question-yes" type="button" data-i18n="question.yes">Продолжить</button>
+          <button class="btn secondary" id="question-no" type="button" data-i18n="question.no">Отмена</button>
+          <button class="btn" id="question-submit" type="submit" data-i18n="question.answer">Ответить</button>
+          <button class="btn secondary" id="question-skip" type="button" data-i18n="question.skip">Пропустить</button>
+          <button class="btn secondary" id="question-cancel" type="button" data-i18n="question.cancel">Отменить операцию</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <span>HomenS<span class="ai">.AI</span> · <span data-i18n="footer"></span></span>
+    <button class="btn secondary sm" id="quit" type="button" data-i18n="quit">Завершить работу страницы</button>
+  </footer>
+</body>
+</html>

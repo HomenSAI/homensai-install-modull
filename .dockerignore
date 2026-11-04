@@ -1,0 +1,7 @@
+# Контекст образа сборщика (docker/builder): только код модуля и закреплённый lock.
+*
+!shared
+!homensai_installer_client
+!requirements-crypto.txt
+**/__pycache__
+**/*.pyc

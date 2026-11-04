@@ -123,6 +123,20 @@ set "HERE=%~dp0"
 "%HERE%installer\\windows-x86_64\\python\\python.exe" -I -B "%HERE%installer\\app\\homensai_setup.py" --kit "%HERE%." %*
 exit /b %ERRORLEVEL%
 '''
+SETUP_WEB_CMD = '''@echo off
+rem HomenS.AI installer in the browser: asks for administrator rights, then opens the page on 127.0.0.1.
+setlocal
+net session >nul 2>&1
+if errorlevel 1 (
+    powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+    exit /b
+)
+call "%~dp0setup.cmd" web
+if errorlevel 1 pause
+exit /b %ERRORLEVEL%
+'''
+# Сценарии запуска в корне комплекта; входят в подписанный перечень файлов установщика.
+LAUNCHERS = ('setup.sh', 'setup.cmd', 'setup-web.cmd')
 WINSW_VERSION = '2.12.0'
 
 SETUP_PY = '''# Создано сборщиком HomenS.AI kit.
@@ -191,11 +205,11 @@ def release_sequence(value) -> list[int]:
 
 
 def installer_files(kit_dir: Path) -> dict[str, str]:
-    """SHA-256 файлов установщика комплекта (setup.*, installer/**) для подписанного выпуска."""
+    """SHA-256 файлов установщика комплекта (LAUNCHERS, installer/**) для подписанного выпуска."""
     files = {}
     for item in sorted(Path(kit_dir).rglob('*')):
         relative = item.relative_to(kit_dir).as_posix()
-        if item.is_file() and (relative in ('setup.sh', 'setup.cmd') or relative.startswith('installer/')):
+        if item.is_file() and (relative in LAUNCHERS or relative.startswith('installer/')):
             files[relative] = _sha256_file(item)
     return files
 
@@ -583,6 +597,7 @@ def build_kit(config_path, *, version: str, signing_key, output, passphrase_env=
             _installer_python(payload / 'runtime-windows', kit_work / 'installer/windows-x86_64/python',
                               crypto_wheels, windows=True)
             (kit_work / 'setup.cmd').write_bytes(SETUP_CMD.replace('\n', '\r\n').encode('ascii'))
+            (kit_work / 'setup-web.cmd').write_bytes(SETUP_WEB_CMD.replace('\n', '\r\n').encode('ascii'))
         _copy_installer_code(kit_work / 'installer/app')
         release_size = _tree_size(payload)
         runtime_size = max(_tree_size(payload / name) for name in ('runtime-linux', 'runtime-windows')
@@ -662,8 +677,11 @@ Linux x86-64 (systemd пользователя, без root, без сети):
     ./setup.sh status             состояние
     ./setup.sh update             обновление (запускать из комплекта новой версии)
     ./setup.sh uninstall          удаление с сохранением данных (--purge — полностью)
+    ./setup.sh web                те же действия на странице в браузере (127.0.0.1)
 {_readme_secrets(metadata)}
-Windows x86-64: те же команды через setup.cmd в командной строке администратора.
+Windows x86-64: двойной щелчок по setup-web.cmd — страница установщика в
+браузере (Windows попросит права администратора). Те же команды доступны
+через setup.cmd в командной строке администратора.
 
 Обновление надёжнее запускать сохранённым, уже проверенным установщиком:
     <каталог состояния>/installer/setup.sh --kit /путь/к/этому/комплекту update

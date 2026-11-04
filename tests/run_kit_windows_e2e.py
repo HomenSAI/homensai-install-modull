@@ -156,6 +156,30 @@ if (-not (WaitRelease '3')) { Fail 'health после переустановки
 if (-not (WaitToken 'e2e-token-2')) { Fail 'секреты после переустановки' }
 if (-not ((Notes) -match 'migrated notes-3')) { Fail 'данные после переустановки' }
 
+Step 'страница установщика (setup.cmd web): сведения, отказ без токена, проверка состояния'
+$webOut = "$base\web.out"
+$webCmd = '"' + (Join-Path $K3 'setup.cmd') + '" --language ru web --no-browser > "' + $webOut + '" 2>&1'
+$web = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $webCmd -PassThru -WindowStyle Hidden
+$url = $null
+for ($i = 0; $i -lt 240 -and -not $url; $i++) {
+    Start-Sleep -Milliseconds 500
+    if (Test-Path $webOut) { $m = Select-String -Path $webOut -Pattern 'http://127\.0\.0\.1:\d+/#t=[A-Za-z0-9_-]+'; if ($m) { $url = $m.Matches[0].Value } }
+}
+if (-not $url) { Fail ('страница установщика не запустилась: ' + (Get-Content $webOut -Raw -ErrorAction SilentlyContinue)) }
+$origin, $token = $url -split '/#t='
+$headers = @{ 'X-HomenSAI-Token' = $token }
+$info = Invoke-RestMethod -UseBasicParsing -Uri "$origin/api/info" -Headers $headers
+if ($info.state.status -ne 'installed' -or $info.state.version -ne '3' -or $info.platform -ne 'windows-x86_64') { Fail ('сведения страницы: ' + ($info | ConvertTo-Json -Depth 4)) }
+$denied = 0
+try { Invoke-WebRequest -UseBasicParsing "$origin/api/info" | Out-Null } catch { $denied = [int]$_.Exception.Response.StatusCode }
+if ($denied -ne 403) { Fail ('запрос без токена: ' + $denied) }
+Invoke-RestMethod -UseBasicParsing -Method Post -Uri "$origin/api/run" -Headers $headers -ContentType 'application/json' -Body '{"command":"status","language":"ru"}' | Out-Null
+for ($i = 0; $i -lt 480; $i++) { $progress = Invoke-RestMethod -UseBasicParsing -Uri "$origin/api/progress?after=0" -Headers $headers; if (-not $progress.running -and $progress.result) { break }; Start-Sleep -Milliseconds 500 }
+foreach ($line in $progress.lines) { Write-Output ('    ' + $line.text) }
+if ($progress.result.code -ne 0) { Fail ('status через страницу: ' + $progress.result.code) }
+Invoke-RestMethod -UseBasicParsing -Method Post -Uri "$origin/api/quit" -Headers $headers -ContentType 'application/json' -Body '{}' | Out-Null
+if (-not $web.WaitForExit(60000)) { Fail 'страница не завершилась после quit' }
+
 Step 'полное удаление'
 if ((Setup $stored @('--yes', 'uninstall', '--purge')) -ne 0) { Fail 'purge' }
 if (Test-Path "$root\data") { Fail 'данные должны быть удалены' }

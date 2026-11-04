@@ -184,17 +184,14 @@ def _installer_platform() -> str:
 def installer_files(source) -> dict[str, str]:
     """Файлы установщика этой платформы: из каталога (SHA-256 по факту) или из подписанного перечня.
 
-    Сравниваются setup.sh, setup.cmd, installer/app и Python своей платформы;
-    Python другой платформы в сохранённую копию не попадает.
+    Сравниваются сценарии запуска (setup.sh, setup.cmd, setup-web.cmd), installer/app
+    и Python своей платформы; Python другой платформы в сохранённую копию не попадает.
     """
-    if isinstance(source, dict):
-        files = source
-    else:
-        from shared.kit import installer_files as listed
-        files = listed(source)
+    from shared.kit import LAUNCHERS, installer_files as listed
+    files = source if isinstance(source, dict) else listed(source)
     prefixes = ('installer/app/', 'installer/' + _installer_platform() + '/')
     return {name: digest for name, digest in files.items()
-            if name in ('setup.sh', 'setup.cmd') or name.startswith(prefixes)}
+            if name in LAUNCHERS or name.startswith(prefixes)}
 
 
 class Kit:
@@ -232,9 +229,11 @@ def _hidden_input(prompt: str) -> str:
 
 class Setup:
     def __init__(self, kit: Kit, *, language: str, state_dir: Path | None, yes: bool,
-                 out=print, ask=input, ask_secret=_hidden_input, client=None):
+                 out=print, ask=input, ask_secret=_hidden_input, ask_confirm=None, client=None):
         self.kit, self.language, self.yes = kit, language, yes
         self.out, self.ask, self.ask_secret = out, ask, ask_secret
+        # Вопрос «да/нет»: в терминале — ввод слова, на веб-странице — кнопки.
+        self.ask_confirm = ask_confirm or self._typed_confirm
         home = Path.home()
         base = Path(os.environ.get('XDG_STATE_HOME') or home / '.local/state')
         self.state_dir = (state_dir or base / 'homensai' / kit.product_id).resolve()
@@ -292,14 +291,17 @@ class Setup:
         except LockBusy:
             raise SetupError('kit.busy') from None
 
+    def _typed_confirm(self, text) -> bool:
+        try:
+            answer = self.ask(text + ' ' + self.t('kit.confirm_hint') + ' ')
+        except EOFError:
+            answer = ''
+        return answer.strip().lower() in ('yes', 'y', 'да', 'ja')
+
     def confirm(self, prompt_key, **variables):
         if self.yes:
             return
-        try:
-            answer = self.ask(self.t(prompt_key, **variables) + ' ')
-        except EOFError:
-            answer = ''
-        if answer.strip().lower() not in ('yes', 'y', 'да', 'ja'):
+        if not self.ask_confirm(self.t(prompt_key, **variables)):
             raise SetupError('kit.cancelled', 3)
 
     def store_release(self, state_dir: Path, kit: Kit) -> dict:
@@ -342,7 +344,8 @@ class Setup:
         platform = _installer_platform()
         for name in ('app', platform):
             shutil.copytree(source / 'installer' / name, staging / 'installer' / name, symlinks=False)
-        for name in ('setup.sh', 'setup.cmd'):
+        from shared.kit import LAUNCHERS
+        for name in LAUNCHERS:
             if (source / name).exists():
                 shutil.copy2(source / name, staging / name)
         # Сверяется уже скопированное: файл комплекта может измениться после проверки.
@@ -480,13 +483,8 @@ class Setup:
         value = os.environ.get(item['name'])
         if value:
             self.out(self.t('kit.secret_from_env', name=item['name']))
-            if not self.yes:
-                try:
-                    answer = self.ask(self.t('kit.secret_env_confirm', name=item['name']) + ' ')
-                except EOFError:
-                    answer = ''
-                if answer.strip().lower() not in ('yes', 'y', 'да', 'ja'):
-                    value = None
+            if not self.yes and not self.ask_confirm(self.t('kit.secret_env_confirm', name=item['name'])):
+                value = None
         if not value and not self.yes:
             label = item['prompt'] or item['name']
             try:
@@ -966,8 +964,7 @@ def _console():
             pass
 
 
-def main(argv=None) -> int:
-    _console()
+def parser() -> argparse.ArgumentParser:
     parser = _Parser(prog='setup.sh', add_help=True)
     parser.add_argument('--kit', required=True)
     parser.add_argument('--language', choices=available_languages())
@@ -989,38 +986,74 @@ def main(argv=None) -> int:
     secrets_command = sub.add_parser('secrets')
     secrets_command.add_argument('name', nargs='?')
     secrets_command.add_argument('--clear', action='store_true')
-    language = 'en'
+    web = sub.add_parser('web')
+    web.add_argument('--port', type=int, default=0)
+    web.add_argument('--no-browser', action='store_true')
+    return parser
+
+
+def backend():
+    """Установщик этой системы; на Windows — только от администратора, на Linux — не от root."""
+    if sys.platform == 'win32':
+        from shared.kit_windows import WindowsSetup, is_admin
+        if not is_admin():
+            raise SetupError('kit.windows_admin_required', 2)
+        return WindowsSetup
+    if sys.platform.startswith('linux') and hasattr(os, 'getuid') and os.getuid() != 0:
+        return Setup
+    raise SetupError('kit.unsupported_host', 2)
+
+
+def _report(language, key, variables, error):
     try:
-        args = parser.parse_args(argv)
-        language = _language(args.language)
-        if sys.platform == 'win32':
-            from shared.kit_windows import WindowsSetup, is_admin
-            if not is_admin():
-                raise SetupError('kit.windows_admin_required', 2)
-            backend = WindowsSetup
-        elif sys.platform.startswith('linux') and hasattr(os, 'getuid') and os.getuid() != 0:
-            backend = Setup
-        else:
-            raise SetupError('kit.unsupported_host', 2)
-        setup = backend(Kit(Path(args.kit)), language=language,
-                        state_dir=Path(args.state_dir) if args.state_dir else None, yes=args.yes)
+        error(translate(language, key, **{k: str(v) for k, v in variables.items()}))
+    except LanguageError:
+        error(key)
+
+
+def execute(args, language, *, out=print, error=None, ask=input, ask_secret=_hidden_input, ask_confirm=None) -> int:
+    """Выполнить команду установщика; ошибки — понятным сообщением через error, результат — код выхода.
+
+    Общий путь для командной строки и веб-страницы (shared/kit_web.py).
+    """
+    error = error or (lambda text: print(text, file=sys.stderr))
+    try:
+        setup = backend()(Kit(Path(args.kit)), language=language,
+                          state_dir=Path(args.state_dir) if args.state_dir else None, yes=args.yes,
+                          out=out, ask=ask, ask_secret=ask_secret, ask_confirm=ask_confirm)
         with setup.locked() if args.command != 'status' else contextlib.nullcontext():
             return _dispatch(setup, args)
-    except SetupError as error:
-        try:
-            print(translate(language, error.key, **{k: str(v) for k, v in error.variables.items()}), file=sys.stderr)
-        except LanguageError:
-            print(error.key, file=sys.stderr)
-        return error.exit_code
+    except SetupError as failure:
+        _report(language, failure.key, failure.variables, error)
+        return failure.exit_code
+    except EOFError:
+        _report(language, 'kit.cancelled', {}, error)
+        return 3
     except KeyboardInterrupt:
-        print(translate(language, 'kit.interrupted'), file=sys.stderr)
+        _report(language, 'kit.interrupted', {}, error)
         return 130
-    except Exception as error:  # Понятное сообщение вместо трассировки.
+    except Exception as failure:  # Понятное сообщение вместо трассировки.
         if os.environ.get('HOMENSAI_SETUP_DEBUG') == '1':
             import traceback
             traceback.print_exc()
-        print(translate(language, 'kit.unexpected', error=type(error).__name__), file=sys.stderr)
+        _report(language, 'kit.unexpected', {'error': type(failure).__name__}, error)
         return 1
+
+
+def main(argv=None) -> int:
+    _console()
+    language = 'en'
+    try:
+        args = parser().parse_args(argv)
+        language = _language(args.language)
+        if args.command == 'web':
+            from shared.kit_web import serve
+            backend()
+            return serve(args, language)
+    except SetupError as failure:
+        _report(language, failure.key, failure.variables, lambda text: print(text, file=sys.stderr))
+        return failure.exit_code
+    return execute(args, language)
 
 
 def _dispatch(setup, args) -> int:

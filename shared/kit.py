@@ -19,6 +19,7 @@ import shutil
 import sys
 import tarfile
 import tempfile
+import zipfile
 
 from shared.kit_secrets import SecretsError, check_declarations as check_secrets
 from shared.kit_wheels import TARGETS, KitWheelError, install_wheel, read_lock, select_wheels
@@ -32,6 +33,10 @@ RELEASE_INFO = 'homensai-release.json'
 _RESERVED = ('runtime-linux', 'runtime-windows', 'systemd-user', 'locks', 'vendor', 'pydeps', 'windows',
              ENTRY, RELEASE_INFO, 'package.json')
 _VERSION = re.compile(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}\Z')
+_SEQUENCE = re.compile(r'\d{1,9}(?:\.\d{1,9}){0,5}\Z')
+# Поля kit.json вне подписи: пути к пакету и ключу, их хэши и формат файла.
+# Остальные поля повторяют подписанный раздел kit в homensai-release.json.
+UNSIGNED_META = ('format', 'package', 'envelope', 'public_key', 'package_sha256', 'public_key_sha256')
 _IDENT = re.compile(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z')
 _HEX64 = re.compile(r'[a-f0-9]{64}\Z')
 _DEFAULT_PATHS = {name: name for name in NAMES}
@@ -176,6 +181,29 @@ def _sha256_file(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b''):
             digest.update(block)
     return digest.hexdigest()
+
+
+def release_sequence(value) -> list[int]:
+    """Порядковый номер выпуска для защиты от понижения версии: «1.4.2» → [1, 4, 2]."""
+    if type(value) is not str or _SEQUENCE.fullmatch(value) is None:
+        raise KitError('Порядковый номер выпуска: от 1 до 6 чисел через точку')
+    return [int(part) for part in value.split('.')]
+
+
+def installer_files(kit_dir: Path) -> dict[str, str]:
+    """SHA-256 файлов установщика комплекта (setup.*, installer/**) для подписанного выпуска."""
+    files = {}
+    for item in sorted(Path(kit_dir).rglob('*')):
+        relative = item.relative_to(kit_dir).as_posix()
+        if item.is_file() and (relative in ('setup.sh', 'setup.cmd') or relative.startswith('installer/')):
+            files[relative] = _sha256_file(item)
+    return files
+
+
+def signed_meta_matches(meta: dict, signed: dict) -> bool:
+    """kit.json совпадает с подписанным разделом kit, кроме полей UNSIGNED_META."""
+    return (type(meta) is dict and type(signed) is dict
+            and {name: value for name, value in meta.items() if name not in UNSIGNED_META} == signed)
 
 
 def load_config(path) -> dict:
@@ -439,8 +467,12 @@ def _write_tar(kit: Path, archive: Path):
 
 
 def build_kit(config_path, *, version: str, signing_key, output, passphrase_env=None,
-              installer_wheelhouse=None, archive=True) -> dict:
-    """Собрать комплект `<product>-<version>` в каталоге output; ничего не устанавливает."""
+              installer_wheelhouse=None, archive=True, sequence: str | None = None) -> dict:
+    """Собрать комплект `<product>-<version>` в каталоге output; ничего не устанавливает.
+
+    sequence — порядковый номер выпуска («1.4.2»), по которому установщик
+    отклоняет понижение версии; по умолчанию берётся из числовой версии.
+    """
     from shared.package import build_package
     from shared.package_signing import sign_package
     from shared.release_inventory import release_inventory
@@ -451,6 +483,9 @@ def build_kit(config_path, *, version: str, signing_key, output, passphrase_env=
 
     if type(version) is not str or _VERSION.fullmatch(version) is None or version.endswith('.'):
         raise KitError('Недопустимая версия выпуска')
+    if sequence is None and _SEQUENCE.fullmatch(version) is None:
+        raise KitError('Версия ' + version + ' не числовая: укажите порядковый номер выпуска --sequence')
+    order = release_sequence(version if sequence is None else sequence)
     config = load_config(config_path)
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -513,10 +548,6 @@ def build_kit(config_path, *, version: str, signing_key, output, passphrase_env=
         if any(mode not in known for mode in modes):
             raise KitError('modes: режим отсутствует в манифесте')
         (payload / ENTRY).write_text(ENTRY_SOURCE, encoding='utf-8')
-        (payload / RELEASE_INFO).write_text(json.dumps(
-            {'product_id': product_id, 'version': version, 'python_paths': config['python_paths'],
-             'migrations': config['migrations'], 'secrets': config.get('secrets', [])},
-            ensure_ascii=True, sort_keys=True) + '\n', encoding='utf-8')
         if 'linux' in config['runtime']:
             runtime = config['runtime']['linux']
             prepare_pbs_archive(str(runtime['archive']), str(payload / 'runtime-linux'),
@@ -536,21 +567,9 @@ def build_kit(config_path, *, version: str, signing_key, output, passphrase_env=
         if len(longest.relative_to(payload).as_posix()) > MAX_RELEASE_PATH:
             raise KitError('Путь в выпуске длиннее ' + str(MAX_RELEASE_PATH) + ' символов (предел пути Windows): '
                            + longest.relative_to(payload).as_posix())
-        # Пакет, подпись и перечень состава.
+        # Установщик с собственным Python и закреплённой cryptography. Собирается до
+        # пакета: хэши его файлов входят в подписанный homensai-release.json.
         kit_work = work / 'kit'
-        package_dir = kit_work / 'package'
-        package_dir.mkdir(parents=True)
-        package_path = package_dir / (name + '.zip')
-        receipt = build_package(manifest, version, str(payload), str(package_path))
-        envelope = sign_package(str(package_path), private_key=key, expected_product_id=product_id,
-                                expected_version=version)
-        (package_dir / (name + '.sig')).write_bytes(envelope)
-        (package_dir / 'publisher-ed25519.pub').write_bytes(public)
-        inventory = release_inventory(str(package_path), envelope, trusted_public_key=public,
-                                      expected_product_id=product_id, expected_version=version)
-        (package_dir / 'inventory.json').write_text(json.dumps(inventory, ensure_ascii=False, indent=1,
-                                                               sort_keys=True) + '\n', encoding='utf-8')
-        # Установщик с собственным Python и закреплённой cryptography.
         crypto_lock = read_lock(CRYPTO_LOCK)
         installer_wheels = Path(installer_wheelhouse).resolve() if installer_wheelhouse else config['wheelhouse']
         if 'linux-x86_64' in config['targets']:
@@ -573,17 +592,36 @@ def build_kit(config_path, *, version: str, signing_key, output, passphrase_env=
         required = {'app': 0, 'releases': 3 * release_size, 'data': estimates['data'],
                     'backup': estimates.get('backup', 2 * (data_estimate + release_size)),
                     'services': 1024 * 1024, 'config': estimates['config'], 'runtime': 2 * runtime_size}
-        metadata = {'format': KIT_FORMAT, 'product_id': product_id, 'product_name': manifest['product_name'],
-                    'version': version, 'package': 'package/' + package_path.name,
+        signed_meta = {'product_id': product_id, 'product_name': manifest['product_name'], 'version': version,
+                       'modes': modes, 'all_modes': sorted(known), 'migrations': config['migrations'],
+                       'secrets': [item['name'] for item in config.get('secrets', [])],
+                       'required_bytes': required, 'reserve_bytes': 64 * 1024 * 1024,
+                       'paths': manifest['paths'], 'web': manifest['web'],
+                       'components': [component['name'] for component in manifest['components']],
+                       'targets': config['targets'], 'dependencies': dependency_report,
+                       'python_version': next(iter(config['runtime'].values()))['python_version']}
+        (payload / RELEASE_INFO).write_text(json.dumps(
+            {'product_id': product_id, 'version': version, 'sequence': order,
+             'python_paths': config['python_paths'], 'migrations': config['migrations'],
+             'secrets': config.get('secrets', []), 'kit': signed_meta,
+             'installer': installer_files(kit_work)},
+            ensure_ascii=True, sort_keys=True) + '\n', encoding='utf-8')
+        # Пакет, подпись и перечень состава.
+        package_dir = kit_work / 'package'
+        package_dir.mkdir(parents=True)
+        package_path = package_dir / (name + '.zip')
+        receipt = build_package(manifest, version, str(payload), str(package_path))
+        envelope = sign_package(str(package_path), private_key=key, expected_product_id=product_id,
+                                expected_version=version)
+        (package_dir / (name + '.sig')).write_bytes(envelope)
+        (package_dir / 'publisher-ed25519.pub').write_bytes(public)
+        inventory = release_inventory(str(package_path), envelope, trusted_public_key=public,
+                                      expected_product_id=product_id, expected_version=version)
+        (package_dir / 'inventory.json').write_text(json.dumps(inventory, ensure_ascii=False, indent=1,
+                                                               sort_keys=True) + '\n', encoding='utf-8')
+        metadata = {**signed_meta, 'format': KIT_FORMAT, 'package': 'package/' + package_path.name,
                     'envelope': 'package/' + name + '.sig', 'public_key': 'package/publisher-ed25519.pub',
-                    'package_sha256': receipt['sha256'], 'public_key_sha256': hashlib.sha256(public).hexdigest(),
-                    'modes': modes, 'all_modes': sorted(known), 'migrations': config['migrations'],
-                    'secrets': [item['name'] for item in config.get('secrets', [])],
-                    'required_bytes': required, 'reserve_bytes': 64 * 1024 * 1024,
-                    'paths': manifest['paths'], 'web': manifest['web'],
-                    'components': [component['name'] for component in manifest['components']],
-                    'targets': config['targets'], 'dependencies': dependency_report,
-                    'python_version': next(iter(config['runtime'].values()))['python_version']}
+                    'package_sha256': receipt['sha256'], 'public_key_sha256': hashlib.sha256(public).hexdigest()}
         (kit_work / 'kit.json').write_text(json.dumps(metadata, ensure_ascii=False, indent=1, sort_keys=True) + '\n',
                                            encoding='utf-8')
         (kit_work / 'README.txt').write_text(_readme(metadata), encoding='utf-8')
@@ -627,6 +665,10 @@ Linux x86-64 (systemd пользователя, без root, без сети):
 {_readme_secrets(metadata)}
 Windows x86-64: те же команды через setup.cmd в командной строке администратора.
 
+Обновление надёжнее запускать сохранённым, уже проверенным установщиком:
+    <каталог состояния>/installer/setup.sh --kit /путь/к/этому/комплекту update
+(путь показывается после установки) — подменённый комплект будет отклонён.
+
 Перед установкой сверьте отпечаток ключа издателя с опубликованным
 издателем по независимому каналу:
 
@@ -662,6 +704,16 @@ def verify_kit(kit_dir, *, expected_key_sha256=None) -> dict:
     verified = verify_signed_package(str(kit / metadata['package']), (kit / metadata['envelope']).read_bytes(),
                                      trusted_public_key=public, expected_product_id=metadata['product_id'],
                                      expected_version=metadata['version'])
+    expected = {item['path']: item['sha256'] for item in verified['files']}.get(RELEASE_INFO)
+    with zipfile.ZipFile(kit / metadata['package']) as archive:
+        raw = archive.read('payload/' + RELEASE_INFO)
+    if expected is None or hashlib.sha256(raw).hexdigest() != expected:
+        raise KitError('Пакет без подписанных сведений о выпуске')
+    info = json.loads(raw.decode('utf-8'))
+    if not signed_meta_matches(metadata, info.get('kit')):
+        raise KitError('kit.json не совпадает с подписанными сведениями выпуска')
+    if installer_files(kit) != info.get('installer'):
+        raise KitError('Файлы установщика не совпадают с подписанными')
     return {'product_id': metadata['product_id'], 'version': metadata['version'],
             'public_key_sha256': metadata['public_key_sha256'], 'file_count': len(verified['files']),
             'signature_verified': True, 'publisher_trust_verified': expected_key_sha256 is not None}
@@ -756,6 +808,7 @@ def main(argv=None) -> int:
     build = sub.add_parser('build', help='собрать подписанный комплект')
     build.add_argument('--config', required=True)
     build.add_argument('--version', required=True)
+    build.add_argument('--sequence', help='порядковый номер выпуска, если версия не числовая')
     build.add_argument('--signing-key', required=True)
     build.add_argument('--passphrase-env')
     build.add_argument('--installer-wheelhouse')
@@ -776,7 +829,8 @@ def main(argv=None) -> int:
         elif args.command == 'build':
             result = build_kit(args.config, version=args.version, signing_key=args.signing_key,
                                output=args.output, passphrase_env=args.passphrase_env,
-                               installer_wheelhouse=args.installer_wheelhouse, archive=not args.no_archive)
+                               installer_wheelhouse=args.installer_wheelhouse, archive=not args.no_archive,
+                               sequence=args.sequence)
         else:
             result = verify_kit(args.kit, expected_key_sha256=args.expect_key_sha256)
     except (KitError, KitWheelError, OSError, ValueError) as error:

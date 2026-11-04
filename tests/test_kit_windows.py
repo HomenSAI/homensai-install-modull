@@ -13,6 +13,7 @@ from shared.kit import render_manifest
 from shared.kit_setup import PASSWORD_ENV, Kit, SetupError
 from shared.kit_windows import WindowsEffects, WindowsServices, WindowsSetup, _expand, http_health
 from shared.update_plan import EffectIndeterminate
+from tests.test_kit_setup import signed
 
 ROOT = Path(__file__).resolve().parents[1]
 PRODUCT = 'homensai-kit-demo'
@@ -461,6 +462,7 @@ def test_effects_health_uses_current_release(services, tmp_path, monkeypatch):
 # --- WindowsSetup -----------------------------------------------------------------------
 
 MIGRATIONS = {}
+SIGNED = {}
 
 
 def make_kit(base: Path, version='1', migrations=('m-1',), key=b'k' * 32, targets=('windows-x86_64',)) -> Path:
@@ -482,6 +484,7 @@ def make_kit(base: Path, version='1', migrations=('m-1',), key=b'k' * 32, target
             'all_modes': ['default'], 'migrations': list(migrations), 'targets': list(targets),
             'paths': {'runtime': 'runtime'}, 'web': {'host': '127.0.0.1', 'port': 18431, 'healthz': '/healthz'}}
     (kit / 'kit.json').write_text(json.dumps(meta))
+    SIGNED[version] = signed(kit, meta, version)
     return kit
 
 
@@ -491,9 +494,9 @@ def win(tmp_path, monkeypatch, winsw):
     monkeypatch.delenv(PASSWORD_ENV, raising=False)
     secured, staged = [], []
     monkeypatch.setattr(kit_windows, 'secure_owned', secured.append)
-    for module in (kit_windows, kit_setup):
-        monkeypatch.setattr(module, 'signed_release_info',
-                            lambda package, envelope, key, product, version: {'migrations': MIGRATIONS[version]})
+    monkeypatch.setattr(kit_setup, 'signed_release_info',
+                        lambda package, envelope, key, product, version: {'migrations': MIGRATIONS[version],
+                                                                          **SIGNED[version]})
     health = {'value': True}
     monkeypatch.setattr(kit_windows, 'http_health', lambda *args: health['value'])
     files = [{'path': 'runtime-windows/python.exe', 'sha256': hashlib.sha256(PYTHON_BYTES).hexdigest()}]

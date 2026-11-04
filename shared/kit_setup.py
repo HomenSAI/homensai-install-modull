@@ -23,6 +23,7 @@ import stat
 import subprocess
 import sys
 import time
+import warnings
 
 from shared import kit_secrets
 from shared.i18n import LanguageError, available_languages, translate
@@ -164,7 +165,36 @@ def signed_release_info(package, envelope: bytes, key: bytes, product_id: str, v
         declared = kit_secrets.check_declarations(info.get('secrets', []))
     except kit_secrets.SecretsError:
         raise SetupError('kit.kit_unreadable') from None
+    # Порядковый номер, файлы установщика и сведения kit.json подписаны вместе с выпуском.
+    sequence, installer = info.get('sequence'), info.get('installer')
+    if (type(sequence) is not list or not 1 <= len(sequence) <= 6
+            or any(type(part) is not int or part < 0 for part in sequence)
+            or type(installer) is not dict or not installer
+            or any(type(name) is not str or type(digest) is not str or len(digest) != 64
+                   for name, digest in installer.items())
+            or type(info.get('kit')) is not dict):
+        raise SetupError('kit.kit_unreadable')
     return {**info, 'migrations': migrations, 'secrets': declared}
+
+
+def _installer_platform() -> str:
+    return 'windows-x86_64' if sys.platform == 'win32' else 'linux-x86_64'
+
+
+def installer_files(source) -> dict[str, str]:
+    """Файлы установщика этой платформы: из каталога (SHA-256 по факту) или из подписанного перечня.
+
+    Сравниваются setup.sh, setup.cmd, installer/app и Python своей платформы;
+    Python другой платформы в сохранённую копию не попадает.
+    """
+    if isinstance(source, dict):
+        files = source
+    else:
+        from shared.kit import installer_files as listed
+        files = listed(source)
+    prefixes = ('installer/app/', 'installer/' + _installer_platform() + '/')
+    return {name: digest for name, digest in files.items()
+            if name in ('setup.sh', 'setup.cmd') or name.startswith(prefixes)}
 
 
 class Kit:
@@ -190,9 +220,19 @@ class Kit:
             raise SetupError('kit.kit_unreadable')
 
 
+def _hidden_input(prompt: str) -> str:
+    """Скрытый ввод; без терминала getpass читал бы stdin с эхом — это ошибка, а не откат."""
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', getpass.GetPassWarning)
+        try:
+            return getpass.getpass(prompt)
+        except getpass.GetPassWarning:
+            raise SetupError('kit.no_terminal') from None
+
+
 class Setup:
     def __init__(self, kit: Kit, *, language: str, state_dir: Path | None, yes: bool,
-                 out=print, ask=input, ask_secret=getpass.getpass, client=None):
+                 out=print, ask=input, ask_secret=_hidden_input, client=None):
         self.kit, self.language, self.yes = kit, language, yes
         self.out, self.ask, self.ask_secret = out, ask, ask_secret
         home = Path.home()
@@ -200,6 +240,7 @@ class Setup:
         self.state_dir = (state_dir or base / 'homensai' / kit.product_id).resolve()
         self.state_file = self.state_dir / 'state.json'
         self._client = client
+        self._signed = None
         self.finalized = False
         self.secrets_file = kit_secrets.location(kit.product_id, windows=False)
 
@@ -276,24 +317,41 @@ class Setup:
             raise SetupError('kit.kit_unreadable')
         info = signed_release_info(package, envelope.read_bytes(), kit.public_key, kit.product_id, kit.version)
         return {'version': kit.version, 'package': str(package), 'envelope': str(envelope),
-                'migrations': info['migrations'], 'secrets': info.get('secrets', []), 'public_key': _b64(kit.public_key)}
+                'migrations': info['migrations'], 'secrets': info.get('secrets', []),
+                'sequence': info.get('sequence'), 'public_key': _b64(kit.public_key)}
 
-    def store_installer(self):
-        """Сохранить установщик текущей версии для status/uninstall без исходного комплекта."""
+    def store_installer(self, state):
+        """Сохранить установщик текущей версии для status/uninstall без исходного комплекта.
+
+        Код установщика лежит в комплекте вне пакета, поэтому копия сверяется с
+        хэшами из подписанного выпуска этой версии (ключ — закреплённый в
+        состоянии): неподписанный код не становится «доверенным» установщиком.
+        """
+        from shared.kit import signed_meta_matches
+        release = state['releases'][self.kit.version]
+        key = base64.b64decode(self.release_key(state, release))
+        info = signed_release_info(release['package'], Path(release['envelope']).read_bytes(), key,
+                                   self.kit.product_id, self.kit.version)
+        if not signed_meta_matches(self.kit.meta, info['kit']):
+            raise SetupError('kit.installer_mismatch')
         source = self.kit.root
         target = self.state_dir / 'installer'
         staging = self.state_dir / '.installer.tmp'
         shutil.rmtree(staging, ignore_errors=True)
         staging.mkdir(mode=0o700)
-        platform = 'windows-x86_64' if sys.platform == 'win32' else 'linux-x86_64'
+        platform = _installer_platform()
         for name in ('app', platform):
             shutil.copytree(source / 'installer' / name, staging / 'installer' / name, symlinks=False)
-        for name in ('setup.sh', 'setup.cmd', 'kit.json', 'README.txt'):
+        for name in ('setup.sh', 'setup.cmd'):
             if (source / name).exists():
                 shutil.copy2(source / name, staging / name)
+        # Сверяется уже скопированное: файл комплекта может измениться после проверки.
+        if installer_files(staging) != installer_files(info['installer']):
+            shutil.rmtree(staging, ignore_errors=True)
+            raise SetupError('kit.installer_mismatch')
         package_dir = staging / 'package'
         package_dir.mkdir()
-        shutil.copyfile(source / self.kit.meta['public_key'], package_dir / Path(self.kit.meta['public_key']).name)
+        (package_dir / Path(self.kit.meta['public_key']).name).write_bytes(key)
         # Ссылки на пакет в сохранённой копии указывают на копию версии в packages/.
         meta = dict(self.kit.meta)
         stored = self.state_dir / 'packages' / self.kit.version
@@ -310,7 +368,7 @@ class Setup:
 
     def publish_installer(self, state):
         """Финализация после сохранённого итогового статуса: отметка уже записана."""
-        self.store_installer()
+        self.store_installer(state)
         state.pop('pending_installer', None)
         self.save(state)
 
@@ -346,6 +404,32 @@ class Setup:
         if state is not None and 'public_key' in state and _b64(self.kit.public_key) != state['public_key']:
             if accept_key != self.kit.meta['public_key_sha256']:
                 raise SetupError('kit.key_changed', digest=self.kit.meta['public_key_sha256'])
+
+    def signed_kit(self) -> dict:
+        """Подписанные сведения выпуска комплекта; kit.json обязан с ними совпадать.
+
+        Вызывается после check_key: ключ комплекта уже совпадает с закреплённым
+        или подтверждён, значит подписанным сведениям можно доверять.
+        """
+        from shared.kit import signed_meta_matches
+        if self._signed is None:
+            info = signed_release_info(self.kit.package, self.kit.envelope.read_bytes(), self.kit.public_key,
+                                       self.kit.product_id, self.kit.version)
+            if not signed_meta_matches(self.kit.meta, info['kit']):
+                raise SetupError('kit.kit_unreadable')
+            # Подменённый код установщика отклоняется до изменений, а не только
+            # при сохранении копии (важно при обновлении сохранённым установщиком).
+            if installer_files(self.kit.root) != installer_files(info['installer']):
+                raise SetupError('kit.installer_mismatch')
+            self._signed = info
+        return self._signed
+
+    def check_order(self, state, info, allow_downgrade):
+        """Обновление только на выпуск с большим подписанным порядковым номером."""
+        current = state['releases'][state['version']].get('sequence')
+        if current is None or allow_downgrade or info['sequence'] > current:
+            return
+        raise SetupError('kit.downgrade', old=state['version'], new=self.kit.version)
 
     def trusted_key(self) -> bytes:
         state = self.state()
@@ -387,8 +471,22 @@ class Setup:
             raise SetupError('kit.secrets_unreadable', path=self.secrets_file) from None
 
     def ask_value(self, item) -> str | None:
-        """Значение из окружения (переменная с тем же именем) или скрытый ввод; None — не задано."""
+        """Значение из окружения (переменная с тем же именем) или скрытый ввод; None — не задано.
+
+        Значение из окружения не берётся молча: о нём сообщается, а в
+        интерактивном режиме его нужно подтвердить (имя могло совпасть с чужой
+        переменной оболочки, например GITHUB_TOKEN).
+        """
         value = os.environ.get(item['name'])
+        if value:
+            self.out(self.t('kit.secret_from_env', name=item['name']))
+            if not self.yes:
+                try:
+                    answer = self.ask(self.t('kit.secret_env_confirm', name=item['name']) + ' ')
+                except EOFError:
+                    answer = ''
+                if answer.strip().lower() not in ('yes', 'y', 'да', 'ja'):
+                    value = None
         if not value and not self.yes:
             label = item['prompt'] or item['name']
             try:
@@ -509,6 +607,7 @@ class Setup:
         if state is not None and state['status'] == 'uninstalled' and state.get('data_policy') == 'purge':
             state = None
         self.check_key(state, expect_key)
+        self.signed_kit()
         home = Path.home()
         pending = state.get('install') if state is not None else None
         if pending is not None and pending['version'] != self.kit.version:
@@ -604,9 +703,10 @@ class Setup:
             raise SetupError('kit.password_short')
         os.environ[_SECRET_ENV] = value
 
-    def update(self, *, accept_key=None, reconcile_stop=False):
+    def update(self, *, accept_key=None, reconcile_stop=False, allow_downgrade=False):
         state = self.state()
         if state is not None and state['status'] == 'consolidating':
+            self.signed_kit()
             return self._consolidate(state)
         if state is None or state['status'] not in ('installed', 'updating'):
             raise SetupError('kit.not_installed')
@@ -622,8 +722,9 @@ class Setup:
         old = state['releases'][state['version']]
         old_key = self.release_key(state, old)
         applied = state.get('applied_migrations', [])
-        info = signed_release_info(self.kit.package, self.kit.envelope.read_bytes(), self.kit.public_key,
-                                   self.kit.product_id, self.kit.version)
+        info = self.signed_kit()
+        if pending is None:
+            self.check_order(state, info, allow_downgrade)
         kit_migrations = info['migrations']
         if kit_migrations[:len(applied)] != applied:
             raise SetupError('kit.migrations_diverged')
@@ -880,6 +981,7 @@ def main(argv=None) -> int:
     update = sub.add_parser('update')
     update.add_argument('--accept-key-sha256')
     update.add_argument('--reconcile-stop', action='store_true')
+    update.add_argument('--allow-downgrade', action='store_true')
     sub.add_parser('status')
     uninstall = sub.add_parser('uninstall')
     uninstall.add_argument('--purge', action='store_true')
@@ -926,7 +1028,8 @@ def _dispatch(setup, args) -> int:
                              modes=args.modes.split(',') if args.modes else None,
                              expect_key=args.expect_key_sha256)
     if args.command == 'update':
-        return setup.update(accept_key=args.accept_key_sha256, reconcile_stop=args.reconcile_stop)
+        return setup.update(accept_key=args.accept_key_sha256, reconcile_stop=args.reconcile_stop,
+                            allow_downgrade=args.allow_downgrade)
     if args.command == 'status':
         return setup.status()
     if args.command == 'secrets':

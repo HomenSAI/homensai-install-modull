@@ -150,6 +150,20 @@ wait_release 3 || fail "health v3"
 http /notes | grep -q 'migrated notes-3' || fail "миграция notes-3"
 "$STATE/installer/setup.sh" status || fail "status v3"
 
+step "сохранённый установщик отклоняет подменённый код установщика и понижение версии"
+mkdir -p kits/tamper && cp -a "$KB" kits/tamper/ || fail "копия комплекта"
+KT=kits/tamper/homensai-kit-demo-3bad
+echo '# подмена' >> "$KT/installer/app/shared/kit_setup.py"
+before=$(sha256sum "$STATE/installer/installer/app/shared/kit_setup.py")
+out=$(HOMENSAI_ARCHIVE_PASSWORD='synthetic-e2e-password' "$STATE/installer/setup.sh" --kit "$KT" --yes --language ru update 2>&1) \
+    && fail "подменённый установщик принят"
+echo "$out" | grep -q 'не совпадают с подписанными' || fail "ожидался отказ kit.installer_mismatch: $out"
+[ "$(sha256sum "$STATE/installer/installer/app/shared/kit_setup.py")" = "$before" ] || fail "сохранённый установщик изменён"
+out=$(HOMENSAI_ARCHIVE_PASSWORD='synthetic-e2e-password' "$STATE/installer/setup.sh" --kit "$KB" --yes --language ru update 2>&1) \
+    && fail "понижение версии принято"
+echo "$out" | grep -q 'не новее установленного' || fail "ожидался отказ kit.downgrade: $out"
+wait_release 3 || fail "после отказов должна работать v3"
+
 step "смена секрета командой secrets и перезапуск служб"
 "$STATE/installer/setup.sh" --language ru secrets || fail "перечень секретов"
 KITDEMO_TOKEN=e2e-token-2 "$STATE/installer/setup.sh" --yes --language ru secrets KITDEMO_TOKEN || fail "secrets set"
@@ -198,7 +212,8 @@ def build_kits(inputs: Path, output: Path, python: str):
         if broken:
             (project / 'src/kitdemo/FAIL_HEALTH').write_text('synthetic health failure\n')
         subprocess.run([python, '-m', 'shared.kit', 'build', '--config', str(project / 'homensai-kit.json'),
-                        '--version', version, '--signing-key', str(keys / 'publisher-ed25519.pem'),
+                        '--version', version, *(['--sequence', '2.5'] if broken else []),
+                        '--signing-key', str(keys / 'publisher-ed25519.pem'),
                         '--output', str(output / 'kits')], cwd=ROOT, check=True, stdout=subprocess.DEVNULL)
 
 

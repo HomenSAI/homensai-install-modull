@@ -10,7 +10,7 @@ import pytest
 
 from shared import kit, kit_secrets, kit_setup
 from shared.kit_setup import Kit, Setup, SetupError
-from tests.test_kit_setup import MIGRATIONS, FakeClient, last, make_kit
+from tests.test_kit_setup import MIGRATIONS, SIGNED, FakeClient, last, make_kit
 
 TOKEN = {'name': 'DEMO_TOKEN', 'required': True, 'generate': False, 'prompt': 'demo API token'}
 SESSION = {'name': 'DEMO_SESSION', 'required': True, 'generate': True, 'prompt': ''}
@@ -138,7 +138,7 @@ def env(tmp_path, monkeypatch):
     (tmp_path / 'home').mkdir()
     DECLARED.clear()
     monkeypatch.setattr(kit_setup, 'signed_release_info', lambda package, envelope, key, product, version: {
-        'migrations': MIGRATIONS[version], 'secrets': DECLARED.get(version, [])})
+        'migrations': MIGRATIONS[version], 'secrets': DECLARED.get(version, []), **SIGNED[version]})
     client = FakeClient()
     restarts = []
 

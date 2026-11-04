@@ -226,5 +226,10 @@
   "kit.secrets_file": "Geheimnisdatei (Zugriff nur für den Eigentümer): {path}",
   "kit.secrets_missing": "Erforderliche Geheimnisse fehlen: {names}. Setzen Sie sie mit secrets <NAME>.",
   "kit.secrets_unreadable": "Geheimnisdatei {path} ist beschädigt oder nicht lesbar; korrigieren oder löschen Sie sie und setzen Sie die Geheimnisse neu.",
-  "kit.restart_failed": "Dienste konnten nicht neu gestartet werden (Code {code})."
+  "kit.restart_failed": "Dienste konnten nicht neu gestartet werden (Code {code}).",
+  "kit.installer_mismatch": "Die Installationsdateien des Pakets stimmen nicht mit der Signatur des Herausgebers überein; der gespeicherte Installer wurde nicht aktualisiert. Beschaffen Sie das Paket erneut.",
+  "kit.downgrade": "Version {new} ist nicht neuer als die installierte {old} (Laufnummer des Herausgebers). Ein Downgrade ist nur mit --allow-downgrade erlaubt.",
+  "kit.no_terminal": "Verdeckte Eingabe nicht verfügbar: kein Terminal. Übergeben Sie den Wert per Umgebungsvariable und --yes.",
+  "kit.secret_from_env": "Geheimnis {name}: Wert aus der Umgebungsvariable {name} übernommen.",
+  "kit.secret_env_confirm": "Wert von {name} aus der Umgebung verwenden? [ja/nein]"
 }

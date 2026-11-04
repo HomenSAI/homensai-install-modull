@@ -388,3 +388,32 @@ def test_secrets_section_is_signed_into_release_info(project, tmp_path):
     info = signed_release_info(kit / meta['package'], (kit / meta['envelope']).read_bytes(),
                                (kit / meta['public_key']).read_bytes(), 'homensai-kit-demo', '5')
     assert info['secrets'] == [{'name': 'DEMO_TOKEN', 'required': True, 'generate': False, 'prompt': 'token'}]
+
+
+def test_installer_files_kit_json_and_sequence_are_signed(project, tmp_path):
+    from shared.kit import installer_files
+    from shared.kit_setup import signed_release_info
+    base, keys = project
+    config = base / 'homensai-kit.json'
+    with pytest.raises(KitError):
+        build_kit(config, version='1.0-beta', signing_key=keys['private_key'], output=tmp_path / 'dist')
+    result = build_kit(config, version='1.0-beta', sequence='1.0.1', signing_key=keys['private_key'],
+                       output=tmp_path / 'dist', archive=False)
+    kit = Path(result['kit'])
+    meta = json.loads((kit / 'kit.json').read_text())
+    info = signed_release_info(kit / meta['package'], (kit / meta['envelope']).read_bytes(),
+                               (kit / meta['public_key']).read_bytes(), 'homensai-kit-demo', '1.0-beta')
+    assert info['sequence'] == [1, 0, 1]
+    assert info['installer'] == installer_files(kit)
+    assert 'installer/app/shared/kit_setup.py' in info['installer'] and 'setup.sh' in info['installer']
+    assert info['kit']['required_bytes'] == meta['required_bytes'] and 'package_sha256' not in info['kit']
+    verify_kit(kit)
+    # SHA256SUMS можно пересчитать, подпись выпуска — нет.
+    target = kit / 'installer/app/shared/kit_setup.py'
+    target.write_text(target.read_text() + '\n# подмена\n')
+    sums = kit / 'SHA256SUMS'
+    lines = [line for line in sums.read_text().splitlines() if not line.endswith('installer/app/shared/kit_setup.py')]
+    sums.write_text('\n'.join(lines + [hashlib.sha256(target.read_bytes()).hexdigest()
+                                        + '  installer/app/shared/kit_setup.py']) + '\n')
+    with pytest.raises(KitError, match='установщика'):
+        verify_kit(kit)

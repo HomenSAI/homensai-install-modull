@@ -25,7 +25,7 @@ import urllib.request
 from xml.sax.saxutils import escape
 
 from shared import kit_secrets
-from shared.kit_setup import _SECRET_ENV, STATE_FORMAT, Setup, SetupError, _key, _private_dir, signed_release_info
+from shared.kit_setup import _SECRET_ENV, STATE_FORMAT, Setup, SetupError, _key, _private_dir
 
 _CREATE_NO_WINDOW = 0x08000000
 _SYSTEM_SID, _ADMINS_SID = '*S-1-5-18', '*S-1-5-32-544'
@@ -522,6 +522,7 @@ class WindowsSetup(Setup):
         if state is not None and state['status'] == 'uninstalled' and state.get('data_policy') == 'purge':
             state = None
         self.check_key(state, expect_key)
+        self.signed_kit()
         pending = state.get('install') if state is not None else None
         if pending is not None and pending['version'] != self.kit.version:
             raise SetupError('kit.pending_other_version', version=pending['version'])
@@ -609,7 +610,7 @@ class WindowsSetup(Setup):
         import base64
         return base64.b64encode(self.kit.public_key).decode('ascii')
 
-    def update(self, *, accept_key=None, reconcile_stop=False):
+    def update(self, *, accept_key=None, reconcile_stop=False, allow_downgrade=False):
         from shared import archive_crypto
         from shared.adapters_fs import FilesystemPorts, ReleaseSource
         from shared.update_plan import UpdateIndeterminate, UpdatePlan
@@ -626,8 +627,10 @@ class WindowsSetup(Setup):
                 return 0
             raise SetupError('kit.same_version', version=state['version'])
         applied = state.get('applied_migrations', [])
-        kit_migrations = signed_release_info(self.kit.package, self.kit.envelope.read_bytes(), self.kit.public_key,
-                                             self.kit.product_id, self.kit.version)['migrations']
+        info = self.signed_kit()
+        if pending is None:
+            self.check_order(state, info, allow_downgrade)
+        kit_migrations = info['migrations']
         if kit_migrations[:len(applied)] != applied:
             raise SetupError('kit.migrations_diverged')
         new_migrations = kit_migrations[len(applied):] if pending is None else pending['migration_ids']

@@ -34,6 +34,7 @@ class FakeClient:
 
 
 MIGRATIONS = {}
+SIGNED = {}
 
 
 def make_kit(base: Path, version='1', migrations=('m-1',), key=b'k' * 32) -> Path:
@@ -57,7 +58,15 @@ def make_kit(base: Path, version='1', migrations=('m-1',), key=b'k' * 32) -> Pat
             'reserve_bytes': 4096, 'paths': {'runtime': 'runtime'},
             'web': {'host': '127.0.0.1', 'port': 18431, 'healthz': '/healthz'}}
     (kit / 'kit.json').write_text(json.dumps(meta))
+    SIGNED[version] = signed(kit, meta, version)
     return kit
+
+
+def signed(kit: Path, meta: dict, version: str) -> dict:
+    """Подписанные сведения синтетического выпуска: kit.json, файлы установщика, порядок."""
+    from shared.kit import UNSIGNED_META, installer_files
+    return {'kit': {name: value for name, value in meta.items() if name not in UNSIGNED_META},
+            'installer': installer_files(kit), 'sequence': [int(version)]}
 
 
 @pytest.fixture
@@ -67,7 +76,8 @@ def env(tmp_path, monkeypatch):
     monkeypatch.delenv(kit_setup.PASSWORD_ENV, raising=False)
     (tmp_path / 'home').mkdir()
     monkeypatch.setattr(kit_setup, 'signed_release_info',
-                        lambda package, envelope, key, product, version: {'migrations': MIGRATIONS[version]})
+                        lambda package, envelope, key, product, version: {'migrations': MIGRATIONS[version],
+                                                                          **SIGNED[version]})
     client = FakeClient()
 
     def setup(kit, *, yes=True, answers=(), secrets=()):
@@ -327,7 +337,7 @@ def test_installer_publication_failure_is_finished_by_same_command(env, monkeypa
     base, client, setup = env
     kit = make_kit(base)
     original = kit_setup.Setup.store_installer
-    monkeypatch.setattr(kit_setup.Setup, 'store_installer', lambda self: (_ for _ in ()).throw(OSError('ENOSPC')))
+    monkeypatch.setattr(kit_setup.Setup, 'store_installer', lambda self, state: (_ for _ in ()).throw(OSError('ENOSPC')))
     with pytest.raises(OSError):
         with setup(kit).locked():
             setup(kit).install()

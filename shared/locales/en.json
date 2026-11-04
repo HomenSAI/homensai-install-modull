@@ -226,5 +226,10 @@
   "kit.secrets_file": "Secrets file (owner-only access): {path}",
   "kit.secrets_missing": "Required secrets are not set: {names}. Set them with secrets <NAME>.",
   "kit.secrets_unreadable": "Secrets file {path} is damaged or unreadable; fix it or delete it and set the secrets again.",
-  "kit.restart_failed": "Could not restart services (code {code})."
+  "kit.restart_failed": "Could not restart services (code {code}).",
+  "kit.installer_mismatch": "The installer files in the kit do not match the publisher signature; the stored installer was not updated. Obtain the kit again.",
+  "kit.downgrade": "Release {new} is not newer than the installed {old} (publisher sequence number). A downgrade is allowed only with --allow-downgrade.",
+  "kit.no_terminal": "Hidden input is unavailable: no terminal. Provide the value through an environment variable and --yes.",
+  "kit.secret_from_env": "Secret {name}: the value was taken from the environment variable {name}.",
+  "kit.secret_env_confirm": "Use the value of {name} from the environment? [yes/no]"
 }

@@ -175,7 +175,8 @@ def build_kits(inputs: Path, output: Path, python: str):
         if broken:
             (project / 'src/kitdemo/FAIL_HEALTH').write_text('synthetic health failure\n')
         subprocess.run([python, '-m', 'shared.kit', 'build', '--config', str(project / 'homensai-kit.json'),
-                        '--version', version, '--signing-key', str(keys / 'publisher-ed25519.pem'),
+                        '--version', version, *(['--sequence', '2.5'] if broken else []),
+                        '--signing-key', str(keys / 'publisher-ed25519.pem'),
                         '--output', str(output / 'kits')], cwd=ROOT, check=True, stdout=subprocess.DEVNULL)
 
 

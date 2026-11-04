@@ -58,10 +58,12 @@ for name in 1 2 3 3bad; do
 done
 K1=kits/1/homensai-kit-demo-1; K2=kits/2/homensai-kit-demo-2; K3=kits/3/homensai-kit-demo-3
 KB=kits/3bad/homensai-kit-demo-3bad
+# Python установщика из K1; всегда с -B: байт-код, записанный в __pycache__ комплекта,
+# меняет подписанный перечень файлов установщика (kit.installer_mismatch).
 PY=$PWD/$K1/installer/linux-x86_64/python/bin/python
 ROOTDIR="/home/homenstest/Программы/kit demo"
 STATE=/home/homenstest/.local/state/homensai/homensai-kit-demo
-http() { "$PY" -I -c 'import sys,urllib.request; print(urllib.request.urlopen("http://127.0.0.1:18431"+sys.argv[1], timeout=3).read().decode())' "$1"; }
+http() { "$PY" -I -B -c 'import sys,urllib.request; print(urllib.request.urlopen("http://127.0.0.1:18431"+sys.argv[1], timeout=3).read().decode())' "$1"; }
 wait_release() {
     for i in $(seq 1 60); do
         out=$(http /healthz 2>/dev/null) && echo "$out" | grep -q "\"release\": \"$1\"" && return 0
@@ -193,13 +195,13 @@ step "полное удаление"
 http /healthz >/dev/null 2>&1 && fail "служба после purge"
 
 step "установка, обновление сохранённым установщиком, проверка и полное удаление через веб-страницу"
-"$PY" -I /harness/web_driver.py "$K1/setup.sh" install "" || fail "web install"
+"$PY" -I -B /harness/web_driver.py "$K1/setup.sh" install "" || fail "web install"
 wait_release 1 || fail "health после установки через страницу"
 wait_token e2e-web-token || fail "секрет, введённый на странице"
-"$PY" -I /harness/web_driver.py "$STATE/installer/setup.sh" update "$PWD/$K2" || fail "web update"
+"$PY" -I -B /harness/web_driver.py "$STATE/installer/setup.sh" update "$PWD/$K2" || fail "web update"
 wait_release 2 || fail "health после обновления через страницу"
-"$PY" -I /harness/web_driver.py "$STATE/installer/setup.sh" status "" || fail "web status"
-"$PY" -I /harness/web_driver.py "$STATE/installer/setup.sh" purge "" || fail "web purge"
+"$PY" -I -B /harness/web_driver.py "$STATE/installer/setup.sh" status "" || fail "web status"
+"$PY" -I -B /harness/web_driver.py "$STATE/installer/setup.sh" purge "" || fail "web purge"
 http /healthz >/dev/null 2>&1 && fail "служба после purge через страницу"
 [ -e "$SECRETS" ] && fail "секреты после purge через страницу"
 echo "E2E OK"
@@ -207,7 +209,7 @@ echo "E2E OK"
 
 # Действует как человек на странице установщика: запускает `setup.sh web`, берёт адрес с
 # токеном из консоли, нажимает кнопку команды и отвечает на вопросы установщика.
-WEB_DRIVER = r'''import json, subprocess, sys, time, urllib.request
+WEB_DRIVER = r'''import json, re, subprocess, sys, time, urllib.request
 setup, command, kit = sys.argv[1], sys.argv[2], sys.argv[3]
 server = subprocess.Popen([setup, '--language', 'ru', 'web', '--no-browser'], stdout=subprocess.PIPE, text=True)
 line = server.stdout.readline()
@@ -239,14 +241,17 @@ while True:
     prompt = snapshot['prompt']
     if prompt:
         text = prompt['text']
-        asked.append(prompt['kind'])
+        # Скрытый ввод: секрет продукта (по имени из вопроса) или пароль архива обновления.
+        secret = re.search(r'KITDEMO_[A-Z_]+', text)
+        asked.append(secret.group() if prompt['kind'] == 'secret' and secret
+                     else 'password' if prompt['kind'] == 'secret' else prompt['kind'])
         if prompt['kind'] == 'confirm':
             value = 'yes'
         elif prompt['kind'] == 'text':
             value = info['kit']['product_id']
-        elif 'KITDEMO_TOKEN' in text:
+        elif asked[-1] == 'KITDEMO_TOKEN':
             value = 'e2e-web-token'
-        elif 'KITDEMO_' in text:
+        elif secret:
             value = ''
         else:
             value = 'synthetic-e2e-web-password'
@@ -254,7 +259,10 @@ while True:
     if not snapshot['running'] and snapshot['result']:
         break
     time.sleep(0.3)
-expected = {'install': ['confirm', 'secret', 'secret', 'secret'], 'update': ['confirm', 'secret', 'secret'],
+# Необязательный секрет, пропущенный при установке, обновление запрашивает снова (ensure_secrets),
+# затем пароль архива и его повтор.
+expected = {'install': ['confirm', 'KITDEMO_TOKEN', 'KITDEMO_SESSION_KEY', 'KITDEMO_OPTIONAL'],
+            'update': ['confirm', 'KITDEMO_OPTIONAL', 'password', 'password'],
             'status': [], 'purge': ['text']}[command]
 assert asked == expected, asked
 call('POST', '/api/quit', {})

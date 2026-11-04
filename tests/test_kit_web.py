@@ -326,3 +326,20 @@ def test_pages_have_no_inline_code_or_external_addresses():
         if path.suffix == '.html':
             assert re.search(r'<script(?![^>]*\bsrc=)[^>]*>', text) is None, path.name
             assert re.search(r'\son[a-z]+=', text) is None and ' style=' not in text and '<style' not in text, path.name
+
+
+def test_kit_e2e_runs_kit_python_without_writing_bytecode():
+    """E2E-сценарий запускает Python установщика из комплекта K1 (веб-драйвер, запросы к службе).
+
+    Без -B он записывал __pycache__ в installer/linux-x86_64/python комплекта, и следующий
+    запуск setup.sh из K1 (веб-установка) отказывал с kit.installer_mismatch. Байт-код
+    не исключается из сверки намеренно: Python загрузил бы подложенный .pyc.
+    """
+    import re
+    from tests import run_kit_e2e
+    calls = re.findall(r'"\$PY"[^\n]*', run_kit_e2e.SESSION)
+    assert len(calls) >= 5
+    for call in calls:
+        assert call.startswith('"$PY" -I -B '), call
+    pyc = 'installer/' + kit_setup._installer_platform() + '/python/lib/__pycache__/os.cpython-314.pyc'
+    assert pyc in kit_setup.installer_files({pyc: '0' * 64})

@@ -466,6 +466,8 @@ def main(argv: list[str] | None = None, *, password_provider=None) -> int:
         return _emit(1, "Неверные факты диагностики", {}, as_json, language, message_key='cli.error_doctor')
     except archive_crypto.CryptoUnavailableError as error:
         return _emit(1, str(error), {}, as_json, language, message_key='cli.error_crypto_unavailable')
+    except archive_crypto.PasswordPolicyError as error:
+        return _emit(1, str(error), {}, as_json, language, message_key='cli.error_archive_password_short')
     except archive_crypto.ArchiveCryptoError as error:
         return _emit(1, str(error), {}, as_json, language, message_key='cli.error_crypto')
     except ArchiveError:

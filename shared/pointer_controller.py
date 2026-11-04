@@ -25,6 +25,8 @@ def run_pointer_linux_update(*, password_env, action, reconcile_stop_key=None, w
         if password_env is None:
             raise UpdateError('Требуется переменная пароля')
         password = archive_crypto._password(provider)
+        if action == 'start':  # Новая транзакция создаёт новые архивы; reopen продолжает прежнюю.
+            archive_crypto.require_new_password(password)
         if writer_lock_path is not None:
             if 'writer_lock' in options:
                 raise UpdateError('Повторное описание блокировки')

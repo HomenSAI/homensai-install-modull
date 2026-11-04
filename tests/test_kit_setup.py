@@ -156,6 +156,12 @@ def test_update_flow_password_keys_and_rollback(env, monkeypatch):
     with pytest.raises(SetupError) as short:
         setup(kit2, yes=False, answers=['yes'], secrets=['short', 'short']).update()
     assert short.value.key == 'kit.password_short'
+    # Единое правило shared.archive_crypto: 11 символов отклоняются и из окружения.
+    monkeypatch.setenv(kit_setup.PASSWORD_ENV, 'eleven-char')
+    with pytest.raises(SetupError) as eleven:
+        setup(kit2).update()
+    assert eleven.value.key == 'kit.password_short' and not any(
+        call[0] == 'run-pointer-linux-update' for call in client.calls)
     monkeypatch.setenv(kit_setup.PASSWORD_ENV, 'synthetic-password')
     client.results['run-pointer-linux-update'] = {'state': {'outcome': 'updated', 'transaction': 't'}}
     assert setup(kit2).update() == 0

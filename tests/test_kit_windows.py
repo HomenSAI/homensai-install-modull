@@ -136,12 +136,189 @@ def test_run_stringifies_argv_and_raises_on_failure(monkeypatch, tmp_path):
     assert kit_windows._run([exe, 'stop'], check=False).returncode == 2
 
 
-def test_secure_directory_argv(monkeypatch, tmp_path):
+def test_run_passes_minimal_environment(monkeypatch, tmp_path):
+    """Ш-2: WinSW не наследует пароль архива и секреты из окружения установщика."""
     seen = []
-    monkeypatch.setattr(kit_windows, '_run', lambda argv, **kwargs: seen.append(argv))
-    kit_windows.secure_directory(tmp_path)
-    assert seen == [['icacls', str(tmp_path), '/inheritance:r', '/grant:r', '*S-1-5-18:(OI)(CI)F',
-                     '/grant:r', '*S-1-5-32-544:(OI)(CI)F', '/Q']]
+    monkeypatch.setattr(kit_windows.subprocess, 'run',
+                        lambda argv, **kwargs: (seen.append(kwargs), subprocess.CompletedProcess(argv, 0, '', ''))[1])
+    monkeypatch.setenv('SystemRoot', r'C:\Windows')
+    monkeypatch.setenv('TEMP', r'C:\Temp')
+    monkeypatch.setenv('HOMENSAI_SECRET_ARCHIVE_PASSWORD', 'synthetic-secret')
+    monkeypatch.setenv(PASSWORD_ENV, 'synthetic-secret')
+    monkeypatch.setenv('KITDEMO_TOKEN', 'synthetic-secret')
+    kit_windows._run([tmp_path / 'winsw.exe', 'status'])
+    environment = seen[0]['env']
+    assert set(environment) <= {'SystemRoot', 'windir', 'PATH', 'ProgramData', 'SystemDrive', 'TEMP', 'TMP'}
+    assert environment['PATH'] == r'C:\Windows\System32' and environment['TEMP'] == r'C:\Temp'
+    assert 'synthetic-secret' not in json.dumps(environment)
+
+
+# --- Каталоги: ссылки, владелец, DACL (Ш-1, К-2) ----------------------------------------
+
+DIRECTORY, REPARSE = 0x10, 0x400
+SY, BA, USERS, AUTH, CREATOR = 'S-1-5-18', 'S-1-5-32-544', 'S-1-5-32-545', 'S-1-5-11', 'S-1-3-0'
+TI = 'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'
+USER = 'S-1-5-21-1-2-3-1001'
+FULL, MODIFY, READ_EXECUTE = 0x1F01FF, 0x1301BF, 0x1200A9
+OICI, CI, IO = 0x3, 0x2, 0x8
+
+
+def entry(owner=BA, aces=((0, OICI, FULL, SY), (0, OICI, FULL, BA)), attributes=DIRECTORY):
+    return kit_windows._Entry(attributes, owner, tuple(aces))
+
+
+CLOSED = entry()
+# Стандартные DACL Windows 10 LTSC (GetSecurityInfo в тестовой ВМ, см. docs/KIT.md, раздел 9).
+DRIVE_C = entry(owner=TI, aces=[(0, OICI, FULL, BA), (0, OICI, FULL, SY), (0, OICI, READ_EXECUTE, USERS),
+                                (0, OICI | IO, 0xE0010000, AUTH), (0, 0, 0x4, AUTH)])
+PROGRAM_DATA = entry(owner=SY, aces=[(0, OICI, FULL, SY), (0, OICI, FULL, BA), (0, OICI | IO, 0x10000000, CREATOR),
+                                     (0, OICI, READ_EXECUTE, USERS), (0, CI, 0x116, USERS)])
+PROGRAM_FILES = entry(owner=TI, aces=[
+    (0, 0, FULL, TI), (0, CI | IO, 0x10000000, TI), (0, 0, MODIFY, SY), (0, OICI | IO, 0x10000000, SY),
+    (0, 0, MODIFY, BA), (0, OICI | IO, 0x10000000, BA), (0, 0, READ_EXECUTE, USERS),
+    (0, OICI | IO, 0xA0000000, USERS), (0, OICI | IO, 0x10000000, CREATOR),
+    (0, 0, READ_EXECUTE, 'S-1-15-2-1'), (0, OICI | IO, 0xA0000000, 'S-1-15-2-1'),
+    (0, 0, READ_EXECUTE, 'S-1-15-2-2'), (0, OICI | IO, 0xA0000000, 'S-1-15-2-2')])
+# Каталог, созданный администратором прямо в C:\ через mkdir (C:\hsi в ВМ): наследует Modify.
+UNDER_C = entry(aces=[(0, 0x13, FULL, BA), (0, 0x13, FULL, SY), (0, 0x13, READ_EXECUTE, USERS),
+                      (0, 0x10, MODIFY, AUTH), (0, 0x1B, 0xE0010000, AUTH)])
+
+
+class FakeSecurity:
+    """Заменяет вызовы Win32 (_inspect, _create_closed, _close) моделью по реальному дереву tmp_path.
+
+    Каталог без особой записи — закрытый (владелец Administrators); symlink — reparse point,
+    как junction на Windows. changes — изменения в порядке вызова.
+    """
+
+    def __init__(self):
+        self.entries, self.changes, self.on_create = {}, [], None
+
+    def inspect(self, path):
+        if path in self.entries:
+            return self.entries[path]
+        if path.is_symlink():
+            return entry(attributes=DIRECTORY | REPARSE)
+        if path.is_dir():
+            return CLOSED
+        return entry(attributes=0x20) if path.exists() else None
+
+    def create(self, path):
+        self.changes.append(('create', path))
+        if self.on_create is not None:
+            self.on_create(path)
+        path.mkdir(exist_ok=True)
+
+    def close(self, path):
+        self.changes.append(('close', path))
+        if self.inspect(path).attributes & REPARSE:
+            raise SetupError('kit.unsafe_state')
+        self.entries[path] = CLOSED
+
+
+@pytest.fixture
+def security(monkeypatch):
+    fake = FakeSecurity()
+    monkeypatch.setattr(kit_windows, '_inspect', fake.inspect)
+    monkeypatch.setattr(kit_windows, '_create_closed', fake.create)
+    monkeypatch.setattr(kit_windows, '_close', fake.close)
+    return fake
+
+
+@pytest.mark.parametrize('value, volume_root, safe', [
+    (DRIVE_C, True, True), (PROGRAM_DATA, False, True), (PROGRAM_FILES, False, True), (CLOSED, False, True),
+    (UNDER_C, False, False),
+    # Корень нового тома: Authenticated Users: Modify; корень нельзя удалить или переименовать.
+    (entry(aces=[(0, OICI, FULL, BA), (0, OICI, MODIFY, AUTH)]), True, True),
+    (entry(aces=[(0, OICI, FULL, BA), (0, OICI, MODIFY, AUTH)]), False, False),
+    (entry(aces=[(0, 0, 0x10000, USERS)]), False, False),           # DELETE
+    (entry(aces=[(0, 0, 0x40, USERS)]), True, False),               # FILE_DELETE_CHILD
+    (entry(aces=[(0, 0, 0x40000, USERS)]), True, False),            # WRITE_DAC
+    (entry(aces=[(0, 0, 0x80000, USERS)]), True, False),            # WRITE_OWNER
+    (entry(aces=[(0, 0, 0x10000000, USERS)]), True, False),         # GENERIC_ALL
+    (entry(aces=[(0, 0, 0x116, USERS), (1, 0, FULL, USERS)]), False, True),  # запись файлов, запрет
+    (entry(aces=[(9, 0, 0x4, USERS)]), False, False),               # неизвестный тип записи
+    (entry(owner=USER), False, False), (entry(owner=TI), False, True),
+    (entry(attributes=DIRECTORY | REPARSE), False, False), (entry(attributes=0x20), False, False),
+])
+def test_safe_parent_rules(value, volume_root, safe):
+    path = Path('/') if volume_root else Path('/srv')
+    assert kit_windows._safe_parent(path, value) is safe
+
+
+def test_secure_owned_creates_closed_or_keeps_closed(security, tmp_path):
+    path = tmp_path / 'new'
+    kit_windows.secure_owned(path)
+    assert path.is_dir() and security.changes == [('create', path)]
+    security.changes.clear()
+    kit_windows.secure_owned(path)
+    assert security.changes == []
+
+
+def test_secure_owned_closes_admin_directory_with_loose_acl(security, tmp_path):
+    path = tmp_path / 'loose'
+    path.mkdir()
+    security.entries[path] = entry(aces=[(0, OICI, FULL, BA), (0, CI, 0x116, USERS)])
+    kit_windows.secure_owned(path)
+    assert security.changes == [('close', path)]
+
+
+@pytest.mark.parametrize('value', [entry(attributes=DIRECTORY | REPARSE), entry(owner=USER), entry(attributes=0x20),
+                                   entry(owner=SY, attributes=DIRECTORY | REPARSE)])
+def test_secure_owned_refuses_link_foreign_or_file_without_changes(security, tmp_path, value):
+    path = tmp_path / 'x'
+    security.entries[path] = value
+    with pytest.raises(SetupError) as refused:
+        kit_windows.secure_owned(path)
+    assert refused.value.key == 'kit.unsafe_state' and security.changes == []
+
+
+def test_secure_owned_refuses_when_close_does_not_help(security, tmp_path, monkeypatch):
+    path = tmp_path / 'x'
+    path.mkdir()
+    security.entries[path] = entry(aces=[(0, OICI, FULL, BA), (0, OICI, FULL, USERS)])
+    monkeypatch.setattr(kit_windows, '_close', lambda item: security.changes.append(('close', item)))
+    with pytest.raises(SetupError) as refused:
+        kit_windows.secure_owned(path)
+    assert refused.value.key == 'kit.unsafe_state'
+
+
+def test_secure_path_creates_missing_root_ancestors_closed(security, tmp_path):
+    system = tmp_path / 'C'
+    system.mkdir()
+    security.entries[system] = DRIVE_C
+    root = system / 'Program Data' / 'Acme'
+    kit_windows.check_parents(root)
+    assert security.changes == []
+    kit_windows.secure_path(root, root=True)
+    assert security.changes == [('create', system / 'Program Data'), ('create', root)]
+
+
+def test_secure_path_refuses_name_taken_by_foreign_directory(security, tmp_path):
+    """Гонка: пользователь с FILE_ADD_SUBDIRECTORY занял имя до CreateDirectoryW — отказ по владельцу."""
+    root = tmp_path / 'Program Data' / 'Acme'
+    security.on_create = lambda path: security.entries.__setitem__(path, entry(owner=USER))
+    with pytest.raises(SetupError) as refused:
+        kit_windows.secure_path(root, root=True)
+    assert refused.value.key == 'kit.unsafe_state' and security.changes == [('create', root.parent)]
+
+
+def test_secure_path_rechecks_chain_after_creation(security, tmp_path):
+    """Предок стал ссылкой, пока создавались следующие компоненты, — повторная проверка отказывает."""
+    parent = tmp_path / 'parent'
+    parent.mkdir()
+    security.on_create = lambda path: security.entries.__setitem__(parent, entry(attributes=DIRECTORY | REPARSE))
+    with pytest.raises(SetupError) as refused:
+        kit_windows.secure_path(parent / 'root', root=True)
+    assert refused.value.key == 'kit.unsafe_root_parent_windows' and refused.value.variables == {'path': parent}
+
+
+def test_secure_path_requires_absolute_path_inside_top(security, tmp_path):
+    for path, top in ((Path('relative/x'), None), (tmp_path / 'a' / 'x', tmp_path / 'b')):
+        with pytest.raises(SetupError) as refused:
+            kit_windows.secure_path(path, top=top)
+        assert refused.value.key == 'kit.unsafe_state'
+    assert security.changes == []
 
 
 def test_expand_templates(tmp_path):
@@ -486,11 +663,13 @@ def make_kit(base: Path, version='1', migrations=('m-1',), key=b'k' * 32, target
 
 
 @pytest.fixture
-def win(tmp_path, monkeypatch, winsw):
+def win(tmp_path, monkeypatch, winsw, security):
     monkeypatch.setenv('ProgramData', str(tmp_path / 'ProgramData'))
+    (tmp_path / 'ProgramData').mkdir()  # на Windows существует всегда
     monkeypatch.delenv(PASSWORD_ENV, raising=False)
     secured, staged = [], []
-    monkeypatch.setattr(kit_windows, 'secure_owned', secured.append)
+    real_secure_owned = kit_windows.secure_owned
+    monkeypatch.setattr(kit_windows, 'secure_owned', lambda path: (secured.append(path), real_secure_owned(path))[1])
     for module in (kit_windows, kit_setup):
         monkeypatch.setattr(module, 'signed_release_info',
                             lambda package, envelope, key, product, version: {'migrations': MIGRATIONS[version]})
@@ -517,7 +696,7 @@ def win(tmp_path, monkeypatch, winsw):
         return WindowsSetup(Kit(kit), language='en', yes=yes, out=lines.append,
                             ask=lambda prompt: answers.pop(0), ask_secret=lambda prompt: pytest.fail('no secret'))
     return SimpleNamespace(base=tmp_path, setup=setup, secured=secured, staged=staged, health=health,
-                           manifests=manifests, lines=lines, winsw=winsw,
+                           manifests=manifests, lines=lines, winsw=winsw, security=security,
                            state_dir=tmp_path / 'ProgramData' / 'HomenSAI' / '.state' / PRODUCT,
                            root=tmp_path / 'ProgramData' / 'HomenSAI' / PRODUCT)
 
@@ -879,3 +1058,97 @@ def test_setup_update_with_new_hook_refused_before_stop(win, monkeypatch):
     assert win.winsw.calls == [] and win.winsw.states == {sid('web'): 'Started', sid('worker'): 'Started'}
     state = read_state(win)
     assert state['status'] == 'installed' and state['version'] == '1' and 'update' not in state
+
+
+# --- Регрессии аудита: Ш-1 ссылки в ProgramData\HomenSAI, К-2 предки --root, Ш-2 пароль ------
+
+def _nothing_changed(win):
+    assert win.security.changes == [] and win.winsw.calls == [] and win.staged == []
+    assert not (win.state_dir / 'state.json').exists()
+
+
+def _admin_link(win, relative):
+    """Ссылка (на Windows — junction) на каталог Administrators вместо компонента цепочки ProgramData."""
+    admin = win.base / 'AdminDir'
+    admin.mkdir()
+    path = win.base / 'ProgramData' / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.symlink_to(admin, target_is_directory=True)
+    return admin
+
+
+@pytest.mark.parametrize('link', ['HomenSAI', 'HomenSAI/.state', 'HomenSAI/.state/' + PRODUCT])
+def test_junction_in_state_chain_refused_before_changes(win, link):
+    """Ш-1: junction на каталог Administrators в цепочке состояния — kit.unsafe_state до изменений."""
+    admin = _admin_link(win, link)
+    setup = win.setup(make_kit(win.base))
+    with pytest.raises(SetupError) as refused:
+        with setup.locked():
+            setup.install()
+    assert refused.value.key == 'kit.unsafe_state'
+    assert list(admin.iterdir()) == []
+    _nothing_changed(win)
+
+
+@pytest.mark.parametrize('link', ['HomenSAI', 'HomenSAI/.secrets', 'HomenSAI/.secrets/' + PRODUCT])
+def test_junction_in_secrets_chain_refused_before_changes(win, link):
+    admin = _admin_link(win, link)
+    with pytest.raises(SetupError) as refused:
+        win.setup(make_kit(win.base)).prepare_secrets_dir()
+    assert refused.value.key == 'kit.unsafe_state'
+    assert list(admin.iterdir()) == [] and win.security.changes == []
+
+
+def test_default_state_dir_is_not_resolved_through_link(win):
+    """Path.resolve() раскрыл бы junction ProgramData\\HomenSAI, и проверка цепочки его бы не увидела."""
+    _admin_link(win, 'HomenSAI')
+    setup = win.setup(make_kit(win.base))
+    assert setup.state_dir == win.state_dir and setup.state_file == win.state_dir / 'state.json'
+
+
+@pytest.mark.parametrize('acl', [
+    entry(aces=[(0, OICI, FULL, BA), (0, OICI, MODIFY, AUTH)]),   # унаследовано от C:\ при mkdir
+    entry(aces=[(0, OICI, FULL, BA), (0, 0, 0x40, USERS)]),       # FILE_DELETE_CHILD
+    entry(aces=[(0, OICI, FULL, BA), (0, 0, 0x40000, USERS)]),    # WRITE_DAC
+    entry(aces=[(0, OICI, FULL, BA), (0, 0, 0x80000, USERS)]),    # WRITE_OWNER
+    entry(owner=USER), entry(attributes=DIRECTORY | REPARSE),
+])
+def test_root_ancestor_with_unsafe_acl_refused_before_changes(win, acl):
+    """К-2: предок --root, в котором пользователи могут подменить ребёнка, — отказ до изменений."""
+    parent = win.base / 'Program Data'
+    parent.mkdir()
+    win.security.entries[parent] = acl
+    with pytest.raises(SetupError) as refused:
+        win.setup(make_kit(win.base)).install(root=str(parent / 'Acme'))
+    assert refused.value.key == 'kit.unsafe_root_parent_windows' and refused.value.variables == {'path': parent}
+    _nothing_changed(win)
+    assert not win.state_dir.exists() and not (parent / 'Acme').exists()
+
+
+def test_custom_root_under_system_ancestor_creates_missing_parents_closed(win):
+    system = win.base / 'C'
+    system.mkdir()
+    win.security.entries[system] = DRIVE_C
+    root = system / 'Program Data' / 'Acme'
+    assert win.setup(make_kit(win.base)).install(root=str(root)) == 0
+    changes = win.security.changes
+    assert changes.index(('create', system / 'Program Data')) < changes.index(('create', root))
+    assert read_state(win)['install_root'] == str(root)
+
+
+def test_custom_state_dir_is_checked_without_programdata(win, tmp_path):
+    custom = tmp_path / 'custom-state'
+    setup = WindowsSetup(Kit(make_kit(win.base)), language='en', yes=True, out=win.lines.append,
+                         state_dir=custom)
+    setup.prepare_state_dir()
+    assert win.security.changes == [('create', custom)]
+    assert list((tmp_path / 'ProgramData').iterdir()) == []
+
+
+def test_password_removed_from_environment_after_reading(win, monkeypatch):
+    """Ш-2: пароль архива не остаётся в окружении; дальше его несёт только _SECRET_ENV."""
+    import os
+    monkeypatch.setenv(PASSWORD_ENV, 'synthetic-password')
+    monkeypatch.setenv(kit_setup._SECRET_ENV, 'placeholder')
+    win.setup(make_kit(win.base))._password()
+    assert PASSWORD_ENV not in os.environ and os.environ[kit_setup._SECRET_ENV] == 'synthetic-password'

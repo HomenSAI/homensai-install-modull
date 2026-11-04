@@ -159,6 +159,7 @@
   "kit.reinstall_version": "Preserved data belongs to version {version}; reinstall that version first, then update.",
   "kit.root_exists": "Installation directory already exists: {path}. Choose another with --root.",
   "kit.unsafe_root_parent": "The parent directory of the installation root is unsafe or cannot be created: {path}. It must be a directory without links, owned by you or root and not writable by group or others.",
+  "kit.unsafe_root_parent_windows": "An ancestor of the installation root is unsafe: {path}. It must be a directory without links (junction, symlink), owned by SYSTEM, Administrators or TrustedInstaller, in which other users cannot delete, rename or change permissions (DELETE, FILE_DELETE_CHILD, WRITE_DAC, WRITE_OWNER). Choose a root under Program Files or ProgramData or a directory that does not exist yet: the installer creates missing ancestors itself with access for SYSTEM and Administrators only.",
   "kit.summary_root": "Installation directory: {path}",
   "kit.summary_units": "User services directory: {path}",
   "kit.summary_modes": "Modes: {modes}",

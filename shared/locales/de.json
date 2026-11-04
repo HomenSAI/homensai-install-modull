@@ -159,6 +159,7 @@
   "kit.reinstall_version": "Die erhaltenen Daten gehören zu Version {version}; installieren Sie zuerst diese Version neu und aktualisieren Sie dann.",
   "kit.root_exists": "Das Installationsverzeichnis existiert bereits: {path}. Wählen Sie mit --root ein anderes.",
   "kit.unsafe_root_parent": "Das übergeordnete Verzeichnis des Installationsverzeichnisses ist unsicher oder kann nicht erstellt werden: {path}. Es muss ein Verzeichnis ohne Verknüpfungen sein, das Ihnen oder root gehört und für Gruppe und andere nicht beschreibbar ist.",
+  "kit.unsafe_root_parent_windows": "Ein übergeordnetes Verzeichnis des Installationsverzeichnisses ist unsicher: {path}. Es muss ein Verzeichnis ohne Verknüpfungen (Junction, Symlink) sein, das SYSTEM, Administratoren oder TrustedInstaller gehört und in dem andere Benutzer nichts löschen, umbenennen oder Berechtigungen ändern können (DELETE, FILE_DELETE_CHILD, WRITE_DAC, WRITE_OWNER). Wählen Sie ein Verzeichnis unter Program Files oder ProgramData oder ein noch nicht vorhandenes Verzeichnis: Fehlende übergeordnete Verzeichnisse legt das Installationsprogramm selbst mit Zugriff nur für SYSTEM und Administratoren an.",
   "kit.summary_root": "Installationsverzeichnis: {path}",
   "kit.summary_units": "Verzeichnis der Benutzerdienste: {path}",
   "kit.summary_modes": "Modi: {modes}",

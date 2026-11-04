@@ -159,6 +159,7 @@
   "kit.reinstall_version": "Сохранённые данные относятся к версии {version}; сначала переустановите эту версию, затем обновите.",
   "kit.root_exists": "Каталог установки уже существует: {path}. Укажите другой через --root.",
   "kit.unsafe_root_parent": "Родительский каталог корня установки небезопасен или не может быть создан: {path}. Нужен каталог без ссылок, принадлежащий вам или root и недоступный на запись группе и остальным.",
+  "kit.unsafe_root_parent_windows": "Предок корня установки небезопасен: {path}. Нужен каталог без ссылок (junction, symlink), принадлежащий SYSTEM, Administrators или TrustedInstaller, в котором прочие пользователи не могут удалять, переименовывать и менять права (DELETE, FILE_DELETE_CHILD, WRITE_DAC, WRITE_OWNER). Выберите корень под Program Files или ProgramData либо несуществующий каталог: недостающих предков установщик создаст сам с доступом только для SYSTEM и Administrators.",
   "kit.summary_root": "Каталог установки: {path}",
   "kit.summary_units": "Каталог пользовательских служб: {path}",
   "kit.summary_modes": "Режимы: {modes}",

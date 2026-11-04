@@ -3,7 +3,8 @@
 
 Собирает на хосте единые комплекты (Linux + Windows) вымышленного продукта —
 версии 1, 2, 3 и 3 с отказом здоровья — и кладёт их в общую папку ВМ. Агент
-в ВМ (OEM-сценарий, администратор) выполняет задание PowerShell: отказ без
+в ВМ (OEM-сценарий, администратор) выполняет задание PowerShell: отказ при
+junction ProgramData/HomenSAI на каталог Administrators, отказ без
 обязательного секрета, установку служб WinSW с доставкой секретов, смену секрета, обновление 1→2, обновление с откатом, обновление 2→3, удаление с
 сохранением данных, переустановку и полное удаление. Сеть ВМ для проверки не
 нужна. Требуется --run и запущенная ВМ с агентом (см. docs/KIT.md).
@@ -66,6 +67,26 @@ $K3 = "$base\3\homensai-kit-demo-3"; $KB = "$base\3bad\homensai-kit-demo-3bad"
 $root = 'C:\Программы HomenSAI\kit demo'
 $stored = 'C:\ProgramData\HomenSAI\.state\homensai-kit-demo\installer'
 $secrets = 'C:\ProgramData\HomenSAI\.secrets\homensai-kit-demo'
+
+Step 'junction C:\ProgramData\HomenSAI на каталог Administrators отклоняется до изменений'
+$hsi = 'C:\ProgramData\HomenSAI'; $decoy = 'C:\ProgramData\HomenSAI-e2e-decoy'
+foreach ($p in $hsi, $decoy) { if (Test-Path $p) { & takeown.exe /F $p /R /D Y | Out-Null; & icacls.exe $p /grant "*S-1-5-32-544:(OI)(CI)F" /T /Q | Out-Null; Remove-Item -Recurse -Force $p } }
+New-Item -ItemType Directory $decoy | Out-Null
+& icacls.exe $decoy /setowner '*S-1-5-32-544' /Q | Out-Null
+& cmd.exe /c mklink /J $hsi $decoy | Out-Null
+if (-not ((Get-Item $hsi -Force).Attributes -match 'ReparsePoint')) { Fail 'junction не создан' }
+$env:KITDEMO_TOKEN = 'e2e-token-1'
+$out = & cmd.exe /c (Join-Path $K1 'setup.cmd') --yes --language en install --root $root 2>&1 | Out-String
+$code = $LASTEXITCODE
+Remove-Item Env:KITDEMO_TOKEN
+Write-Output "    $($out.Trim())"
+if ($code -eq 0) { Fail 'установка через junction должна отказать' }
+if (-not $out.Contains('The state or service directory is unsafe')) { Fail 'ожидался отказ kit.unsafe_state' }
+if (Get-ChildItem -Force -Recurse $decoy) { Fail 'в цель junction ничего не должно попасть' }
+if (Test-Path (Split-Path $root)) { Fail 'корень установки не должен создаваться' }
+& cmd.exe /c rmdir $hsi
+Remove-Item -Recurse -Force $decoy
+if (Test-Path $hsi) { Fail 'junction не удалён' }
 
 Step 'установка без обязательного секрета отклоняется до изменений'
 Remove-Item Env:KITDEMO_TOKEN -ErrorAction SilentlyContinue

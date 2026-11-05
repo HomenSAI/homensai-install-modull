@@ -5,8 +5,11 @@
 версии 1, 2, 3 и 3 с отказом здоровья — и кладёт их в общую папку ВМ. Агент
 в ВМ (OEM-сценарий, администратор) выполняет задание PowerShell: отказ при
 junction ProgramData/HomenSAI на каталог Administrators, отказ без
-обязательного секрета, установку служб WinSW с доставкой секретов, смену секрета, обновление 1→2, обновление с откатом, обновление 2→3, удаление с
-сохранением данных, переустановку и полное удаление. Сеть ВМ для проверки не
+обязательного секрета, установку служб WinSW с доставкой секретов, обновление
+1→2, обновление с откатом, обновление 2→3, отказ сохранённого установщика на
+подменённом коде установщика и на понижении версии, смену секрета, удаление с
+сохранением данных, переустановку, страницу установщика (setup.cmd web) и
+полное удаление. Сеть ВМ для проверки не
 нужна. Требуется --run и запущенная ВМ с агентом (см. docs/KIT.md).
 """
 from __future__ import annotations
@@ -28,7 +31,7 @@ $base = 'C:\hsi\e2e'
 $log = '\\host.lan\Data\jobs\@NAME@.log'
 function Write-Output($message) { Add-Content -Path $log -Value $message -Encoding UTF8 }
 function Fail($message) { Write-Output "E2E FAIL: $message"; Write-Output (Get-Service 'homensai.homensai-kit-demo.*' -ErrorAction SilentlyContinue | Format-Table -AutoSize | Out-String); exit 1 }
-function Step($message) { Write-Output "=== $message" }
+function Step($message) { Write-Output "=== $message  [$(Get-Date -Format 'HH:mm:ss')]" }
 function Secrets() { try { return (Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 'http://127.0.0.1:18431/secrets').Content } catch { return '' } }
 function Health() { try { return (Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 'http://127.0.0.1:18431/healthz').Content } catch { return '' } }
 function Notes() { try { return (Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 'http://127.0.0.1:18431/notes').Content } catch { return '' } }
@@ -133,6 +136,26 @@ Step 'обновление 2 -> 3 после отката'
 if ((Setup $K3 @('--yes', '--language', 'de', 'update')) -ne 0) { Fail 'update 2->3' }
 if (-not (WaitRelease '3')) { Fail 'health v3' }
 if (-not ((Notes) -match 'migrated notes-3')) { Fail 'миграция notes-3' }
+
+Step 'сохранённый установщик отклоняет подменённый код установщика и понижение версии'
+New-Item -ItemType Directory -Force "$base\tamper" | Out-Null
+Copy-Item -Recurse $KB "$base\tamper\"
+$KT = "$base\tamper\homensai-kit-demo-3bad"
+Add-Content -Path "$KT\installer\app\shared\kit_setup.py" -Value '# tamper'
+$storedSetup = "$stored\installer\app\shared\kit_setup.py"
+$before = (Get-FileHash $storedSetup).Hash
+$out = & cmd.exe /c (Join-Path $stored 'setup.cmd') --kit $KT --yes --language en update 2>&1 | ForEach-Object { "$_" } | Out-String
+$code = $LASTEXITCODE
+Write-Output "    $($out.Trim())"
+if ($code -eq 0) { Fail 'подменённый установщик принят' }
+if (-not $out.Contains('do not match the publisher signature')) { Fail 'ожидался отказ kit.installer_mismatch' }
+if ((Get-FileHash $storedSetup).Hash -ne $before) { Fail 'сохранённый установщик изменён' }
+$out = & cmd.exe /c (Join-Path $stored 'setup.cmd') --kit $KB --yes --language en update 2>&1 | ForEach-Object { "$_" } | Out-String
+$code = $LASTEXITCODE
+Write-Output "    $($out.Trim())"
+if ($code -eq 0) { Fail 'понижение версии принято' }
+if (-not $out.Contains('is not newer than the installed')) { Fail 'ожидался отказ kit.downgrade' }
+if (-not (WaitRelease '3')) { Fail 'после отказов должна работать v3' }
 Remove-Item Env:HOMENSAI_ARCHIVE_PASSWORD
 
 Step 'смена секрета командой secrets и перезапуск служб'
@@ -159,7 +182,8 @@ if (-not ((Notes) -match 'migrated notes-3')) { Fail 'данные после п
 Step 'страница установщика (setup.cmd web): сведения, отказ без токена, проверка состояния'
 $webOut = "$base\web.out"
 $webCmd = '"' + (Join-Path $K3 'setup.cmd') + '" --language ru web --no-browser > "' + $webOut + '" 2>&1'
-$web = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $webCmd -PassThru -WindowStyle Hidden
+# cmd /c при более чем двух кавычках снимает первую и последнюю: вся команда — в ещё одних кавычках.
+$web = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', ('"' + $webCmd + '"') -PassThru -WindowStyle Hidden
 $url = $null
 for ($i = 0; $i -lt 240 -and -not $url; $i++) {
     Start-Sleep -Milliseconds 500
@@ -185,7 +209,7 @@ if ((Setup $stored @('--yes', 'uninstall', '--purge')) -ne 0) { Fail 'purge' }
 if (Test-Path "$root\data") { Fail 'данные должны быть удалены' }
 if (Test-Path $secrets) { Fail 'секреты должны быть удалены' }
 if (Get-Service 'homensai.homensai-kit-demo.*' -ErrorAction SilentlyContinue) { Fail 'службы после purge' }
-Write-Output 'E2E OK'
+Write-Output "E2E OK  [$(Get-Date -Format 'HH:mm:ss')]"
 exit 0
 '''
 

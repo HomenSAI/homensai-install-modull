@@ -37,7 +37,7 @@ uninstall, secrets). Python и сеть на целевой машине не н
 команда миграций, healthcheck), модуль выполняет установку, обновление с
 полным архивом, откат и удаление.
 
-См. [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md), [STATUS.md](STATUS.md).
+См. [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md), [STATUS.md](STATUS.md); опись работы и что доделать — [HANDOFF-2026-11-05](docs/HANDOFF-2026-11-05.md).
 
 Руководства: [администратора](docs/ADMIN-GUIDE.md) и
 [разработчика адаптера продукта](docs/ADAPTER-GUIDE.md). Удаление с

@@ -32,7 +32,7 @@ Use NanoGPT (monthly subscription endpoint `https://nano-gpt.com/api/subscriptio
 Rules:
 - At most **2 requests at once per model** (total <= 8); stream responses; on 429/503 wait `Retry-After` and retry.
 - Answer limit 100 000 tokens: an empty answer with completion_tokens == max_tokens means the model spent the budget thinking - retry
-  once, then give the task to DeepSeek V4 Pro. Never pin a provider (`X-Provider` is billed pay-as-you-go outside the subscription).
+  up to 5 times in total, only then stop (then give the task to DeepSeek V4 Pro). Never pin a provider (`X-Provider` is billed pay-as-you-go outside the subscription).
 - Every complex problem goes in parallel to the models with a full dossier; Claude writes its own answer first (sealed) and compares.
 - Model output is a proposal: nothing is accepted without our own tests and a Claude review. No secrets or personal data in prompts.
 - Not used (measured weaker or unreliable): GLM-5.2, Nemotron 3 Ultra, Qwen3 Coder, DeepSeek V4.1 flash-1017, MiniMax M3, Devstral 2.

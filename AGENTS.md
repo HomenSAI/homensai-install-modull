@@ -43,3 +43,12 @@ missed), code review, our own functions graded by our unit tests (53 %), long ta
 it costs x1. DeepSeek V4 Pro was the most reliable second opinion; Kimi K2.7 Code wrote the best C port (20 000-case differential
 check: 0 failures) but is weak on Python. Both cost x2.
 <!-- HSAI-NANOGPT-MODELS:END -->
+
+## Коды ошибок — только из базы HomenSAI/ERROR-DATABASE
+Решение владельца 15.11.2026: единственный источник кодов ошибок — https://github.com/HomenSAI/ERROR-DATABASE (читать `AGENTS.md`, `ARCHITECTURE.md` §3.1, §7, §9, §12, `namespaces.json`, `CHANGELOG.md` базы). Подробная инструкция: [docs/CONNECT-PRODUCT.md](https://github.com/HomenSAI/ERROR-DATABASE/blob/main/docs/CONNECT-PRODUCT.md).
+- Пространство кодов для этого продукта **ещё не заведено**: запросить в базе новое пространство (следующий свободный `number` в `namespaces.json`); коды локально не придумывать и не вводить «временные».
+- Буквенный код `<ПРОСТРАНСТВО>-<ОБЛАСТЬ>-NNN` — основной, не переиспользуется; `key` — машинное имя; `aliases` — прежние коды продукта. Цифровой код `PPP-AAA-NNN` (9 цифр): PPP — номер продукта (COMMON 001, CORE 002, RENT 003, JP 004, VPN 005, SEC 006), AAA — номер области, NNN — номер из буквенного кода (`VPN-PAIR-007` → `005-001-007`).
+- Новый код добавляется только в базе (`codes/<NS>/<AREA>.json`): тексты ru/uk/en/de (title, cause, action + escalation, level, audience, retryable, help, since) понятны без технических знаний и без адресов, IP, ключей, путей, внутренней логики и ПДн; `python tools/validate.py` = 0 ошибок, `python -m pytest -q`, `python tools/gen_constants.py`, запись в CHANGELOG базы; перед коммитом в базу `git pull`.
+- В продукт кладутся файлы выпуска `errors.<NS>.json`, `errors.COMMON.json`, `errors.manifest.json` и `errors.lock` (SHA-256), как в Homensai-Rent; коды вшиваются при сборке, сеть не нужна; сборка и тесты сверяют хэш с `errors.lock`.
+- Интерфейс показывает текст ошибки, буквенный код, цифровой код («Цифровой код 005-001-007») и ссылку `https://homensai.github.io/ERROR-DATABASE/errors/<КОД>`; прежний код — в скобках как «прежний код».
+- Тесты продукта: каждый выдаваемый код есть в базе, цифровой код совпадает с базой, `errors.lock` совпадает, цифровой код виден в интерфейсе. Самодельные коды запрещены и ловятся тестом.

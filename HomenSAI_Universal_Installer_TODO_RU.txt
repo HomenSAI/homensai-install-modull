@@ -706,6 +706,12 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-008); предыдущий CP-007 SYNC_CONFIRMED.
 
 [ ] HIM-040. Реализовать полную проверку результата и открытие приложения
+CP-20261118T154901Z-2f4c7d5556cf, Windows A2. Процессы создаются внутри
+именованного Windows Job Object. SDK подтверждает PID, время создания,
+SID, executable и loopback listener. Новый экземпляр SDK выполняет
+штатный stop с проверкой опустевшего дерева после завершения потомков.
+Права каталога и журнала проверяются по фактическим SID. Квитанция
+`packaging/acceptance-evidence/windows-native-a2-20261118.json`.
 Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-004
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-020, HIM-023, HIM-036; PROMPT: § 10, 23.

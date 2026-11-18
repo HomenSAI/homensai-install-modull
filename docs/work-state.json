@@ -93,13 +93,13 @@
     "last_confirmed_checkpoint": "CP-20261118T142001Z-1842f43af2e4",
     "note": "Фактическую вершину ветки и tree следующего checkpoint проверять по GitHub ref и внешней квитанции"
   },
-  "next_step": "docs/WINDOWS_INSTALLER_PLAN_RU.md, A2: штатная остановка, права и подтверждение дерева процессов Windows. После этого A3 и A4. Docker и этап №2 остаются вне текущего запуска.",
+  "next_step": "docs/WINDOWS_INSTALLER_PLAN_RU.md, A3: подписанные hooks Windows и lifecycle v1→v2→v3 с backup/restore/rollback. Затем A4. Docker и этап №2 вне текущего запуска.",
   "delivery_plan": "docs/WINDOWS_INSTALLER_PLAN_RU.md",
   "windows_native_progress": {
-    "step": "A1",
+    "step": "A2",
     "status": "PASS_SCOPED",
-    "checkpoint_id": "CP-20261118T154554Z-35194ac755e2",
-    "evidence": "packaging/acceptance-evidence/windows-native-a1-20261118.json",
+    "checkpoint_id": "CP-20261118T154901Z-2f4c7d5556cf",
+    "evidence": "packaging/acceptance-evidence/windows-native-a2-20261118.json",
     "clean_windows_11": "BLOCKED: доступный локальный хост Windows 10 Home"
   },
   "latest_frozen_development_verification": {

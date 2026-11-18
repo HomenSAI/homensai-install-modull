@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import shutil
 import socket
+import subprocess
 import sys
 import zipfile
 
@@ -16,8 +17,9 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from homensai_install.api.v1 import InstallerAPI
+from homensai_install.errors import InstallerError
 from homensai_install.trust import canonical_bytes, hash_manifest
-from homensai_install.windows_user import private_directory
+from homensai_install.windows_user import job_pids, private_directory
 
 pytestmark = pytest.mark.skipif(os.name != "nt", reason="Windows native lifecycle")
 TARGET = {"os": "windows", "arch": "x64", "mode": "native", "scope": "user"}
@@ -25,6 +27,10 @@ TARGET = {"os": "windows", "arch": "x64", "mode": "native", "scope": "user"}
 _SERVER = """\
 import json
 import os
+from pathlib import Path
+import subprocess
+import sys
+import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 class Handler(BaseHTTPRequestHandler):
@@ -40,7 +46,17 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 with HTTPServer(("127.0.0.1", int(os.environ["HOMENSAI_WEB_PORT"])), Handler) as server:
+    child = subprocess.Popen([sys.executable, "-c",
+        "import os,time,pathlib; p=pathlib.Path(os.environ['HOMENSAI_WINDOWS_STOP_PATH']); "
+        "exec('while not p.exists(): time.sleep(0.05)'); time.sleep(0.2)"])
+    def watch():
+        request = Path(os.environ["HOMENSAI_WINDOWS_STOP_PATH"])
+        while not request.exists():
+            threading.Event().wait(0.05)
+        server.shutdown()
+    threading.Thread(target=watch, daemon=True).start()
     server.serve_forever()
+    child.wait(timeout=5)
 """
 
 _MIGRATE = """\
@@ -125,10 +141,18 @@ def windows_installation(tmp_path):
     try:
         yield api, manifest, options, trust
     finally:
-        # Only Popen handles returned by the fixture's own engine.
+        # Cooperatively stop only the fixture's own subprocesses, even on assertion failure.
+        control = Path(options["install_root"]) / ".hinstall"
+        records = control / "processes.json"
+        if records.is_file():
+            for record in json.loads(records.read_bytes()).values():
+                if record.get("windows_job") and record.get("launch_id"):
+                    request = Path(record["stop_request"])
+                    assert request.parent == control / "windows-stop"
+                    private_directory(request.parent)
+                    request.touch()
         for child in api._engine()._backends[("native", "user")]._children.values():
             if child.poll() is None:
-                child.terminate()
                 child.wait(timeout=10)
 
 
@@ -153,6 +177,26 @@ def test_signed_native_install_via_public_sdk(windows_installation):
     assert replay["operation_id"] == installed["operation_id"]
     ran = (root / "data/runtime.txt").read_text(encoding="utf-8").splitlines()
     assert len(ran) == 1 and Path(ran[0]).is_relative_to(root / "releases")
+    processes = root / ".hinstall/processes.json"
+    receipt = json.loads(processes.read_bytes())["web"]
+    first_pid = receipt["pid"]
+    members = job_pids(receipt["launch_id"])
+    assert first_pid in members and len(members) >= 2
+    start = submit_action(other, "start", manifest, options, "windows-duplicate-start")
+    assert start["status"] == "SUCCEEDED", start.get("error")
+    assert json.loads(processes.read_bytes())["web"]["pid"] == first_pid
+    stop = submit_action(other, "stop", manifest, options, "windows-cross-sdk-stop")
+    assert stop["status"] == "SUCCEEDED", stop.get("error")
+    assert json.loads(processes.read_bytes()) == {}
+    with socket.socket() as probe:
+        assert probe.connect_ex(("127.0.0.1", manifest["web"]["port"])) != 0
+
+
+def submit_action(api, action, manifest, options, key):
+    plan = api.plan(action, manifest, TARGET, options=options)
+    return api.submit(plan["plan_id"], plan["plan_digest"],
+                      [*plan["required_consents"], plan["review_consent_ref"]],
+                      idempotency_key=key, background=False)
 
 
 def test_windows_signed_payload_tamper_rejected_before_installation(windows_installation):
@@ -164,3 +208,13 @@ def test_windows_signed_payload_tamper_rejected_before_installation(windows_inst
                         idempotency_key="tampered-windows-payload", background=False)
     assert result["status"] == "RECOVERY_REQUIRED" and result["error"]["code"] == "INTEGRITY_FAILED"
     assert not Path(options["install_root"]).exists()
+
+
+def test_windows_native_refuses_shared_install_parent(windows_installation):
+    api, manifest, options, _ = windows_installation
+    parent = Path(options["install_root"]).parent
+    acl = Path(os.environ["SystemRoot"]) / "System32" / "icacls.exe"
+    subprocess.run([str(acl), str(parent), "/grant", "*S-1-1-0:(OI)(CI)M"], check=True, capture_output=True)
+    with pytest.raises(InstallerError) as denied:
+        api.discover(manifest, TARGET, options)
+    assert denied.value.code == "PERMISSION_REQUIRED"

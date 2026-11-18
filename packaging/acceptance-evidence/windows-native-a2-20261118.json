@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "status": "PASS_SCOPED",
+  "plan_step": "A2",
+  "source_baseline": "7ee832743d33a36f3d96e65a3f0233b73329d6c3",
+  "source_inputs_sha256": {
+    "homensai_install/api/journal.py": "efef82182ee4290fa04c8b089086dd2f0765b3425049103c9baed2a2dcb6d8d2",
+    "homensai_install/api/v1.py": "d120b60346954627c01371538cdd7195c59d097c754593bc8a64dfcaf4bb8194",
+    "homensai_install/engine.py": "17ffc536a95883363494f659f19f5e542f33e7835c9115f2749c968529ab41e5",
+    "homensai_install/windows_native.py": "966582f2ec3ed19e758c6218ec831fd758cd2307112006dda1fc20731b39ffb5",
+    "homensai_install/windows_user.py": "093e5ebbf0458e2a393ace4874c8b66160ebcf6ba03033d8ed0545149be0ac53",
+    "reference/src/homensai_reference/server.py": "01dab4bb69cbe2686d50d8f1c13c2b035b31b21cb9ab195cf4541407e8b4b963",
+    "integration_tests/test_windows_native.py": "ae0fef8d8652d220d5e858e966245e3282ba4fd89d7edda42aa62246120cacf0"
+  },
+  "windows_host": {
+    "edition": "Windows 10 Home",
+    "build": "19045",
+    "python": "3.14.3",
+    "arch": "x64"
+  },
+  "checks": [
+    {
+      "target": "windows",
+      "passed": 65,
+      "skipped": 4,
+      "command": "python -B -m pytest -q -p no:cacheprovider integration_tests/test_windows_native.py integration_tests/test_windows_owner_liveness.py tests/test_public_bootstrap.py tests/test_process_liveness.py tests/test_local_artifacts.py"
+    },
+    {
+      "target": "linux-dev-docker",
+      "passed": 37,
+      "skipped": 0,
+      "command": "python -m pytest -q -p no:cacheprovider tests/test_public_bootstrap.py tests/test_process_liveness.py tests/test_native_discovery_scope.py integration_tests/test_public_api_native.py"
+    }
+  ],
+  "initial_failures": [
+    "Job object name was not observable without a live named handle.",
+    "Test expected exactly two PIDs; Windows included another associated process."
+  ],
+  "a1_ci_windows": {
+    "run_id": 44339799432,
+    "job_id": 134926320810,
+    "status": "FAIL",
+    "observation": "ACL comparison of SDDL aliases rejected the fixture runner identity."
+  },
+  "clean_windows_11": "BLOCKED",
+  "production_ready": false
+}

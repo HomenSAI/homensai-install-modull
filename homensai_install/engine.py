@@ -1562,6 +1562,14 @@ class NativeEngine:
                               details={"exit_code": result.returncode})
         _write(path, {**intent, "status": "complete"})
 
+    def _launch_details(self, ctx, argv, launch_id):
+        return {}
+
+    def _spawn_component(self, ctx, release, argv, env, intent):
+        return subprocess.Popen(argv, cwd=self._release(ctx, release), env=env,
+                                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL, close_fds=True, start_new_session=True)
+
     def _start(self, ctx):
         release = self._pointer(ctx)
         if not release:
@@ -1589,21 +1597,18 @@ class NativeEngine:
         for name in order:
             if name in records and self._running(records[name]):
                 continue
-            kwargs = {"start_new_session": True} if os.name != "nt" else {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
             argv = self._argv(ctx, release, components[name]["cmd"])
             env = self._environment(ctx, release, name)
+            launch_id = uuid.uuid4().hex
             intent = {"pid": None, "birth": None, "release": release, "status": "launching",
                       "installation_id": self._owner(ctx, required=True)["installation_id"],
-                      "launch_id": uuid.uuid4().hex, "argv_digest": _digest(argv)}
-            if os.name == "nt":
-                intent["executable"] = argv[0]
+                      "launch_id": launch_id, "argv_digest": _digest(argv),
+                      **self._launch_details(ctx, argv, launch_id)}
             records[name] = intent
             _write(ctx["control"] / "processes.json", records)
             env["HOMENSAI_LAUNCH_ID"] = intent["launch_id"]
             try:
-                process = subprocess.Popen(argv, cwd=self._release(ctx, release), env=env,
-                                           stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                                           stderr=subprocess.DEVNULL, close_fds=True, **kwargs)
+                process = self._spawn_component(ctx, release, argv, env, intent)
             except OSError:
                 records[name] = {**intent, "status": "spawn_failed"}
                 _write(ctx["control"] / "processes.json", records)

@@ -185,13 +185,23 @@ def main():
         daemon_threads = True
 
     server = Server(("127.0.0.1", port), Handler)
+    shutdown_requested = threading.Event()
     def stop(*_):
         threading.Thread(target=server.shutdown, daemon=True).start()
+    stop_path = os.environ.get("HOMENSAI_WINDOWS_STOP_PATH") if os.name == "nt" else None
+    if stop_path:
+        def watch_stop_request():
+            while not shutdown_requested.wait(0.05):
+                if Path(stop_path).is_file():
+                    server.shutdown()
+                    return
+        threading.Thread(target=watch_stop_request, daemon=True).start()
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
     try:
         server.serve_forever(poll_interval=0.1)
     finally:
+        shutdown_requested.set()
         server.server_close()
     return 0
 

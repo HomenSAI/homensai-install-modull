@@ -23,7 +23,10 @@ def owned_directory(path: Path, *, create: bool) -> Path:
         result = checked_path(path)
         if result == Path(result.anchor):
             fail("INVALID_REQUEST", details={"field_path": "state_dir"})
-        if create:
+        if os.name == "nt" and create:
+            from homensai_install.windows_user import private_directory
+            private_directory(result)
+        elif create:
             result.mkdir(mode=0o700, parents=True, exist_ok=True)
         if not result.is_dir():
             raise FileNotFoundError(result)
@@ -32,7 +35,12 @@ def owned_directory(path: Path, *, create: bool) -> Path:
             fail("STATE_STORAGE_UNAVAILABLE")
         if os.name != "nt" and (info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) & 0o077):
             fail("STATE_STORAGE_UNAVAILABLE", details={"reason": "private_owned_directory_required"})
+        if os.name == "nt":
+            from homensai_install.windows_user import check_private_path
+            check_private_path(result)
         return result
+    except PermissionError:
+        fail("STATE_STORAGE_UNAVAILABLE", details={"reason": "private_owned_directory_required"})
     except (DataHomeError, OSError):
         if not create:
             raise FileNotFoundError from None
@@ -49,6 +57,12 @@ class Journal:
                 fail("STATE_STORAGE_UNAVAILABLE")
             if os.name != "nt" and (info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) & 0o077):
                 fail("STATE_STORAGE_UNAVAILABLE")
+            if os.name == "nt":
+                from homensai_install.windows_user import check_private_path
+                try:
+                    check_private_path(self.path)
+                except OSError:
+                    fail("STATE_STORAGE_UNAVAILABLE")
         elif not create:
             raise FileNotFoundError
         if create:

@@ -93,12 +93,14 @@
     "last_confirmed_checkpoint": "CP-20261118T142001Z-1842f43af2e4",
     "note": "Фактическую вершину ветки и tree следующего checkpoint проверять по GitHub ref и внешней квитанции"
   },
-  "next_step": "STOPPED_BY_USER. По новой команде открыть docs/WINDOWS_A1_A4_HANDOFF_RU.md, проверить Windows CI A2 и только затем продолжить A3 из отдельного WIP. A4 не начат, Docker и этап №2 на паузе.",
+  "next_step": "STOPPED_BY_USER. По команде «продолжить» открыть docs/WINDOWS_A1_A4_HANDOFF_RU.md, проверить Windows CI A2 и только затем продолжить A3 из отдельного WIP. A4 не начат, Docker и этап №2 на паузе.",
   "delivery_plan": "docs/WINDOWS_INSTALLER_PLAN_RU.md",
+  "active_handoff": "windows_native_handoff",
   "windows_native_handoff": {
     "status": "STOPPED_BY_USER",
     "recorded_at_utc": "2026-11-18T16:05:31Z",
     "document": "docs/WINDOWS_A1_A4_HANDOFF_RU.md",
+    "stop_after": "A4",
     "verified_a2_commit": "27cb1682e42aca8acdd9f7b96a84d10be9f440cc",
     "windows_a2_ci": {"run_id": 44341941117, "job_id": 134934176233, "status": "FAIL"},
     "a3_wip": {

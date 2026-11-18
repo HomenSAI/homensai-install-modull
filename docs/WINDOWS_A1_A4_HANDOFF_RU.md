@@ -4,6 +4,12 @@
 Windows native до A4. Очередь B для Docker Desktop на Windows и этап №2
 остаются в [плане](WINDOWS_INSTALLER_PLAN_RU.md) и ждут отдельной команды.
 
+В новом чате достаточно открыть рабочую копию проекта и написать
+**«продолжить»**. [Точка входа](../AI_START_HERE.md) укажет на этот handoff
+через `active_handoff` в [work-state](work-state.json). Здесь есть команды,
+ветки и порядок проверки. Локальная папка прежней сессии для восстановления
+не требуется.
+
 ## Что сохранено в Git
 
 | Контрольная точка | Commit | Tree | Состояние |
@@ -20,6 +26,16 @@ Windows native до A4. Очередь B для Docker Desktop на Windows и �
 `.local-state/agents/windows-a3-transfer-20261118`.
 
 [Рабочая ветка](https://github.com/HomenSAI/homensai-install-modull/tree/codex/universal-installer-20261025) · [Черновик A3](https://github.com/HomenSAI/homensai-install-modull/tree/codex/universal-installer-windows-a3-wip-20261118)
+
+Для восстановления в новом checkout получить обе ветки и сверить сохранённый
+черновик. Эти команды читают Git и загружают объекты без переключения веток.
+
+```powershell
+git status --short --branch
+git fetch --no-tags origin refs/heads/codex/universal-installer-20261025 refs/heads/codex/universal-installer-windows-a3-wip-20261118
+git rev-parse '6875a7b84d0b83749a3497593555690869cffd51^{tree}'
+git diff 27cb1682e42aca8acdd9f7b96a84d10be9f440cc 6875a7b84d0b83749a3497593555690869cffd51 -- homensai_install/adapters.py homensai_install/windows_user.py
+```
 
 ## Проверки и ближайший блокер
 
@@ -46,7 +62,7 @@ Windows native до A4. Очередь B для Docker Desktop на Windows и �
 
 ## Что начато в A3 и что делать дальше
 
-1. Возобновлять только по новой команде владельца. Сначала сверить рабочую
+1. По команде владельца «продолжить» сверить рабочую
    feature-ветку и результат CI A2. Устранить Windows-отказ журнала и получить
    повторный Windows integration PASS. Локальный DEV PASS сохраняет свой scope.
 2. В отдельной рабочей копии сравнить A3 WIP с A2 и перенести пригодные

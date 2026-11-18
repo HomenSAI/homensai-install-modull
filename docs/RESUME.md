@@ -4,8 +4,9 @@
 
 Работа остановлена владельцем. Состояние A1–A4, подтверждённые Git refs,
 Windows CI FAIL и отдельная ветка с черновиком A3 описаны в
-[Windows handoff](WINDOWS_A1_A4_HANDOFF_RU.md). При новой команде сначала
-разобрать Windows CI A2, затем продолжить A3. A4 ещё не начат.
+[Windows handoff](WINDOWS_A1_A4_HANDOFF_RU.md). Команда **«продолжить»**
+возобновляет очередь до A4. Сначала разобрать Windows CI A2, затем продолжить
+A3. A4 ещё не начат.
 
 Этап №1 — Windows 11 x64. Сначала Windows native и `Setup.exe`, затем установка
 в Linux-контейнеры через Docker Desktop на Windows из того же мастера.

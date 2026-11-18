@@ -93,7 +93,15 @@
     "last_confirmed_checkpoint": "CP-20261118T142001Z-1842f43af2e4",
     "note": "Фактическую вершину ветки и tree следующего checkpoint проверять по GitHub ref и внешней квитанции"
   },
-  "next_step": "Продолжить HIM-072 и ACC-01/15 на чистых desktop Windows 11 / Ubuntu 24.04 с GUI ru/en/de, полным offline lifecycle и auto/manual prerequisites. Затем product Docker/services, JobPilot/Rent, production trust и лицензии. Linux frozen DEV с offline update v1→v2→v3 и отдельный Ubuntu 24.04 container smoke уже проверены. Старое окно Terra историческое.",
+  "next_step": "docs/WINDOWS_INSTALLER_PLAN_RU.md, A2: штатная остановка, права и подтверждение дерева процессов Windows. После этого A3 и A4. Docker и этап №2 остаются вне текущего запуска.",
+  "delivery_plan": "docs/WINDOWS_INSTALLER_PLAN_RU.md",
+  "windows_native_progress": {
+    "step": "A1",
+    "status": "PASS_SCOPED",
+    "checkpoint_id": "CP-20261118T154554Z-35194ac755e2",
+    "evidence": "packaging/acceptance-evidence/windows-native-a1-20261118.json",
+    "clean_windows_11": "BLOCKED: доступный локальный хост Windows 10 Home"
+  },
   "latest_frozen_development_verification": {
     "checkpoint_id": "CP-20261118T143501Z-abb58c5158ce",
     "source_revision": "54d3dc47480637fb375a6a1cbba4ea438a0e1a67",

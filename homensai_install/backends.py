@@ -8,6 +8,7 @@ Python class, executable, verifier или daemon endpoint. Отсутствую�
 from __future__ import annotations
 
 from copy import deepcopy
+import os
 from pathlib import Path
 from types import MappingProxyType
 
@@ -119,9 +120,13 @@ def configured_backends(*, verifier=None, secret_provider=None, development_runt
     probes the explicitly configured local daemon. Missing Docker is independent
     of native operations; a supplied invalid configuration fails explicitly.
     """
-    native = NativeEngine(verifier=verifier, secret_provider=secret_provider,
-                          development_runtime=development_runtime,
-                          product_adapter_descriptor=product_adapter_descriptor)
+    native_engine = NativeEngine
+    if os.name == "nt":
+        from .windows_native import WindowsNativeEngine
+        native_engine = WindowsNativeEngine
+    native = native_engine(verifier=verifier, secret_provider=secret_provider,
+                           development_runtime=development_runtime,
+                           product_adapter_descriptor=product_adapter_descriptor)
     docker = None
     if docker_cli_config is not None:
         from shared.datahome import checked_path

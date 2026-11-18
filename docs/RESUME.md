@@ -1,5 +1,14 @@
 # Продолжение разработки
 
+## Текущий порядок работ
+
+Этап №1 — Windows 11 x64. Сначала Windows native и `Setup.exe`, затем установка
+в Linux-контейнеры через Docker Desktop на Windows из того же мастера.
+Шаг 0 и A1 выполнены в DEV. Подписанный payload запущен через публичный SDK
+на Windows 10 Home, тест подмены прошёл. Следующий шаг — A2, штатная остановка
+и сверка процессов. Linux, отдельная интеграция служб, JobPilot/Rent и общий
+production-выпуск отложены до этапа №2. [Пошаговый план](WINDOWS_INSTALLER_PLAN_RU.md)
+
 ## Актуальное состояние 18.11.2026
 
 Рабочая ветка обновлена с `377e07f` до подтверждённого GitHub `8247993`
@@ -25,7 +34,7 @@ tools подтвердил HTTP fresh install, readiness и stop без сети
 Отдельная серия с общим DEV ключом прошла frozen GUI fresh v1→v2→v3 офлайн,
 с неизменным пользовательским файлом и SQLite schema 1→2→3.
 
-Следующая приёмка требует чистых desktop Windows 11 / Ubuntu 24.04 с GUI,
+Для полной приёмки требуются чистые desktop Windows 11 / Ubuntu 24.04 с GUI,
 product Docker и службами. Хост этого запуска — Windows 10 Home с Docker
 Desktop в Linux mode. JobPilot, Rent, production trust и аудит
 распространяемого runtime остаются открытыми.

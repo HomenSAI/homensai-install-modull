@@ -167,6 +167,11 @@ CI CP-017 также BLOCKED: четыре задания без runner/steps, �
 
 ### ACC-01 — NOT RUN; НЕ ГОТОВО
 
+Windows A1, 18.11.2026. Подписанный Windows x64 payload проверен через SDK на
+Windows 10 Home, включая отдельный runtime и отказ при подмене. Полная
+GUI-приёмка на чистой Win11 остаётся открытой. Квитанция
+`packaging/acceptance-evidence/windows-native-a1-20261118.json`.
+
 Чистая GUI-установка без developer tools; auto/manual prerequisites. Задачи: HIM-029–045. Начальное состояние: NOT RUN.
 
 Готовность тестового сценария: **PARTIAL**. Собрать актуальные DEV artifacts; чистые desktop ОС без developer tools; выбрать auto/manual, проверить обязательные зависимости и результат установки. Production prerequisite registry и Windows bootstrap ещё требуют реализации.

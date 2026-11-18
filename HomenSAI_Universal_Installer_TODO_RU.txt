@@ -651,6 +651,12 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (CP-20261
 Дополнение CP-20261025-020 / HIM-102: CP-20261025-020: реализован безопасный browser local prerequisite upload: явный File, bounded raw streaming, signed size/SHA-256, private staging, opaque handles, cancel/interrupt, новый review/consents; исполнение использует прежние SDK/coordinator/lease. ru/en/de: 245 ключей, 39 Node групп (входят в pytest). Исправлены quota при неудачной очистке/открытом canceled writer, rollback временной plan reservation, подтверждённая SQLite zero-link sidecar race и Windows PID liveness без сигналов. Усилен test harness финализатора lease; старые FAIL сохранены. Полный Linux source/integration: 2309 PASS, 3 skip, 15 subtests, inputs unchanged. Установленные SDK/CLI и prerequisites: PASS; настоящий Chromium: 24 PASS. Во всех трёх wheel совпали 67 package files, разные SHA самих архивов явно сохранены. Windows10/Python3.14.3: 492 + 57 PASS (наборы раздельны), 4 POSIX skip; это НЕ Windows11 acceptance. CI CP019 реально выполнил Linux/Windows checks; Windows workflow расширен новыми regressions, текущий CI CP020 до push NOT RUN. Все G0–G5 OPEN, production_ready=false. Квитанция: packaging/acceptance-evidence/local-artifact-upload-20261025-cp020.json. Полная приёмка карточки остаётся НЕ ГОТОВА.
 
 [ ] HIM-036. Связать fresh-транзакцию с реальными adapters
+CP-20261118T154554Z-35194ac755e2, очередь Windows A1. Общий SDK выполняет
+подписанную тестовую установку Windows x64 с вложенным CPython, проверкой
+владельца процесса и loopback readiness. Повтор submit сохраняет ID, подмена
+payload отклоняется до создания install root. Проверено на Windows 10 Home;
+Win11 и установленный Setup остаются открытыми. Доказательство в
+`packaging/acceptance-evidence/windows-native-a1-20261118.json`.
 Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261025-021
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-018, HIM-019, HIM-020, HIM-021, HIM-028, HIM-030; PROMPT: § 3, 12, 21, 28.

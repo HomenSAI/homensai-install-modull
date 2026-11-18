@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "status": "PASS_SCOPED",
+  "plan_step": "A1",
+  "source_baseline": "9136542ddd2b451d6f81e28323ab189cd7d83d67",
+  "source_inputs_sha256": {
+    "homensai_install/backends.py": "fe0de8cd11cebb1b724931dcb0af8f58bf0366f34ad7fe77f96eea753f465ce9",
+    "homensai_install/engine.py": "ba634802710c477758727ac2ef4e6ac61702cc8f8e06bef89adc88299a916e36",
+    "homensai_install/windows_native.py": "083e0b01901f2e8d58871b3199e4dc5cba7109b0963509aad2ba9767364258e0",
+    "homensai_install/windows_user.py": "01c18de9ee3907559b8071e70f525ec83a410e336a6819606aafd366a17f2239",
+    "integration_tests/test_windows_native.py": "f0a6b18f5af4cb1cbbc0fdbbf1d09814ea5e526aa62fdd2a369bcd6bbc4681e0"
+  },
+  "windows_host": {
+    "edition": "Windows 10 Home",
+    "build": "19045",
+    "python": "3.14.3",
+    "arch": "x64"
+  },
+  "checks": [
+    {
+      "target": "windows",
+      "passed": 7,
+      "skipped": 0,
+      "command": "build/cp019/windows-env/Scripts/python.exe -B -m pytest -q -p no:cacheprovider integration_tests/test_windows_native.py tests/test_public_bootstrap.py"
+    },
+    {
+      "target": "linux-dev-docker",
+      "passed": 36,
+      "skipped": 2,
+      "command": "python -m pytest -q -p no:cacheprovider tests/test_public_bootstrap.py tests/test_native_discovery_scope.py tests/test_native_product_adapter_contract.py integration_tests/test_public_api_native.py integration_tests/test_windows_native.py"
+    }
+  ],
+  "initial_windows_failure": {
+    "failed": 2,
+    "passed": 5,
+    "observations": [
+      "Fixture runtime locks and wheel did not match the inherited manifest pins.",
+      "Test expected FAILED instead of the SDK's RECOVERY_REQUIRED on a verification error."
+    ]
+  },
+  "clean_windows_11": "BLOCKED",
+  "production_ready": false
+}

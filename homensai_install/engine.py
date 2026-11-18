@@ -104,73 +104,35 @@ def _write(path, data, *, private_parent=True):
 def _owner_id():
     if os.name != "nt":
         return "uid:" + str(os.getuid())
-    import ctypes
-    import ctypes.wintypes as wt
-    token = wt.HANDLE()
-    advapi = ctypes.WinDLL("advapi32", use_last_error=True)
-    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-    kernel.GetCurrentProcess.restype = wt.HANDLE
-    if not advapi.OpenProcessToken(kernel.GetCurrentProcess(), 0x0008, ctypes.byref(token)):
-        raise EngineError("PERMISSION_REQUIRED", "Не удалось проверить identity Windows")
+    from .windows_user import owner_sid
     try:
-        size = wt.DWORD()
-        advapi.GetTokenInformation(token, 1, None, 0, ctypes.byref(size))
-        buffer = ctypes.create_string_buffer(size.value)
-        if not advapi.GetTokenInformation(token, 1, buffer, size, ctypes.byref(size)):
-            raise EngineError("PERMISSION_REQUIRED")
-        sid = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_void_p))[0]
-        text = wt.LPWSTR()
-        if not advapi.ConvertSidToStringSidW(sid, ctypes.byref(text)):
-            raise EngineError("PERMISSION_REQUIRED")
-        try:
-            return text.value
-        finally:
-            kernel.LocalFree(text)
-    finally:
-        kernel.CloseHandle(token)
+        return owner_sid()
+    except OSError:
+        raise EngineError("PERMISSION_REQUIRED", "Не удалось проверить identity Windows") from None
 
 
 def _private_dir(path):
     path = checked_path(path)
+    if os.name == "nt":
+        from .windows_user import private_directory
+        try:
+            private_directory(path)
+        except OSError:
+            raise EngineError("PERMISSION_REQUIRED", "Нельзя подтвердить приватный ACL каталога") from None
+        return
     path.mkdir(parents=True, exist_ok=True, mode=0o700)
-    if os.name != "nt":
-        if path.stat().st_uid != os.getuid():
-            raise EngineError("PERMISSION_REQUIRED", "Каталог принадлежит другой identity")
-        path.chmod(0o700)
-    else:
-        # Только собственный user scope; SID исходного пользователя задаёт
-        # bootstrap до elevation. Этот backend сам не повышает привилегии.
-        import ctypes
-        buffer = ctypes.create_unicode_buffer(32768)
-        if not ctypes.windll.kernel32.GetSystemDirectoryW(buffer, len(buffer)):
-            raise EngineError("PERMISSION_REQUIRED")
-        exe = str(Path(buffer.value) / "icacls.exe")
-        result = subprocess.run([exe, str(path), "/inheritance:r", "/grant:r",
-                                 _owner_id() + ":(OI)(CI)F", "*S-1-5-18:(OI)(CI)F"],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                timeout=20, check=False)
-        if result.returncode:
-            raise EngineError("PERMISSION_REQUIRED", "Не удалось установить приватный ACL")
+    if path.stat().st_uid != os.getuid():
+        raise EngineError("PERMISSION_REQUIRED", "Каталог принадлежит другой identity")
+    path.chmod(0o700)
 
 
 def _birth(pid):
     """Kernel birth identity; PID сам по себе владение не доказывает."""
     try:
         if os.name == "nt":
-            import ctypes
-            import ctypes.wintypes as wt
-            kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-            kernel.OpenProcess.restype = wt.HANDLE
-            handle = kernel.OpenProcess(0x1000, False, pid)
-            if not handle:
-                return None
-            try:
-                times = [wt.FILETIME() for _ in range(4)]
-                if not kernel.GetProcessTimes(handle, *(ctypes.byref(x) for x in times)):
-                    return None
-                return str((times[0].dwHighDateTime << 32) | times[0].dwLowDateTime)
-            finally:
-                kernel.CloseHandle(handle)
+            from .windows_user import process_identity
+            identity = process_identity(pid)
+            return identity.created if identity is not None else None
         proc = Path("/proc") / str(pid)
         raw = (proc / "stat").read_text()
         tail = raw.rsplit(")", 1)[1].split()
@@ -254,12 +216,15 @@ class NativeEngine:
                 raise EngineError("INVALID_MANIFEST", "Некорректный путь product adapter descriptor")
         self.product_adapter_descriptor = product_adapter_descriptor
 
-    def capabilities(self, target):
+    def _host_native(self, target):
         host = "windows" if os.name == "nt" else "linux" if sys.platform.startswith("linux") else sys.platform
-        native = target.get("mode", "native") == "native" and target.get("os", host) == host
-        native = native and target.get("scope", "user") == "user" and sys.platform.startswith("linux")
         host_arch = {"x86_64": "x64", "AMD64": "x64", "aarch64": "arm64", "ARM64": "arm64"}.get(platform.machine(), platform.machine())
-        native = native and target.get("arch", host_arch) == host_arch
+        return (sys.platform.startswith("linux") and target.get("mode", "native") == "native"
+                and target.get("os", host) == host and target.get("scope", "user") == "user"
+                and target.get("arch", host_arch) == host_arch)
+
+    def capabilities(self, target):
+        native = self._host_native(target)
         return {"target": target, "actions": {
             name: {"supported": bool(native and (self.product_adapter_descriptor is None or name in self.ADAPTER_ACTIONS)),
                    "readiness": "development",
@@ -1630,6 +1595,8 @@ class NativeEngine:
             intent = {"pid": None, "birth": None, "release": release, "status": "launching",
                       "installation_id": self._owner(ctx, required=True)["installation_id"],
                       "launch_id": uuid.uuid4().hex, "argv_digest": _digest(argv)}
+            if os.name == "nt":
+                intent["executable"] = argv[0]
             records[name] = intent
             _write(ctx["control"] / "processes.json", records)
             env["HOMENSAI_LAUNCH_ID"] = intent["launch_id"]

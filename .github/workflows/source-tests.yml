@@ -109,6 +109,9 @@ jobs:
           tests/test_build_lock.py tests/test_build_receipt.py
           tests/test_process_liveness.py tests/test_local_artifacts.py
           integration_tests/test_windows_owner_liveness.py
+      - name: Run signed Windows native SDK lifecycle
+        shell: pwsh
+        run: python -m pytest -q integration_tests/test_windows_native.py
       - name: Build SDK and reference wheels without dependency resolution
         shell: pwsh
         run: |

@@ -1,3 +1,10 @@
+## 18.11.2026 — Windows A1 / CP-20261118T154554Z-35194ac755e2
+
+Windows SDK провёл подписанный fresh, подтвердил вложенный runtime,
+loopback readiness и исходный operation ID. Подмена payload отвергнута.
+Windows 7 PASS, Linux 36 PASS/2 Windows-only skip. Начальные отказы fixture и
+границы сохранены в windows-native-a1-20261118.json. Следующий шаг A2.
+
 ## 18.11.2026 — HIM-072 / CP-20261118T143501Z-abb58c5158ce
 
 На `54d3dc4` проверены новые frozen bytes из официального CPython archive.

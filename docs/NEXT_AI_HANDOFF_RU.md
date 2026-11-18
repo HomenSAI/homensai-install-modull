@@ -1,5 +1,9 @@
 # Продолжение после CP-20261026-012
 
+Текущий handoff после остановки Windows-очереди от 18.11.2026 находится в
+[WINDOWS_A1_A4_HANDOFF_RU.md](WINDOWS_A1_A4_HANDOFF_RU.md). Ниже сохраняется
+история Linux и очереди Terra.
+
 Актуальная сводка после синхронизации с GitHub от 18.11.2026 — в начале
 [RESUME.md](RESUME.md). Сценарий устойчивого `UNKNOWN` проверен. DEV протоколы
 restore/rollback, repair/reinstall и uninstall→restore уже в feature-ветке.

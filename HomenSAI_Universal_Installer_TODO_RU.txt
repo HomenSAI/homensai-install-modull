@@ -1153,6 +1153,10 @@ ru/en/de. Неизвестная внешняя ошибка получает л
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-072. Принять полный lifecycle reference app
+CP-20261118T160401Z-9c4f302fceab. Windows A1/A2 сохранены в рабочей ветке;
+Windows A2 DEV PASS_SCOPED, GitHub Windows integration FAIL при проверке
+owner файла журнала. A3 сохранён отдельной WIP-веткой, проверки NOT RUN.
+A4 не начат. Порядок возобновления в `docs/WINDOWS_A1_A4_HANDOFF_RU.md`.
 CP-20261118T143501Z-abb58c5158ce: свежий Linux x64 frozen DEV на `54d3dc4`
 прошёл Chromium ru/en/de, fresh install, backup, uninstall с сохранением данных,
 restore, redacted diagnostic export и stop. Тот же архив без сети прошёл

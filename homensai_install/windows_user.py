@@ -101,6 +101,9 @@ def _kernel():
     _function(kernel, "ProcessIdToSessionId", wt.BOOL, wt.DWORD, ctypes.POINTER(wt.DWORD))
     _function(kernel, "DuplicateHandle", wt.BOOL, wt.HANDLE, wt.HANDLE, wt.HANDLE,
               ctypes.POINTER(wt.HANDLE), wt.DWORD, wt.BOOL, wt.DWORD)
+    _function(kernel, "TerminateJobObject", wt.BOOL, wt.HANDLE, wt.UINT)
+    _function(kernel, "CreateFileW", wt.HANDLE, wt.LPCWSTR, wt.DWORD, wt.DWORD, ctypes.c_void_p,
+              wt.DWORD, wt.DWORD, wt.HANDLE)
     return kernel
 
 
@@ -378,7 +381,7 @@ def create_job_child(launch_id, argv, cwd, env):
             return _create_in_job(kernel, job, inherited, argv, cwd, env)
 
 
-def _create_in_job(kernel, job, inherited, argv, cwd, env):
+def _create_in_job(kernel, job, inherited, argv, cwd, env, standard_handles=()):
     size = ctypes.c_size_t()
     kernel.InitializeProcThreadAttributeList(None, 2, 0, ctypes.byref(size))
     if not size.value:
@@ -392,12 +395,16 @@ def _create_in_job(kernel, job, inherited, argv, cwd, env):
                                                 ctypes.sizeof(job_handle), None, None):
             raise ctypes.WinError(ctypes.get_last_error())
         # Ровно один query handle удерживает имя job после закрытия мастера.
-        if not kernel.UpdateProcThreadAttribute(data, 0, _HANDLE_LIST_ATTRIBUTE, ctypes.byref(inherited),
-                                                ctypes.sizeof(inherited), None, None):
+        handles = (wt.HANDLE * (1 + len(standard_handles)))(inherited.value, *standard_handles)
+        if not kernel.UpdateProcThreadAttribute(data, 0, _HANDLE_LIST_ATTRIBUTE, handles,
+                                                ctypes.sizeof(handles), None, None):
             raise ctypes.WinError(ctypes.get_last_error())
         startup = _StartupInfoEx()
         startup.startup.size = ctypes.sizeof(startup)
         startup.attributes = ctypes.addressof(data)
+        if standard_handles:
+            startup.startup.flags = 0x100
+            startup.startup.stdin, startup.startup.stdout, startup.startup.stderr = standard_handles
         process = _ProcessInformation()
         command = ctypes.create_unicode_buffer(subprocess.list2cmdline(argv))
         environment = ctypes.create_unicode_buffer(
@@ -410,3 +417,90 @@ def _create_in_job(kernel, job, inherited, argv, cwd, env):
         return WindowsChild(process.pid, process.process)
     finally:
         kernel.DeleteProcThreadAttributeList(data)
+
+
+class WindowsDirectory(int):
+    """CRT descriptor that keeps the original Windows directory open."""
+
+    def __new__(cls, fd, path):
+        value = super().__new__(cls, fd)
+        value.path = path
+        return value
+
+
+@contextmanager
+def directory_descriptor(path):
+    import msvcrt
+    from contextlib import ExitStack
+    path = checked_path(path)
+    with ExitStack() as stack:
+        for item in (*reversed(path.parents), path):
+            before = item.lstat()
+            handle = _kernel().CreateFileW(str(item), 0x80, 3, None, 3, 0x02200000, None)
+            if handle == ctypes.c_void_p(-1).value:
+                raise ctypes.WinError(ctypes.get_last_error())
+            try:
+                fd = msvcrt.open_osfhandle(handle, os.O_RDONLY)
+            except OSError:
+                _kernel().CloseHandle(handle)
+                raise
+            stack.callback(os.close, fd)
+            if not os.path.samestat(before, os.fstat(fd)) or checked_path(item) != item:
+                raise OSError("Изменился путь открытого Windows каталога")
+        check_private_path(path)
+        if not path.is_dir() or not os.path.samestat(path.lstat(), os.fstat(fd)):
+            raise OSError("Изменилась identity открытого Windows каталога")
+        yield WindowsDirectory(fd, path)
+
+
+@contextmanager
+def hook_child(launch_id, argv, cwd, env):
+    """Отдельный job только для короткого подписанного hook и его потомков."""
+    import msvcrt
+    kernel = _kernel()
+    with _security_attributes(f"D:P(A;;GA;;;{owner_sid()})(A;;GA;;;SY)") as attributes:
+        job = kernel.CreateJobObjectW(ctypes.byref(attributes), _job_name(launch_id))
+        already_exists = ctypes.get_last_error() == 183
+    with _handle(job):
+        if already_exists:
+            raise OSError("Windows hook job уже существует")
+        opened = set()
+        streams = []
+        try:
+            pipes = []
+            for _ in range(3):
+                pair = os.pipe()
+                opened.update(pair)
+                pipes.append(pair)
+            child_fds = [pipes[0][0], pipes[1][1], pipes[2][1]]
+            handles = tuple(msvcrt.get_osfhandle(fd) for fd in child_fds)
+            for handle in handles:
+                os.set_handle_inheritable(handle, True)
+            inherited = wt.HANDLE()
+            current = kernel.GetCurrentProcess()
+            if not kernel.DuplicateHandle(current, job, current, ctypes.byref(inherited), _JOB_QUERY, True, 0):
+                raise ctypes.WinError(ctypes.get_last_error())
+            with _handle(inherited):
+                process = _create_in_job(kernel, job, inherited, argv, cwd, env, handles)
+            try:
+                for fd in child_fds:
+                    os.close(fd)
+                    opened.remove(fd)
+                for fd, mode in zip((pipes[0][1], pipes[1][0], pipes[2][0]), ("wb", "rb", "rb")):
+                    streams.append(os.fdopen(fd, mode))
+                    opened.remove(fd)
+                process.stdin, process.stdout, process.stderr = streams
+                yield process, job
+            finally:
+                if job_members(job):
+                    terminate_hook_job(job)
+        finally:
+            for fd in opened:
+                os.close(fd)
+            for stream in streams:
+                stream.close()
+
+
+def terminate_hook_job(job):
+    if not _kernel().TerminateJobObject(job, 1):
+        raise ctypes.WinError(ctypes.get_last_error())

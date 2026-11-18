@@ -466,8 +466,9 @@ class ExecutableProductAdapter:
     def _execution_context_checked(self):
         if self.target["mode"] != "native" or self.target["scope"] != "user":
             _fail("CAPABILITY_UNSUPPORTED", "adapter_native_user_scope_only")
-        if self.target["os"] != "linux" or platform.system() != "Linux" or not hasattr(os, "WNOWAIT"):
-            _fail("CAPABILITY_UNSUPPORTED", "adapter_process_group_backend_linux_only")
+        windows = self.target["os"] == "windows" and os.name == "nt"
+        if not windows and (self.target["os"] != "linux" or platform.system() != "Linux" or not hasattr(os, "WNOWAIT")):
+            _fail("CAPABILITY_UNSUPPORTED", "adapter_process_backend_unavailable")
         host = target_model()
         if self.target["arch"] != host["arch"]:
             _fail("CAPABILITY_UNSUPPORTED", "adapter_architecture_mismatch")
@@ -476,13 +477,18 @@ class ExecutableProductAdapter:
             _fail("INVALID_REQUEST", "adapter_ledger_overlaps_payload")
         for path in [root, *root.rglob("*")]:
             info = path.lstat()
-            if (info.st_uid != os.getuid() or info.st_mode & 0o022
-                    or (stat.S_ISREG(info.st_mode) and info.st_nlink != 1)
+            if ((stat.S_ISREG(info.st_mode) and info.st_nlink != 1)
                     or not (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode))):
+                _fail("INTEGRITY_FAILED", "adapter_payload_must_be_owned_and_not_shared_writable")
+            if windows:
+                from .windows_user import check_private_path
+                check_private_path(path)
+            elif info.st_uid != os.getuid() or info.st_mode & 0o022:
                 _fail("INTEGRITY_FAILED", "adapter_payload_must_be_owned_and_not_shared_writable")
         executable = checked_path(root / self._descriptor["command"][0])
         with executable.open("rb") as stream:
-            if stream.read(4) != b"\x7fELF":
+            if not (stream.read(2) == b"MZ" and executable.suffix.casefold() == ".exe" if windows
+                    else stream.read(4) == b"\x7fELF"):
                 _fail("INTEGRITY_FAILED", "adapter_requires_signed_native_runtime_not_shebang")
         if not os.access(executable, os.X_OK):
             _fail("PREREQUISITE_MISSING", "adapter_runtime_not_executable")
@@ -502,11 +508,35 @@ class ExecutableProductAdapter:
         env = {"LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "PYTHONNOUSERSITE": "1",
                "PYTHONDONTWRITEBYTECODE": "1", **self.environment}
         try:
-            process = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE, cwd=root, env=env, shell=False,
-                                       start_new_session=True, close_fds=True)
+            if os.name == "nt":
+                from .windows_user import hook_child
+                if "SystemRoot" in os.environ:
+                    env["SystemRoot"] = os.environ["SystemRoot"]
+                with hook_child(uuid.uuid4().hex, argv, root, env) as (process, job):
+                    stdout = self._collect_response(process, payload, job=job)
+            else:
+                process = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE, cwd=root, env=env, shell=False,
+                                           start_new_session=True, close_fds=True)
+                stdout = self._collect_response(process, payload)
         except OSError:
-            _fail("ADAPTER_EXECUTION_FAILED", "adapter_process_start")
+            _fail("ADAPTER_EXECUTION_FAILED", "adapter_process_unavailable")
+        response = parse_json(bytes(stdout), error_code="ADAPTER_PROTOCOL_INVALID")
+        _strict_keys(response, {"protocol_version", "product_id", "request_id", "request_digest", "hook", "status"},
+                     {"result", "error"})
+        if (response["protocol_version"] != PROTOCOL_VERSION or response["product_id"] != self.manifest["product_id"]
+                or response["request_id"] != request_id or response["request_digest"] != request_digest
+                or response["hook"] != hook):
+            _fail("ADAPTER_PROTOCOL_INVALID", "adapter_response_identity")
+        if response["status"] == "error":
+            if "result" in response:
+                _fail("ADAPTER_PROTOCOL_INVALID", "adapter_ambiguous_response")
+            _fail("ADAPTER_EXECUTION_FAILED", "adapter_reported_failure_outcome_unknown")
+        if response["status"] != "ok" or "error" in response or "result" not in response:
+            _fail("ADAPTER_PROTOCOL_INVALID", "adapter_response_status")
+        return self._validate_result(hook, response["result"])
+
+    def _collect_response(self, process, payload, *, job=None):
         stdout = bytearray()
         overflow = threading.Event()
         read_error = threading.Event()
@@ -550,8 +580,11 @@ class ExecutableProductAdapter:
                 # Не reaping через poll(): резервируем PID/group до завершения cleanup,
                 # чтобы PID reuse не превратил killpg в сигнал чужому процессу.
                 if not leader_exited:
-                    observed = os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
-                    leader_exited = observed is not None
+                    if job is None:
+                        observed = os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+                        leader_exited = observed is not None
+                    else:
+                        leader_exited = process.poll() is not None
                 if leader_exited and not any(thread.is_alive() for thread in threads):
                     break
                 if overflow.is_set():
@@ -563,33 +596,25 @@ class ExecutableProductAdapter:
                 time.sleep(0.01)
         finally:
             # Также закрыть оставшихся потомков после выхода launcher: adapter — конечный hook, не server.
-            try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            process.wait(timeout=2)
+            if job is None:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            else:
+                from .windows_user import job_members, terminate_hook_job
+                if job_members(job):
+                    terminate_hook_job(job)
+            return_code = process.wait(timeout=2)
             for thread in threads:
                 thread.join(timeout=1)
         if reason == "deadline":
             _fail("ADAPTER_TIMEOUT", "adapter_deadline_exceeded_outcome_unknown")
         if reason or overflow.is_set() or read_error.is_set():
             _fail("ADAPTER_PROTOCOL_INVALID", "adapter_bounded_stream_violation")
-        if process.returncode:
+        if return_code:
             _fail("ADAPTER_EXECUTION_FAILED", "adapter_nonzero_exit_outcome_unknown")
-        response = parse_json(bytes(stdout), error_code="ADAPTER_PROTOCOL_INVALID")
-        _strict_keys(response, {"protocol_version", "product_id", "request_id", "request_digest", "hook", "status"},
-                     {"result", "error"})
-        if (response["protocol_version"] != PROTOCOL_VERSION or response["product_id"] != self.manifest["product_id"]
-                or response["request_id"] != request_id or response["request_digest"] != request_digest
-                or response["hook"] != hook):
-            _fail("ADAPTER_PROTOCOL_INVALID", "adapter_response_identity")
-        if response["status"] == "error":
-            if "result" in response:
-                _fail("ADAPTER_PROTOCOL_INVALID", "adapter_ambiguous_response")
-            _fail("ADAPTER_EXECUTION_FAILED", "adapter_reported_failure_outcome_unknown")
-        if response["status"] != "ok" or "error" in response or "result" not in response:
-            _fail("ADAPTER_PROTOCOL_INVALID", "adapter_response_status")
-        return self._validate_result(hook, response["result"])
+        return bytes(stdout)
 
     def _validate_result(self, hook, result):
         if hook == "describe":

@@ -428,9 +428,10 @@
         "packaging/acceptance-evidence/sdk-public-contract-20261025-cp012.json",
         "packaging/acceptance-evidence/environment-20261025-cp012.json",
         "packaging/acceptance-evidence/requirements-projection-20261025-cp014.json",
-        "packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json"
+        "packaging/acceptance-evidence/gui-prerequisites-20261025-cp015.json",
+        "packaging/acceptance-evidence/linux-frozen-20261118.json"
       ],
-      "note": "Полная приёмка НЕ ГОТОВА. CP-20261025-015: Условный GUI реализован, actual JS response contract PASS; настоящий browser/installed/OS scenario остаётся NOT RUN/BLOCKED и обязателен."
+      "note": "Frozen Linux DEV fresh install в Chromium PASS. Тот же архив подтвердил install/readiness/stop по HTTP в Ubuntu 24.04 container без developer tools. Чистые desktop ОС и auto/manual prerequisites остаются обязательны."
     },
     {
       "scenario_id": "ACC-02",
@@ -661,11 +662,11 @@
       "canonical_requirement": "Установка/update/recovery offline при действительно отключённой сети. Задачи: HIM-070, HIM-087, HIM-095. Состояние: NOT RUN.",
       "acceptance_status": "NOT RUN",
       "ready": false,
-      "test_code": "NOT IMPLEMENTED",
-      "existing_partial_harnesses": [],
-      "next_executor_action": "Полный новый offline bundle: реально ограничить сеть в изолированной VM/контейнере; install/update/restore должны использовать имеющиеся runtime/images/resources. Запрет сети в source tests — другая проверка.",
-      "current_artifact_evidence": [],
-      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+      "test_code": "PARTIAL",
+      "existing_partial_harnesses": ["packaging/check_reference_gui.cjs"],
+      "next_executor_action": "Повторить полный offline lifecycle на чистых целевых ОС, включая product Docker с локальным набором образов.",
+      "current_artifact_evidence": ["packaging/acceptance-evidence/linux-frozen-20261118.json"],
+      "note": "Linux frozen DEV install/backup/uninstall/restore в Chromium, offline updates v1→v2→v3 на отдельной серии frozen сборок и fresh install в Ubuntu 24.04 container прошли с --network none. Полная приёмка остаётся открытой."
     },
     {
       "scenario_id": "ACC-16",

@@ -1,3 +1,15 @@
+## 18.11.2026 — HIM-072 / CP-20261118T143501Z-abb58c5158ce
+
+На `54d3dc4` проверены новые frozen bytes из официального CPython archive.
+Chromium прошёл три локали, install, backup, uninstall, restore, support export
+и stop. Отдельный Ubuntu 24.04 container без developer tools подтвердил
+install, readiness и stop того же архива с отключённой сетью. Начальные
+отказы Chromium и HTTP тестового клиента сохранены в квитанции вместе с
+результатами повторов. Отдельная серия frozen сборок успешно прошла офлайн
+v1→v2→v3. Первоначальный отказ выгрузки SHA и успешный повтор тоже сохранены.
+CI `44324613495` на кодовом `54d3dc4` прошёл. Квитанция
+`packaging/acceptance-evidence/github-ci-20261118.json`. G0–G5 OPEN.
+
 ## 18.11.2026 — HIM-054 / CP-20261118T142001Z-1842f43af2e4
 
 Синхронизированы 18 коммитов GitHub до `8247993`. Подтверждены два успешных

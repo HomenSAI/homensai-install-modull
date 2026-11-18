@@ -344,8 +344,8 @@ Sync: local=SYNC_PENDING; Docker Git=SYNC_BLOCKED; GitHub=SYNC_PENDING (до н�
 Дополнение CP-20261026-004 / HIM-014: Интегрированы настоящие encrypted BackupReceiptStore с проверкой восстановленного signed payload/installation identity и default-deny migration authorizer. Maintenance receipt recovery_only не разрешает миграцию. Добавлен explicit SDK/BackendRouter prepare_migration bridge; NativeEngine preparation/install/update ещё unsupported в этом CP. Independent installed reference maintenance:8clientsPASS/69SDK files/7reference files, реальные process/HTTP/SQLite/archive restore, UID1000, source/package/deps unchanged; bootstraplegacy и runtime borrowed явно ограничены. Full frozen source/integration:2416PASS/3skip/15subtests,682.08s; после нормализацииEOF в двух docs выполнены78overlappingcontract checks и новыйinstalledwheelPASS. Все G0–G5OPEN, production_ready=false. Окно продолжается; следующий пакет explicit migration preparation/fresh witness, затем single-step apply.
 
 [ ] HIM-015. Опубликовать минимальный ProductAdapter protocol
-Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261026-012
-Текущий scoped результат CP-20261026-012: полный source и installed public fresh1→update2→update3 PASS на SDK6edcbb83; реальные4backup archives восстановлены. Полная target/lifecycle матрица НЕ ГОТОВА; receipts в docs/RESUME.md.
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261118T142001Z-1842f43af2e4
+Исторический scoped результат CP-20261026-012: полный source и installed public fresh1→update2→update3 PASS на SDK6edcbb83; реальные4backup archives восстановлены. Полная target/lifecycle матрица НЕ ГОТОВА; receipts в docs/RESUME.md.
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-012, HIM-013; PROMPT: § 3–4, 28.5.
 Готово, когда: Определены capabilities и необходимые product hooks; есть Python protocol и версия JSON
@@ -1141,7 +1141,16 @@ ru/en/de. Неизвестная внешняя ошибка получает л
 Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (подтверждено в CP-004).
 
 [ ] HIM-072. Принять полный lifecycle reference app
-Статус: IN_PROGRESS | Проверки: PENDING | checkpoint_id: CP-20261025-005
+CP-20261118T143501Z-abb58c5158ce: свежий Linux x64 frozen DEV на `54d3dc4`
+прошёл Chromium ru/en/de, fresh install, backup, uninstall с сохранением данных,
+restore, redacted diagnostic export и stop. Тот же архив без сети прошёл
+fresh install, HTTP readiness и stop в Ubuntu 24.04 контейнере без системного
+Python и developer tools. Квитанция `packaging/acceptance-evidence/linux-frozen-20261118.json`.
+Отдельная серия frozen сборок с одним DEV ключом прошла fresh v1→v2→v3
+без сети. Подтверждены схема SQLite, HTTP readiness и сохранность файла.
+Чистый desktop, frozen bootstrap с зарегистрированным ProductAdapter, Windows,
+product Docker и services остаются в очереди. Полный HIM-072 открыт.
+Статус: IN_PROGRESS | Проверки: PARTIAL PASS | checkpoint_id: CP-20261118T143501Z-abb58c5158ce
 Приёмка всей задачи: НЕ ГОТОВО. Частичные/исторические PASS относятся только к указанной области; невыполненная приёмка — NOT RUN/BLOCKED. Обязательные проверки: docs/VERIFICATION_BACKLOG.md и ACC-01–23.
 Зависимости: HIM-050, HIM-051, HIM-052, HIM-053, HIM-054, HIM-055, HIM-056, HIM-057, HIM-058, HIM-059,
 HIM-060, HIM-061, HIM-062, HIM-063, HIM-064, HIM-065, HIM-066, HIM-067, HIM-068, HIM-069, HIM-070;

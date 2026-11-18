@@ -68,12 +68,19 @@ Exact historical build toolchain и current SDK compatibility checks запис�
 | --- | --- | --- | --- |
 | Windows native | NOT RUN | NOT RUN | NOT RUN |
 | Windows Docker | BLOCKED: нет target runner | BLOCKED: нет target runner | BLOCKED: нет target runner |
-| Linux native | PARTIAL: CP-005 frozen user-session | PARTIAL: CP-005 frozen user-session | PARTIAL: CP-005 frozen user-session |
+| Linux native | PARTIAL: frozen DEV 18.11.2026 | PARTIAL: frozen DEV 18.11.2026 | PARTIAL: frozen DEV 18.11.2026 |
 | Linux Docker | NOT RUN: live daemon | NOT RUN: live daemon | NOT RUN: live daemon |
 
 CP-007/008 source/SDK/JS checks не переносят исторический frozen PASS на новую
 сборку. Все двенадцать сочетаний остаются обязательными для G2; частичный
 Linux результат не закрывает строку clean-host/reboot/accessibility.
+
+18.11.2026: текущий Linux frozen DEV запущен с Chromium и тремя локалями;
+действия install/backup/uninstall/restore/stop распределены между локалями.
+Отдельная серия frozen сборок прошла офлайн fresh v1→v2→v3 через Chromium.
+Ubuntu 24.04 container без developer tools подтвердил install/readiness/stop
+через HTTP с отключённой сетью. Полный цикл в каждой локали и чистая desktop
+приёмка открыты. Windows 10 Home и Docker Desktop использовались как DEV хост.
 
 ## Продукты и сценарии
 

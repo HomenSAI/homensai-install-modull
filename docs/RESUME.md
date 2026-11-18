@@ -12,12 +12,23 @@ HIM-054 на следующем checkpoint дополняют `update-persistent
 проверка эффектов после каждого запроса в `update-missing-ledger`. В Linux DEV
 прошли fresh→v2→v3 и все восемь update fault profiles на SDK `8247993`.
 Квитанции находятся в `packaging/acceptance-evidence/installed-update-matrix-20261118.json`.
-CI нового checkpoint проверяется по SHA этой контрольной точки.
+GitHub Actions run `44324613495` на `54d3dc4` прошёл целиком. Linux source
+2764 PASS, Linux integration 449 PASS, Windows portable 549 PASS. Installed
+матрица подтвердила все 21 квитанцию с одним SDK wheel. Детали в
+`packaging/acceptance-evidence/github-ci-20261118.json`.
 
-Следующий приоритет — новый Linux frozen DEV smoke и затем полная приёмка
-на чистых Windows 11 / Ubuntu 24.04 с GUI, product Docker и службами. Хост
-этого запуска — Windows 10 Home с Docker Desktop в Linux mode. JobPilot,
-Rent, production trust и аудит распространяемого runtime остаются открытыми.
+На `54d3dc4` собран новый frozen Linux DEV с проверенным архивом CPython.
+Chromium прошёл ru/en/de, fresh install, backup, uninstall→restore, экспорт
+диагностики и stop. Тот же архив на чистом Ubuntu 24.04 container без developer
+tools подтвердил HTTP fresh install, readiness и stop без сети. Квитанция
+`packaging/acceptance-evidence/linux-frozen-20261118.json` содержит SHA и scope.
+Отдельная серия с общим DEV ключом прошла frozen GUI fresh v1→v2→v3 офлайн,
+с неизменным пользовательским файлом и SQLite schema 1→2→3.
+
+Следующая приёмка требует чистых desktop Windows 11 / Ubuntu 24.04 с GUI,
+product Docker и службами. Хост этого запуска — Windows 10 Home с Docker
+Desktop в Linux mode. JobPilot, Rent, production trust и аудит
+распространяемого runtime остаются открытыми.
 G0–G5 OPEN, `production_ready=false`. Остановленные окна ниже — история.
 
 ## Очередь Terra 200 задач остановлена владельцем

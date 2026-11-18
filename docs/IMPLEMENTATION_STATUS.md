@@ -15,6 +15,17 @@ start заблокированы. Схема v1, данные и forward journal
 журнала после успешного signed apply проверены схема v2 и ровно два эффекта
 после повторного открытия, duplicate submit и resume. Квитанция
 `packaging/acceptance-evidence/installed-update-matrix-20261118.json`.
+CI на `54d3dc4` завершил Linux source/integration, Windows portable и все 21
+installed проверки. Квитанция `packaging/acceptance-evidence/github-ci-20261118.json`.
+
+На `54d3dc4` Linux frozen DEV bundle проверен в Chromium ru/en/de. Цикл
+install→backup→uninstall→restore→stop сохранил пользовательский файл,
+диагностика выгружена с проверкой redaction. Свежий Ubuntu 24.04 контейнер
+без системного Python прошёл установку, HTTP readiness и stop того же архива
+при `--network none`. Отдельная серия frozen сборок прошла офлайн v1→v2→v3
+с проверкой схемы SQLite, readiness и сохранности файла. Frozen bootstrap и
+registered ProductAdapter SDK имеют
+отдельные результаты. Квитанция `packaging/acceptance-evidence/linux-frozen-20261118.json`.
 
 G0–G5 OPEN. Windows 11 и Ubuntu 24.04 clean host, полный GUI, product Docker,
 службы и интеграции JobPilot/Rent остаются в приёмочной очереди.

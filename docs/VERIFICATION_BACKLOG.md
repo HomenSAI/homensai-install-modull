@@ -173,6 +173,11 @@ CI CP-017 также BLOCKED: четыре задания без runner/steps, �
 
 Существующая частичная проверка: `packaging/check_reference_gui.cjs`.
 
+18.11.2026: frozen DEV мастер подтвердил fresh install в Chromium. Тот же
+архив прошёл install/readiness/stop в Ubuntu 24.04 container без developer tools
+по loopback HTTP и с отключённой внешней сетью. Детали — в `packaging/acceptance-evidence/linux-frozen-20261118.json`.
+Чистый desktop и auto/manual prerequisites остаются в ACC-01.
+
 ### ACC-02 — NOT RUN; НЕ ГОТОВО
 
 Все компоненты, backend/DB/workers, HTML/JS/CSS, browser smoke. Задачи: HIM-040, HIM-042–045, HIM-078, HIM-082. Состояние: NOT RUN.
@@ -283,7 +288,12 @@ Repair той же версии; modify_components; сохранное удал�
 
 Установка/update/recovery offline при действительно отключённой сети. Задачи: HIM-070, HIM-087, HIM-095. Состояние: NOT RUN.
 
-Готовность тестового сценария: **NOT IMPLEMENTED**. Полный новый offline bundle: реально ограничить сеть в изолированной VM/контейнере; install/update/restore должны использовать имеющиеся runtime/images/resources. Запрет сети в source tests — другая проверка.
+Готовность тестового сценария **PARTIAL**. Полный offline bundle должен пройти install/update/restore с отключённой внешней сетью и доступными локально runtime/images/resources.
+
+18.11.2026: частичный PASS с `--network none`. Linux frozen DEV install/backup/
+uninstall/restore в браузере и fresh install в Ubuntu 24.04 container. Отдельная
+серия frozen сборок прошла fresh v1→v2→v3 в Chromium. Полная offline матрица
+на чистых целевых ОС остаётся открытой.
 
 ### ACC-16 — NOT RUN; НЕ ГОТОВО
 

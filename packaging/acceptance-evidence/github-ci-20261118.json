@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "source_revision": "54d3dc47480637fb375a6a1cbba4ea438a0e1a67",
+  "source_tree": "003ed0d9abdeec7d7c9a8c9e40ed8069600bdc83",
+  "scope": "GitHub Actions source, user-process integration, portable Windows and installed Linux DEV",
+  "production_ready": false,
+  "run_id": 44324613495,
+  "run_attempt": 1,
+  "run_url": "https://github.com/HomenSAI/homensai-install-modull/actions/runs/44324613495",
+  "jobs": {
+    "linux_source": {
+      "id": 134872439021,
+      "conclusion": "success",
+      "controlled_unsafe_mode_fixture": {"passed": 6, "duration_seconds": 0.79},
+      "source": {"passed": 2764, "skipped": 1, "subtests": 10, "duration_seconds": 128.09},
+      "integration": {"passed": 449, "skipped": 2, "subtests": 5, "duration_seconds": 1510.74}
+    },
+    "windows_portable": {
+      "id": 134872439692,
+      "conclusion": "success",
+      "source": {"passed": 549, "skipped": 4, "duration_seconds": 2.47}
+    },
+    "linux_installed": {
+      "id": 134872439813,
+      "conclusion": "success",
+      "receipt_count": 21,
+      "sdk_wheel_sha256": "44d2508d2693327287ab7b5023755c8d030ff361f7baea4626e8b6ed76839742",
+      "verified_receipts": [
+        "sdk", "prerequisites", "catalog-updates", "reference-update", "update-lost-ack",
+        "update-missing-ledger", "update-persistent-unknown", "update-tampered-backup",
+        "update-foreign-backup", "update-live-data-drift", "update-candidate-health",
+        "update-candidate-cleanup", "recovery-restore", "recovery-rollback", "recovery-lost-ack",
+        "recovery-missing-ledger", "uninstall-restore", "repair", "reinstall",
+        "recovery-root-resume", "recovery-stage-resume"
+      ]
+    }
+  }
+}

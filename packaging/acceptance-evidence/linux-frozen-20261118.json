@@ -1,0 +1,459 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "source_revision": "54d3dc47480637fb375a6a1cbba4ea438a0e1a67",
+  "source_tree": "003ed0d9abdeec7d7c9a8c9e40ed8069600bdc83",
+  "production_ready": false,
+  "scope": "Linux x64 frozen DEV, native user, offline containers",
+  "runtime_archive": {
+    "upstream_asset_id": 381127079,
+    "size_bytes": 36239204,
+    "source": "https://api.github.com/repos/astral-sh/python-build-standalone/releases/assets/381127079",
+    "sha256": "34e8e7ea5192308f0fe6d93becdf3eeb00a64a1fdbb4beead98d0edb93b68cdd",
+    "verified_before_execution": true,
+    "extraction_filter": "tarfile:data"
+  },
+  "artifact": {
+    "name": "frozen-reference-dev-20261118.tar.gz",
+    "sha256": "5e41c06b9395680b05d44b1339ad5cc3caf5656a8e384c16b13898892877a3fa",
+    "size_bytes": 77559975,
+    "members_sha256": {
+      "HomenSAI-Reference-DEV": "8711453ef4d82f40af1e5655384791fce3c4e1add3ade451cdcbe1d1edbbdb88",
+      "BUILD_REPORT.json": "93f2d1077c2bb0f69c6aabee67dc3ce7131efd17aed104e4c711dc5221571748",
+      "inventory.json": "382b6c5d714f7e33464928a77d4dcf680f6ad50b189cdcd26431084d63b3f46b",
+      "signature.json": "72923569abfd985fa708a91d3923a5c172b201230f0f81c6562ae5c927821f78"
+    },
+    "local_path": ".local-state/continuation-20261118/frozen-retry/frozen-reference-dev-20261118.tar.gz"
+  },
+  "dev_runner": {
+    "image_id": "sha256:22a3a690c65169bc543a03eb744d10d9f33348643e756d5eab75ff693fbddbd3",
+    "tag": "hinstall-dev:cp020-browser",
+    "uid": 1000,
+    "network": "none",
+    "locked_python_environment_verified": true,
+    "chromium": "156.0.8078.47"
+  },
+  "build": {
+    "exit_code": 0,
+    "source_snapshot": "git archive",
+    "invoked_from_outside_checkout": true,
+    "command": [
+      "python",
+      "-B",
+      "/tmp/hinstall-frozen/source/packaging/build_reference.py",
+      "--runtime",
+      "/tmp/hinstall-frozen/runtime/python",
+      "--output",
+      "/tmp/hinstall-frozen/bundle",
+      "--release",
+      "reference-20261118-dev",
+      "--port",
+      "18480",
+      "--freeze"
+    ],
+    "report": {
+      "schema_version": 1,
+      "release": "reference-20261118-dev",
+      "python": "3.14.3",
+      "target": {
+        "os": "linux",
+        "arch": "x64",
+        "mode": "native"
+      },
+      "reference_profile": {
+        "schema_version": 1,
+        "product_version": "1.0.0",
+        "database_schema": 1,
+        "health_failure": false,
+        "migration_failure": false,
+        "require_api_key": false
+      },
+      "files": 895,
+      "payload_bytes": 168928963,
+      "development": true,
+      "production_ready": false,
+      "freeze": true,
+      "frozen_resources": {
+        "files_checked": 19,
+        "manifest_sha256": "3be8e9eaa4fa38522066e71537c3f0d087638d0bd7b88ea19e74045dc2ec50c0"
+      },
+      "blockers": [
+        "production publisher signature/certificate",
+        "runtime transitive licence audit",
+        "approved product EULA",
+        "Windows/Docker/system-service acceptance"
+      ]
+    }
+  },
+  "browser": {
+    "exit_code": 0,
+    "command": [
+      "node",
+      "/tmp/hinstall-frozen/source/packaging/check_reference_gui.cjs",
+      "/tmp/hinstall-frozen/wizard.url",
+      "/evidence/frozen-screenshots"
+    ],
+    "environment": {
+      "HINSTALL_TEST_FULL_LIFECYCLE": "1",
+      "XDG_CONFIG_HOME": "/tmp/hinstall-frozen/browser-config",
+      "XDG_CACHE_HOME": "/tmp/hinstall-frozen/browser-cache",
+      "XDG_RUNTIME_DIR": "/tmp/hinstall-frozen/browser-runtime"
+    },
+    "result": {
+      "scope": "Linux x64 frozen DEV GUI + bundled runtime",
+      "locales": {
+        "ru": "Установка приложения",
+        "en": "Application setup",
+        "de": "Anwendung installieren"
+      },
+      "status": "SUCCEEDED",
+      "operation_id": "op_5e8dbd55d2e24104b707b50578b4a7d8",
+      "browser_errors": [],
+      "product_ready": true,
+      "production_ready": false,
+      "lifecycle": [
+        {
+          "action": "backup",
+          "locale": "en",
+          "status": "SUCCEEDED",
+          "operation_id": "op_d4e3d97ebde34fb7b97f765b3deb7dcc"
+        },
+        {
+          "action": "uninstall",
+          "locale": "de",
+          "status": "SUCCEEDED",
+          "operation_id": "op_20f866d59d10460fad5c8bd23f6f4d46"
+        },
+        {
+          "action": "restore",
+          "locale": "ru",
+          "status": "SUCCEEDED",
+          "operation_id": "op_273e41aaf3bb4575ae1282e414bef6bd"
+        },
+        {
+          "action": "stop",
+          "locale": "en",
+          "status": "SUCCEEDED",
+          "operation_id": "op_f9ab5d4f6a0e484ba08588d5ed52e8db"
+        }
+      ],
+      "support_export": "PASS"
+    },
+    "user_file_preserved_after_uninstall_and_restore": true,
+    "diagnostic_export_sha256": "5ed8c294685301e5cac3895c6675ed1a8f9ca612871451a53f1703290e918693",
+    "screenshots_sha256": {
+      "backup-en.png": "4c83c3f4cad2fdef284de4f43979f42fe2c467d7d0ffb2967e474261366940d4",
+      "environment-de.png": "e607f1918b8dd757d28a8b6f1f6573fb39f31e3df901430bbe89a3f679e6bf38",
+      "environment-en.png": "3b072322b91be06ada19f5e9bcc324325ccb469503559ae3110a3f2b17b23a62",
+      "environment-ru.png": "b22c4166da99f23f59251539c32d2165dac27787d8739c4624f5db1df3825d92",
+      "installed-ru.png": "288ca7daf14f0cd5c78bfa9ed56ba4863610b7b2802c2ffb9600845d35dfda5a",
+      "restore-ru.png": "669e4af02c682293eaeed0461a8966dddf23190f12886e7e4f1034c508dbbb01",
+      "stop-en.png": "7c8819f576e15f04452675bcaa5d1bc0eaf41f5b374a63e7356481f442a65282",
+      "terms-ru.png": "e7491094fa7f3b57bb3e4b112490c09b60d6750e9514f9f5d845d2c4fdbf71d6",
+      "uninstall-de.png": "f0a21fc7e405e3e333640d0a68e0825a948fd3265043e1dc118f7cd2d392bfbb"
+    }
+  },
+  "ubuntu_container": {
+    "exit_code": 0,
+    "image": "ubuntu@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3",
+    "uid": 1000,
+    "network": "none",
+    "archive_sha256_before_run": "5e41c06b9395680b05d44b1339ad5cc3caf5656a8e384c16b13898892877a3fa",
+    "result": {
+      "status": "PASS",
+      "os": "Ubuntu 24.04 container",
+      "system_developer_tools_absent": true,
+      "bundled_python": "3.14.3",
+      "asset": "frozen-reference-dev-20261118.tar.gz",
+      "scope": "offline native user fresh install, product readiness and stop over loopback wizard HTTP",
+      "install_operation_id": "op_9cb1575bff474496820b0108aba95cec",
+      "stop_operation_id": "op_8685c6829d2844da9d40d145cd4ea6c8",
+      "database_schema": 1,
+      "locale_key_count": 247,
+      "owned_listener_stopped": true,
+      "production_ready": false
+    }
+  },
+  "initial_failures": [
+    {
+      "phase": "Chromium startup",
+      "code": "SIGTRAP",
+      "observation": "chrome_crashpad_handler: --database is required",
+      "retry_change": "Writable private XDG config, cache and runtime directories for UID 1000"
+    },
+    {
+      "phase": "Ubuntu smoke HTTP client",
+      "code": "INVALID_REQUEST",
+      "http_status": 400,
+      "route": "/plans",
+      "observation": "Client sent an empty selected_modes list",
+      "retry_change": "Select the sole manifest mode as the wizard does and run discovery first"
+    },
+    {
+      "phase": "Frozen update evidence export",
+      "code": "CUT_INVALID_DELIMITER",
+      "exit_code": 1,
+      "observation": "All three GUI operations succeeded before the final witness hash export failed",
+      "retry_change": "Write sha256sum output directly; repeat all three builds and operations"
+    }
+  ],
+  "reproduction_scripts": {
+    "frozen-check.sh": {
+      "local_path": ".local-state/continuation-20261118/frozen-retry/frozen-check.sh",
+      "sha256": "d49453bb5fb5d4f121a27b9d2c637b7e2ba4a35b5bcdfa1724f15c2842c6ebe5"
+    },
+    "clean-smoke.sh": {
+      "local_path": ".local-state/continuation-20261118/frozen-retry/clean-smoke.sh",
+      "sha256": "8b868b457d3d768a8812087d6ed89bedb25fff208275fc77f3e070352cbe4d74"
+    },
+    "clean-smoke.py": {
+      "local_path": ".local-state/continuation-20261118/frozen-retry/clean-smoke.py",
+      "sha256": "4642a68285a0318810d5388ec6e889a0570b7e039c9bb66a783acd522d4f5ad3"
+    }
+  },
+  "out_of_scope": [
+    "clean desktop host",
+    "registered adapter in frozen bootstrap",
+    "Windows 11",
+    "product Docker and services",
+    "production trust and distribution licences"
+  ],
+  "related_source_regressions": {
+    "status": "PASS",
+    "exit_code": 0,
+    "passed": 199,
+    "duration_seconds": 951.81,
+    "image_id": "sha256:1b3529768706aaacabb525d6fd3168680cc2b0ffa1aee6994a3d2e5cdb8fd4c1",
+    "command": [
+      "python",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "tests/test_installed_check_summary.py",
+      "tests/test_installed_reference_diagnostics.py",
+      "tests/test_native_product_adapter_contract.py",
+      "integration_tests/test_native_adapter_update.py",
+      "integration_tests/test_native_adapter_update_independent.py",
+      "integration_tests/test_native_adapter_recovery.py"
+    ]
+  },
+  "offline_update_gui": {
+    "status": "PASS",
+    "exit_code": 0,
+    "network": "none",
+    "actions": [
+      "fresh install v1",
+      "update v1 to v2",
+      "update v2 to v3"
+    ],
+    "artifact_series": [
+      {
+        "schema": 1,
+        "artifacts_sha256": {
+          "HomenSAI-Reference-DEV": "f76f8187d2ca382ece6661581b9341acc28e250ffc4b491e8b00c1ffc5f99f71",
+          "inventory.json": "560fd75f201a9817d01322dff9b25c1930f5ec3ac6087ab4f3482ecbe1223f94",
+          "signature.json": "573f7a06d5ddbfccb437d76d899f93324023e067848a8a3280a5333dfb59a6b6",
+          "BUILD_REPORT.json": "813b8febbeb7a0a41bf8e6cd2c9c71f6a82498240ce1f583955f572be8e52fbf",
+          "publisher-trust.json": "a2672a42139bddbfc0fe808a5447058ea8f3dbdbedf3626d58e84357bfa80c50"
+        },
+        "build": {
+          "schema_version": 1,
+          "release": "reference-20261118-v1",
+          "python": "3.14.3",
+          "target": {
+            "os": "linux",
+            "arch": "x64",
+            "mode": "native"
+          },
+          "reference_profile": {
+            "schema_version": 1,
+            "product_version": "1.0.0",
+            "database_schema": 1,
+            "health_failure": false,
+            "migration_failure": false,
+            "require_api_key": false
+          },
+          "files": 895,
+          "payload_bytes": 168928963,
+          "development": true,
+          "production_ready": false,
+          "freeze": true,
+          "frozen_resources": {
+            "files_checked": 19,
+            "manifest_sha256": "3be8e9eaa4fa38522066e71537c3f0d087638d0bd7b88ea19e74045dc2ec50c0"
+          },
+          "blockers": [
+            "production publisher signature/certificate",
+            "runtime transitive licence audit",
+            "approved product EULA",
+            "Windows/Docker/system-service acceptance"
+          ]
+        },
+        "browser_result": {
+          "scope": "Linux x64 frozen DEV GUI + bundled runtime",
+          "locales": {
+            "ru": "Установка приложения",
+            "en": "Application setup",
+            "de": "Anwendung installieren"
+          },
+          "status": "SUCCEEDED",
+          "operation_id": "op_fb33d3faa1604e0db5639662ee956a0c",
+          "browser_errors": [],
+          "product_ready": true,
+          "production_ready": false
+        }
+      },
+      {
+        "schema": 2,
+        "artifacts_sha256": {
+          "HomenSAI-Reference-DEV": "779b51e0d68177c2d68807b6167e3b5795ffdfc0c4a7b833047c8cd2856f684c",
+          "inventory.json": "50474183e8d70e49e93c596fd2a031aba2f1fe5750bbd06144523aacb23ef53a",
+          "signature.json": "2aaa63b0a7ac2bc2dba392e5cbe479c36d5e61431a9331761c182fd3b5e4db68",
+          "BUILD_REPORT.json": "b8aa95f7bbc5a6e189f6fccd5216e6b8a2e86bf82d7fd7bffed0c012d7c6f81e",
+          "publisher-trust.json": "a2672a42139bddbfc0fe808a5447058ea8f3dbdbedf3626d58e84357bfa80c50"
+        },
+        "build": {
+          "schema_version": 1,
+          "release": "reference-20261118-v2",
+          "python": "3.14.3",
+          "target": {
+            "os": "linux",
+            "arch": "x64",
+            "mode": "native"
+          },
+          "reference_profile": {
+            "schema_version": 1,
+            "product_version": "2.0.0",
+            "database_schema": 2,
+            "health_failure": false,
+            "migration_failure": false,
+            "require_api_key": false
+          },
+          "files": 895,
+          "payload_bytes": 168928963,
+          "development": true,
+          "production_ready": false,
+          "freeze": true,
+          "frozen_resources": {
+            "files_checked": 19,
+            "manifest_sha256": "3be8e9eaa4fa38522066e71537c3f0d087638d0bd7b88ea19e74045dc2ec50c0"
+          },
+          "blockers": [
+            "production publisher signature/certificate",
+            "runtime transitive licence audit",
+            "approved product EULA",
+            "Windows/Docker/system-service acceptance"
+          ]
+        },
+        "browser_result": {
+          "scope": "Linux x64 frozen DEV GUI + bundled runtime",
+          "action": "update",
+          "status": "SUCCEEDED",
+          "operation_id": "op_791d7991b8ff4136a1cb2fe6924579c3",
+          "health": {
+            "product_id": "homensai-reference",
+            "installation_id": "2df68359a1e846e2831f4435d5bbc926",
+            "release": "reference-20261118-v2",
+            "product_version": "2.0.0",
+            "database_schema": 2,
+            "expected_database_schema": 2,
+            "api_key_configured": false,
+            "api_key_required": false,
+            "ready": true,
+            "checks": {
+              "database": true,
+              "settings": true,
+              "api_key": true,
+              "profile": true
+            }
+          },
+          "user_file_preserved": true,
+          "browser_errors": [],
+          "production_ready": false
+        }
+      },
+      {
+        "schema": 3,
+        "artifacts_sha256": {
+          "HomenSAI-Reference-DEV": "d270f8858af53a6a957efbf2fdf6197677bf7fe69d2aeefbd140eb531b8d094e",
+          "inventory.json": "0b9fd243a1374f53e066c9b22512f9adc4efe3a0241c60fc5d25c467d08df356",
+          "signature.json": "4ec0bcb63e095e26257721fbd2c7ef26de2b3e564cdf5c8d8b96edc059dfbc9c",
+          "BUILD_REPORT.json": "422684a3dfabc443539f25040adcf6043ee474ac500dc645e49935b79971d694",
+          "publisher-trust.json": "a2672a42139bddbfc0fe808a5447058ea8f3dbdbedf3626d58e84357bfa80c50"
+        },
+        "build": {
+          "schema_version": 1,
+          "release": "reference-20261118-v3",
+          "python": "3.14.3",
+          "target": {
+            "os": "linux",
+            "arch": "x64",
+            "mode": "native"
+          },
+          "reference_profile": {
+            "schema_version": 1,
+            "product_version": "3.0.0",
+            "database_schema": 3,
+            "health_failure": false,
+            "migration_failure": false,
+            "require_api_key": false
+          },
+          "files": 895,
+          "payload_bytes": 168928963,
+          "development": true,
+          "production_ready": false,
+          "freeze": true,
+          "frozen_resources": {
+            "files_checked": 19,
+            "manifest_sha256": "3be8e9eaa4fa38522066e71537c3f0d087638d0bd7b88ea19e74045dc2ec50c0"
+          },
+          "blockers": [
+            "production publisher signature/certificate",
+            "runtime transitive licence audit",
+            "approved product EULA",
+            "Windows/Docker/system-service acceptance"
+          ]
+        },
+        "browser_result": {
+          "scope": "Linux x64 frozen DEV GUI + bundled runtime",
+          "action": "update",
+          "status": "SUCCEEDED",
+          "operation_id": "op_71dc2122448e4b278fb6db4102533b09",
+          "health": {
+            "product_id": "homensai-reference",
+            "installation_id": "2df68359a1e846e2831f4435d5bbc926",
+            "release": "reference-20261118-v3",
+            "product_version": "3.0.0",
+            "database_schema": 3,
+            "expected_database_schema": 3,
+            "api_key_configured": false,
+            "api_key_required": false,
+            "ready": true,
+            "checks": {
+              "database": true,
+              "settings": true,
+              "api_key": true,
+              "profile": true
+            }
+          },
+          "user_file_preserved": true,
+          "browser_errors": [],
+          "production_ready": false
+        }
+      }
+    ],
+    "same_development_publisher": true,
+    "synthetic_user_file_sha256": "8a88ad4e08692641ba9e04567639f773b53118e11c59364a6413a1ec51124b63",
+    "browser_harnesses": [
+      "packaging/check_reference_gui.cjs",
+      "packaging/check_reference_upgrade.cjs"
+    ],
+    "runner_script": {
+      "local_path": ".local-state/continuation-20261118/frozen-upgrade-confirmed/frozen-upgrade.sh",
+      "sha256": "344e5e7cf999e72d9de302b16a25de85eec42d8985ea163f04c4528461ed6665"
+    },
+    "separate_from_primary_archive": true
+  }
+}

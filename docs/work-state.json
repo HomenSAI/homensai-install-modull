@@ -89,16 +89,27 @@
   "sync": {
     "cloud_git": "NOT_APPLICABLE: работа ведётся в Windows workspace",
     "docker_git": "SYNC_BLOCKED",
-    "github": "SYNC_PENDING for CP-20261026-012",
-    "last_confirmed_checkpoint": "CP-20261026-011",
-    "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
+    "github": "Кодовая контрольная точка 54d3dc4 подтверждена независимой загрузкой GitHub ref/tree",
+    "last_confirmed_checkpoint": "CP-20261118T142001Z-1842f43af2e4",
+    "note": "Фактическую вершину ветки и tree следующего checkpoint проверять по GitHub ref и внешней квитанции"
   },
-  "next_step": "Проверить CI нового checkpoint и собрать новый Linux frozen DEV reference из текущего SDK и проверенного runtime. Продолжить приёмку по ACC: чистые Windows 11 / Ubuntu 24.04, GUI ru/en/de, product Docker/services, JobPilot/Rent, production trust и лицензии. Старый план восстановления Terra сохранён в историческом окне.",
+  "next_step": "Продолжить HIM-072 и ACC-01/15 на чистых desktop Windows 11 / Ubuntu 24.04 с GUI ru/en/de, полным offline lifecycle и auto/manual prerequisites. Затем product Docker/services, JobPilot/Rent, production trust и лицензии. Linux frozen DEV с offline update v1→v2→v3 и отдельный Ubuntu 24.04 container smoke уже проверены. Старое окно Terra историческое.",
+  "latest_frozen_development_verification": {
+    "checkpoint_id": "CP-20261118T143501Z-abb58c5158ce",
+    "source_revision": "54d3dc47480637fb375a6a1cbba4ea438a0e1a67",
+    "source_tree": "003ed0d9abdeec7d7c9a8c9e40ed8069600bdc83",
+    "evidence": "packaging/acceptance-evidence/linux-frozen-20261118.json",
+    "archive_sha256": "5e41c06b9395680b05d44b1339ad5cc3caf5656a8e384c16b13898892877a3fa",
+    "status": "PASS_SCOPED"
+  },
   "latest_development_verification": {
     "checkpoint_id": "CP-20261118T142001Z-1842f43af2e4",
     "sdk_source_revision": "82479935fe765365d9286a5bdacde1ca9d38f423",
     "sdk_source_tree": "39271f94e172e6401330b953021da100cbe2defd",
     "baseline_ci_runs": [40826997185, 40826990793],
+    "code_checkpoint_ci_run": 44324613495,
+    "code_checkpoint_ci_status": "PASS",
+    "code_checkpoint_ci_evidence": "packaging/acceptance-evidence/github-ci-20261118.json",
     "evidence": "packaging/acceptance-evidence/installed-update-matrix-20261118.json",
     "installed_update_profiles_passed": 9,
     "scope": "Linux DEV: последовательные обновления и восемь update fault profiles",
@@ -111,8 +122,8 @@
     "linux_native": "PARTIAL PASS: current SDK 8247993 in Linux DEV, including update faults, restore/rollback and maintenance. Clean-host acceptance NOT RUN.",
     "linux_docker": "NOT RUN: daemon доступен; browser/source в DEV контейнере не являются product Docker backend acceptance"
   },
-  "last_confirmed_github_sha": "6edcbb83a018e72d235cc3eb192864e238a82755",
-  "last_confirmed_github_sha_scope": "Исторический SDK CP011, не актуальная вершина GitHub; см. независимые checkpoint receipts.",
+  "last_confirmed_github_sha": "54d3dc47480637fb375a6a1cbba4ea438a0e1a67",
+  "last_confirmed_github_sha_scope": "Подтверждённая кодовая контрольная точка перед сохранением результатов frozen; текущую вершину сверять напрямую.",
   "evidence": [
     "packaging/acceptance-evidence/source-20261025-cp005.json",
     "packaging/acceptance-evidence/linux-frozen-20261025-cp005.json",

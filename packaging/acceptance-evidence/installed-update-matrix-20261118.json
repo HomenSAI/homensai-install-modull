@@ -1,0 +1,754 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "scope": "Offline Linux/native/user DEV on Docker; no clean-host or production acceptance",
+  "production_ready": false,
+  "sdk_source_revision": "82479935fe765365d9286a5bdacde1ca9d38f423",
+  "sdk_source_tree": "39271f94e172e6401330b953021da100cbe2defd",
+  "container_image": "hinstall-dev:verification",
+  "container_image_id": "sha256:1b3529768706aaacabb525d6fd3168680cc2b0ffa1aee6994a3d2e5cdb8fd4c1",
+  "container_options": {
+    "network": "none",
+    "uid": 1000,
+    "gid": 1000,
+    "workdir": "/checkout"
+  },
+  "container_mounts": {
+    "repository": "/checkout:ro",
+    "git_dir": "/git:ro",
+    "output": "/evidence"
+  },
+  "command": [
+    "python",
+    "-B",
+    "packaging/check_installed_reference_lifecycle.py",
+    "--work-dir",
+    "/tmp/hinstall-<profile>",
+    "--receipt",
+    "/evidence/<profile>.json",
+    "--wheelhouse",
+    "/opt/wheelhouse",
+    "--sdk-revision",
+    "82479935fe765365d9286a5bdacde1ca9d38f423",
+    "--source-git-dir",
+    "/git",
+    "--profile",
+    "<profile>"
+  ],
+  "baseline_github_actions": [
+    {
+      "id": 40826997185,
+      "conclusion": "success",
+      "linux_source_job": 123292211757,
+      "linux_installed_job": 123292211752,
+      "windows_portable_job": 123292211481
+    },
+    {
+      "id": 40826990793,
+      "conclusion": "success",
+      "linux_source_job": 123292190627,
+      "linux_installed_job": 123292190769,
+      "windows_portable_job": 123292190858
+    }
+  ],
+  "profiles": [
+    {
+      "profile": "update",
+      "status": "PASS",
+      "started_at_utc": "2026-11-18T14:21:03.047066+00:00",
+      "finished_at_utc": "2026-11-18T14:21:49.186555+00:00",
+      "raw_receipt_sha256": "dbce63e307bfc370c628028dec702d455d036e7f60dfc241e03a854fda693435",
+      "observations": [
+        {
+          "case": "true_adapter_update_1_to_2",
+          "status": "PASS",
+          "schema": 2,
+          "business_effect_rows": 2,
+          "source_release": "reference-v1",
+          "target_release": "reference-v2",
+          "source_runtime_sha256": "3fbc4d6c766a7a5d56c4bcc80d3325181a05f1b64596eb7cf622f0ec056dd546",
+          "target_runtime_sha256": "3fbc4d6c766a7a5d56c4bcc80d3325181a05f1b64596eb7cf622f0ec056dd546",
+          "verified_backups": [
+            {
+              "purpose": "archive",
+              "receipt_id": "b2ad4f809e4ea6e944c34b4082f2428597424431cd16198946db628527a36ad4",
+              "archive_sha256": "fe47dff936a8a6a9bd2a0109ffea9c648604356593618cb2cae87974ceed8642",
+              "restored_source_schema": 1,
+              "backup_receipt_body": {
+                "archive_manifest_sha256": "235c5ac8abcff649d55fca3233bca70fa5a72da280681dec1e536e5c01801de3",
+                "archive_sha256": "fe47dff936a8a6a9bd2a0109ffea9c648604356593618cb2cae87974ceed8642",
+                "consistency_scope": "owned_components_stopped_and_adapter_quiesced",
+                "encrypted": true,
+                "from_inventory_sha256": "d7c7567c95f3caa7cf1ad8d7102289143f7277100e7c582b1e656a9f335ce757",
+                "from_manifest_sha256": "1de9a425279ed9eb6651fe0b0ddc91660f20272803aa397ebd7512e9f0da4d1a",
+                "from_release": "reference-v1",
+                "from_schema_version": "1",
+                "includes_recovery_payload": true,
+                "installation_id": "f9a1c3f93302472d83668a90653cdab5",
+                "kind": "encrypted_backup",
+                "migration_eligible": true,
+                "operation_id": "op_bba635b640b7d03e77aa72d5fd77fad9",
+                "plan_binding_sha256": "abad236e0ce657a0f252ecc41c558ffca958b30f8cac864ea6f6e77201ec1be9",
+                "product_id": "homensai-reference",
+                "schema_version": 1,
+                "verification_scope": "encrypted_archive_and_recovery_payload_restored"
+              }
+            },
+            {
+              "purpose": "backup:0",
+              "receipt_id": "4721cdf8c79858bf0def9cca56b8928cb4d0e5a0118fd251fbd1da645cd5aa7f",
+              "archive_sha256": "a45b8558ed6893dcbf5619cbb394157fe5a2320218a1f96922c91eb147903db7",
+              "restored_source_schema": 1,
+              "backup_receipt_body": {
+                "archive_manifest_sha256": "eb0d7c85ff8371b597b0926d3f847ca3a4a1ac08fd7966c8ca8e59ff68c81fd3",
+                "archive_sha256": "a45b8558ed6893dcbf5619cbb394157fe5a2320218a1f96922c91eb147903db7",
+                "consistency_scope": "owned_components_stopped_and_adapter_quiesced",
+                "encrypted": true,
+                "from_inventory_sha256": "d7c7567c95f3caa7cf1ad8d7102289143f7277100e7c582b1e656a9f335ce757",
+                "from_manifest_sha256": "1de9a425279ed9eb6651fe0b0ddc91660f20272803aa397ebd7512e9f0da4d1a",
+                "from_release": "reference-v1",
+                "from_schema_version": "1",
+                "includes_recovery_payload": true,
+                "installation_id": "f9a1c3f93302472d83668a90653cdab5",
+                "kind": "encrypted_backup",
+                "migration_eligible": true,
+                "operation_id": "op_bba635b640b7d03e77aa72d5fd77fad9",
+                "plan_binding_sha256": "abad236e0ce657a0f252ecc41c558ffca958b30f8cac864ea6f6e77201ec1be9",
+                "product_id": "homensai-reference",
+                "schema_version": 1,
+                "verification_scope": "encrypted_archive_and_recovery_payload_restored"
+              }
+            }
+          ],
+          "migration_review_id": "abad236e0ce657a0f252ecc41c558ffca958b30f8cac864ea6f6e77201ec1be9",
+          "migration_review_sha256": "abad236e0ce657a0f252ecc41c558ffca958b30f8cac864ea6f6e77201ec1be9",
+          "native_operation_token": "bba635b640b7d03e77aa72d5fd77fad9",
+          "native_journal_sha256": "a77188ab438cfa24443a44ac4dafff707c48d2c68375340822d751b0cec23058",
+          "update_transaction": "d57190f193ad41e5847206e9239d8586",
+          "source_notes_sha256": "5a54075ecb544858d2c91d6fa81f608348a53d8d0bdbaba9e1f130ace8ffda6c",
+          "retained_user_files_sha256": {
+            "document": "07334e3f21851f4b036fd5cea1037364ef6468f413cd6ad755c13bb209fc42b6",
+            "credential": "581dd7bbb09334f9ab499b211e08c773219e972ed8a0209280739edc18ef5d77",
+            "settings": "a63b35362c1da2b6d268fe769ab32ba7b99996d3cdc7235a99e0f393d78034b0"
+          },
+          "public_factory_prepare_plan_submit": true,
+          "real_native_authorizer": true,
+          "source_and_target_live_health_identity": true,
+          "user_data_and_config_preserved": true,
+          "forward_journal_no_rollback": true,
+          "legacy_migration_marker_absent": true,
+          "owned_pid_stable_on_duplicate_start": true
+        },
+        {
+          "case": "true_adapter_update_2_to_3",
+          "status": "PASS",
+          "schema": 3,
+          "business_effect_rows": 3,
+          "source_release": "reference-v2",
+          "target_release": "reference-v3",
+          "source_runtime_sha256": "3fbc4d6c766a7a5d56c4bcc80d3325181a05f1b64596eb7cf622f0ec056dd546",
+          "target_runtime_sha256": "3fbc4d6c766a7a5d56c4bcc80d3325181a05f1b64596eb7cf622f0ec056dd546",
+          "verified_backups": [
+            {
+              "purpose": "archive",
+              "receipt_id": "01f920f019b321f36867660f0dc289ae3501c72d7e7621289d80a8f3ee0945d0",
+              "archive_sha256": "aec7c042834258bd62f8d1d31214a5a3047743a30cf678f6993d08e826de6c0b",
+              "restored_source_schema": 2,
+              "backup_receipt_body": {
+                "archive_manifest_sha256": "bdaab4d52a8558f1e5530a127ba86285100d7c28657b001527ab312822b342ec",
+                "archive_sha256": "aec7c042834258bd62f8d1d31214a5a3047743a30cf678f6993d08e826de6c0b",
+                "consistency_scope": "owned_components_stopped_and_adapter_quiesced",
+                "encrypted": true,
+                "from_inventory_sha256": "4918c902548ad63d358d97ddcd17f95c832b00bb6e1dff3c17bee11e7d041dcb",
+                "from_manifest_sha256": "1de9a425279ed9eb6651fe0b0ddc91660f20272803aa397ebd7512e9f0da4d1a",
+                "from_release": "reference-v2",
+                "from_schema_version": "2",
+                "includes_recovery_payload": true,
+                "installation_id": "f9a1c3f93302472d83668a90653cdab5",
+                "kind": "encrypted_backup",
+                "migration_eligible": true,
+                "operation_id": "op_7a6de9eeb32735e63ef72545a6b33a3f",
+                "plan_binding_sha256": "0a4c66a6163caafc5028fbb46c5129d160adf5c185d46d4ab40c5e8cefa61bc0",
+                "product_id": "homensai-reference",
+                "schema_version": 1,
+                "verification_scope": "encrypted_archive_and_recovery_payload_restored"
+              }
+            },
+            {
+              "purpose": "backup:0",
+              "receipt_id": "f8d16511b5f2d541c58a3cd0c9b7e404a9ec3bdf2166e620fef0868393f18275",
+              "archive_sha256": "874f4830f17cbb9d8dbcb40aea479f3438374141dcbeb3333c29caf86928b5b8",
+              "restored_source_schema": 2,
+              "backup_receipt_body": {
+                "archive_manifest_sha256": "4541b25903f56fd9efbfdc7e239a2d44fcdf24d83c75f1e9f7fceee64c5ba513",
+                "archive_sha256": "874f4830f17cbb9d8dbcb40aea479f3438374141dcbeb3333c29caf86928b5b8",
+                "consistency_scope": "owned_components_stopped_and_adapter_quiesced",
+                "encrypted": true,
+                "from_inventory_sha256": "4918c902548ad63d358d97ddcd17f95c832b00bb6e1dff3c17bee11e7d041dcb",
+                "from_manifest_sha256": "1de9a425279ed9eb6651fe0b0ddc91660f20272803aa397ebd7512e9f0da4d1a",
+                "from_release": "reference-v2",
+                "from_schema_version": "2",
+                "includes_recovery_payload": true,
+                "installation_id": "f9a1c3f93302472d83668a90653cdab5",
+                "kind": "encrypted_backup",
+                "migration_eligible": true,
+                "operation_id": "op_7a6de9eeb32735e63ef72545a6b33a3f",
+                "plan_binding_sha256": "0a4c66a6163caafc5028fbb46c5129d160adf5c185d46d4ab40c5e8cefa61bc0",
+                "product_id": "homensai-reference",
+                "schema_version": 1,
+                "verification_scope": "encrypted_archive_and_recovery_payload_restored"
+              }
+            }
+          ],
+          "migration_review_id": "0a4c66a6163caafc5028fbb46c5129d160adf5c185d46d4ab40c5e8cefa61bc0",
+          "migration_review_sha256": "0a4c66a6163caafc5028fbb46c5129d160adf5c185d46d4ab40c5e8cefa61bc0",
+          "native_operation_token": "7a6de9eeb32735e63ef72545a6b33a3f",
+          "native_journal_sha256": "e3094cb78a4df7319b23f7eb27a5ce4e74de75fd9bde5335d452c4d51e4a1920",
+          "update_transaction": "eea59b65401b4fc99b37628d56af2f97",
+          "source_notes_sha256": "5a54075ecb544858d2c91d6fa81f608348a53d8d0bdbaba9e1f130ace8ffda6c",
+          "retained_user_files_sha256": {
+            "document": "07334e3f21851f4b036fd5cea1037364ef6468f413cd6ad755c13bb209fc42b6",
+            "credential": "581dd7bbb09334f9ab499b211e08c773219e972ed8a0209280739edc18ef5d77",
+            "settings": "a63b35362c1da2b6d268fe769ab32ba7b99996d3cdc7235a99e0f393d78034b0"
+          },
+          "public_factory_prepare_plan_submit": true,
+          "real_native_authorizer": true,
+          "source_and_target_live_health_identity": true,
+          "user_data_and_config_preserved": true,
+          "forward_journal_no_rollback": true,
+          "legacy_migration_marker_absent": true,
+          "owned_pid_stable_on_duplicate_start": true
+        }
+      ]
+    },
+    {
+      "profile": "update-lost-ack",
+      "status": "PASS",
+      "started_at_utc": "2026-11-18T14:21:50.799720+00:00",
+      "finished_at_utc": "2026-11-18T14:22:36.043912+00:00",
+      "raw_receipt_sha256": "a976c553726bcc50383a40c915109a15559c4fd2665699b6337b298e33b8c754",
+      "observations": [
+        {
+          "case": "true_adapter_update_1_to_2",
+          "status": "PASS",
+          "schema": 2,
+          "business_effect_rows": 2,
+          "source_release": "reference-v1",
+          "target_release": "reference-v2",
+          "source_runtime_sha256": "3fbc4d6c766a7a5d56c4bcc80d3325181a05f1b64596eb7cf622f0ec056dd546",
+          "target_runtime_sha256": "3fbc4d6c766a7a5d56c4bcc80d3325181a05f1b64596eb7cf622f0ec056dd546",
+          "verified_backups": [
+            {
+              "purpose": "archive",
+              "receipt_id": "04c7faf02e0075d675ab6c3ad33c8072e49d2957aa4ad5a30cd4df46be709aee",
+              "archive_sha256": "b0243388a76438f6a08151ddbf5e59cf9df89c74551b9aa55fd60cbe4e11666b",
+              "restored_source_schema": 1,
+              "backup_receipt_body": {
+                "archive_manifest_sha256": "fe20b93e78f1aab13b39e56da0dc2e32e3fced353a61176cda931e0b1d31acdb",
+                "archive_sha256": "b0243388a76438f6a08151ddbf5e59cf9df89c74551b9aa55fd60cbe4e11666b",
+                "consistency_scope": "owned_components_stopped_and_adapter_quiesced",
+                "encrypted": true,
+                "from_inventory_sha256": "84f4973438ed6aec43c8eb7206d0d623bee0ec51889c92ee499d302a93187540",
+                "from_manifest_sha256": "b27df4c7360b3ba33e04d13bc86df98efcca718a43f86ed583899b9673e7ac07",
+                "from_release": "reference-v1",
+                "from_schema_version": "1",
+                "includes_recovery_payload": true,
+                "installation_id": "e9f6d0c155d4459389614af6e0878d12",
+                "kind": "encrypted_backup",
+                "migration_eligible": true,
+                "operation_id": "op_6a4ed343384b7242150f137e9149e9a3",
+                "plan_binding_sha256": "0589b59be98588981aa59d62cd721023bf7d454ec9929762a1b00940dae9826a",
+                "product_id": "homensai-reference",
+                "schema_version": 1,
+                "verification_scope": "encrypted_archive_and_recovery_payload_restored"
+              }
+            },
+            {
+              "purpose": "backup:0",
+              "receipt_id": "43b3234c921a70bfc3ced831699ec6ea250055e29c7ff6951d17f3b0aa735d11",
+              "archive_sha256": "82ccd77265b72a14fbe9590c2ccc08e14b7e4f3f2d908351c11ab03117b5c428",
+              "restored_source_schema": 1,
+              "backup_receipt_body": {
+                "archive_manifest_sha256": "eeb744b7945f426e4156e59f2c3574c96ab15f3fd3dc6941c302272ee34c37a0",
+                "archive_sha256": "82ccd77265b72a14fbe9590c2ccc08e14b7e4f3f2d908351c11ab03117b5c428",
+                "consistency_scope": "owned_components_stopped_and_adapter_quiesced",
+                "encrypted": true,
+                "from_inventory_sha256": "84f4973438ed6aec43c8eb7206d0d623bee0ec51889c92ee499d302a93187540",
+                "from_manifest_sha256": "b27df4c7360b3ba33e04d13bc86df98efcca718a43f86ed583899b9673e7ac07",
+                "from_release": "reference-v1",
+                "from_schema_version": "1",
+                "includes_recovery_payload": true,
+                "installation_id": "e9f6d0c155d4459389614af6e0878d12",
+                "kind": "encrypted_backup",
+                "migration_eligible": true,
+                "operation_id": "op_6a4ed343384b7242150f137e9149e9a3",
+                "plan_binding_sha256": "0589b59be98588981aa59d62cd721023bf7d454ec9929762a1b00940dae9826a",
+                "product_id": "homensai-reference",
+                "schema_version": 1,
+                "verification_scope": "encrypted_archive_and_recovery_payload_restored"
+              }
+            }
+          ],
+          "migration_review_id": "0589b59be98588981aa59d62cd721023bf7d454ec9929762a1b00940dae9826a",
+          "migration_review_sha256": "0589b59be98588981aa59d62cd721023bf7d454ec9929762a1b00940dae9826a",
+          "native_operation_token": "6a4ed343384b7242150f137e9149e9a3",
+          "native_journal_sha256": "47fc5b3b12d3e0abbfa8d61cf3f593cb92b7f5d3216a0f4f73a0993048e109d4",
+          "update_transaction": "b886d1ab5b684befa6368a6672e8b4d4",
+          "source_notes_sha256": "5a54075ecb544858d2c91d6fa81f608348a53d8d0bdbaba9e1f130ace8ffda6c",
+          "retained_user_files_sha256": {
+            "document": "07334e3f21851f4b036fd5cea1037364ef6468f413cd6ad755c13bb209fc42b6",
+            "credential": "5749dbdf44c99a831637f0cc703a0bf221ee1ed3998d85e742ef37c74661efd8",
+            "settings": "a63b35362c1da2b6d268fe769ab32ba7b99996d3cdc7235a99e0f393d78034b0"
+          },
+          "public_factory_prepare_plan_submit": true,
+          "real_native_authorizer": true,
+          "source_and_target_live_health_identity": true,
+          "user_data_and_config_preserved": true,
+          "forward_journal_no_rollback": true,
+          "legacy_migration_marker_absent": true,
+          "owned_pid_stable_on_duplicate_start": true
+        },
+        {
+          "case": "installed_update_lost_ack_same_operation",
+          "status": "PASS",
+          "operation_id": "op_774d7ea0bd4f4ac98e888a43b4b95a3c",
+          "injection": "transport_response_lost_after_real_signed_apply",
+          "before_status": "RECOVERY_REQUIRED",
+          "duplicate_status": "RECOVERY_REQUIRED",
+          "resume_status": "SUCCEEDED",
+          "business_effect_rows": 2,
+          "adapter_ledger_before": "UNKNOWN",
+          "adapter_ledger_after": "SUCCEEDED",
+          "request_digest": "22f72eb59bbad45d0ab6044efa968804336cb8bb5ebfaf64c71f25f4cf1e55df",
+          "user_data_preserved": true,
+          "real_native_authorizer": true,
+          "automatic_restore": false
+        },
+        {
+          "case": "true_adapter_update_2_to_3",
+          "status": "PASS",
+          "schema": 3,
+          "business_effect_rows": 3,
+          "source_release": "reference-v2",
+          "target_release": "reference-v3",
+          "source_runtime_sha256": "3fbc4d6c766a7a5d56c4bcc80d3325181a05f1b64596eb7cf622f0ec056dd546",
+          "target_runtime_sha256": "3fbc4d6c766a7a5d56c4bcc80d3325181a05f1b64596eb7cf622f0ec056dd546",
+          "verified_backups": [
+            {
+              "purpose": "archive",
+              "receipt_id": "500afabaf45eca2f57545c2e9e6cbb52e7f18e6f51a80da746b9af042ad750e1",
+              "archive_sha256": "777dcbced7df23008727fd05524f23bf5eebe3c3b3596eb8e3a3d40a9c5946f0",
+              "restored_source_schema": 2,
+              "backup_receipt_body": {
+                "archive_manifest_sha256": "8888c48851c7e82ad45e79daabcf3b1e3f80e98d51b4946e46b56dc8a37cb8dc",
+                "archive_sha256": "777dcbced7df23008727fd05524f23bf5eebe3c3b3596eb8e3a3d40a9c5946f0",
+                "consistency_scope": "owned_components_stopped_and_adapter_quiesced",
+                "encrypted": true,
+                "from_inventory_sha256": "bed14fc3bd8f52ad9b1a72fa0f154d77661295dd3793127458aa5f643cbb23e9",
+                "from_manifest_sha256": "b27df4c7360b3ba33e04d13bc86df98efcca718a43f86ed583899b9673e7ac07",
+                "from_release": "reference-v2",
+                "from_schema_version": "2",
+                "includes_recovery_payload": true,
+                "installation_id": "e9f6d0c155d4459389614af6e0878d12",
+                "kind": "encrypted_backup",
+                "migration_eligible": true,
+                "operation_id": "op_a726c52dbca322e51d5e55e39c04eef2",
+                "plan_binding_sha256": "fd384eb2cf5eb02647b63f5cacc2112be48cb1cb31c3f3689730fdcc350b2098",
+                "product_id": "homensai-reference",
+                "schema_version": 1,
+                "verification_scope": "encrypted_archive_and_recovery_payload_restored"
+              }
+            },
+            {
+              "purpose": "backup:0",
+              "receipt_id": "1ab4cc0de5fc4663a7b04cc9010dec3c6f3745cfa09a36205b273f7ba9940172",
+              "archive_sha256": "b87914e99d3a56460c3b75e78abf1522b5c9d3fb4ace63f3a40b7fcbdd46c931",
+              "restored_source_schema": 2,
+              "backup_receipt_body": {
+                "archive_manifest_sha256": "4ca7f042130e277d9cbdcdf5552d466b646243bc56e39dcbae020eaba3489f00",
+                "archive_sha256": "b87914e99d3a56460c3b75e78abf1522b5c9d3fb4ace63f3a40b7fcbdd46c931",
+                "consistency_scope": "owned_components_stopped_and_adapter_quiesced",
+                "encrypted": true,
+                "from_inventory_sha256": "bed14fc3bd8f52ad9b1a72fa0f154d77661295dd3793127458aa5f643cbb23e9",
+                "from_manifest_sha256": "b27df4c7360b3ba33e04d13bc86df98efcca718a43f86ed583899b9673e7ac07",
+                "from_release": "reference-v2",
+                "from_schema_version": "2",
+                "includes_recovery_payload": true,
+                "installation_id": "e9f6d0c155d4459389614af6e0878d12",
+                "kind": "encrypted_backup",
+                "migration_eligible": true,
+                "operation_id": "op_a726c52dbca322e51d5e55e39c04eef2",
+                "plan_binding_sha256": "fd384eb2cf5eb02647b63f5cacc2112be48cb1cb31c3f3689730fdcc350b2098",
+                "product_id": "homensai-reference",
+                "schema_version": 1,
+                "verification_scope": "encrypted_archive_and_recovery_payload_restored"
+              }
+            }
+          ],
+          "migration_review_id": "fd384eb2cf5eb02647b63f5cacc2112be48cb1cb31c3f3689730fdcc350b2098",
+          "migration_review_sha256": "fd384eb2cf5eb02647b63f5cacc2112be48cb1cb31c3f3689730fdcc350b2098",
+          "native_operation_token": "a726c52dbca322e51d5e55e39c04eef2",
+          "native_journal_sha256": "d2f0f7366c854310ca3a9f585e0ac80dc27c4afb16fe599bbe4dc7eadedfab83",
+          "update_transaction": "55d06b5483f2419e938b82707f12d8c1",
+          "source_notes_sha256": "5a54075ecb544858d2c91d6fa81f608348a53d8d0bdbaba9e1f130ace8ffda6c",
+          "retained_user_files_sha256": {
+            "document": "07334e3f21851f4b036fd5cea1037364ef6468f413cd6ad755c13bb209fc42b6",
+            "credential": "5749dbdf44c99a831637f0cc703a0bf221ee1ed3998d85e742ef37c74661efd8",
+            "settings": "a63b35362c1da2b6d268fe769ab32ba7b99996d3cdc7235a99e0f393d78034b0"
+          },
+          "public_factory_prepare_plan_submit": true,
+          "real_native_authorizer": true,
+          "source_and_target_live_health_identity": true,
+          "user_data_and_config_preserved": true,
+          "forward_journal_no_rollback": true,
+          "legacy_migration_marker_absent": true,
+          "owned_pid_stable_on_duplicate_start": true
+        }
+      ]
+    },
+    {
+      "profile": "update-missing-ledger",
+      "status": "PASS",
+      "started_at_utc": "2026-11-18T14:21:43.405152+00:00",
+      "finished_at_utc": "2026-11-18T14:22:19.470375+00:00",
+      "raw_receipt_sha256": "01be5571a1d72c0a447636ffd416159da8fc42a5a12f3a238076930d56c996d6",
+      "observations": [
+        {
+          "case": "installed_update_missing_ledger_same_operation",
+          "status": "PASS",
+          "expected_failure": true,
+          "operation_id": "op_1da93766636e4824a415cdf910a38772",
+          "ledger_before_sha256": "b6a7a4b039016fa5a1faabfcb42a6800ccf2f8e28148a2ebd7cfc01e75131466",
+          "ledger_recreated": false,
+          "before_status": "RECOVERY_REQUIRED",
+          "reopened_status": "RECOVERY_REQUIRED",
+          "duplicate_status": "RECOVERY_REQUIRED",
+          "resume_status": "RECOVERY_REQUIRED",
+          "adapter_ledger_before": "UNKNOWN",
+          "business_effect_rows": 2,
+          "schema": 2,
+          "effects_and_schema_checked_after": [
+            "reopen_status",
+            "duplicate_submit",
+            "explicit_resume"
+          ],
+          "source_notes_sha256": "5a54075ecb544858d2c91d6fa81f608348a53d8d0bdbaba9e1f130ace8ffda6c",
+          "retained_user_files_sha256": {
+            "document": "07334e3f21851f4b036fd5cea1037364ef6468f413cd6ad755c13bb209fc42b6",
+            "credential": "63fd127c90d8081a442dd75326b9c93b28ac1fe08e85a8d5d83c816db1bf52e2",
+            "settings": "a63b35362c1da2b6d268fe769ab32ba7b99996d3cdc7235a99e0f393d78034b0"
+          },
+          "request_digest": "56bdd8e1f10c1306d7b73bbe532cfc9a7eb2808af824b387316d22f8efe7be8f",
+          "user_data_preserved": true,
+          "forward_journal_preserved": true
+        }
+      ],
+      "raw_receipt": "packaging/acceptance-evidence/installed-update-missing-ledger-20261118.json"
+    },
+    {
+      "profile": "update-persistent-unknown",
+      "status": "PASS",
+      "started_at_utc": "2026-11-18T14:21:03.124275+00:00",
+      "finished_at_utc": "2026-11-18T14:21:41.804905+00:00",
+      "raw_receipt_sha256": "3d12f3eede4bb9a05e14afec757b6f745a36e4373d22e2e9724b2ec377914dd2",
+      "observations": [
+        {
+          "case": "installed_update_persistent_unknown",
+          "status": "PASS",
+          "expected_failure": true,
+          "operation_id": "op_966e39f519024f77ae9c2829add37f14",
+          "injection": "sqlite_business_write_lock_during_signed_migration_apply",
+          "public_status": "RECOVERY_REQUIRED",
+          "public_error_code": "RECOVERY_REQUIRED",
+          "signed_apply_error_code": "ADAPTER_EXECUTION_FAILED",
+          "request_digest": "0ccf9f230a94ee3644a1fe7521da446e1080b6f9ce3a5b06e4be1b783a210eae",
+          "adapter_ledger": "UNKNOWN",
+          "reference_intent": "STARTED",
+          "signed_reconciliation_outcomes": [
+            "unknown",
+            "unknown"
+          ],
+          "migration_apply_attempts": 1,
+          "business_effect_rows": 1,
+          "schema": 1,
+          "active_release": "reference-v1",
+          "competing_operation_error": "RECOVERY_REQUIRED",
+          "user_data_preserved": true,
+          "source_notes_sha256": "5a54075ecb544858d2c91d6fa81f608348a53d8d0bdbaba9e1f130ace8ffda6c",
+          "retained_user_files_sha256": {
+            "document": "07334e3f21851f4b036fd5cea1037364ef6468f413cd6ad755c13bb209fc42b6",
+            "credential": "808d2c042c3a17753be3a494ae75e71d176082f9a2a131f4f9fd25e2581ca8d3",
+            "settings": "a63b35362c1da2b6d268fe769ab32ba7b99996d3cdc7235a99e0f393d78034b0"
+          },
+          "forward_journal_preserved": true,
+          "owned_listener_stopped": true
+        }
+      ],
+      "raw_receipt": "packaging/acceptance-evidence/installed-update-persistent-unknown-20261118.json"
+    },
+    {
+      "profile": "update-tampered-backup",
+      "status": "PASS",
+      "started_at_utc": "2026-11-18T14:21:03.172988+00:00",
+      "finished_at_utc": "2026-11-18T14:21:35.424913+00:00",
+      "raw_receipt_sha256": "f983ab0861576b63364c235d99b3daf5c8a92d7f5864111b10d3245494fc6d6c",
+      "observations": [
+        {
+          "case": "true_adapter_update_1_to_2",
+          "status": "PASS",
+          "expected_failure": true,
+          "source_schema": 1,
+          "business_effect_rows": 1,
+          "public_operation_id": "op_f7c143c243ba441f96423680eac97aba",
+          "public_status": "RECOVERY_REQUIRED",
+          "error_code": "RECOVERY_REQUIRED",
+          "fault_profile": "tampered_backup",
+          "injection": {
+            "before_sha256": "1abb9902eb7c5917791d4f33d655056ac1cbf1917d96f488381c634f8832d8f3",
+            "after_sha256": "7e0e9deba00ff7b59d615b81ca6f213f93da64a3e2cd6d5ca64e3b0c3da668da",
+            "receipt_id": "5a41b9a7df7c0da797334b515e101f189eeb2932d50582f2a4b1ebbdd84ffdf2"
+          },
+          "foreign_receipts": [],
+          "reopened_status": "RECOVERY_REQUIRED",
+          "duplicate_status": "RECOVERY_REQUIRED",
+          "resume_status": "RECOVERY_REQUIRED",
+          "same_original_operation_resumed": true,
+          "backup_refs_unchanged": true,
+          "user_data_preserved": true,
+          "preserved_document_sha256": "07334e3f21851f4b036fd5cea1037364ef6468f413cd6ad755c13bb209fc42b6",
+          "migration_apply_not_completed": true,
+          "forward_journal_preserved": true
+        }
+      ]
+    },
+    {
+      "profile": "update-foreign-backup",
+      "status": "PASS",
+      "started_at_utc": "2026-11-18T14:21:37.815392+00:00",
+      "finished_at_utc": "2026-11-18T14:22:14.166371+00:00",
+      "raw_receipt_sha256": "695498be5c6bd9ea3252063a26102c465a07be939b5d8c2890d20661e08cbaa1",
+      "observations": [
+        {
+          "case": "true_adapter_update_1_to_2",
+          "status": "PASS",
+          "expected_failure": true,
+          "source_schema": 1,
+          "business_effect_rows": 1,
+          "public_operation_id": "op_a03dd0c5aaa846b582c5d9718599671f",
+          "public_status": "RECOVERY_REQUIRED",
+          "error_code": "RECOVERY_REQUIRED",
+          "fault_profile": "foreign_backup",
+          "injection": {
+            "archive_sha256": "c643709d6d58ca513f4bf41d4e136cc01527ba77d75f65548e6694fa4444ef5a",
+            "receipt_id": "3d66575c5ada471fd00a6c0155234621c73ea572964ca58d2b5898a277dd2c2a"
+          },
+          "foreign_receipts": [
+            {
+              "original_receipt_id": "3d66575c5ada471fd00a6c0155234621c73ea572964ca58d2b5898a277dd2c2a",
+              "foreign_receipt_id": "91ab94e4198d93be488c21867379babd272236c9af911a502596f97f2cb43d9e",
+              "archive_sha256": "c643709d6d58ca513f4bf41d4e136cc01527ba77d75f65548e6694fa4444ef5a",
+              "foreign_operation_id": "op_foreign_acceptance",
+              "expected_operation_id": "op_5e76d9d0f0607cf9ac52fadbdd63a9fe",
+              "valid_for_own_binding": true
+            },
+            {
+              "original_receipt_id": "3d66575c5ada471fd00a6c0155234621c73ea572964ca58d2b5898a277dd2c2a",
+              "foreign_receipt_id": "91ab94e4198d93be488c21867379babd272236c9af911a502596f97f2cb43d9e",
+              "archive_sha256": "c643709d6d58ca513f4bf41d4e136cc01527ba77d75f65548e6694fa4444ef5a",
+              "foreign_operation_id": "op_foreign_acceptance",
+              "expected_operation_id": "op_5e76d9d0f0607cf9ac52fadbdd63a9fe",
+              "valid_for_own_binding": true
+            }
+          ],
+          "reopened_status": "RECOVERY_REQUIRED",
+          "duplicate_status": "RECOVERY_REQUIRED",
+          "resume_status": "RECOVERY_REQUIRED",
+          "same_original_operation_resumed": true,
+          "backup_refs_unchanged": true,
+          "user_data_preserved": true,
+          "preserved_document_sha256": "07334e3f21851f4b036fd5cea1037364ef6468f413cd6ad755c13bb209fc42b6",
+          "migration_apply_not_completed": true,
+          "forward_journal_preserved": true
+        }
+      ]
+    },
+    {
+      "profile": "update-live-data-drift",
+      "status": "PASS",
+      "started_at_utc": "2026-11-18T14:21:03.063795+00:00",
+      "finished_at_utc": "2026-11-18T14:21:35.661223+00:00",
+      "raw_receipt_sha256": "38d7c8004367e234b008d235c52d9390bebb6d4b8e4ebf41b4b969a8e8ddc097",
+      "observations": [
+        {
+          "case": "true_adapter_update_1_to_2",
+          "status": "PASS",
+          "expected_failure": true,
+          "source_schema": 1,
+          "business_effect_rows": 1,
+          "public_operation_id": "op_7d95313b68ca489c99a4cad41cbed48c",
+          "public_status": "RECOVERY_REQUIRED",
+          "error_code": "RECOVERY_REQUIRED",
+          "fault_profile": "live_data_drift",
+          "injection": {
+            "before_sha256": "07334e3f21851f4b036fd5cea1037364ef6468f413cd6ad755c13bb209fc42b6",
+            "after_sha256": "273dbd7b8f3a47025fdcf039722e95e50158cb889d120e67155628a57b540349",
+            "receipt_id": "30ead85529ec9d7c4d73e7cfedcd081675655516b06adadf9923a1d2da6eb5f1"
+          },
+          "foreign_receipts": [],
+          "reopened_status": "RECOVERY_REQUIRED",
+          "duplicate_status": "RECOVERY_REQUIRED",
+          "resume_status": "RECOVERY_REQUIRED",
+          "same_original_operation_resumed": true,
+          "backup_refs_unchanged": true,
+          "user_data_preserved": true,
+          "preserved_document_sha256": "273dbd7b8f3a47025fdcf039722e95e50158cb889d120e67155628a57b540349",
+          "migration_apply_not_completed": true,
+          "forward_journal_preserved": true
+        }
+      ]
+    },
+    {
+      "profile": "update-candidate-health",
+      "status": "PASS",
+      "started_at_utc": "2026-11-18T14:21:37.839855+00:00",
+      "finished_at_utc": "2026-11-18T14:22:17.027216+00:00",
+      "raw_receipt_sha256": "ca282a9d517bd686900ceffdf7bb8fa480f993924c75404ce378dca551d923eb",
+      "observations": [
+        {
+          "case": "true_adapter_update_1_to_2",
+          "status": "PASS",
+          "expected_failure": true,
+          "fault_profile": "candidate_health",
+          "public_operation_id": "op_88fd6f64321a49329d2a33515f98571f",
+          "public_status": "RECOVERY_REQUIRED",
+          "primary_error_code": "HEALTH_CHECK_FAILED",
+          "cleanup_error_code": null,
+          "candidate_stopped": true,
+          "candidate_pid_before_cleanup": 135,
+          "owned_candidate_identity_preserved_on_cleanup_failure": false,
+          "reopened_status": "RECOVERY_REQUIRED",
+          "duplicate_status": "RECOVERY_REQUIRED",
+          "resume_status": "SUCCEEDED",
+          "business_effect_rows": 2,
+          "schema": 2,
+          "verified_backups": [
+            {
+              "purpose": "archive",
+              "receipt_id": "5e8f3db3aaed41f087ee22381fc00ff5f4a916640a93f7192d66631ce7224454",
+              "archive_sha256": "baff7ad190e1e095798dd97e0106c40a84aa3a5537c44570ef1a2e34ff6bbd13",
+              "restored_source_schema": 1
+            },
+            {
+              "purpose": "backup:0",
+              "receipt_id": "0b57fbb188b5e5e9ab6a5e0353cc3128ead64a546c14116447985ba606ed9524",
+              "archive_sha256": "c13d00f199b123bc10146ddd39228a750346a8267fbba4344224bda4b88c0350",
+              "restored_source_schema": 1
+            }
+          ],
+          "preserved_candidate_document_sha256": "53757a239c53c4610930ccac90663b82814a38dc3a85e02eb9ba75335ddf8ce4",
+          "injection": "failure_after_real_signed_candidate_health",
+          "same_original_operation_resumed": true,
+          "forward_journal_preserved": true,
+          "automatic_restore": false
+        }
+      ]
+    },
+    {
+      "profile": "update-candidate-cleanup",
+      "status": "PASS",
+      "started_at_utc": "2026-11-18T14:22:18.211440+00:00",
+      "finished_at_utc": "2026-11-18T14:22:49.268713+00:00",
+      "raw_receipt_sha256": "a8145fc56854adcb958f7649c2ee9ba132d7963f0e71ad9df125bbd54e310c60",
+      "observations": [
+        {
+          "case": "true_adapter_update_1_to_2",
+          "status": "PASS",
+          "expected_failure": true,
+          "fault_profile": "candidate_cleanup",
+          "public_operation_id": "op_b526432b38424fc7b41d351f1f189f8b",
+          "public_status": "RECOVERY_REQUIRED",
+          "primary_error_code": "HEALTH_CHECK_FAILED",
+          "cleanup_error_code": "OPERATION_CONFLICT",
+          "candidate_stopped": false,
+          "candidate_pid_before_cleanup": 135,
+          "owned_candidate_identity_preserved_on_cleanup_failure": true,
+          "reopened_status": "RECOVERY_REQUIRED",
+          "duplicate_status": "RECOVERY_REQUIRED",
+          "resume_status": "SUCCEEDED",
+          "business_effect_rows": 2,
+          "schema": 2,
+          "verified_backups": [
+            {
+              "purpose": "archive",
+              "receipt_id": "48428c44fec09a0bd86c469adcd560269e024855c7d8bd1aef8cdf3e514d07f4",
+              "archive_sha256": "88ac287f3830922c512407f3fd9bc03fd1838f9c0983ae30a1a5143f1170eb89",
+              "restored_source_schema": 1
+            },
+            {
+              "purpose": "backup:0",
+              "receipt_id": "66ca4c704a58b76aaa8df5e396a3eaa5d09f30946c5c2ee12f50ec289c95b200",
+              "archive_sha256": "b5b1938af1dde00bea5d76df455666565c3c8693cf5c84bc2f9891b2938b0947",
+              "restored_source_schema": 1
+            }
+          ],
+          "preserved_candidate_document_sha256": "53757a239c53c4610930ccac90663b82814a38dc3a85e02eb9ba75335ddf8ce4",
+          "injection": "failure_after_real_signed_candidate_health_and_candidate_quiesce_failure",
+          "same_original_operation_resumed": true,
+          "forward_journal_preserved": true,
+          "automatic_restore": false
+        }
+      ]
+    }
+  ],
+  "wheel": {
+    "name": "homensai_install_module-0.1.0-py3-none-any.whl",
+    "sha256": "df3663d0d1cd4ac02c7113fee4c20b0cf5f07aca709c728502419cef98af4c21",
+    "exact_files_checked": 77
+  },
+  "reference_wheel": {
+    "name": "homensai_reference-1.0.0-py3-none-any.whl",
+    "sha256": "77d3c785a96593940dfbfc5d330df4774228674bf6614423d6581ce0c3aa8662",
+    "exact_files_checked": 7
+  },
+  "security_lock_sha256": "5f15cea1fd520f11375e04ca8afb67d0bc22e421e66c7e9cd72e73e0565c1345",
+  "harness_files": {
+    "check_installed_reference_lifecycle.py": "09a4e7852a58a5c1f486959e7fd75c00f3e822e4a41ccd1f6105b89d17338083",
+    "installed_reference_lifecycle_client.py": "47eb71cabb4b7cfc0d65ee8764afd1b03dec9ca6ee565f9b43023d7eb9dfa522",
+    "check_installed_product_adapter.py": "3051d62270f31d4d88cc094216ae56e492f6277423b31d91856bf7913185bcde",
+    "check_installed_sdk.py": "05a51efe6f2b26b94b92e56baa0f5f248d53758c4c26163a355879507d22f195",
+    "check_installed_prerequisites.py": "9e33c432149390513847e251cf69b698804a213782ca615ee8fa2a6187c7e7f1"
+  },
+  "dependencies": [
+    {
+      "name": "cryptography",
+      "version": "50.0.2",
+      "filename": "cryptography-50.0.2-cp311-abi3-manylinux_2_34_x86_64.whl",
+      "sha256": "9dab55f57c74c3cad24c323bacbbd04be4705ba6eb0d92e920b1fc4837ed5079",
+      "installed_verification": {
+        "exact_files_checked": 119,
+        "files_digest": "b3340ea9c3aa888e7ce45a4b65531423a4fbec78ccc330c8dd630aaea2d5569b"
+      }
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1",
+      "filename": "cffi-2.1.1-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "sha256": "b0431303acaea1089ad4b3e9ce4e6518193def1118d4073ca848635ee4ea2e96",
+      "installed_verification": {
+        "exact_files_checked": 30,
+        "files_digest": "bcb6606ed57bd9480f167b62edb208eccf4cdf945cdcfb85578c32ed58502bbc"
+      }
+    },
+    {
+      "name": "pycparser",
+      "version": "3.12",
+      "filename": "pycparser-3.12-py3-none-any.whl",
+      "sha256": "a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e",
+      "installed_verification": {
+        "exact_files_checked": 12,
+        "files_digest": "d789057e9fd2f952514e2af6745f341f8c0bd813fcf5866a40bba3e2f152f56e"
+      }
+    }
+  ],
+  "verified_installed_dependency_file_count": 161
+}

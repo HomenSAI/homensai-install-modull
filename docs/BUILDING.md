@@ -368,16 +368,25 @@ Job `linux-installed` создаёт build venv, wheelhouse и все клиен
 установка используют `--no-index`. Клиенты запускаются вне исходников и
 проверяют происхождение установленных модулей и неизменность package bytes.
 Выполняются SDK/CLI, prerequisites, обновление подписанного справочника ошибок
-и 17 reference profiles: последовательные
-updates, семь update fault scenarios, четыре recovery scenarios и
+и 18 reference profiles: последовательные
+updates, восемь update fault scenarios, четыре recovery scenarios и
 `uninstall-restore`, `recovery-root-resume`, `recovery-stage-resume`, `repair` и `reinstall`.
 
 `tools/summarize_installed_checks.py --include-fault-profiles` требует все
-20 успешных квитанций с точным `GITHUB_SHA`, ожидаемым profile и одинаковым
+21 успешную квитанцию с точным `GITHUB_SHA`, ожидаемым profile и одинаковым
 SHA-256 SDK wheel. Missing/stale/FAIL, неправильный профиль или иной wheel
 завершают job ошибкой. Отказ одного reference profile не пропускает остальные;
 каждый использует собственный work directory и имя receipt. Общая сводка
 выполняется также после отказа предыдущего шага.
+
+`update-persistent-unknown` удерживает SQLite write lock одноразовой базы во
+время настоящего подписанного `migration_apply`. Продуктовый intent остаётся
+`STARTED`, журнал адаптера сохраняет `UNKNOWN`. Два явных resume вызывают
+подписанный `operation_status`, оба получают `unknown`. Исходная операция
+остаётся `RECOVERY_REQUIRED`; другая операция через отдельный каталог SDK
+тоже блокируется. Проверяются схема v1, отсутствие повторного apply, активный
+релиз v1, данные и остановка listener. Это проверка SQLite write contention
+в Linux DEV. Проверки аппаратного сбоя и SIGKILL имеют отдельный scope.
 
 Отдельный `packaging/check_installed_error_catalog.py` собирает SDK wheel из
 проверяемой ревизии и устанавливает его вместе с тремя точными security wheels

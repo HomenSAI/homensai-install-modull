@@ -93,12 +93,22 @@
     "last_confirmed_checkpoint": "CP-20261026-011",
     "note": "Current checkpoint result must be checked from Git ref/history and external receipt; no recursive self-SHA commit"
   },
-  "next_step": "Разобрать GitHub CI run 40708599284: три Linux source FAIL на prerequisite executable, точное свойство runner файла не установлено; не ослаблять проверку. Затем на immutable SDKCP011 добавить installed update missing-ledger/UNKNOWN, foreign backup, live drift и candidate health/cleanup через original public operation. Lost ACK и tampered backup уже PASS только в Linux DEV scope. Далее verified before-restore/before-rollback и adapter restore/rollback; capabilities не включать заранее. Windows11/Ubuntu24 clean-host, product Docker/services, GUI, JobPilot/Rent и production trust/licences остаются gates.",
+  "next_step": "Проверить CI нового checkpoint и собрать новый Linux frozen DEV reference из текущего SDK и проверенного runtime. Продолжить приёмку по ACC: чистые Windows 11 / Ubuntu 24.04, GUI ru/en/de, product Docker/services, JobPilot/Rent, production trust и лицензии. Старый план восстановления Terra сохранён в историческом окне.",
+  "latest_development_verification": {
+    "checkpoint_id": "CP-20261118T142001Z-1842f43af2e4",
+    "sdk_source_revision": "82479935fe765365d9286a5bdacde1ca9d38f423",
+    "sdk_source_tree": "39271f94e172e6401330b953021da100cbe2defd",
+    "baseline_ci_runs": [40826997185, 40826990793],
+    "evidence": "packaging/acceptance-evidence/installed-update-matrix-20261118.json",
+    "installed_update_profiles_passed": 9,
+    "scope": "Linux DEV: последовательные обновления и восемь update fault profiles",
+    "gate_status": "G0–G5 OPEN"
+  },
   "production_ready": false,
   "installed_acceptance": {
     "windows_native": "NOT RUN",
     "windows_docker": "BLOCKED",
-    "linux_native": "PARTIAL PASS: public adapter fresh1→update2→update3/start/stop/backup, 4 actual archive restores on SDK6edcbb83; borrowedDEVruntime, no clean-host/full lifecycle",
+    "linux_native": "PARTIAL PASS: current SDK 8247993 in Linux DEV, including update faults, restore/rollback and maintenance. Clean-host acceptance NOT RUN.",
     "linux_docker": "NOT RUN: daemon доступен; browser/source в DEV контейнере не являются product Docker backend acceptance"
   },
   "last_confirmed_github_sha": "6edcbb83a018e72d235cc3eb192864e238a82755",

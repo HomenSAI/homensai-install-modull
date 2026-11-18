@@ -1,5 +1,25 @@
 # Продолжение разработки
 
+## Актуальное состояние 18.11.2026
+
+Рабочая ветка обновлена с `377e07f` до подтверждённого GitHub `8247993`
+через fast-forward. Между ними уже реализованы DEV restore/rollback с
+before-recovery archive, recovery resume, uninstall→restore, repair/reinstall
+и подписанный справочник. Два прогона GitHub Actions на этом SHA завершили
+Linux source/integration, Windows portable и 17 installed reference profiles.
+
+HIM-054 на следующем checkpoint дополняют `update-persistent-unknown` и
+проверка эффектов после каждого запроса в `update-missing-ledger`. В Linux DEV
+прошли fresh→v2→v3 и все восемь update fault profiles на SDK `8247993`.
+Квитанции находятся в `packaging/acceptance-evidence/installed-update-matrix-20261118.json`.
+CI нового checkpoint проверяется по SHA этой контрольной точки.
+
+Следующий приоритет — новый Linux frozen DEV smoke и затем полная приёмка
+на чистых Windows 11 / Ubuntu 24.04 с GUI, product Docker и службами. Хост
+этого запуска — Windows 10 Home с Docker Desktop в Linux mode. JobPilot,
+Rent, production trust и аудит распространяемого runtime остаются открытыми.
+G0–G5 OPEN, `production_ready=false`. Остановленные окна ниже — история.
+
 ## Очередь Terra 200 задач остановлена владельцем
 
 2026-10-28T16:25:11Z. Завершено 77/200; пункты 084 и 085 выполнены после

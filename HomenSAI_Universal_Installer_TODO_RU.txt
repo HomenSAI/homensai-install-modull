@@ -872,6 +872,15 @@ Sync: local=SYNC_CONFIRMED; Docker Git=SYNC_BLOCKED; GitHub=SYNC_CONFIRMED (по
 Sync: local=NOT_CHECKED; Docker Git=NOT_CHECKED; GitHub=NOT_CHECKED.
 
 [ ] HIM-054. Реализовать последовательные updates v1 → v2 → v3
+CP-20261118T142001Z-1842f43af2e4: в Linux DEV проверен installed update при
+устойчивом UNKNOWN. Настоящий подписанный apply записал intent STARTED и
+получил отказ на блокировке записи SQLite. Два resume исходной операции
+получили UNKNOWN через подписанный status. Другой start заблокирован, схема
+и active release v1, пользовательские данные и forward journal сохранены.
+Missing-ledger подтверждён отдельно, включая неизменность эффектов после
+каждого запроса. SDK 8247993; матрица включает восемь update fault profiles.
+Доказательства: packaging/acceptance-evidence/installed-update-matrix-20261118.json.
+Полная приёмка HIM-054 и ACC-09 остаётся открытой.
 Terra CP-20261028T143449Z-8878f171e2eb: отдельный installed lost-ACK harness
 подготовлен как WIP; только синтаксис проверен, сценарий NOT RUN. Основные
 runtime/capabilities не менялись; приёмка HIM-054 остаётся IN_PROGRESS.

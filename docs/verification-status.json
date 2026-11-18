@@ -574,11 +574,16 @@
       "ready": false,
       "test_code": "PARTIAL",
       "existing_partial_harnesses": [
-        "packaging/check_reference_upgrade.cjs"
+        "packaging/check_reference_upgrade.cjs",
+        "packaging/check_installed_reference_lifecycle.py"
       ],
-      "next_executor_action": "Новые v1/v2/v3 bytes: update/reinstall/повтор версии с проверкой БД, user files и реального runtime. Docker/Windows lifecycle ещё не завершён.",
-      "current_artifact_evidence": [],
-      "note": "Общий сценарий не принят. Частичный source/исторический PASS не закрывает его."
+      "next_executor_action": "Повторить update/reinstall и повтор версии на новом чистом Windows 11 / Ubuntu 24.04 артефакте, затем на product Docker. Проверить БД, пользовательские файлы и реальный runtime.",
+      "current_artifact_evidence": [
+        "packaging/acceptance-evidence/installed-update-matrix-20261118.json",
+        "packaging/acceptance-evidence/installed-update-persistent-unknown-20261118.json",
+        "packaging/acceptance-evidence/installed-update-missing-ledger-20261118.json"
+      ],
+      "note": "PASS в Linux DEV на SDK 8247993: fresh→v2→v3 и восемь update fault profiles. Общий сценарий и clean-host матрица остаются открытыми."
     },
     {
       "scenario_id": "ACC-10",

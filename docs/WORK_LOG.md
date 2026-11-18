@@ -1,3 +1,11 @@
+## 18.11.2026 — HIM-054 / CP-20261118T142001Z-1842f43af2e4
+
+Синхронизированы 18 коммитов GitHub до `8247993`. Подтверждены два успешных
+baseline runs с Linux source/integration, Windows portable и installed DEV.
+Добавлен `update-persistent-unknown`, усилен `update-missing-ledger`, проверена
+матрица свежих installed updates. Доказательства и границы — в `docs/RESUME.md`
+и `packaging/acceptance-evidence/installed-update-matrix-20261118.json`.
+
 # Остановка и перенос Terra 200
 
 2026-10-28T16:25:11Z — CP-20261028T162443Z-dc515129ff54: 77/200, передача на другой компьютер в docs/TERRA61_200_TRANSFER_RU.md. Исторические результаты сохраняют свой scope.

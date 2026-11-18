@@ -1,5 +1,25 @@
 # Фактическое состояние реализации
 
+## Текущая DEV-приёмка 18.11.2026
+
+На SDK `8247993` GitHub Actions подтвердил Linux source/integration, Windows
+portable и 17 профилей установленного reference. Среди них restore/rollback,
+восстановление исходной операции после прерывания, uninstall→restore,
+repair/reinstall. Отдельный installed профиль подтвердил локальные подписанные
+обновления справочника. Подробности контрактов — в `INSTALLER_API.md`.
+
+Свежий offline DEV прогон новой матрицы на этом SDK подтвердил happy path и
+восемь update faults, включая устойчивый `UNKNOWN` при блокировке записи SQLite.
+Фактический signed status дважды вернул `unknown`, повтор миграции и конкурирующий
+start заблокированы. Схема v1, данные и forward journal сохранены. При потере
+журнала после успешного signed apply проверены схема v2 и ровно два эффекта
+после повторного открытия, duplicate submit и resume. Квитанция
+`packaging/acceptance-evidence/installed-update-matrix-20261118.json`.
+
+G0–G5 OPEN. Windows 11 и Ubuntu 24.04 clean host, полный GUI, product Docker,
+службы и интеграции JobPilot/Rent остаются в приёмочной очереди.
+`production_ready=false`. Ниже приведены исторические snapshots.
+
 ## Финальный handoff CP-20261026-012
 
 Работа завершена по указанию владельца в окне до17:00Berlin/16:00UTC. Single-step adapter update Linux/native/user реализован и принят в DEV scope. Полный frozen source/integration: 2625PASS/3skip/15subtests, 1181.13s,208inputs unchanged. Installed public factory→fresh1→update2→update3 на immutable SDK6edcbb83 PASS:70SDK/7reference/161dependency files unchanged; effects1/2/3, source/target runtime+health identity, данные/settings/syntheticcredential сохранны. Все4update encrypted archives действительно decrypt/restored в oracle. Root2datafaultPASS/25contractPASS; core180PASS и отдельно223PASS/1root-exportdeselect (пересекаются с full, не складывать). CI SDKCP011:Linux/Windows source jobs success. Forward journal не делает automatic legacy restore; UNKNOWN/missingledger не разрешает повтор. Public restore/rollback/repair/reinstall/uninstall adapter capabilities остаютсяfalse. BorrowedDEVruntime, это не clean-host/standalone acceptance. Production_ready=false, G0–G5 OPEN. Веб-страница текущей работы опубликована privately; финальная публикация её результатов выполняется после этого checkpoint и хранится внешнейreceipt.

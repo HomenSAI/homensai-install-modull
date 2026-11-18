@@ -233,7 +233,11 @@ Fresh v1 → update v2 → update v3; повтор версии и reinstall. З
 
 Готовность тестового сценария: **PARTIAL**. Новые v1/v2/v3 bytes: update/reinstall/повтор версии с проверкой БД, user files и реального runtime. Docker/Windows lifecycle ещё не завершён.
 
-Существующая частичная проверка: `packaging/check_reference_upgrade.cjs`.
+Существующая частичная проверка: `packaging/check_reference_upgrade.cjs` и
+`packaging/check_installed_reference_lifecycle.py`. Новая квитанция
+`packaging/acceptance-evidence/installed-update-matrix-20261118.json` подтверждает
+последовательные update, persistent UNKNOWN и семь других update faults в Linux
+DEV на SDK `8247993`. Полный ACC-09 остаётся NOT RUN.
 
 ### ACC-10 — NOT RUN; НЕ ГОТОВО
 

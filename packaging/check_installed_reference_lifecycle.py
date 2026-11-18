@@ -38,6 +38,7 @@ UPDATE_FAULTS = {
     "update-lost-ack": "lost_ack",
     "update-tampered-backup": "tampered_backup",
     "update-missing-ledger": "missing_ledger",
+    "update-persistent-unknown": "persistent_unknown",
     "update-foreign-backup": "foreign_backup",
     "update-live-data-drift": "live_data_drift",
     "update-candidate-health": "candidate_health",

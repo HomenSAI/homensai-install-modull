@@ -1,4 +1,5 @@
 """Public installed SDK reference preparation/fresh/update; без checkout imports."""
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -14,6 +15,7 @@ from urllib.request import ProxyHandler, build_opener
 
 PRE_APPLY_FAULTS = {"tampered_backup", "foreign_backup", "live_data_drift"}
 HEALTH_FAULTS = {"candidate_health", "candidate_cleanup"}
+FENCED_UPDATE_FAULTS = {*PRE_APPLY_FAULTS, "missing_ledger", "persistent_unknown"}
 MAINTENANCE_PROFILES = {"repair", "reinstall"}
 
 
@@ -1243,6 +1245,117 @@ def main():
                             same_original_operation_resumed=True, forward_journal_preserved=True, automatic_restore=False)
                         active_update = None
                         break
+                    if config.get("fault_profile") == "persistent_unknown" and target_version == 2:
+                        from homensai_install.adapters import ExecutableProductAdapter
+
+                        original_execute = ExecutableProductAdapter._execute
+                        migration_attempts, transport_errors, reconciliations = [], [], []
+                        consent = [*update_plan["required_consents"], update_plan["review_consent_ref"]]
+                        key = "persistent-unknown-update"
+                        pointer = root / "services" / manifest["update"]["pointer_file"]
+                        ledger = root / ".hinstall/product-adapter" / target_release / "adapter-invocations.sqlite3"
+                        reference_ledger = database.with_name("reference-adapter.sqlite3")
+
+                        def read_effects():
+                            with closing(sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)) as db:
+                                return db.execute("SELECT request_digest,result FROM product_adapter_effects ORDER BY request_digest").fetchall()
+
+                        effects_before = read_effects()
+                        assert len(effects_before) == 1
+
+                        def lock_business_write(adapter, hook, request, request_digest):
+                            if hook == "migration_apply" and adapter.options["release"] == target_release:
+                                assert not migration_attempts, "Повторный migration_apply при UNKNOWN"
+                                migration_attempts.append(request_digest)
+                                # После штатной проверки backup и записи SDK intent настоящий signed
+                                # hook запишет product intent, но его SQLite write transaction не начнётся.
+                                with closing(sqlite3.connect(database.as_uri() + "?mode=rw", uri=True)) as writer:
+                                    writer.execute("BEGIN IMMEDIATE")
+                                    try:
+                                        return original_execute(adapter, hook, request, request_digest)
+                                    except InstallerError as error:
+                                        transport_errors.append(error.code)
+                                        raise
+                                    finally:
+                                        writer.rollback()
+                            result = original_execute(adapter, hook, request, request_digest)
+                            if hook == "operation_status" and request["data"]["hook"] == "migration_apply":
+                                assert result == {"outcome": "unknown", "request_digest": migration_attempts[0]}
+                                reconciliations.append(result["outcome"])
+                            return result
+
+                        def check_fenced(operation):
+                            assert operation["operation_id"] == operation_id
+                            assert operation["status"] == "RECOVERY_REQUIRED", operation
+                            assert (operation.get("error") or {}).get("code") == "RECOVERY_REQUIRED"
+                            state = json.loads(native_path.read_text())
+                            assert state["status"] == "RECOVERY_REQUIRED"
+                            assert state["product_adapter_unknown"] is True
+                            assert state["product_adapter_migration_started"] is True
+                            assert state["product_adapter_migration_complete"] is False
+                            assert state["product_adapter_backup_refs"] == backup_refs
+                            assert forward_path.read_bytes() == forward_before
+                            with closing(sqlite3.connect(ledger.as_uri() + "?mode=ro", uri=True)) as db:
+                                assert db.execute("SELECT request_digest,state FROM calls WHERE hook='migration_apply'").fetchall() == [(migration_attempts[0], "UNKNOWN")]
+                            with closing(sqlite3.connect(reference_ledger.as_uri() + "?mode=ro", uri=True)) as db:
+                                assert db.execute("SELECT state FROM migration_intents WHERE request_digest=?", migration_attempts).fetchall() == [("STARTED",)]
+                            assert read_effects() == effects_before
+                            assert notes(database) == source_data
+                            assert json.loads(pointer.read_text()) == {"release": source_release}
+                            assert {"document": sha(document.read_bytes()), "credential": sha(credential.read_bytes()),
+                                    "settings": sha(settings.read_bytes())} == retained
+                            assert not json.loads((root / ".hinstall/processes.json").read_text())
+                            listener_stopped(config["port"])
+
+                        ExecutableProductAdapter._execute = lock_business_write
+                        try:
+                            interrupted = current.submit(update_plan["plan_id"], update_plan["plan_digest"],
+                                consent, idempotency_key=key, background=False)
+                            assert len(migration_attempts) == 1 and not reconciliations
+                            assert transport_errors == ["ADAPTER_EXECUTION_FAILED"]
+                            operation_id = interrupted["operation_id"]
+                            native_path, = (path for path in (root / ".hinstall/operations").glob("*.json")
+                                            if json.loads(path.read_text()).get("migration_review_id") == update_review["migration_review_id"])
+                            forward_path = root / "services" / ("update-" + native_path.stem + ".json")
+                            forward_before = forward_path.read_bytes()
+                            forward = json.loads(forward_before)
+                            assert forward["direction"] == "forward" and forward["outcome"] == "running"
+                            backup_refs = json.loads(native_path.read_text())["product_adapter_backup_refs"]
+                            assert {value["purpose"] for value in backup_refs.values()} == {"archive", "backup:0"}
+                            check_fenced(interrupted)
+                            current = api("fresh-sdk-state")
+                            check_fenced(current.status(operation_id))
+                            check_fenced(current.submit(update_plan["plan_id"], update_plan["plan_digest"],
+                                consent, idempotency_key=key, background=False))
+                            assert not reconciliations
+                            for _ in range(2):
+                                check_fenced(current.resume(operation_id, {}, background=False))
+                            assert reconciliations == ["unknown", "unknown"]
+                            other = api("competing-sdk-state")
+                            other_plan = other.plan("start", manifest, target, options=bundles["1"])
+                            blocked = other.submit(other_plan["plan_id"], other_plan["plan_digest"],
+                                [*other_plan["required_consents"], other_plan["review_consent_ref"]],
+                                idempotency_key="competing-start", background=False)
+                            assert blocked["operation_id"] != operation_id
+                            assert (blocked.get("error") or {}).get("code") == "RECOVERY_REQUIRED", blocked
+                            check_fenced(current.status(operation_id))
+                            assert reconciliations == ["unknown", "unknown"]
+                        finally:
+                            ExecutableProductAdapter._execute = original_execute
+
+                        active_update.update(status="PASS", expected_failure=True,
+                            case="installed_update_persistent_unknown", operation_id=operation_id,
+                            injection="sqlite_business_write_lock_during_signed_migration_apply",
+                            public_status="RECOVERY_REQUIRED", public_error_code="RECOVERY_REQUIRED",
+                            signed_apply_error_code=transport_errors[0],
+                            request_digest=migration_attempts[0], adapter_ledger="UNKNOWN", reference_intent="STARTED",
+                            signed_reconciliation_outcomes=reconciliations, migration_apply_attempts=len(migration_attempts),
+                            business_effect_rows=len(effects_before), schema=source_version, active_release=source_release,
+                            competing_operation_error=blocked["error"]["code"], user_data_preserved=True,
+                            source_notes_sha256=sha(canonical(source_data["notes"])), retained_user_files_sha256=dict(retained),
+                            forward_journal_preserved=True, owned_listener_stopped=True)
+                        active_update = None
+                        break
                     if config.get("fault_profile") in {"lost_ack", "missing_ledger"} and target_version == 2:
                         # Test-only transport fault, after the real signed subprocess has
                         # committed its SQLite effect and returned a validated response.
@@ -1294,21 +1407,24 @@ def main():
                             ledger_digest = sha(ledger.read_bytes())
                             ledger.unlink()
                             assert not ledger.exists()
+
+                            def check_missing_ledger(operation):
+                                assert operation["operation_id"] == operation_id
+                                assert operation["status"] == "RECOVERY_REQUIRED", operation
+                                assert (operation.get("error") or {}).get("code") == "RECOVERY_REQUIRED"
+                                assert not ledger.exists()
+                                with closing(sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)) as db:
+                                    assert db.execute("SELECT request_digest,result FROM product_adapter_effects ORDER BY request_digest").fetchall() == effects_before
+                                    assert db.execute("SELECT version FROM schema_migrations ORDER BY version").fetchall() == [(1,), (2,)]
+
                             current = api("fresh-sdk-state")
                             after_reopen = current.status(operation_id)
-                            assert after_reopen["operation_id"] == operation_id
-                            assert after_reopen["status"] == "RECOVERY_REQUIRED"
-                            assert not ledger.exists()
+                            check_missing_ledger(after_reopen)
                             duplicate = current.submit(update_plan["plan_id"], update_plan["plan_digest"],
                                 consent, idempotency_key=key, background=False)
-                            assert duplicate["operation_id"] == operation_id and duplicate["status"] == "RECOVERY_REQUIRED"
-                            assert not ledger.exists()
+                            check_missing_ledger(duplicate)
                             resumed = current.resume(operation_id, {}, background=False)
-                            assert resumed["operation_id"] == operation_id and resumed["status"] == "RECOVERY_REQUIRED", resumed
-                            assert not ledger.exists()
-                            with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
-                                assert db.execute("SELECT request_digest,result FROM product_adapter_effects ORDER BY request_digest").fetchall() == effects_before
-                                assert db.execute("SELECT version FROM schema_migrations ORDER BY version").fetchall() == [(1,), (2,)]
+                            check_missing_ledger(resumed)
                             assert notes(database)["notes"] == source_data["notes"]
                             assert sha(document.read_bytes()) == retained["document"]
                             assert sha(credential.read_bytes()) == retained["credential"]
@@ -1325,7 +1441,8 @@ def main():
                                 ledger_before_sha256=ledger_digest, ledger_recreated=False,
                                 before_status=interrupted["status"], reopened_status=after_reopen["status"],
                                 duplicate_status=duplicate["status"], resume_status=resumed["status"],
-                                business_effect_rows=len(effects_before), schema=2,
+                                adapter_ledger_before="UNKNOWN", business_effect_rows=len(effects_before), schema=2,
+                                effects_and_schema_checked_after=["reopen_status", "duplicate_submit", "explicit_resume"],
                                 source_notes_sha256=sha(canonical(source_data["notes"])),
                                 retained_user_files_sha256=dict(retained), request_digest=injected[0],
                                 user_data_preserved=True, forward_journal_preserved=True)
@@ -1457,10 +1574,10 @@ def main():
                         "user_data_and_config_preserved": True, "forward_journal_no_rollback": True,
                         "legacy_migration_marker_absent": True, "owned_pid_stable_on_duplicate_start": True})
                     active_update = None
-                if config.get("fault_profile") not in {*PRE_APPLY_FAULTS, *HEALTH_FAULTS, "missing_ledger"}:
+                if config.get("fault_profile") not in FENCED_UPDATE_FAULTS | HEALTH_FAULTS:
                     run_action(current, "stop", bundles["3"], "update-final-stop")
                 listener_stopped(config["port"])
-                for directory in (root / ".hinstall", work / "fresh-sdk-state"):
+                for directory in (root / ".hinstall", work / "fresh-sdk-state", work / "competing-sdk-state"):
                     for path in directory.rglob("*"):
                         if path.is_file():
                             raw = path.read_bytes()
@@ -1538,7 +1655,7 @@ def main():
         for cleanup_root, version in ((legacy_root, "1"), (root if config["profile"] in {"fresh", "update-readiness", "update", "recovery", *MAINTENANCE_PROFILES} else None, "1")):
             if cleanup_root is not None and (cleanup_root / ".hinstall/installation.json").exists():
                 try:
-                    if (config.get("fault_profile") in {*PRE_APPLY_FAULTS, "missing_ledger"}
+                    if (config.get("fault_profile") in FENCED_UPDATE_FAULTS
                             or config.get("recovery_fault") == "missing_ledger") and cleanup_root == root:
                         listener_stopped(config["port"])
                         continue
